@@ -8204,6 +8204,281 @@ bool rampFromText(const std::string& text, Ramp& ramp, std::string& error) {
     return true;
 }
 
+// What the legend and the keys under the map need of the chart being drawn: references to the render's own values, so the code that draws them can be moved out of render() unchanged.
+struct LegendState {
+    const Product& product;
+    const Grids& grids;
+    const Options& options;
+    const GfsData::Run& run;
+    QPainter& p;
+    QImage& image;
+    double S;
+    const QRectF& area;
+    int margin;
+    const Ramp& rampRef;
+    bool layerKey;
+    double deviationLow, deviationHigh;
+    double fillMin, fillMax;
+    QFont& font;
+    const QFontMetricsF& metrics;
+    bool us;
+};
+
+template <class Label>
+void drawLegend(LegendState& state, const Label& drawLabel) {
+    const Product& product = state.product; const Grids& grids = state.grids; const Options& options = state.options; const GfsData::Run& run = state.run;
+    QPainter& p = state.p; QImage& image = state.image; const double S = state.S; const QRectF& area = state.area; const int margin = state.margin; const Ramp * ramp = &state.rampRef;
+    const bool layerKey = state.layerKey; const double deviationLow = state.deviationLow, deviationHigh = state.deviationHigh; const double fillMin = state.fillMin, fillMax = state.fillMax;
+    QFont& font = state.font; const QFontMetricsF& metrics = state.metrics; const bool us = state.us;
+    // legend: even steps in value, or (legendStep 0) one equal-width block per ramp stop
+    const double barLeft = margin + 6.0, barTop = area.bottom() + 12.0, barWidth = area.width() - 12.0, barHeight = 16.0;
+    const auto& stops = ramp->stops;
+    const double first = stops.front().first, last = stops.back().first;
+    const bool stepped = product.legendStep <= 0.0;
+    // an export's bar holds only the values the picture or the loop has, the smallest at the left: not for the scales of categories (a step for each stop), which have no range to speak of
+    double rangeLow = 0.0, rangeHigh = 0.0;
+    bool useRange = false;
+    if (options.legendFit && !std::isnan(fillMax)) {
+        rangeLow = fillMin;
+        rangeHigh = fillMax;
+        useRange = true;
+    } else if (options.legendRange) {
+        rangeLow = options.legendLow;
+        rangeHigh = options.legendHigh;
+        useRange = true;
+    }
+    useRange = useRange && rangeHigh > rangeLow && (ramp->banded || !stepped);
+    const auto valueAt = [&] (double t) {   // t 0..1 along the bar
+        if (useRange) {
+            return rangeLow + (rangeHigh - rangeLow) * t;
+        }
+        if (ramp->banded) {   // one flat block for each band
+            return stops[std::min(static_cast<size_t>(t * static_cast<double>(stops.size())), stops.size() - 1)].first;
+        }
+        if (!stepped) {
+            return first + (last - first) * t;
+        }
+        const double position = t * static_cast<double>(stops.size() - 1);
+        const size_t i = std::min(static_cast<size_t>(position), stops.size() - 2);
+        return stops[i].first + (stops[i + 1].first - stops[i].first) * (position - static_cast<double>(i));
+    };
+    const bool noBar = product.linesOnly || layerKey;   // (no scale to show: the lines, or the sets of a paintball, are the chart)
+    for (int x = 0; !noBar && x < static_cast<int>(barWidth); x++) {
+        const QRgb c = ramp->at(valueAt(x / barWidth));
+        // a ramp that begins clear is drawn as the pale ground on the bar
+        const int a = qAlpha(c);
+        const QColor ground{244, 244, 244};
+        p.fillRect(QRectF{barLeft + x, barTop, 1.5, barHeight}, QColor{(qRed(c) * a + ground.red() * (255 - a)) / 255, (qGreen(c) * a + ground.green() * (255 - a)) / 255, (qBlue(c) * a + ground.blue() * (255 - a)) / 255});
+    }
+    p.setPen(QColor{60, 60, 60});
+    p.setBrush(Qt::NoBrush);
+    if (layerKey) {   // (the key of the sets is drawn below, with the chance lines)
+    } else if (!product.linesOnly) {
+        p.drawRect(QRectF{barLeft, barTop, barWidth, barHeight});
+    } else if (product.contours.size() > 1) {   // lines of several sets (models compared): a key, a sample of each line's color and what it is
+        double x = barLeft;
+        for (const auto& set : product.contours) {
+            if (set.title.empty()) {   // a line of many alike (a member of fifty) is not in the key
+                continue;
+            }
+            const QString name = QString::fromStdString(set.title);
+            const double width = QFontMetricsF{p.font()}.horizontalAdvance(name);
+            p.setPen(QPen{set.color, 3.0});
+            p.drawLine(QPointF{x, barTop + barHeight / 2.0}, QPointF{x + 26.0, barTop + barHeight / 2.0});
+            p.setPen(QColor{60, 60, 60});
+            drawLabel(QRectF{x + 32.0, barTop, width + 4.0, barHeight}, Qt::AlignLeft | Qt::AlignVCenter, name);
+            x += 32.0 + width + 22.0;
+        }
+    } else {   // the lines are the chart: a line of explanation where the color bar would be
+        drawLabel(QRectF{barLeft, barTop, barWidth, barHeight}, Qt::AlignLeft | Qt::AlignVCenter, QString::fromStdString(product.fillTitle));
+    }
+    const auto tick = [&] (double t, double value) {
+        const double x = barLeft + t * barWidth;
+        p.drawLine(QPointF{x, barTop + barHeight}, QPointF{x, barTop + barHeight + 4});
+        drawLabel(QRectF{x - 24, barTop + barHeight + 4, 48, 14}, Qt::AlignHCenter, numberText(shown(product.quantity, value, us)));
+    };
+    if (noBar) {
+        // no scale to number
+    } else if (ramp->banded) {   // the number at the lower edge of each band, as the model guidance site's legends have it
+        // many narrow bands (4 degree ones): a number every few bands so they do not run together; the first stop (-100, "and below") has none
+        const size_t every = std::max<size_t>(1, static_cast<size_t>(std::ceil(static_cast<double>(stops.size()) * 40.0 / barWidth)));
+        double lastTick = -1000.0;
+        for (size_t i = 0; i < stops.size(); i++) {
+            if (useRange) {   // the bands inside the range, at their place on a bar of values
+                const double t = (stops[i].first - rangeLow) / (rangeHigh - rangeLow);
+                if (stops[i].first > -90.0 && t >= 0.0 && t <= 1.0 && t * barWidth - lastTick >= 36.0) {
+                    tick(t, stops[i].first);
+                    lastTick = t * barWidth;
+                }
+            } else if (stops[i].first > -90.0 && (i % every == 0 || stops.size() <= 16)) {
+                tick(static_cast<double>(i) / static_cast<double>(stops.size()), stops[i].first);
+            }
+        }
+    } else if (stepped) {
+        for (size_t i = 0; i < stops.size(); i++) {
+            if (i > 0 || stops[i].second.alpha() == 255) {
+                tick(static_cast<double>(i) / static_cast<double>(stops.size() - 1), stops[i].first);
+            }
+        }
+    } else {
+        // steps are in displayed units: walk them in displayed value and map back
+        const double from = useRange ? rangeLow : first, to = useRange ? rangeHigh : last;
+        const double lowShown = shown(product.quantity, from, us), highShown = shown(product.quantity, to, us);
+        double step = product.legendStep;
+        if (useRange) {   // a few numbers across the range: the chart's step made finer when the range is short, coarser when it is long
+            for (int i = 0; i < 6 && (highShown - lowShown) / step < 3.0; i++) {
+                step /= 2.0;
+            }
+            for (int i = 0; i < 6 && (highShown - lowShown) / step > 9.0; i++) {
+                step *= 2.0;
+            }
+        }
+        for (double value = std::ceil(lowShown / step) * step; value <= highShown + 1e-9; value += step) {
+            const double base = (value - lowShown) / (highShown - lowShown);
+            tick(base, from + (to - from) * base);
+        }
+    }
+    if (useRange && !noBar) {   // the ends of the bar: the smallest value at the left, the largest at the right
+        QFont small = p.font();
+        small.setPixelSize(std::max(9, small.pixelSize() - 1));
+        small.setBold(true);
+        p.setFont(small);
+        p.setPen(QColor{60, 60, 60});
+        drawLabel(QRectF{barLeft, barTop - 12.0, barWidth / 2.0, 11.0}, Qt::AlignLeft | Qt::AlignVCenter, "min " + numberText(shown(product.quantity, rangeLow, us)));
+        drawLabel(QRectF{barLeft + barWidth / 2.0, barTop - 12.0, barWidth / 2.0, 11.0}, Qt::AlignRight | Qt::AlignVCenter, "max " + numberText(shown(product.quantity, rangeHigh, us)));
+        p.setFont(font);
+    } else if (!noBar && !std::isnan(fillMax)) {   // the largest value of the chart on view: a line through the bar and its number above it
+        double at = 0.0;
+        for (int x = 0; x < static_cast<int>(barWidth); x++) {   // (the bar's values only rise: the last place that is not above it)
+            if (valueAt(x / barWidth) <= fillMax) {
+                at = x;
+            }
+        }
+        const double mx = barLeft + at;
+        p.setPen(QPen{QColor{150, 0, 0}, 2.0});
+        p.drawLine(QPointF{mx, barTop - 3.0}, QPointF{mx, barTop + barHeight});
+        QFont small = p.font();
+        small.setPixelSize(std::max(9, small.pixelSize() - 1));
+        small.setBold(true);
+        p.setFont(small);
+        const QString label = "max " + numberText(shown(product.quantity, fillMax, us));
+        const double width = QFontMetricsF{small}.horizontalAdvance(label) + 4.0;
+        const bool flip = mx + width > barLeft + barWidth;
+        drawLabel(QRectF{flip ? mx - width - 2.0 : mx + 3.0, barTop - 12.0, width, 11.0}, (flip ? Qt::AlignRight : Qt::AlignLeft) | Qt::AlignVCenter, label);
+        p.setFont(font);
+    }
+    if (deviationHigh > 0.0) {   // a line under the ticks: how big one deviation is here (it is not the same everywhere)
+        const auto number = [] (double v) { return QString::number(v, 'f', v < 10.0 ? 1 : 0); };
+        p.setPen(QColor{90, 90, 90});
+        const QString unitName = QString::fromStdString(product.sigmaUnit);
+        const QString low = number(deviationLow), high = number(deviationHigh);
+        const QString text = low == high ? "1 std dev = about " + high + " " + unitName
+                                         : "1 std dev = " + low + " to " + high + " " + unitName + " over this map (it varies by place; hover for the value here)";
+        drawLabel(QRectF{barLeft, barTop + barHeight + 18.0, barWidth, 14}, Qt::AlignLeft, text);
+    }
+    // a small key for each overlay's colors (the same amounts as the main scale, from light to heavy)
+    double keyLeft = barLeft;
+    const bool paintball = product.source == "SPCREFS" && !product.overlays.empty() && product.overlays.front().first.rfind("Member ", 0) == 0;
+    if (paintball) {   // the members' colors, each with its name (the old REFS screen's key): the first is the chart's own fill
+        const auto names = UtilitySpcRefs::memberNames();
+        std::vector<QColor> colors{product.ramp.stops.back().second};
+        for (const auto& overlay : product.overlays) {
+            colors.push_back(overlay.second.stops.back().second);
+        }
+        const double top = image.height() / S - 15.0;
+        const QFontMetricsF metrics{p.font()};
+        p.setPen(QColor{70, 70, 70});
+        for (size_t i = 0; i < colors.size(); i++) {
+            const QString name = i < names.size() ? QString::fromStdString(names[i]) : QString{"Member %1"}.arg(i + 1);
+            p.setBrush(QColor{colors[i].red(), colors[i].green(), colors[i].blue()});
+            p.setPen(QColor{60, 60, 60});
+            p.drawRect(QRectF{keyLeft, top, 9, 9});
+            p.setPen(QColor{70, 70, 70});
+            drawLabel(QRectF{keyLeft + 13, top - 1, metrics.horizontalAdvance(name) + 4, 12}, Qt::AlignLeft | Qt::AlignVCenter, name);
+            keyLeft += 13 + metrics.horizontalAdvance(name) + 14;
+        }
+        p.setBrush(Qt::NoBrush);
+    }
+    if (layerKey) {   // each set still drawn, its color and its name
+        const double top = barTop + 3.0;
+        const QFontMetricsF metrics{p.font()};
+        for (const auto& [key, overlayRamp] : product.overlays) {
+            if (grids.find(key) == grids.end() || overlayRamp.stops.empty()) {
+                continue;
+            }
+            QString name = QString::fromStdString(key);
+            for (const auto& [layerKeyName, layerName] : product.layers) {
+                if (layerKeyName == key) {
+                    name = QString::fromStdString(layerName);
+                }
+            }
+            name.replace("REFS member ", "REFS ").replace(" (control)", " ctl").replace(" (NSSL)", "").replace("REFS control ", "REFS ctl ");
+            const auto& color = overlayRamp.stops.back().second;
+            p.setBrush(QColor{color.red(), color.green(), color.blue()});
+            p.setPen(QColor{60, 60, 60});
+            p.drawRect(QRectF{keyLeft, top, 9, 9});
+            p.setPen(QColor{70, 70, 70});
+            drawLabel(QRectF{keyLeft + 13, top - 1, metrics.horizontalAdvance(name) + 4, 12}, Qt::AlignLeft | Qt::AlignVCenter, name);
+            keyLeft += 13 + metrics.horizontalAdvance(name) + 12;
+        }
+        p.setBrush(Qt::NoBrush);
+        for (const auto& set : product.contours) {   // and a sample of each line there is a name for
+            if (set.title.empty()) {
+                continue;
+            }
+            const QString name = QString::fromStdString(set.title);
+            p.setPen(QPen{set.color, 2.5});
+            p.drawLine(QPointF{keyLeft + 6.0, top + 4.5}, QPointF{keyLeft + 24.0, top + 4.5});
+            p.setPen(QColor{70, 70, 70});
+            drawLabel(QRectF{keyLeft + 30.0, top - 1, metrics.horizontalAdvance(name) + 4, 12}, Qt::AlignLeft | Qt::AlignVCenter, name);
+            keyLeft += 30.0 + metrics.horizontalAdvance(name) + 12;
+        }
+    }
+    for (const auto& [key, overlayRamp] : product.overlays) {
+        if (paintball || layerKey) {
+            break;
+        }
+        const QString name = key == "snow" ? "Snow" : key == "mix" ? "Mixed" : QString::fromStdString(key.substr(key.rfind('|') == std::string::npos ? 0 : key.rfind('|') + 1));   // (an overlay's fill is named after its "|")
+        const double top = image.height() / S - 15.0, width = 80.0;
+        p.setPen(QColor{70, 70, 70});
+        const double nameWidth = std::max(44.0, QFontMetricsF{p.font()}.horizontalAdvance(name) + 6.0);   // (an overlay's name is longer than "Snow")
+        drawLabel(QRectF{keyLeft, top - 1, nameWidth, 12}, Qt::AlignLeft | Qt::AlignVCenter, name);
+        const auto& s = overlayRamp.stops;
+        for (int x = 0; x < static_cast<int>(width); x++) {
+            const QRgb c = overlayRamp.at(s[1].first + (s.back().first - s[1].first) * x / width);
+            p.fillRect(QRectF{keyLeft + nameWidth + x, top, 1.5, 9}, QColor{qRed(c), qGreen(c), qBlue(c)});
+        }
+        p.setPen(QColor{60, 60, 60});
+        p.setBrush(Qt::NoBrush);
+        p.drawRect(QRectF{keyLeft + nameWidth, top, width, 9});
+        keyLeft += nameWidth + width + 22;
+    }
+    if (product.id == "nice_weather") {   // the places with no value (outside the blend's grid, or no normal) are left as the map: a key for them
+        const double top = image.height() / S - 15.0;
+        p.setBrush(QColor{244, 244, 244});
+        p.setPen(QColor{60, 60, 60});
+        p.drawRect(QRectF{keyLeft, top, 9, 9});
+        p.setPen(QColor{70, 70, 70});
+        drawLabel(QRectF{keyLeft + 13, top - 1, 60, 12}, Qt::AlignLeft | Qt::AlignVCenter, "No data");
+        p.setBrush(Qt::NoBrush);
+        keyLeft += 13 + 52;
+    }
+    p.setPen(QColor{110, 110, 110});
+    drawLabel(QRectF{0, image.height() / S - 16.0, image.width() / S - static_cast<double>(margin), 14}, Qt::AlignRight, QString::fromStdString("Data: " + [&product, &run] {
+        auto text = sourceLabel(product.source, run.date + run.cycle);
+        for (const auto& extra : product.extras) {   // the other models a chart draws from
+            if (extra.lag > 0) {   // (an older run of a source that is credited already)
+                continue;
+            }
+            const auto label = extra.credit.empty() ? sourceLabel(extra.source) : extra.credit;
+            if (text.find(label) == std::string::npos) {
+                text += "; " + label;
+            }
+        }
+        return text;
+    }()));
+}
+
 QImage render(const Product& drawn, const Sector& sector, const Grids& fetched, const GfsData::Run& run, int forecastHour, const Options& options) {
     const bool timing = std::getenv("WXQT_TIMING") != nullptr;   // WXQT_TIMING=1: the seconds each stage of the drawing takes, to stderr
     auto lapAt = std::chrono::steady_clock::now();
@@ -9175,253 +9450,10 @@ QImage render(const Product& drawn, const Sector& sector, const Grids& fetched, 
         options.probe->fillMin = fillMin;
         options.probe->fillMax = fillMax;
     }
-    // legend: even steps in value, or (legendStep 0) one equal-width block per ramp stop
-    const double barLeft = margin + 6.0, barTop = area.bottom() + 12.0, barWidth = area.width() - 12.0, barHeight = 16.0;
-    const auto& stops = ramp->stops;
-    const double first = stops.front().first, last = stops.back().first;
-    const bool stepped = product.legendStep <= 0.0;
-    // an export's bar holds only the values the picture or the loop has, the smallest at the left: not for the scales of categories (a step for each stop), which have no range to speak of
-    double rangeLow = 0.0, rangeHigh = 0.0;
-    bool useRange = false;
-    if (options.legendFit && !std::isnan(fillMax)) {
-        rangeLow = fillMin;
-        rangeHigh = fillMax;
-        useRange = true;
-    } else if (options.legendRange) {
-        rangeLow = options.legendLow;
-        rangeHigh = options.legendHigh;
-        useRange = true;
+    {   // the legend and the key under the map
+        LegendState legend{product, grids, options, run, p, image, S, area, margin, *ramp, layerKey, deviationLow, deviationHigh, fillMin, fillMax, font, metrics, us};
+        drawLegend(legend, drawLabel);
     }
-    useRange = useRange && rangeHigh > rangeLow && (ramp->banded || !stepped);
-    const auto valueAt = [&] (double t) {   // t 0..1 along the bar
-        if (useRange) {
-            return rangeLow + (rangeHigh - rangeLow) * t;
-        }
-        if (ramp->banded) {   // one flat block for each band
-            return stops[std::min(static_cast<size_t>(t * static_cast<double>(stops.size())), stops.size() - 1)].first;
-        }
-        if (!stepped) {
-            return first + (last - first) * t;
-        }
-        const double position = t * static_cast<double>(stops.size() - 1);
-        const size_t i = std::min(static_cast<size_t>(position), stops.size() - 2);
-        return stops[i].first + (stops[i + 1].first - stops[i].first) * (position - static_cast<double>(i));
-    };
-    const bool noBar = product.linesOnly || layerKey;   // (no scale to show: the lines, or the sets of a paintball, are the chart)
-    for (int x = 0; !noBar && x < static_cast<int>(barWidth); x++) {
-        const QRgb c = ramp->at(valueAt(x / barWidth));
-        // a ramp that begins clear is drawn as the pale ground on the bar
-        const int a = qAlpha(c);
-        const QColor ground{244, 244, 244};
-        p.fillRect(QRectF{barLeft + x, barTop, 1.5, barHeight}, QColor{(qRed(c) * a + ground.red() * (255 - a)) / 255, (qGreen(c) * a + ground.green() * (255 - a)) / 255, (qBlue(c) * a + ground.blue() * (255 - a)) / 255});
-    }
-    p.setPen(QColor{60, 60, 60});
-    p.setBrush(Qt::NoBrush);
-    if (layerKey) {   // (the key of the sets is drawn below, with the chance lines)
-    } else if (!product.linesOnly) {
-        p.drawRect(QRectF{barLeft, barTop, barWidth, barHeight});
-    } else if (product.contours.size() > 1) {   // lines of several sets (models compared): a key, a sample of each line's color and what it is
-        double x = barLeft;
-        for (const auto& set : product.contours) {
-            if (set.title.empty()) {   // a line of many alike (a member of fifty) is not in the key
-                continue;
-            }
-            const QString name = QString::fromStdString(set.title);
-            const double width = QFontMetricsF{p.font()}.horizontalAdvance(name);
-            p.setPen(QPen{set.color, 3.0});
-            p.drawLine(QPointF{x, barTop + barHeight / 2.0}, QPointF{x + 26.0, barTop + barHeight / 2.0});
-            p.setPen(QColor{60, 60, 60});
-            drawLabel(QRectF{x + 32.0, barTop, width + 4.0, barHeight}, Qt::AlignLeft | Qt::AlignVCenter, name);
-            x += 32.0 + width + 22.0;
-        }
-    } else {   // the lines are the chart: a line of explanation where the color bar would be
-        drawLabel(QRectF{barLeft, barTop, barWidth, barHeight}, Qt::AlignLeft | Qt::AlignVCenter, QString::fromStdString(product.fillTitle));
-    }
-    const auto tick = [&] (double t, double value) {
-        const double x = barLeft + t * barWidth;
-        p.drawLine(QPointF{x, barTop + barHeight}, QPointF{x, barTop + barHeight + 4});
-        drawLabel(QRectF{x - 24, barTop + barHeight + 4, 48, 14}, Qt::AlignHCenter, numberText(shown(product.quantity, value, us)));
-    };
-    if (noBar) {
-        // no scale to number
-    } else if (ramp->banded) {   // the number at the lower edge of each band, as the model guidance site's legends have it
-        // many narrow bands (4 degree ones): a number every few bands so they do not run together; the first stop (-100, "and below") has none
-        const size_t every = std::max<size_t>(1, static_cast<size_t>(std::ceil(static_cast<double>(stops.size()) * 40.0 / barWidth)));
-        double lastTick = -1000.0;
-        for (size_t i = 0; i < stops.size(); i++) {
-            if (useRange) {   // the bands inside the range, at their place on a bar of values
-                const double t = (stops[i].first - rangeLow) / (rangeHigh - rangeLow);
-                if (stops[i].first > -90.0 && t >= 0.0 && t <= 1.0 && t * barWidth - lastTick >= 36.0) {
-                    tick(t, stops[i].first);
-                    lastTick = t * barWidth;
-                }
-            } else if (stops[i].first > -90.0 && (i % every == 0 || stops.size() <= 16)) {
-                tick(static_cast<double>(i) / static_cast<double>(stops.size()), stops[i].first);
-            }
-        }
-    } else if (stepped) {
-        for (size_t i = 0; i < stops.size(); i++) {
-            if (i > 0 || stops[i].second.alpha() == 255) {
-                tick(static_cast<double>(i) / static_cast<double>(stops.size() - 1), stops[i].first);
-            }
-        }
-    } else {
-        // steps are in displayed units: walk them in displayed value and map back
-        const double from = useRange ? rangeLow : first, to = useRange ? rangeHigh : last;
-        const double lowShown = shown(product.quantity, from, us), highShown = shown(product.quantity, to, us);
-        double step = product.legendStep;
-        if (useRange) {   // a few numbers across the range: the chart's step made finer when the range is short, coarser when it is long
-            for (int i = 0; i < 6 && (highShown - lowShown) / step < 3.0; i++) {
-                step /= 2.0;
-            }
-            for (int i = 0; i < 6 && (highShown - lowShown) / step > 9.0; i++) {
-                step *= 2.0;
-            }
-        }
-        for (double value = std::ceil(lowShown / step) * step; value <= highShown + 1e-9; value += step) {
-            const double base = (value - lowShown) / (highShown - lowShown);
-            tick(base, from + (to - from) * base);
-        }
-    }
-    if (useRange && !noBar) {   // the ends of the bar: the smallest value at the left, the largest at the right
-        QFont small = p.font();
-        small.setPixelSize(std::max(9, small.pixelSize() - 1));
-        small.setBold(true);
-        p.setFont(small);
-        p.setPen(QColor{60, 60, 60});
-        drawLabel(QRectF{barLeft, barTop - 12.0, barWidth / 2.0, 11.0}, Qt::AlignLeft | Qt::AlignVCenter, "min " + numberText(shown(product.quantity, rangeLow, us)));
-        drawLabel(QRectF{barLeft + barWidth / 2.0, barTop - 12.0, barWidth / 2.0, 11.0}, Qt::AlignRight | Qt::AlignVCenter, "max " + numberText(shown(product.quantity, rangeHigh, us)));
-        p.setFont(font);
-    } else if (!noBar && !std::isnan(fillMax)) {   // the largest value of the chart on view: a line through the bar and its number above it
-        double at = 0.0;
-        for (int x = 0; x < static_cast<int>(barWidth); x++) {   // (the bar's values only rise: the last place that is not above it)
-            if (valueAt(x / barWidth) <= fillMax) {
-                at = x;
-            }
-        }
-        const double mx = barLeft + at;
-        p.setPen(QPen{QColor{150, 0, 0}, 2.0});
-        p.drawLine(QPointF{mx, barTop - 3.0}, QPointF{mx, barTop + barHeight});
-        QFont small = p.font();
-        small.setPixelSize(std::max(9, small.pixelSize() - 1));
-        small.setBold(true);
-        p.setFont(small);
-        const QString label = "max " + numberText(shown(product.quantity, fillMax, us));
-        const double width = QFontMetricsF{small}.horizontalAdvance(label) + 4.0;
-        const bool flip = mx + width > barLeft + barWidth;
-        drawLabel(QRectF{flip ? mx - width - 2.0 : mx + 3.0, barTop - 12.0, width, 11.0}, (flip ? Qt::AlignRight : Qt::AlignLeft) | Qt::AlignVCenter, label);
-        p.setFont(font);
-    }
-    if (deviationHigh > 0.0) {   // a line under the ticks: how big one deviation is here (it is not the same everywhere)
-        const auto number = [] (double v) { return QString::number(v, 'f', v < 10.0 ? 1 : 0); };
-        p.setPen(QColor{90, 90, 90});
-        const QString unitName = QString::fromStdString(product.sigmaUnit);
-        const QString low = number(deviationLow), high = number(deviationHigh);
-        const QString text = low == high ? "1 std dev = about " + high + " " + unitName
-                                         : "1 std dev = " + low + " to " + high + " " + unitName + " over this map (it varies by place; hover for the value here)";
-        drawLabel(QRectF{barLeft, barTop + barHeight + 18.0, barWidth, 14}, Qt::AlignLeft, text);
-    }
-    // a small key for each overlay's colors (the same amounts as the main scale, from light to heavy)
-    double keyLeft = barLeft;
-    const bool paintball = product.source == "SPCREFS" && !product.overlays.empty() && product.overlays.front().first.rfind("Member ", 0) == 0;
-    if (paintball) {   // the members' colors, each with its name (the old REFS screen's key): the first is the chart's own fill
-        const auto names = UtilitySpcRefs::memberNames();
-        std::vector<QColor> colors{product.ramp.stops.back().second};
-        for (const auto& overlay : product.overlays) {
-            colors.push_back(overlay.second.stops.back().second);
-        }
-        const double top = image.height() / S - 15.0;
-        const QFontMetricsF metrics{p.font()};
-        p.setPen(QColor{70, 70, 70});
-        for (size_t i = 0; i < colors.size(); i++) {
-            const QString name = i < names.size() ? QString::fromStdString(names[i]) : QString{"Member %1"}.arg(i + 1);
-            p.setBrush(QColor{colors[i].red(), colors[i].green(), colors[i].blue()});
-            p.setPen(QColor{60, 60, 60});
-            p.drawRect(QRectF{keyLeft, top, 9, 9});
-            p.setPen(QColor{70, 70, 70});
-            drawLabel(QRectF{keyLeft + 13, top - 1, metrics.horizontalAdvance(name) + 4, 12}, Qt::AlignLeft | Qt::AlignVCenter, name);
-            keyLeft += 13 + metrics.horizontalAdvance(name) + 14;
-        }
-        p.setBrush(Qt::NoBrush);
-    }
-    if (layerKey) {   // each set still drawn, its color and its name
-        const double top = barTop + 3.0;
-        const QFontMetricsF metrics{p.font()};
-        for (const auto& [key, overlayRamp] : product.overlays) {
-            if (grids.find(key) == grids.end() || overlayRamp.stops.empty()) {
-                continue;
-            }
-            QString name = QString::fromStdString(key);
-            for (const auto& [layerKeyName, layerName] : product.layers) {
-                if (layerKeyName == key) {
-                    name = QString::fromStdString(layerName);
-                }
-            }
-            name.replace("REFS member ", "REFS ").replace(" (control)", " ctl").replace(" (NSSL)", "").replace("REFS control ", "REFS ctl ");
-            const auto& color = overlayRamp.stops.back().second;
-            p.setBrush(QColor{color.red(), color.green(), color.blue()});
-            p.setPen(QColor{60, 60, 60});
-            p.drawRect(QRectF{keyLeft, top, 9, 9});
-            p.setPen(QColor{70, 70, 70});
-            drawLabel(QRectF{keyLeft + 13, top - 1, metrics.horizontalAdvance(name) + 4, 12}, Qt::AlignLeft | Qt::AlignVCenter, name);
-            keyLeft += 13 + metrics.horizontalAdvance(name) + 12;
-        }
-        p.setBrush(Qt::NoBrush);
-        for (const auto& set : product.contours) {   // and a sample of each line there is a name for
-            if (set.title.empty()) {
-                continue;
-            }
-            const QString name = QString::fromStdString(set.title);
-            p.setPen(QPen{set.color, 2.5});
-            p.drawLine(QPointF{keyLeft + 6.0, top + 4.5}, QPointF{keyLeft + 24.0, top + 4.5});
-            p.setPen(QColor{70, 70, 70});
-            drawLabel(QRectF{keyLeft + 30.0, top - 1, metrics.horizontalAdvance(name) + 4, 12}, Qt::AlignLeft | Qt::AlignVCenter, name);
-            keyLeft += 30.0 + metrics.horizontalAdvance(name) + 12;
-        }
-    }
-    for (const auto& [key, overlayRamp] : product.overlays) {
-        if (paintball || layerKey) {
-            break;
-        }
-        const QString name = key == "snow" ? "Snow" : key == "mix" ? "Mixed" : QString::fromStdString(key.substr(key.rfind('|') == std::string::npos ? 0 : key.rfind('|') + 1));   // (an overlay's fill is named after its "|")
-        const double top = image.height() / S - 15.0, width = 80.0;
-        p.setPen(QColor{70, 70, 70});
-        const double nameWidth = std::max(44.0, QFontMetricsF{p.font()}.horizontalAdvance(name) + 6.0);   // (an overlay's name is longer than "Snow")
-        drawLabel(QRectF{keyLeft, top - 1, nameWidth, 12}, Qt::AlignLeft | Qt::AlignVCenter, name);
-        const auto& s = overlayRamp.stops;
-        for (int x = 0; x < static_cast<int>(width); x++) {
-            const QRgb c = overlayRamp.at(s[1].first + (s.back().first - s[1].first) * x / width);
-            p.fillRect(QRectF{keyLeft + nameWidth + x, top, 1.5, 9}, QColor{qRed(c), qGreen(c), qBlue(c)});
-        }
-        p.setPen(QColor{60, 60, 60});
-        p.setBrush(Qt::NoBrush);
-        p.drawRect(QRectF{keyLeft + nameWidth, top, width, 9});
-        keyLeft += nameWidth + width + 22;
-    }
-    if (product.id == "nice_weather") {   // the places with no value (outside the blend's grid, or no normal) are left as the map: a key for them
-        const double top = image.height() / S - 15.0;
-        p.setBrush(QColor{244, 244, 244});
-        p.setPen(QColor{60, 60, 60});
-        p.drawRect(QRectF{keyLeft, top, 9, 9});
-        p.setPen(QColor{70, 70, 70});
-        drawLabel(QRectF{keyLeft + 13, top - 1, 60, 12}, Qt::AlignLeft | Qt::AlignVCenter, "No data");
-        p.setBrush(Qt::NoBrush);
-        keyLeft += 13 + 52;
-    }
-    p.setPen(QColor{110, 110, 110});
-    drawLabel(QRectF{0, image.height() / S - 16.0, image.width() / S - static_cast<double>(margin), 14}, Qt::AlignRight, QString::fromStdString("Data: " + [&product, &run] {
-        auto text = sourceLabel(product.source, run.date + run.cycle);
-        for (const auto& extra : product.extras) {   // the other models a chart draws from
-            if (extra.lag > 0) {   // (an older run of a source that is credited already)
-                continue;
-            }
-            const auto label = extra.credit.empty() ? sourceLabel(extra.source) : extra.credit;
-            if (text.find(label) == std::string::npos) {
-                text += "; " + label;
-            }
-        }
-        return text;
-    }()));
     return image;
 }
 }
