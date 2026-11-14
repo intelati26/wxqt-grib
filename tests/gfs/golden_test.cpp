@@ -121,7 +121,7 @@ struct Case {
 std::vector<Case> cases() {
     std::vector<Case> out;
     GfsChart::Options base;
-    base.noLabels = true;
+    base.noLabels = std::getenv("GOLDEN_LABELS") == nullptr;   // GOLDEN_LABELS=1: with the text, to compare a change of the drawing code with the text on (the fonts differ between machines: the saved pictures are never of this)
     base.width = 700;
     base.fahrenheit = false;
     base.magColors = false;

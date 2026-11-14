@@ -8204,6 +8204,128 @@ bool rampFromText(const std::string& text, Ramp& ramp, std::string& error) {
     return true;
 }
 
+// The title, the line under it (each name in the color it is drawn in) and the run and valid times at the right.
+struct HeaderState {
+    const Product& product;
+    const GfsData::Run& run;
+    int forecastHour;
+    QPainter& p;
+    QImage& image;
+    double S;
+    int margin;
+    QFont& font;
+    bool us;
+};
+
+template <class Label>
+void drawHeader(HeaderState& state, const Label& drawLabel) {
+    const Product& product = state.product; const GfsData::Run& run = state.run; const int forecastHour = state.forecastHour;
+    QPainter& p = state.p; QImage& image = state.image; const double S = state.S; const int margin = state.margin; QFont& font = state.font; const bool us = state.us;
+    const auto init = QDateTime::fromString(QString::fromStdString(run.id()), "yyyyMMddHH");
+    auto initUtc = QDateTime{init.date(), init.time(), QTimeZone::utc()};
+    const auto valid = initUtc.addSecs(forecastHour * 3600);
+    QFont big = font;
+    big.setPixelSize(17);
+    QString headline = QString::fromStdString(product.source + "  " + product.label);
+    {   // a long title (a chart with several things ticked onto it) gets a smaller type, down to 11, so that it stays clear of the run and valid times at the right; when even that is too long
+        // the things ticked on are counted ("with 7 more": the line under it names them), and the end is cut as the last resort
+        const double room = image.width() / S - 2.0 * margin - 330.0;
+        while (big.pixelSize() > 11 && QFontMetricsF{big}.horizontalAdvance(headline) > room) {
+            big.setPixelSize(big.pixelSize() - 1);
+        }
+        if (QFontMetricsF{big}.horizontalAdvance(headline) > room) {
+            if (const auto with = headline.indexOf(", with "); with > 0) {
+                QStringList lineAndBarbs, fills;   // (the fill is what colors the map: it stays named, the lines and barbs are counted)
+                for (const auto& item : headline.mid(with + 7).split(", ")) {
+                    (item.endsWith("(fill)") ? fills : lineAndBarbs) << item;
+                }
+                headline = headline.left(with) + ", with " + (lineAndBarbs.isEmpty() ? QString{} : QString::number(lineAndBarbs.size()) + " more" + (fills.isEmpty() ? QString{} : " and ")) + fills.join(", ");
+            }
+            headline = QFontMetricsF{big}.elidedText(headline, Qt::ElideRight, room);
+        }
+    }
+    p.setFont(big);
+    p.setPen(QColor{25, 25, 25});
+    drawLabel(QPointF{static_cast<double>(margin), 22.0}, headline);
+    font.setBold(false);
+    p.setFont(font);
+    p.setPen(QColor{70, 70, 70});
+    const auto unit = unitText(product.quantity, us);
+    QString fillTitle = QString::fromStdString(product.fillTitleFor ? product.fillTitleFor(forecastHour) : product.fillTitle);
+    if (!unit.isEmpty()) {
+        fillTitle += " (" + unit + ")";
+    }
+    // the line under the title: the fill, then the lines and the barbs, each name in the color it is drawn in ("850mb height (dam, red)" in red), so it reads as a key
+    struct Piece {
+        QString text;
+        QColor color;
+    };
+    const QColor ink{70, 70, 70};
+    std::vector<Piece> pieces;
+    pieces.push_back({fillTitle, ink});
+    bool anyLines = false;
+    for (const auto& set : product.contours) {
+        if (set.title.empty()) {
+            continue;
+        }
+        pieces.push_back({anyLines ? ", " : (fillTitle.isEmpty() ? "lines: " : ";  lines: "), ink});
+        const auto shade = set.color;
+        pieces.push_back({QString::fromStdString(set.title), shade.lightness() > 150 ? shade.darker(150) : shade});
+        anyLines = true;
+    }
+    if (!product.barbU.empty() || !product.barbSets.empty()) {
+        if (product.barbSets.empty()) {
+            pieces.push_back({";  barbs: kt", ink});
+        } else {   // stacked winds: which color is which level
+            pieces.push_back({";  barbs, kt: ", ink});
+            bool first = true;
+            if (!product.barbU.empty()) {
+                pieces.push_back({"chart's own (black)", ink});
+                first = false;
+            }
+            for (const auto& set : product.barbSets) {
+                if (!first) {
+                    pieces.push_back({", ", ink});
+                }
+                first = false;
+                pieces.push_back({QString::fromStdString(set.name + " (" + set.colorName + ")"), set.color.lightness() > 150 ? set.color.darker(150) : set.color});
+            }
+        }
+    }
+    {   // the whole line in 11 px when it fits, a smaller type down to 9 when it does not, and the end cut (with an ellipsis) only if that is not enough
+        const double room = image.width() / S - 2.0 * margin;
+        QFont small = font;
+        const auto width = [&pieces] (const QFont& f) {
+            double w = 0.0;
+            for (const auto& piece : pieces) {
+                w += QFontMetricsF{f}.horizontalAdvance(piece.text);
+            }
+            return w;
+        };
+        while (small.pixelSize() > 9 && width(small) > room) {
+            small.setPixelSize(small.pixelSize() - 1);
+        }
+        p.setFont(small);
+        double x = margin;
+        const QFontMetricsF metrics{small};
+        for (const auto& piece : pieces) {
+            const double w = metrics.horizontalAdvance(piece.text);
+            if (x + w > margin + room) {   // the rest does not fit: what still does, and an ellipsis
+                p.setPen(ink);
+                drawLabel(QPointF{x, 43.0}, metrics.elidedText(piece.text, Qt::ElideRight, std::max(0.0, margin + room - x)));
+                break;
+            }
+            p.setPen(piece.color);
+            drawLabel(QPointF{x, 43.0}, piece.text);
+            x += w;
+        }
+        p.setFont(font);
+        p.setPen(ink);
+    }
+    const QString times = "Run " + initUtc.toString("ddd yyyy-MM-dd HH") + "Z   F" + QString::number(forecastHour).rightJustified(3, '0') + "   Valid " + valid.toString("ddd yyyy-MM-dd HH") + "Z";
+    drawLabel(QRectF{0, 8, image.width() / S - static_cast<double>(margin), 20}, Qt::AlignRight, times);
+}
+
 // What the legend and the keys under the map need of the chart being drawn: references to the render's own values, so the code that draws them can be moved out of render() unchanged.
 struct LegendState {
     const Product& product;
@@ -9336,110 +9458,10 @@ QImage render(const Product& drawn, const Sector& sector, const Grids& fetched, 
         p.setPen(QPen{QColor{60, 60, 60}, 1.0});
     }
 
-    // header
-    const auto init = QDateTime::fromString(QString::fromStdString(run.id()), "yyyyMMddHH");
-    auto initUtc = QDateTime{init.date(), init.time(), QTimeZone::utc()};
-    const auto valid = initUtc.addSecs(forecastHour * 3600);
-    QFont big = font;
-    big.setPixelSize(17);
-    QString headline = QString::fromStdString(product.source + "  " + product.label);
-    {   // a long title (a chart with several things ticked onto it) gets a smaller type, down to 11, so that it stays clear of the run and valid times at the right; when even that is too long
-        // the things ticked on are counted ("with 7 more": the line under it names them), and the end is cut as the last resort
-        const double room = image.width() / S - 2.0 * margin - 330.0;
-        while (big.pixelSize() > 11 && QFontMetricsF{big}.horizontalAdvance(headline) > room) {
-            big.setPixelSize(big.pixelSize() - 1);
-        }
-        if (QFontMetricsF{big}.horizontalAdvance(headline) > room) {
-            if (const auto with = headline.indexOf(", with "); with > 0) {
-                QStringList lineAndBarbs, fills;   // (the fill is what colors the map: it stays named, the lines and barbs are counted)
-                for (const auto& item : headline.mid(with + 7).split(", ")) {
-                    (item.endsWith("(fill)") ? fills : lineAndBarbs) << item;
-                }
-                headline = headline.left(with) + ", with " + (lineAndBarbs.isEmpty() ? QString{} : QString::number(lineAndBarbs.size()) + " more" + (fills.isEmpty() ? QString{} : " and ")) + fills.join(", ");
-            }
-            headline = QFontMetricsF{big}.elidedText(headline, Qt::ElideRight, room);
-        }
+    {   // header
+        HeaderState header{product, run, forecastHour, p, image, S, margin, font, us};
+        drawHeader(header, drawLabel);
     }
-    p.setFont(big);
-    p.setPen(QColor{25, 25, 25});
-    drawLabel(QPointF{static_cast<double>(margin), 22.0}, headline);
-    font.setBold(false);
-    p.setFont(font);
-    p.setPen(QColor{70, 70, 70});
-    const auto unit = unitText(product.quantity, us);
-    QString fillTitle = QString::fromStdString(product.fillTitleFor ? product.fillTitleFor(forecastHour) : product.fillTitle);
-    if (!unit.isEmpty()) {
-        fillTitle += " (" + unit + ")";
-    }
-    // the line under the title: the fill, then the lines and the barbs, each name in the color it is drawn in ("850mb height (dam, red)" in red), so it reads as a key
-    struct Piece {
-        QString text;
-        QColor color;
-    };
-    const QColor ink{70, 70, 70};
-    std::vector<Piece> pieces;
-    pieces.push_back({fillTitle, ink});
-    bool anyLines = false;
-    for (const auto& set : product.contours) {
-        if (set.title.empty()) {
-            continue;
-        }
-        pieces.push_back({anyLines ? ", " : (fillTitle.isEmpty() ? "lines: " : ";  lines: "), ink});
-        const auto shade = set.color;
-        pieces.push_back({QString::fromStdString(set.title), shade.lightness() > 150 ? shade.darker(150) : shade});
-        anyLines = true;
-    }
-    if (!product.barbU.empty() || !product.barbSets.empty()) {
-        if (product.barbSets.empty()) {
-            pieces.push_back({";  barbs: kt", ink});
-        } else {   // stacked winds: which color is which level
-            pieces.push_back({";  barbs, kt: ", ink});
-            bool first = true;
-            if (!product.barbU.empty()) {
-                pieces.push_back({"chart's own (black)", ink});
-                first = false;
-            }
-            for (const auto& set : product.barbSets) {
-                if (!first) {
-                    pieces.push_back({", ", ink});
-                }
-                first = false;
-                pieces.push_back({QString::fromStdString(set.name + " (" + set.colorName + ")"), set.color.lightness() > 150 ? set.color.darker(150) : set.color});
-            }
-        }
-    }
-    {   // the whole line in 11 px when it fits, a smaller type down to 9 when it does not, and the end cut (with an ellipsis) only if that is not enough
-        const double room = image.width() / S - 2.0 * margin;
-        QFont small = font;
-        const auto width = [&pieces] (const QFont& f) {
-            double w = 0.0;
-            for (const auto& piece : pieces) {
-                w += QFontMetricsF{f}.horizontalAdvance(piece.text);
-            }
-            return w;
-        };
-        while (small.pixelSize() > 9 && width(small) > room) {
-            small.setPixelSize(small.pixelSize() - 1);
-        }
-        p.setFont(small);
-        double x = margin;
-        const QFontMetricsF metrics{small};
-        for (const auto& piece : pieces) {
-            const double w = metrics.horizontalAdvance(piece.text);
-            if (x + w > margin + room) {   // the rest does not fit: what still does, and an ellipsis
-                p.setPen(ink);
-                drawLabel(QPointF{x, 43.0}, metrics.elidedText(piece.text, Qt::ElideRight, std::max(0.0, margin + room - x)));
-                break;
-            }
-            p.setPen(piece.color);
-            drawLabel(QPointF{x, 43.0}, piece.text);
-            x += w;
-        }
-        p.setFont(font);
-        p.setPen(ink);
-    }
-    const QString times = "Run " + initUtc.toString("ddd yyyy-MM-dd HH") + "Z   F" + QString::number(forecastHour).rightJustified(3, '0') + "   Valid " + valid.toString("ddd yyyy-MM-dd HH") + "Z";
-    drawLabel(QRectF{0, 8, image.width() / S - static_cast<double>(margin), 20}, Qt::AlignRight, times);
 
     if (std::isnan(fillMax)) {   // nothing drawn in a color: the range of what there is
         fillMax = anyMax;
