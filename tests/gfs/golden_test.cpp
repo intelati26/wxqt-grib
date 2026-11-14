@@ -51,6 +51,17 @@ GfsChart::Grids fields() {
     g["mix"] = made([pi] (double lon, double lat) { return lat > 37.0 && lat <= 43.0 ? std::max(0.0, 9.0 * std::cos(lon * pi / 19.0) * std::sin(lat * pi / 6.0)) : -1.0; });
     g["w"] = made([pi] (double lon, double lat) { return 40.0 + 45.0 * std::sin(lon * pi / 33.0) * std::cos(lat * pi / 28.0); });                                     // a percentage
     g["o_fill|Dewpoint"] = made([pi] (double lon, double lat) { return 22.0 - 0.7 * std::abs(lat - 32.0) + 4.0 * std::sin(lon * pi / 28.0); });
+    // members of a paintball: each a patch of strong echoes, -1 elsewhere
+    g["r1"] = made([pi] (double lon, double lat) { return std::sin(lon * pi / 30.0) * std::sin(lat * pi / 12.0) > 0.35 ? 40.0 : -1.0; });
+    g["r2"] = made([pi] (double lon, double lat) { return std::sin(lon * pi / 30.0 + 0.6) * std::sin(lat * pi / 12.0 + 0.4) > 0.35 ? 40.0 : -1.0; });
+    g["r3"] = made([pi] (double lon, double lat) { return std::sin(lon * pi / 26.0 + 1.2) * std::sin(lat * pi / 14.0) > 0.4 ? 40.0 : -1.0; });
+    g["base"] = made([] (double, double) { return std::nan(""); });
+    g["chance"] = made([pi] (double lon, double lat) { return std::max(0.0, 100.0 * std::sin(lon * pi / 30.0 + 0.3) * std::sin(lat * pi / 12.0 + 0.2)); });
+    // an anomaly in standard deviations, one deviation in decameters, and the anomaly in decameters
+    g["anom"] = made([pi] (double lon, double lat) { return 2.6 * std::sin(lon * pi / 28.0) * std::cos(lat * pi / 22.0); });
+    g["sz"] = made([] (double, double lat) { return 4.0 + 0.05 * (lat - 18.0); });
+    g["rd"] = made([pi] (double lon, double lat) { return 10.0 * std::sin(lon * pi / 28.0) * std::cos(lat * pi / 22.0); });
+    g["max"] = made([pi] (double lon, double lat) { return 55.0 + 30.0 * std::sin(lon * pi / 21.0) * std::cos(lat * pi / 16.0); });
     return g;
 }
 
@@ -63,6 +74,13 @@ Ramp rampOf(std::initializer_list<std::pair<double, QColor>> stops, bool banded 
 
 Ramp temperatureRamp() {
     return rampOf({{-10, QColor{90, 70, 170}}, {0, QColor{70, 130, 220}}, {10, QColor{110, 200, 190}}, {20, QColor{240, 230, 130}}, {30, QColor{240, 150, 60}}, {40, QColor{190, 40, 40}}});
+}
+
+// a paintball member's ramp: clear below 40 dBZ, a translucent color from there
+Ramp above40(const QColor& color) {
+    QColor solid = color;
+    solid.setAlpha(176);
+    return Ramp{{{0, QColor{255, 255, 255, 0}}, {39.99, QColor{255, 255, 255, 0}}, {40.0, solid}, {100, solid}}};
 }
 
 Ramp translucent(Ramp r, int alpha, double clearBelow) {
@@ -193,6 +211,48 @@ std::vector<Case> cases() {
         o.width = 480;
         o.scale = 2.0;
         out.push_back({"scaled", p, "CONUS", o});
+    }
+    {   // the sets of a paintball, each in its color, the key of their names where the color bar would be; r4 is not in the grids, as when its layer is taken out
+        auto p = basic("paintball_sets", above40(QColor{20, 20, 20}), "base");
+        p.layers = {{"r1", "REFS member 1 (control)"}, {"r2", "REFS member 2"}, {"r3", "REFS member 3"}, {"r4", "REFS member 4"}};
+        p.overlays.push_back({"r1", above40(QColor{31, 119, 180})});
+        p.overlays.push_back({"r2", above40(QColor{214, 39, 40})});
+        p.overlays.push_back({"r3", above40(QColor{44, 160, 44})});
+        p.overlays.push_back({"r4", above40(QColor{148, 103, 189})});
+        p.contours = {lines("chance", 1.0, 25.0, QColor{90, 60, 140})};
+        p.contours.back().title = "Chance";
+        out.push_back({"paintball_sets", p, "CONUS", base});
+    }
+    {   // the SPC's paintball: the REFS members' own key, the first member the chart's fill
+        auto p = basic("paintball_refs", above40(QColor{30, 30, 30}), "r1");
+        p.source = "SPCREFS";
+        p.overlays.push_back({"Member 2", above40(QColor{220, 60, 60})});
+        p.overlays.push_back({"Member 3", above40(QColor{50, 110, 220})});
+        p.derive = [] (GfsChart::Grids& g, const GfsChart::Context&) { g["Member 2"] = g.at("r2"); g["Member 3"] = g.at("r3"); };
+        p.contours = {lines("chance", 1.0, 25.0, QColor{90, 60, 140})};
+        out.push_back({"paintball_refs", p, "CONUS", base});
+    }
+    {   // an anomaly in standard deviations: the fill is in deviations, with the anomaly in its own unit as dashed lines and the legend's second row
+        auto p = basic("sigma", rampOf({{-3, QColor{40, 70, 190}}, {-1, QColor{170, 200, 240}}, {0, QColor{255, 255, 255}}, {1, QColor{250, 200, 170}}, {3, QColor{190, 40, 40}}}), "anom");
+        p.sigmaUnit = "dam";
+        p.sigmaSizeKey = "sz";
+        p.sigmaReadKey = "rd";
+        p.sigmaInterval = 4.0;
+        auto d = lines("rd", 1.0, 4.0, QColor{50, 50, 50});
+        d.dashed = true;
+        p.contours = {d};
+        out.push_back({"sigma", p, "CONUS", base});
+    }
+    {   // a maximum of members, the fill alone with a flat-banded scale, over the lines of the highest member
+        auto p = basic("max_members", rampOf({{40, QColor{210, 230, 255}}, {55, QColor{120, 180, 240}}, {70, QColor{250, 220, 90}}, {85, QColor{220, 80, 60}}}, true), "max");
+        p.contours = {lines("h", 0.1, 6.0, QColor{30, 30, 30})};
+        out.push_back({"max_members", p, "CONUS", base});
+    }
+    {   // numbers printed over the fill at the points (here drawn with no text: only the places they would take)
+        auto p = basic("point_values", temperatureRamp(), "t");
+        p.pointValues = {{"t", QColor{20, 20, 20}, "Temperature"}, {"w", QColor{30, 30, 160}, "Percent"}};
+        p.quantity = GfsChart::Quantity::Temperature;
+        out.push_back({"point_values", p, "CONUS", base});
     }
     return out;
 }
