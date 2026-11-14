@@ -8204,6 +8204,116 @@ bool rampFromText(const std::string& text, Ramp& ramp, std::string& error) {
     return true;
 }
 
+// The numbers printed at points over the fill (Product::pointValues): at the cities, biggest first, then evenly over what is left of the map; never one box on another.
+struct PointValuesState {
+    const Product& product;
+    const Grids& grids;
+    const Options& options;
+    const Sector& sector;
+    const QRectF& area;
+    const View& view;
+    double span;
+    QPainter& p;
+    const QFont& font;
+    bool us;
+};
+
+void drawPointValues(PointValuesState& state) {
+    const Product& product = state.product; const Grids& grids = state.grids; const Options& options = state.options; const Sector& sector = state.sector; const QRectF& area = state.area;
+    const View& view = state.view; const double span = state.span; QPainter& p = state.p; const QFont& font = state.font; const bool us = state.us;
+    // numbers at points ("41 63": the 10th and 90th percentile): at cities, biggest first, then evenly over what is left of the map; never one box on another
+    if (!product.pointValues.empty()) {
+        bool all = true;
+        for (const auto& value : product.pointValues) {
+            all = all && grids.count(value.key) > 0;
+        }
+        if (all) {
+            QFont numberFont = font;
+            numberFont.setBold(true);
+            numberFont.setPointSizeF(std::max(7.0, font.pointSizeF() * 0.9));
+            const QFontMetricsF numberMetrics{numberFont};
+            const double gap = 5.0;   // between the numbers of one point
+            std::vector<QRectF> boxes;
+            // one point's numbers side by side, centred on `at`; false (nothing drawn) when no value there or the box would cover another
+            const auto place = [&] (const QPointF& at, double lon, double lat) {
+                std::vector<QString> texts;
+                double width = -gap;
+                for (const auto& value : product.pointValues) {
+                    const float v = grids.at(value.key).sample(lon, lat);
+                    if (std::isnan(v)) {
+                        return false;
+                    }
+                    texts.push_back(QString::number(static_cast<int>(std::lround(shown(product.quantity, v, us)))));
+                    width += numberMetrics.horizontalAdvance(texts.back()) + gap;
+                }
+                const QRectF box{at.x() - width / 2.0 - 3.0, at.y() - numberMetrics.height() / 2.0 - 2.0, width + 6.0, numberMetrics.height() + 4.0};
+                if (!area.adjusted(4, 4, -4, -4).contains(box)) {
+                    return false;
+                }
+                for (const auto& other : boxes) {
+                    if (other.intersects(box.adjusted(-2, -1, 2, 1))) {
+                        return false;
+                    }
+                }
+                boxes.push_back(box);
+                if (options.noLabels) {
+                    return true;
+                }
+                p.setPen(Qt::NoPen);
+                p.setBrush(QColor{255, 255, 255, 150});
+                p.drawRoundedRect(box, 3.0, 3.0);
+                double x = at.x() - width / 2.0;
+                for (size_t i = 0; i < texts.size(); i++) {
+                    QPainterPath path;
+                    path.addText(QPointF{x, at.y() + numberMetrics.ascent() / 2.0 - 1.0}, numberFont, texts[i]);
+                    p.setPen(QPen{QColor{255, 255, 255, 230}, 2.4, Qt::SolidLine, Qt::RoundCap, Qt::RoundJoin});
+                    p.setBrush(Qt::NoBrush);
+                    p.drawPath(path);
+                    p.setPen(Qt::NoPen);
+                    p.setBrush(product.pointValues[i].color);
+                    p.drawPath(path);
+                    x += numberMetrics.horizontalAdvance(texts[i]) + gap;
+                }
+                return true;
+            };
+            // the cities (Options::places, biggest first) that fall inside the view
+            std::vector<std::pair<float, float>> inView;
+            for (const auto& city : options.places) {
+                if (city.first >= sector.west && city.first <= sector.east && city.second >= sector.south && city.second <= sector.north) {
+                    inView.push_back(city);
+                }
+            }
+            const double ground = span > 150.0 ? 120.0 : span > 80.0 ? 96.0 : 80.0;   // pixels apart, at the least, so the wider the view the fewer
+            std::vector<QPointF> spots;
+            for (const auto& city : inView) {
+                const auto at = view.toPixel(city.first, city.second);
+                bool near = false;
+                for (const auto& other : spots) {
+                    near = near || std::hypot(at.x() - other.x(), at.y() - other.y()) < ground;
+                }
+                if (!near && place(at, city.first, city.second)) {
+                    spots.push_back(at);
+                }
+                if (spots.size() >= 60) {
+                    break;
+                }
+            }
+            // what the cities left out (oceans, other countries): an even grid, skipping any spot near a number already there
+            for (double y = area.top() + ground / 2.0; y < area.bottom(); y += ground) {
+                for (double x = area.left() + ground / 2.0; x < area.right(); x += ground) {
+                    bool near = false;
+                    for (const auto& other : spots) {
+                        near = near || std::hypot(x - other.x(), y - other.y()) < ground * 0.8;
+                    }
+                    if (!near && place({x, y}, view.lonAt(x), view.latAt(y))) {
+                        spots.emplace_back(x, y);
+                    }
+                }
+            }
+        }
+    }
+}
+
 // The title, the line under it (each name in the color it is drawn in) and the run and valid times at the right.
 struct HeaderState {
     const Product& product;
@@ -9182,96 +9292,9 @@ QImage render(const Product& drawn, const Sector& sector, const Grids& fetched, 
     for (const auto& [at, text, color] : numbersToDraw) {   // (over the barbs, with their halo: a number is read before a barb is)
         halo(at, text, color);
     }
-    // numbers at points ("41 63": the 10th and 90th percentile): at cities, biggest first, then evenly over what is left of the map; never one box on another
-    if (!product.pointValues.empty()) {
-        bool all = true;
-        for (const auto& value : product.pointValues) {
-            all = all && grids.count(value.key) > 0;
-        }
-        if (all) {
-            QFont numberFont = font;
-            numberFont.setBold(true);
-            numberFont.setPointSizeF(std::max(7.0, font.pointSizeF() * 0.9));
-            const QFontMetricsF numberMetrics{numberFont};
-            const double gap = 5.0;   // between the numbers of one point
-            std::vector<QRectF> boxes;
-            // one point's numbers side by side, centred on `at`; false (nothing drawn) when no value there or the box would cover another
-            const auto place = [&] (const QPointF& at, double lon, double lat) {
-                std::vector<QString> texts;
-                double width = -gap;
-                for (const auto& value : product.pointValues) {
-                    const float v = grids.at(value.key).sample(lon, lat);
-                    if (std::isnan(v)) {
-                        return false;
-                    }
-                    texts.push_back(QString::number(static_cast<int>(std::lround(shown(product.quantity, v, us)))));
-                    width += numberMetrics.horizontalAdvance(texts.back()) + gap;
-                }
-                const QRectF box{at.x() - width / 2.0 - 3.0, at.y() - numberMetrics.height() / 2.0 - 2.0, width + 6.0, numberMetrics.height() + 4.0};
-                if (!area.adjusted(4, 4, -4, -4).contains(box)) {
-                    return false;
-                }
-                for (const auto& other : boxes) {
-                    if (other.intersects(box.adjusted(-2, -1, 2, 1))) {
-                        return false;
-                    }
-                }
-                boxes.push_back(box);
-                if (options.noLabels) {
-                    return true;
-                }
-                p.setPen(Qt::NoPen);
-                p.setBrush(QColor{255, 255, 255, 150});
-                p.drawRoundedRect(box, 3.0, 3.0);
-                double x = at.x() - width / 2.0;
-                for (size_t i = 0; i < texts.size(); i++) {
-                    QPainterPath path;
-                    path.addText(QPointF{x, at.y() + numberMetrics.ascent() / 2.0 - 1.0}, numberFont, texts[i]);
-                    p.setPen(QPen{QColor{255, 255, 255, 230}, 2.4, Qt::SolidLine, Qt::RoundCap, Qt::RoundJoin});
-                    p.setBrush(Qt::NoBrush);
-                    p.drawPath(path);
-                    p.setPen(Qt::NoPen);
-                    p.setBrush(product.pointValues[i].color);
-                    p.drawPath(path);
-                    x += numberMetrics.horizontalAdvance(texts[i]) + gap;
-                }
-                return true;
-            };
-            // the cities (Options::places, biggest first) that fall inside the view
-            std::vector<std::pair<float, float>> inView;
-            for (const auto& city : options.places) {
-                if (city.first >= sector.west && city.first <= sector.east && city.second >= sector.south && city.second <= sector.north) {
-                    inView.push_back(city);
-                }
-            }
-            const double ground = span > 150.0 ? 120.0 : span > 80.0 ? 96.0 : 80.0;   // pixels apart, at the least, so the wider the view the fewer
-            std::vector<QPointF> spots;
-            for (const auto& city : inView) {
-                const auto at = view.toPixel(city.first, city.second);
-                bool near = false;
-                for (const auto& other : spots) {
-                    near = near || std::hypot(at.x() - other.x(), at.y() - other.y()) < ground;
-                }
-                if (!near && place(at, city.first, city.second)) {
-                    spots.push_back(at);
-                }
-                if (spots.size() >= 60) {
-                    break;
-                }
-            }
-            // what the cities left out (oceans, other countries): an even grid, skipping any spot near a number already there
-            for (double y = area.top() + ground / 2.0; y < area.bottom(); y += ground) {
-                for (double x = area.left() + ground / 2.0; x < area.right(); x += ground) {
-                    bool near = false;
-                    for (const auto& other : spots) {
-                        near = near || std::hypot(x - other.x(), y - other.y()) < ground * 0.8;
-                    }
-                    if (!near && place({x, y}, view.lonAt(x), view.latAt(y))) {
-                        spots.emplace_back(x, y);
-                    }
-                }
-            }
-        }
+    {
+        PointValuesState values{product, grids, options, sector, area, view, span, p, font, us};
+        drawPointValues(values);
     }
     // the other model's track under it, dashed
     if (!options.trackOther.empty()) {
