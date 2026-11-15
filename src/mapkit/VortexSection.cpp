@@ -13,6 +13,7 @@
 #include "mapkit/WorldRender.h"
 
 namespace {
+    constexpr double pi = 3.14159265358979323846;
     // the color of a wind: white at nothing, reds westerly (the vortex), blues easterly (the reversal); the scale is the same for every level
     QColor windColor(double u, double reach) {
         if (std::isnan(u)) {
@@ -133,10 +134,10 @@ QImage VortexSection::draw(const Series& series, int width, const QString& title
     bold.setPixelSize(std::max(12, static_cast<int>(17 * unit)));
     p.setFont(bold);
     p.setPen(QColor{25, 25, 25});
-    p.drawText(QRectF{left, 8 * unit, width - left - right, 26 * unit}, Qt::AlignLeft | Qt::AlignVCenter, title);
+    p.drawText(QRectF{static_cast<double>(left), 8 * unit, static_cast<double>(width - left - right), 26 * unit}, Qt::AlignLeft | Qt::AlignVCenter, title);
     p.setFont(font);
     p.setPen(QColor{80, 80, 80});
-    p.drawText(QRectF{left, 36 * unit, width - left - right, 20 * unit}, Qt::AlignLeft | Qt::AlignVCenter,
+    p.drawText(QRectF{static_cast<double>(left), 36 * unit, static_cast<double>(width - left - right), 20 * unit}, Qt::AlignLeft | Qt::AlignVCenter,
                series.byLatitude ? QString{"Zonal-mean zonal wind at %1 mb by latitude (m/s): red westerly, blue easterly (the winds have reversed)"}.arg(series.level)
                                                  : QString{"Zonal-mean zonal wind on the circle of 60°%1 (m/s): red westerly, blue easterly (the winds have reversed)"}.arg(series.south ? "S" : "N"));
     double reach = 10.0;   // the scale holds the largest wind seen, in tens
@@ -267,7 +268,7 @@ bool VortexSection::collectWaves(const std::string& model, const std::vector<QDa
         for (const int wave : {1, 2}) {
             double a = 0.0, b = 0.0;
             for (int k = 0; k < points; k++) {
-                const double angle = 2.0 * M_PI * wave * k / points;
+                const double angle = 2.0 * pi * wave * k / points;
                 a += z[k] * std::cos(angle);
                 b += z[k] * std::sin(angle);
             }
@@ -297,10 +298,10 @@ QImage VortexSection::drawWaves(const Waves& waves, int width, const QString& ti
     bold.setPixelSize(std::max(12, static_cast<int>(17 * unit)));
     p.setFont(bold);
     p.setPen(QColor{25, 25, 25});
-    p.drawText(QRectF{left, 8 * unit, width - left - right, 26 * unit}, Qt::AlignLeft | Qt::AlignVCenter, title);
+    p.drawText(QRectF{static_cast<double>(left), 8 * unit, static_cast<double>(width - left - right), 26 * unit}, Qt::AlignLeft | Qt::AlignVCenter, title);
     p.setFont(font);
     p.setPen(QColor{80, 80, 80});
-    p.drawText(QRectF{left, 36 * unit, width - left - right, 36 * unit}, Qt::AlignLeft | Qt::AlignTop | Qt::TextWordWrap,
+    p.drawText(QRectF{static_cast<double>(left), 36 * unit, static_cast<double>(width - left - right), 36 * unit}, Qt::AlignLeft | Qt::AlignTop | Qt::TextWordWrap,
                QString{"%1 mb, the circle of 60°%2: amplitude of wave 1 (orange) and wave 2 (blue) of the height (m, left scale); the zonal-mean wind (gray, m/s, right scale)"}.arg(waves.level).arg(waves.south ? "S" : "N"));
     double heightTop = 10.0, windLow = 0.0, windHigh = 10.0;
     for (size_t i = 0; i < waves.when.size(); i++) {
@@ -325,7 +326,7 @@ QImage VortexSection::drawWaves(const Waves& waves, int width, const QString& ti
     p.setPen(QPen{QColor{225, 225, 225}, std::max(1.0, unit)});
     for (int k = 0; k <= 4; k++) {
         const double y = top + plotHeight * k / 4.0;
-        p.drawLine(QPointF{left, y}, QPointF{left + plotWidth, y});
+        p.drawLine(QPointF{static_cast<double>(left), y}, QPointF{left + plotWidth, y});
         p.setPen(QColor{60, 60, 60});
         p.drawText(QRectF{4 * unit, y - 9 * unit, left - 10 * unit, 18 * unit}, Qt::AlignRight | Qt::AlignVCenter, QString::number(heightTop * (1.0 - k / 4.0), 'f', 0));
         p.drawText(QRectF{left + plotWidth + 8 * unit, y - 9 * unit, right - 10 * unit, 18 * unit}, Qt::AlignLeft | Qt::AlignVCenter, QString::number(windLow + (windHigh - windLow) * (1.0 - k / 4.0), 'f', 0));
@@ -333,7 +334,7 @@ QImage VortexSection::drawWaves(const Waves& waves, int width, const QString& ti
     }
     if (windLow < 0.0) {   // the wind's zero
         p.setPen(QPen{QColor{150, 150, 150}, std::max(1.0, unit), Qt::DashLine});
-        p.drawLine(QPointF{left, yWind(0.0)}, QPointF{left + plotWidth, yWind(0.0)});
+        p.drawLine(QPointF{static_cast<double>(left), yWind(0.0)}, QPointF{left + plotWidth, yWind(0.0)});
     }
     const auto line = [&] (const std::vector<double>& values, const QColor& color, const std::function<double(double)>& y, double widthFactor) {
         p.setPen(QPen{color, std::max(1.0, widthFactor * unit), Qt::SolidLine, Qt::RoundCap, Qt::RoundJoin});
@@ -360,7 +361,7 @@ QImage VortexSection::drawWaves(const Waves& waves, int width, const QString& ti
     for (size_t i = 0; i < n; i++) {
         const auto date = waves.when[i].date();
         if (date != last && (i == 0 || daily || date.dayOfWeek() == 1)) {
-            p.drawLine(QPointF{xAt(i), top + plotHeight}, QPointF{xAt(i), top + plotHeight + 5 * unit});
+            p.drawLine(QPointF{xAt(i), static_cast<double>(top + plotHeight)}, QPointF{xAt(i), top + plotHeight + 5 * unit});
             p.drawText(QRectF{xAt(i) - 50 * unit, top + plotHeight + 6 * unit, 100 * unit, 18 * unit}, Qt::AlignHCenter | Qt::AlignTop, date.toString("MMM d"));
         }
         last = date;
