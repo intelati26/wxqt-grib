@@ -82,6 +82,34 @@ const Ramp& exceedRamp();
 Product exceedProduct(const CumulativeEnsemble& ensemble, const std::string& id, const std::string& label, double inches, int period);
 Product exceedPooledProduct(const std::string& id, const std::string& label, double inches, int period);
 
+// the ingredients of a pattern as conditions (GfsChartIngredients.cpp)
+struct IngredientReq {
+    const char * key;
+    const char * variable;
+    const char * level;
+    int kind;   // 0: the field at the hour, 1: the 6 hour amount ending at it
+};
+struct Ingredient {
+    const char * name;
+    const char * unit;
+    std::vector<double> limits;
+    std::vector<IngredientReq> reqs;
+    bool single, ensemble;
+    std::vector<std::string> only;   // the single run models that have it (empty: every one)
+    std::function<GfsGrid::Grid(const std::function<const GfsGrid::Grid&(const char *)>&)> value;   // the field in the unit of the limits, from the records by their keys
+};
+struct IngredientCondition {
+    size_t ingredient;
+    double limit;
+};
+GfsGrid::Grid combine2(const GfsGrid::Grid& a, const GfsGrid::Grid& b, const std::function<float(float, float)>& f);
+GfsGrid::Grid mapped(const GfsGrid::Grid& a, const std::function<float(float)>& f);
+const std::vector<Ingredient>& ingredients();
+std::vector<IngredientCondition> ingredientConditions(bool ensemble, const std::string& source);
+std::string ingredientNames(const std::vector<IngredientCondition>& chosen);
+std::string conditionText(const IngredientCondition& c);
+const std::vector<std::string>& ingredientSources();
+
 // the color scales of the charts (GfsChartRamps.cpp)
 Ramp temperature();
 Ramp bands4F(const Ramp& base, double lowF, double highF);
@@ -162,6 +190,10 @@ void ensProducts(std::vector<Product>& p);
 void ensAllProducts(std::vector<Product>& p);
 
 void hrefProducts(std::vector<Product>& p);
+
+void gefsProducts(std::vector<Product>& p);
+
+void rrfsProducts(std::vector<Product>& p, const std::string& model);
 
 }  // namespace detail
 }  // namespace GfsChart
