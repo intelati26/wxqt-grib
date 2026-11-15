@@ -8395,7 +8395,7 @@ struct Frame {
     double span;
 };
 
-// The place of the largest value of the fill on view (the one the legend marks): a ring and the number beside it, on the side that has room.
+// The place of the largest value of the fill on view (the one the legend marks): a ring and "max" with the number beside it, on the side that has room.
 template <class Halo>
 void drawMaxMark(Frame& f, const Halo& halo, const QPointF& at, double value) {
     QPainter& p = f.p;
@@ -8406,7 +8406,7 @@ void drawMaxMark(Frame& f, const Halo& halo, const QPointF& at, double value) {
     p.setPen(QPen{QColor{20, 20, 20}, 1.8});
     p.drawEllipse(at, 5.0, 5.0);
     const double v = shown(f.product.quantity, value, f.us);
-    const QString text = QString::number(v, 'f', std::abs(v) < 10.0 && f.product.quantity != Quantity::Other ? 1 : 0);
+    const QString text = "max " + QString::number(v, 'f', std::abs(v) < 10.0 && f.product.quantity != Quantity::Other ? 1 : 0);
     const double width = text.size() * 8.0 + 8.0;
     const double dx = at.x() + 12.0 + width / 2.0 > area.right() - 4.0 ? -(12.0 + width / 2.0) : 12.0 + width / 2.0;   // to the left of the ring when the right has no room
     const double dy = at.y() - 10.0 < area.top() + 8.0 ? 10.0 : -10.0;
