@@ -443,6 +443,10 @@ ModelViewer::ModelViewer(Window * parent, const string& modelType)
             Utility::writePref("MODEL_PLUME_PANE", on ? "on" : "off");
             updatePlumePanel();
         });
+        buttonCross = UiStandards::button(this, "Another model's field...");
+        buttonCross->setToolTip("Lay a chart of another model (the SPC REFS updraft helicity, a probability) over this one as a translucent fill, for the same valid time. A time the other model has no field for leaves this chart as it is, and its title says so.");
+        QObject::connect(buttonCross, &QPushButton::clicked, this, [this] { chooseCrossFill(); });
+        boxH2.addWidgetReal(buttonCross);
         buttonOverlay = UiStandards::button(this, "Overlay models...");
         buttonOverlay->setToolTip("Draw the lines (heights, pressure) of other models over this chart's for the same valid time, each model in its own color. Save... writes it as a loop.");
         QObject::connect(buttonOverlay, &QPushButton::clicked, this, [this] { chooseOverlays(); });
@@ -828,7 +832,7 @@ string ModelViewer::frameKey(int hour) const {
     for (const auto& layer : hiddenLayers) {
         key += "|hide=" + layer;
     }
-    return key + ChartResolution::keyPart() + variantKey + (picked.member.empty() ? string{} : "|member=" + picked.member) + (picked.sigma ? "|sd" : "") + overlay + (overlayKeepFill && !overlay.empty() ? "|keepfill" : "");
+    return key + ChartResolution::keyPart() + variantKey + (picked.member.empty() ? string{} : "|member=" + picked.member) + (picked.sigma ? "|sd" : "") + (picked.crossFill.empty() ? string{} : "|cross=" + picked.crossFill) + overlay + (overlayKeepFill && !overlay.empty() ? "|keepfill" : "");
 }
 
 void ModelViewer::setVariant(GfsRender::Variant v) {
@@ -2662,6 +2666,7 @@ void ModelViewer::applySelection(const ChartSelection& chosen) {
 void ModelViewer::applyVariants(const ChartSelection& chosen) {
     picked.overlays = chosen.overlays;
     picked.overlayModels = chosen.overlayModels;
+    picked.crossFill = chosen.crossFill;
     refreshOverlays();
     pendingMember = chosen.member;
     if (const auto found = std::find(memberValues.begin(), memberValues.end(), chosen.member); !chosen.member.empty() && found != memberValues.end()) {
@@ -3910,8 +3915,29 @@ void ModelViewer::refreshOverlays() {
         }
     }
     picked.overlayModels = kept;
+    if (buttonCross != nullptr) {
+        buttonCross->setVisible(grib);
+        buttonCross->setText(picked.crossFill.empty() ? "Another model's field..." : QString::fromStdString("Field: " + ChartPickers::crossFillName(picked.crossFill)) + "...");
+    }
     buttonOverlay->setVisible(grib);
     buttonOverlay->setText(picked.overlayModels.empty() ? "Overlay models..." : "Overlay: " + QString::number(picked.overlayModels.size()) + " model" + (picked.overlayModels.size() == 1 ? "" : "s") + "...");
+}
+
+void ModelViewer::chooseCrossFill() {
+    auto chosen = picked.crossFill;
+    if (!ChartPickers::chooseCrossFill(this, objectModel.model, chosen) || chosen == picked.crossFill) {
+        return;
+    }
+    picked.crossFill = chosen;
+    refreshOverlays();
+    startPlaying(false);
+    strip->stop();
+    frames.clear();
+    frameOrder.clear();
+    frameBytes = 0;
+    failedAhead.clear();
+    refreshLoaded();
+    reload();
 }
 
 void ModelViewer::chooseOverlays() {

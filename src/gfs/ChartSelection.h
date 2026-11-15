@@ -19,6 +19,7 @@ struct ChartSelection {
     std::string param{"500_wnd_ht"};
     std::vector<std::string> overlays;        // lines and barbs ticked onto the chart
     std::vector<std::string> overlayModels;   // other models whose lines are drawn over this one's, for the same valid time
+    std::string crossFill;                    // another model's chart laid over this one as a translucent fill, "model:chart id" (section 10 of the plan); "" none
     std::string member;                       // one ensemble member instead of the mean ("" the chart as it is)
     bool sigma{false};                        // in standard deviations from the normal
     int changeBack{0};                        // hours: the change since the run that much older (0: the plain chart)
@@ -29,7 +30,7 @@ struct ChartSelection {
 
     // true when the model has that chart
     bool usable() const;
-    // the chart and its variants as one line ("model|chart|lines|models|member|sd|change|max": what a saved view keeps) and back; false, and `out` untouched, when the line is not one
+    // the chart and its variants as one line ("model|chart|lines|models|member|sd|change|max|cross": what a saved view keeps) and back; false, and `out` untouched, when the line is not one
     std::string line() const;
     static bool fromLine(const std::string& line, ChartSelection& out);
     // what the renderer is asked for at a forecast hour of the run whose hours are `hours`

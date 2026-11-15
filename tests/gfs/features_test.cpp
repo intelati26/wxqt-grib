@@ -44,6 +44,18 @@ namespace {
         CHECK(back.model == s.model && back.param == s.param && back.overlays == s.overlays && back.overlayModels == s.overlayModels);
         CHECK(back.member == "c00" && back.sigma && back.changeBack == 12 && !back.maxDay);
         CHECK(back.line() == s.line());
+        {   // another model's field over the chart (section 10 of the plan): kept in the line, asked of the renderer for a plain chart only, and a line from before it still reads
+            ChartSelection c{"GFS", "500_wnd_ht"};
+            c.crossFill = "SPCREFS:cref_max";
+            ChartSelection again;
+            CHECK(ChartSelection::fromLine(c.line(), again) && again.crossFill == "SPCREFS:cref_max" && again.line() == c.line());
+            const auto asked = c.variant({0, 6, 12}, 6);
+            CHECK(asked.crossModel == "SPCREFS" && asked.crossChart == "cref_max");
+            c.changeBack = 12;
+            CHECK(c.variant({0, 6, 12}, 6).crossModel.empty());   // (a change has no second fill)
+            ChartSelection old;
+            CHECK(ChartSelection::fromLine("GFS|500_wnd_ht||||0|0|0", old) && old.crossFill.empty());
+        }
         ChartSelection untouched{"KEEP", "KEEP"};
         CHECK(!ChartSelection::fromLine("not a line", untouched) && untouched.model == "KEEP");   // (a line that is not one leaves the selection as it was)
         CHECK(!ChartSelection::fromLine("", untouched) && untouched.model == "KEEP");

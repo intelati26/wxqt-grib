@@ -33,7 +33,7 @@ bool ChartSelection::usable() const {
 }
 
 std::string ChartSelection::line() const {
-    return model + "|" + param + "|" + joinList(overlays) + "|" + joinList(overlayModels) + "|" + member + "|" + (sigma ? "1" : "0") + "|" + std::to_string(changeBack) + "|" + (maxDay ? "1" : "0");
+    return model + "|" + param + "|" + joinList(overlays) + "|" + joinList(overlayModels) + "|" + member + "|" + (sigma ? "1" : "0") + "|" + std::to_string(changeBack) + "|" + (maxDay ? "1" : "0") + "|" + crossFill;
 }
 
 bool ChartSelection::fromLine(const std::string& line, ChartSelection& out) {
@@ -55,6 +55,7 @@ bool ChartSelection::fromLine(const std::string& line, ChartSelection& out) {
     out.sigma = p[5] == "1";
     out.changeBack = std::atoi(p[6].c_str());
     out.maxDay = p[7] == "1";
+    out.crossFill = p.size() > 8 ? p[8] : std::string{};
     return true;
 }
 
@@ -79,6 +80,10 @@ GfsRender::Variant ChartSelection::variant(const std::vector<int>& hours, int ho
     v.standardDeviations = sigma;
     if (v.kind == GfsRender::Variant::Kind::None) {   // (the other models' lines go over the plain chart only)
         v.overlayModels = overlayModels;
+        if (const auto colon = crossFill.find(':'); colon != std::string::npos) {
+            v.crossModel = crossFill.substr(0, colon);
+            v.crossChart = crossFill.substr(colon + 1);
+        }
     }
     return v;
 }

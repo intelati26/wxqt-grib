@@ -259,9 +259,11 @@ private:
     std::vector<std::string> hiddenLayers;   // the grid keys of the sets left out (GfsChart::Product::layers)
     void chooseLayers();
     void refreshLayersButton();
-    void chooseOverlays();                 // the other models whose lines are drawn over this chart's (a dialog of the models that have the chart)
+    void chooseOverlays();
+    void chooseCrossFill();                // "Another model's field...": a chart of another model laid over this one as a translucent fill (section 10 of the plan)                 // the other models whose lines are drawn over this chart's (a dialog of the models that have the chart)
     void refreshOverlays();                // keeps the ones that still have the chart on screen, and the button's text
     bool overlayKeepFill{false};   // the lines of the other models over the first one's fill and barbs (Overlay models...)
+    QPushButton * buttonCross{};
     QPushButton * buttonOverlay{};
     void editColors();   // the color scale of the chart on screen (PaletteEditor)
     QPushButton * buttonColors{};

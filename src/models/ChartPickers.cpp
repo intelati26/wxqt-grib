@@ -6,10 +6,15 @@
 #include "models/ChartPickers.h"
 #include <QCheckBox>
 #include <QDialog>
+#include <QComboBox>
 #include <QDialogButtonBox>
+#include <QLineEdit>
+#include <QListWidget>
+#include <QPushButton>
 #include <QLabel>
 #include <QVBoxLayout>
 #include "gfs/GfsModels.h"
+#include "gfs/GfsRender.h"
 #include <algorithm>
 #include <cmath>
 #include "gfs/GfsChart.h"
@@ -160,5 +165,88 @@ bool ChartPickers::chooseOverlayModels(QWidget * parent, const std::string& mode
     if (fill != nullptr) {
         *keepFill = fill->isChecked();
     }
+    return true;
+}
+
+std::string ChartPickers::crossFillName(const std::string& crossFill) {
+    const auto colon = crossFill.find(':');
+    if (colon == std::string::npos) {
+        return {};
+    }
+    const auto * product = GfsChart::product(crossFill.substr(colon + 1), crossFill.substr(0, colon));
+    return crossFill.substr(0, colon) + " " + (product != nullptr && !product->label.empty() ? product->label : crossFill.substr(colon + 1));
+}
+
+bool ChartPickers::chooseCrossFill(QWidget * parent, const std::string& model, std::string& crossFill) {
+    QDialog dialog{parent};
+    dialog.setWindowTitle("Another model's field");
+    dialog.resize(480, 520);
+    auto * layout = new QVBoxLayout{&dialog};
+    auto * about = new QLabel{"Lay a chart of another model over " + QString::fromStdString(model) + "'s as a translucent fill, for the same valid time: its newest run that has it (up to three runs back). "
+                              "The lowest sixth of its scale is left clear so that the chart under it reads. A time the other model has no field for leaves the chart as it is, and its title says so.", &dialog};
+    about->setWordWrap(true);
+    layout->addWidget(about);
+    auto * models = new QComboBox{&dialog};
+    for (const auto& def : GfsModels::all()) {
+        if (!def.storm && GfsRender::drawsModel(def.id)) {
+            models->addItem(QString::fromStdString(def.id + "   " + def.label), QString::fromStdString(def.id));
+        }
+    }
+    auto * search = new QLineEdit{&dialog};
+    search->setPlaceholderText("Search the charts");
+    search->setClearButtonEnabled(true);
+    auto * list = new QListWidget{&dialog};
+    layout->addWidget(models);
+    layout->addWidget(search);
+    layout->addWidget(list, 1);
+    const auto fill = [models, search, list, model] {
+        list->clear();
+        const auto other = models->currentData().toString().toStdString();
+        const auto needle = search->text().trimmed();
+        for (const auto& product : GfsChart::products()) {
+            if (product.source != other || !product.fill || product.linesOnly) {
+                continue;
+            }
+            const auto text = QString::fromStdString(product.label + "   (" + product.id + ")");
+            if (!needle.isEmpty() && !text.contains(needle, Qt::CaseInsensitive)) {
+                continue;
+            }
+            auto * item = new QListWidgetItem{text, list};
+            item->setData(Qt::UserRole, QString::fromStdString(product.id));
+        }
+    };
+    const auto colon = crossFill.find(':');
+    if (colon != std::string::npos) {
+        const auto at = models->findData(QString::fromStdString(crossFill.substr(0, colon)));
+        if (at >= 0) {
+            models->setCurrentIndex(at);
+        }
+    }
+    QObject::connect(models, &QComboBox::currentIndexChanged, &dialog, fill);
+    QObject::connect(search, &QLineEdit::textChanged, &dialog, fill);
+    fill();
+    if (colon != std::string::npos) {
+        for (int i = 0; i < list->count(); i++) {
+            if (list->item(i)->data(Qt::UserRole).toString().toStdString() == crossFill.substr(colon + 1)) {
+                list->setCurrentRow(i);
+            }
+        }
+    }
+    auto * buttons = new QDialogButtonBox{QDialogButtonBox::Ok | QDialogButtonBox::Cancel, &dialog};
+    auto * none = buttons->addButton("No field", QDialogButtonBox::DestructiveRole);
+    QObject::connect(buttons, &QDialogButtonBox::accepted, &dialog, &QDialog::accept);
+    QObject::connect(buttons, &QDialogButtonBox::rejected, &dialog, &QDialog::reject);
+    QObject::connect(none, &QPushButton::clicked, &dialog, [&dialog] { dialog.done(2); });
+    QObject::connect(list, &QListWidget::itemDoubleClicked, &dialog, &QDialog::accept);
+    layout->addWidget(buttons);
+    const int result = dialog.exec();
+    if (result == 2) {
+        crossFill.clear();
+        return true;
+    }
+    if (result != QDialog::Accepted || list->currentItem() == nullptr) {
+        return false;
+    }
+    crossFill = models->currentData().toString().toStdString() + ":" + list->currentItem()->data(Qt::UserRole).toString().toStdString();
     return true;
 }

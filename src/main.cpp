@@ -103,6 +103,7 @@
 #include "models/CamsViewer.h"
 #include "settings/SettingsMain.h"
 #include "models/ModelScreen.h"
+#include "models/ChartPickers.h"
 #include "tropical/CiraStorm.h"
 #include "models/ModelViewer.h"
 #include "history/EventsViewer.h"
@@ -1310,6 +1311,18 @@ int main(int argc, char * argv[]) {
                 std::string cycle, other;
                 const auto a = GfsRender::hafsTrack("HAFSA", storm, cycle), b = GfsRender::hafsTrack("HAFSB", storm, other);
                 new HafsIntensityViewer{&w, storm, a, b, cycle};
+            } else if (route.startsWith("crosspicker:")) {   // WXQT_OPEN=crosspicker:<out.png>[:<model to start on>]: the "Another model's field" dialog as it opens, saved, then closed
+                const auto file = route.section(':', 1, 1);
+                const auto start = route.section(':', 2, 2);
+                QTimer::singleShot(1500, &a, [file] {
+                    if (auto * dialog = QApplication::activeModalWidget()) {
+                        dialog->grab().save(file);
+                        dialog->close();
+                    }
+                    QTimer::singleShot(300, qApp, &QCoreApplication::quit);
+                });
+                std::string crossFill = start.isEmpty() ? std::string{} : start.toStdString() + ":";
+                ChartPickers::chooseCrossFill(&w, "GFS", crossFill);
             } else if (route.startsWith("modelpicker:")) {   // WXQT_OPEN=modelpicker:<GFS|RRFS|GEFS ...>: the model screen on that model with its chart picker open
                 Utility::writePref("NCEP", route.section(':', 1, 1).toStdString());
                 Utility::writePref("MODELNCEPPARAMLASTUSED", qEnvironmentVariable("WXQT_PARAM", "500_wnd_ht").toStdString());   // WXQT_PARAM=<chart id>: open on that chart
