@@ -18,6 +18,19 @@
 
 // The app's side of the GFS charts: the network, the GDAL folder, the borders and the user's units, handed to GfsData / GfsChart.
 namespace GfsRender {
+    // The user's settings that decide what is drawn on a picture besides the chart itself, read once (OptionPrefs::read) so that the options can be worked out from them without the settings
+    // file: the marks along the frame (MODEL_TICKS "off", "local" or "all"), the ring of a saved location (MODEL_PLACE_MARK), the mark of the maximum (MODEL_MAX_MARK), the model guidance
+    // site's color bands (MAG_COLORS), the wind radii of a storm (HAFS_RADII) and the units
+    struct OptionPrefs {
+        std::string ticks{"local"};
+        bool placeMark{true};
+        bool maxMark{false};
+        bool magColors{true};
+        bool windRadii{true};
+        bool fahrenheit{true};
+        static OptionPrefs read();
+    };
+
     // The handle a model screen holds on the model data cache: the decoded grids and the GRIB records fetched, in a folder shared by every screen and kept between runs of the program (GfsCache:
     // older than 48 hours by default is removed when the program starts)
     class Session {
@@ -124,6 +137,11 @@ namespace GfsRender {
     std::vector<GfsChart::TrackPoint> hafsTrack(const std::string& model, const std::string& storm, std::string& cycle);
     // The storms the hurricane model ("HAFSA" or "HAFSB") has files for in its newest cycle, as NHC ids ("09l", "15e"), and that cycle ("12Z"); empty when none
     std::vector<std::string> hafsStorms(const std::string& model, std::string& cycle);
+
+    // The options of a picture that the settings, the area and the request decide (not the data: the borders, the cities and the climate are added by the caller): the marks along the
+    // frame, the ring of a saved location, the mark of the maximum, the units, what the request hands back (the fill, the lines, the probe) and the size of the picture. A bare chart (the
+    // map layer's) has no frame marks and no ring.
+    GfsChart::Options chartOptions(const OptionPrefs& prefs, const std::string& sectorId, double localLat, double localLon, const std::string& localName, const Variant& variant, GfsChart::Probe * probe, GfsChart::Probe * bareProbe);
 }
 
 #endif  // GFSRENDER_H

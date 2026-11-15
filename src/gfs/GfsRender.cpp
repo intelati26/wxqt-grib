@@ -868,6 +868,56 @@ namespace {
     }
 }
 
+GfsRender::OptionPrefs GfsRender::OptionPrefs::read() {
+    OptionPrefs prefs;
+    prefs.ticks = Utility::readPref("MODEL_TICKS", "local");
+    prefs.placeMark = Utility::readPref("MODEL_PLACE_MARK", "true").compare(0, 1, "t") == 0;   // the model screen's "Mark the place"
+    prefs.maxMark = Utility::readPref("MODEL_MAX_MARK", "false").compare(0, 1, "t") == 0;   // "Mark the maximum"
+    prefs.magColors = Utility::readPref("MAG_COLORS", "true").compare(0, 1, "t") == 0;   // the settings switch: the model guidance site's color bands
+    prefs.windRadii = Utility::readPref("HAFS_RADII", "true").compare(0, 1, "t") == 0;   // the quadrant wind field toggle of the hurricane model screen
+    prefs.fahrenheit = UIPreferences::unitsF;
+    return prefs;
+}
+
+GfsChart::Options GfsRender::chartOptions(const OptionPrefs& prefs, const std::string& sectorId, double localLat, double localLon, const std::string& localName, const Variant& variant, GfsChart::Probe * probe, GfsChart::Probe * bareProbe) {
+    GfsChart::Options options;
+    options.markMax = prefs.maxMark;
+    {   // latitude / longitude marks: always on an area round a saved location, and on every chart when the settings pref says "all"
+        const bool isLocal = sectorId.compare(0, 6, "LOCAL:") == 0;
+        options.ticks = prefs.ticks == "all" || (isLocal && prefs.ticks != "off");
+        if (isLocal && prefs.placeMark) {   // the ring and the name
+            options.hasMarker = true;
+            options.markerLat = localLat;
+            options.markerLon = localLon;
+            options.markerName = localName;
+        }
+    }
+    options.fahrenheit = prefs.fahrenheit;
+    options.magColors = prefs.magColors;
+    options.probe = probe != nullptr ? probe : (variant.bare ? bareProbe : nullptr);
+    options.fillOut = variant.fillOut;
+    options.rampOut = variant.rampOut;
+    options.windUOut = variant.windUOut;
+    options.windVOut = variant.windVOut;
+    options.contoursOut = variant.contoursOut;
+    options.noBarbs = variant.noBarbs;
+    options.vectorOut = variant.vectorOut;
+    if (variant.bare) {
+        options.hasMarker = false;
+        options.ticks = false;
+    }
+    if (variant.width > 0) {
+        options.width = variant.width;
+    }
+    options.scale = variant.scale;
+    options.legendFit = variant.legendFit;
+    options.legendRange = variant.legendRange;
+    options.legendLow = variant.legendLow;
+    options.legendHigh = variant.legendHigh;
+    options.windRadii = prefs.windRadii;
+    return options;
+}
+
 QByteArray GfsRender::png(Session& session, const std::string& model, const std::string& param, const std::string& sectorId, const std::string& cycle, int hour, const std::vector<std::string>& overlays, std::string& error, GfsChart::Probe * probe, const Variant& variant) {
     try {   // a chart that cannot be made yet (the standard deviations still being worked out) says why
     const auto * base = GfsChart::product(param, model);
@@ -1082,62 +1132,28 @@ QByteArray GfsRender::png(Session& session, const std::string& model, const std:
             return {};
         }
     }
-    GfsChart::Options options;
-    options.markMax = Utility::readPref("MODEL_MAX_MARK", "false").compare(0, 1, "t") == 0;   // the model screen's "Mark the maximum"
-    {   // latitude / longitude marks: always on an area round a saved location, and on every chart when the settings pref says "all"
-        const bool isLocal = sectorId.compare(0, 6, "LOCAL:") == 0;
-        const auto mode = Utility::readPref("MODEL_TICKS", "local");
-        options.ticks = mode == "all" || (isLocal && mode != "off");
-        if (isLocal && Utility::readPref("MODEL_PLACE_MARK", "true").compare(0, 1, "t") == 0) {   // the ring and the name; the model screen's "Mark the place"
-            options.hasMarker = true;
-            options.markerLat = localLat;
-            options.markerLon = localLon;
-            options.markerName = localName;
-        }
-    }
+    const auto prefs = OptionPrefs::read();
+    GfsChart::Probe bareProbe;   // (a bare chart needs the place of its map to cut it out)
+    auto options = chartOptions(prefs, sectorId, localLat, localLon, localName, variant, probe, &bareProbe);
     static const GfsClimate climate{UtilityGrib::gdalBinDir()};
     options.climate = &climate;
-    options.fahrenheit = UIPreferences::unitsF;
-    options.magColors = Utility::readPref("MAG_COLORS", "true").compare(0, 1, "t") == 0;   // the settings switch: the model guidance site's color bands
     options.palettes = PaletteStore::all();   // the user's own scales (the Colors editor)
-    options.lines = Coast::borders();
-    {   // the cities, biggest first: where a chart's point numbers go (the median / 10th / 90th temperature chart)
-        static const auto places = [] {
-            CitiesExtended::create();
-            auto cities = CitiesExtended::cities;
-            std::stable_sort(cities.begin(), cities.end(), [] (const CityExt& a, const CityExt& b) { return a.population > b.population; });
-            std::vector<std::pair<float, float>> out;
-            for (const auto& city : cities) {
-                out.emplace_back(static_cast<float>(city.longitude), static_cast<float>(city.latitude));
-            }
-            return out;
-        }();
-        options.places = places;
+    if (!variant.bare) {
+        options.lines = Coast::borders();
+        {   // the cities, biggest first: where a chart's point numbers go (the median / 10th / 90th temperature chart)
+            static const auto places = [] {
+                CitiesExtended::create();
+                auto cities = CitiesExtended::cities;
+                std::stable_sort(cities.begin(), cities.end(), [] (const CityExt& a, const CityExt& b) { return a.population > b.population; });
+                std::vector<std::pair<float, float>> out;
+                for (const auto& city : cities) {
+                    out.emplace_back(static_cast<float>(city.longitude), static_cast<float>(city.latitude));
+                }
+                return out;
+            }();
+            options.places = places;
+        }
     }
-    GfsChart::Probe bareProbe;   // (a bare chart needs the place of its map to cut it out)
-    options.probe = probe != nullptr ? probe : (variant.bare ? &bareProbe : nullptr);
-    options.fillOut = variant.fillOut;
-    options.rampOut = variant.rampOut;
-    options.windUOut = variant.windUOut;
-    options.windVOut = variant.windVOut;
-    options.contoursOut = variant.contoursOut;
-    options.noBarbs = variant.noBarbs;
-    options.vectorOut = variant.vectorOut;
-    if (variant.bare) {
-        options.lines.clear();
-        options.places.clear();
-        options.hasMarker = false;
-        options.ticks = false;
-    }
-    if (variant.width > 0) {
-        options.width = variant.width;
-    }
-    options.scale = variant.scale;
-    options.legendFit = variant.legendFit;
-    options.legendRange = variant.legendRange;
-    options.legendLow = variant.legendLow;
-    options.legendHigh = variant.legendHigh;
-    options.windRadii = Utility::readPref("HAFS_RADII", "true").compare(0, 1, "t") == 0;   // the quadrant wind field toggle of the hurricane model screen
     if (isHafs(model)) {   // the model's own track and wind radii for the storm, drawn on the chart
         const auto text = URL::getBytes(gfs.fileUrl(run, 0, "trak"));
         options.track = GfsChart::parseTrack(text.toStdString());
