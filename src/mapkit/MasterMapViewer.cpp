@@ -2018,6 +2018,18 @@ void MasterMapViewer::saveVortexSection() {
     form->addRow("To", to);
     form->addRow("Step", step);
     form->addRow("Hemisphere", hemisphere);
+    auto * picture = UiStandards::combo(&dialog);
+    picture->addItem("The wind by level and time (a row for each level)", 0);
+    picture->addItem("The waves of one level: wave 1 and 2 of the height, with the wind (a graph)", 1);
+    auto * waveLevel = UiStandards::combo(&dialog);
+    for (const int mb : {1, 2, 5, 10, 20, 30, 50, 70, 100}) {
+        waveLevel->addItem(QString::number(mb) + " mb", mb);
+    }
+    waveLevel->setCurrentIndex(3);
+    waveLevel->setEnabled(false);
+    QObject::connect(picture, &QComboBox::currentIndexChanged, waveLevel, [picture, waveLevel] { waveLevel->setEnabled(picture->currentData().toInt() == 1); });
+    form->insertRow(0, "Picture", picture);
+    form->addRow("Level (the waves)", waveLevel);
     column->addLayout(form);
     auto * buttons = new QDialogButtonBox{QDialogButtonBox::Ok | QDialogButtonBox::Cancel, &dialog};
     QObject::connect(buttons, &QDialogButtonBox::accepted, &dialog, &QDialog::accept);
@@ -2043,6 +2055,9 @@ void MasterMapViewer::saveVortexSection() {
     std::atomic<size_t> reached{0};
     std::atomic<bool> stop{false};
     VortexSection::Series series;
+    VortexSection::Waves waves;
+    const bool wavesWanted = picture->currentData().toInt() == 1;
+    const int wavesAt = waveLevel->currentData().toInt();
     bool ok = false;
     QEventLoop loop;
     QTimer ticker;
@@ -2055,7 +2070,8 @@ void MasterMapViewer::saveVortexSection() {
     });
     ticker.start(250);
     new FutureVoid{this, [&] {
-        ok = VortexSection::collect(model, when, levels, south, series, [&] (size_t i, size_t) { reached = i; return !stop.load(); });
+        const auto step = [&] (size_t i, size_t) { reached = i; return !stop.load(); };
+        ok = wavesWanted ? VortexSection::collectWaves(model, when, wavesAt, south, waves, step) : VortexSection::collect(model, when, levels, south, series, step);
     }, [&loop] { loop.quit(); }};
     loop.exec();
     ticker.stop();
@@ -2063,12 +2079,13 @@ void MasterMapViewer::saveVortexSection() {
     if (stop.load()) {
         return;
     }
-    const auto image = ok ? VortexSection::draw(series, 1400, QString::fromStdString(model) + " initial states, " + when.front().toString("yyyy-MM-dd") + " to " + when.back().toString("yyyy-MM-dd")) : QImage{};
+    const auto title = QString::fromStdString(model) + " initial states, " + when.front().toString("yyyy-MM-dd") + " to " + when.back().toString("yyyy-MM-dd");
+    const auto image = !ok ? QImage{} : wavesWanted ? VortexSection::drawWaves(waves, 1400, title) : VortexSection::draw(series, 1400, title);
     if (image.isNull()) {
         QMessageBox::warning(this, "Save the vortex section", "No wind could be read: the model has no wind charts in the runs of those times.");
         return;
     }
-    const auto path = QFileDialog::getSaveFileName(this, "Save the vortex section", ChartExport::startFolder() + "/" + ChartExport::fileName("vortex section", "png"), "PNG image (*.png)");
+    const auto path = QFileDialog::getSaveFileName(this, "Save the vortex section", ChartExport::startFolder() + "/" + ChartExport::fileName(wavesWanted ? "vortex waves" : "vortex section", "png"), "PNG image (*.png)");
     if (!path.isEmpty() && !image.save(path, "PNG")) {
         QMessageBox::warning(this, "Save the vortex section", "The file could not be written: " + path);
     }
