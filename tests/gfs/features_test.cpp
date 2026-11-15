@@ -28,6 +28,45 @@ namespace {
         return std::find(list.begin(), list.end(), id) != list.end();
     }
 
+    // the vorticity right up to the poles: a solid-body rotation (u = U0 cos latitude, v = 0) has the vorticity 2 U0 sin(latitude) / R everywhere, the poles included (the latitude-longitude formula cannot
+    // be worked out within about 1.25 degrees of a pole; the polar caps are worked out on a polar stereographic grid)
+    void poleVorticity() {
+        GfsGrid::Grid u;
+        u.columns = 1440;
+        u.rows = 721;
+        u.lon0 = 0.0;
+        u.lat0 = 90.0;
+        u.step = 0.25;
+        u.values.resize(static_cast<size_t>(u.columns) * static_cast<size_t>(u.rows));
+        constexpr double pi = 3.14159265358979, radius = 6371229.0, U0 = 30.0;
+        for (int r = 0; r < u.rows; r++) {
+            for (int c = 0; c < u.columns; c++) {
+                u.values[static_cast<size_t>(r) * static_cast<size_t>(u.columns) + static_cast<size_t>(c)] = static_cast<float>(U0 * std::cos((90.0 - r * 0.25) * pi / 180.0));
+            }
+        }
+        auto v = u;
+        std::fill(v.values.begin(), v.values.end(), 0.0f);
+        const auto zeta = GfsGrid::vorticity(u, v);
+        int checked = 0;
+        for (const double lat : {90.0, 89.75, 89.0, 88.0, 87.0, 86.0, 85.0, 80.0, 0.0, -80.0, -86.0, -88.0, -89.0, -89.75, -90.0}) {
+            const int row = static_cast<int>(std::lround((90.0 - lat) / 0.25));
+            const double expected = 2.0 * U0 / radius * std::sin(lat * pi / 180.0);
+            const double got = zeta.at(100, row);
+            // within 3 per cent of the largest value (the finite differences of a 0.25 degree grid), where the value is not about nothing
+            if (std::abs(lat) < 1.0) {
+                CHECK(std::abs(got) < 1e-7);
+            } else {
+                CHECK(!std::isnan(got) && std::abs(got - expected) < 0.03 * 2.0 * U0 / radius);
+            }
+            checked++;
+        }
+        CHECK(checked == 15);
+        // every column of the pole's own row has the same value (a pole has no longitude)
+        for (int c = 0; c < u.columns; c += 97) {
+            CHECK(std::abs(zeta.at(c, 0) - zeta.at(0, 0)) < 1e-9);
+        }
+    }
+
     void chartSelection() {
         ChartSelection s;
         s.model = "GFS";
@@ -209,6 +248,7 @@ int main(int argc, char ** argv) {
     QCoreApplication app{argc, argv};
     MyApplication::preferences = new QSettings{"/tmp/wxqt_features_test_prefs.ini", QSettings::IniFormat};
     chartSelection();
+    poleVorticity();
     modelBar();
     hurricaneIds();
     pictureModelsPage();

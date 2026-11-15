@@ -361,8 +361,78 @@ namespace {
     }
 }
 
+namespace {
+    // The vorticity near a pole. The formula on a latitude-longitude grid divides by cos(latitude), so it is not worked out within about 1.25 degrees of a pole (and is poor beside that). The winds there
+    // are known to the pole itself: they are put on a polar stereographic grid centred on the pole (spacing of the grid's own, a conformal map with no singularity: its scale is k = 2 / (1 + sin latitude)
+    // for north), the vorticity worked out there as k^2 (d(Vy/k)/dx - d(Vx/k)/dy) from the winds turned to the map's axes, and read back onto the latitude rows from `fromLat` to the pole. north: true for the
+    // north pole. `out` is the vorticity of the rows between (from spherical), which keeps its values below `fromLat`.
+    void polarCap(const Grid& u, const Grid& v, Grid& out, bool north, double fromLat) {
+        const double s = north ? 1.0 : -1.0;               // the map's y runs with the east (north pole) or against it (south pole): (x, y, vertical) stays right-handed
+        const double nsign = north ? -1.0 : 1.0;            // north is toward the centre of the map at the north pole, away from it at the south
+        const double d = earthRadius * pi / 180.0 * u.step;   // map spacing in meters (about the true spacing near the pole)
+        const double colatMax = (90.0 - fromLat + 1.5) * pi / 180.0;   // the map runs 1.5 degrees past the rows it fills, for the differences at its edge
+        const double rhoMax = 2.0 * earthRadius * std::tan(colatMax / 2.0);
+        const int half = static_cast<int>(std::ceil(rhoMax / d)) + 1;
+        const int n = 2 * half + 1;
+        std::vector<double> wx(static_cast<size_t>(n) * static_cast<size_t>(n), nan), wy(wx), scale(wx);
+        for (int j = 0; j < n; j++) {
+            for (int i = 0; i < n; i++) {
+                const double x = (i - half) * d, y = (j - half) * d, rho = std::hypot(x, y);
+                const double colat = 2.0 * std::atan(rho / (2.0 * earthRadius));
+                const double lat = north ? 90.0 - colat * 180.0 / pi : -90.0 + colat * 180.0 / pi;
+                const double lon = std::atan2(s * y, x);   // radians, east
+                const double k = 2.0 / (1.0 + std::cos(colat));
+                const double uu = u.sample(lon * 180.0 / pi, lat), vv = v.sample(lon * 180.0 / pi, lat);
+                if (std::isnan(uu) || std::isnan(vv)) {
+                    continue;
+                }
+                const size_t at = static_cast<size_t>(j) * static_cast<size_t>(n) + static_cast<size_t>(i);
+                // the wind turned to the map's axes: east is (-sin lon, s cos lon), north is nsign times the outward direction (cos lon, s sin lon)
+                wx[at] = (-uu * std::sin(lon) + vv * nsign * std::cos(lon)) / k;
+                wy[at] = (s * uu * std::cos(lon) + vv * nsign * s * std::sin(lon)) / k;
+                scale[at] = k;
+            }
+        }
+        std::vector<double> zeta(wx.size(), nan);
+        for (int j = 1; j + 1 < n; j++) {
+            for (int i = 1; i + 1 < n; i++) {
+                const size_t at = static_cast<size_t>(j) * static_cast<size_t>(n) + static_cast<size_t>(i);
+                const double dwy = (wy[at + 1] - wy[at - 1]) / (2.0 * d), dwx = (wx[at + static_cast<size_t>(n)] - wx[at - static_cast<size_t>(n)]) / (2.0 * d);
+                zeta[at] = scale[at] * scale[at] * (dwy - dwx);
+            }
+        }
+        for (int row = 0; row < out.rows; row++) {
+            const double lat = out.lat0 - row * out.step;
+            if (north ? lat < fromLat : lat > -fromLat) {
+                continue;
+            }
+            const double colat = (north ? 90.0 - lat : 90.0 + lat) * pi / 180.0;
+            const double rho = 2.0 * earthRadius * std::tan(colat / 2.0);
+            for (int col = 0; col < out.columns; col++) {
+                const double lon = (out.lon0 + col * out.step) * pi / 180.0;
+                const double fx = half + rho * std::cos(lon) / d, fy = half + rho * s * std::sin(lon) / d;   // (y = s rho sin lon)
+                const int i = static_cast<int>(std::floor(fx)), j = static_cast<int>(std::floor(fy));
+                if (i < 1 || j < 1 || i + 2 > n - 1 || j + 2 > n - 1) {
+                    continue;
+                }
+                const double tx = fx - i, ty = fy - j;
+                const auto z = [&] (int a, int b) { return zeta[static_cast<size_t>(b) * static_cast<size_t>(n) + static_cast<size_t>(a)]; };
+                const double value = (z(i, j) * (1 - tx) + z(i + 1, j) * tx) * (1 - ty) + (z(i, j + 1) * (1 - tx) + z(i + 1, j + 1) * tx) * ty;
+                if (!std::isnan(value)) {
+                    out.values[static_cast<size_t>(row) * static_cast<size_t>(out.columns) + static_cast<size_t>(col)] = static_cast<float>(value);
+                }
+            }
+        }
+    }
+}
+
 Grid vorticity(const Grid& u, const Grid& v) {
-    return spherical(u, v, false);
+    auto out = spherical(u, v, false);
+    if (!u.empty() && u.global() && u.rows > 20 && u.lat0 > 89.0 && u.lat0 - (u.rows - 1) * u.step < -89.0) {   // a global grid that reaches the poles
+        polarCap(u, v, out, true, 86.0);
+        polarCap(u, v, out, false, 86.0);
+    }
+    return out;
 }
 
 Grid divergence(const Grid& u, const Grid& v) {

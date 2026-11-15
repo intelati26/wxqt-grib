@@ -75,38 +75,6 @@ inline GfsGrid::Grid vorticityOf(const Grids& g) {
 inline std::function<GfsGrid::Grid(const Grids&)> potentialVorticityOf(double pAbove, double pLevel, double pBelow) {
     return [=] (const Grids& g) {
         auto zeta = GfsGrid::vorticity(GfsGrid::smoothed(pick(g, "u"), 1), GfsGrid::smoothed(pick(g, "v"), 1));   // 1 / s
-        {   // the vorticity is not worked out within about 1.25 degrees of a pole (cos latitude under 0.02: GfsGrid::vorticity leaves those rows clear), which drew a white disc at the pole: each of those rows
-            // takes the mean of the nearest row that has a value (the ring just beside the cap)
-            const auto rowMean = [&zeta] (int row) {
-                double sum = 0.0;
-                int count = 0;
-                for (int c = 0; c < zeta.columns; c++) {
-                    const float v = zeta.values[static_cast<size_t>(row) * static_cast<size_t>(zeta.columns) + static_cast<size_t>(c)];
-                    if (!std::isnan(v)) {
-                        sum += v;
-                        count++;
-                    }
-                }
-                return count > 0 ? sum / count : std::nan("");
-            };
-            const auto fillRows = [&zeta, &rowMean] (int from, int step) {   // from the pole inward until a row has values
-                int edge = from;
-                while (edge >= 0 && edge < zeta.rows && std::isnan(rowMean(edge))) {
-                    edge += step;
-                }
-                if (edge < 0 || edge >= zeta.rows) {
-                    return;
-                }
-                const auto mean = static_cast<float>(rowMean(edge));
-                for (int row = from; row != edge; row += step) {
-                    for (int c = 0; c < zeta.columns; c++) {
-                        zeta.values[static_cast<size_t>(row) * static_cast<size_t>(zeta.columns) + static_cast<size_t>(c)] = mean;
-                    }
-                }
-            };
-            fillRows(0, 1);
-            fillRows(zeta.rows - 1, -1);
-        }
         const auto& ta = pick(g, "ta"), & tb = pick(g, "tb");
         constexpr double kappa = 0.2857, gravity = 9.80665, omega = 7.2921e-5, pi = 3.14159265358979;
         const double thetaAbove = std::pow(1000.0 / pAbove, kappa), thetaBelow = std::pow(1000.0 / pBelow, kappa);
