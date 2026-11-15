@@ -195,6 +195,10 @@ void gefsProducts(std::vector<Product>& p);
 
 void rrfsProducts(std::vector<Product>& p, const std::string& model);
 
+void refsProducts(std::vector<Product>& p);
+
+void nbmProducts(std::vector<Product>& p);
+
 }  // namespace detail
 }  // namespace GfsChart
 
