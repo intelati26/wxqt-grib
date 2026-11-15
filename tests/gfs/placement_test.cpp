@@ -1,6 +1,6 @@
-// Test of where the text of a chart is put (GfsChart::render with Options::vectorOut, which hands over the numbers on the lines and the highs and lows as places, not as pixels): on a chart with
-// pressure highs and lows and height lines, no number on a line is over a high or a low, no two numbers are over one another, and every one is inside the frame. The rules are in the picture's pixels:
-// a number's box is 8 pixels a character and 18 high, the letter of a high or low and its value 28 by 32.
+// Test of where the text of a chart is put (GfsChart::render with Options::placedOut, which hands over every box reserved for text): on a chart with pressure highs and lows, height lines and numbers
+// at points, no box is over another (a number on a line, a high or low, a number at a point), and each is inside the frame by the margin of its kind. A number's box is 8 pixels a character and 18 high,
+// the letter of a high or low and its value 28 by 32.
 #include <QGuiApplication>
 #include <QSettings>
 #include "util/MyApplication.h"
@@ -45,77 +45,128 @@ int main(int argc, char ** argv) {
     // a pressure with lows and highs of different sizes, and a height field whose lines run across them
     grids["p"] = made([pi] (double lon, double lat) { return 101400.0 + 1400.0 * std::sin(lon * pi / 22.0 + 0.7) * std::cos(lat * pi / 12.0) + 600.0 * std::sin(lat * pi / 9.0); });
     grids["z"] = made([pi] (double lon, double lat) { return 5600.0 + 4.0 * (lat > 40 ? -(lat - 40) * 20.0 : (40 - lat) * 5.0) + 90.0 * std::sin(lon * pi / 25.0) * std::cos(lat * pi / 20.0); });
-    int checkedNumbers = 0, checkedPairs = 0;
+    grids["t"] = made([pi] (double lon, double lat) { return 15.0 + 12.0 * std::sin(lon * pi / 31.0) * std::cos(lat * pi / 27.0); });
+    grids["w"] = made([pi] (double lon, double lat) { return 40.0 + 30.0 * std::sin(lon * pi / 17.0) * std::sin(lat * pi / 13.0); });
+    int boxesChecked = 0, pairsChecked = 0;
     for (const int width : {700, 1000, 480}) {
+        for (const int variant : {0, 1, 2}) {   // lines and highs and lows; with numbers at points; and with twice as many lines under the points
+            const bool points = variant > 0;
+            Product product;
+            product.source = "TEST";
+            product.id = "placement";
+            product.label = "placement";
+            product.fill = [] (const GfsChart::Grids& g) { return g.at("z"); };
+            product.ramp.stops = {{5000, QColor{200, 220, 255}}, {5800, QColor{255, 240, 200}}};
+            GfsChart::ContourSet pressure, heights;
+            pressure.key = "p";
+            pressure.scale = 0.01;
+            pressure.interval = variant == 2 ? 1 : 4;
+            pressure.highsAndLows = true;
+            heights.key = "z";
+            heights.scale = 0.1;
+            heights.interval = variant == 2 ? 2 : 6;
+            product.contours = {pressure, heights};
+            if (points) {   // numbers at points over the same chart: they keep clear of the numbers on the lines and of the highs and lows
+                product.pointValues = {{"t", QColor{20, 20, 20}, "Temperature"}, {"w", QColor{30, 30, 160}, "Percent"}};
+                product.quantity = GfsChart::Quantity::Temperature;
+            }
+            std::vector<GfsChart::Options::PlacedBox> placed;
+            GfsChart::Probe probe;
+            GfsChart::Options options;
+            options.width = width;
+            options.placedOut = &placed;
+            options.probe = &probe;
+            options.magColors = false;
+            GfsData::Run run;
+            run.date = "20261108";
+            run.cycle = "12";
+            const GfsChart::Sector * sector = GfsChart::sector("CONUS");
+            CHECK(sector != nullptr);
+            const auto image = GfsChart::render(product, *sector, grids, run, 12, options);
+            CHECK(!image.isNull());
+            const QRectF area{probe.areaLeft, probe.areaTop, probe.areaWidth, probe.areaHeight};   // (the picture is at scale 1)
+            int numbers = 0, extremes = 0, pointBoxes = 0;
+            for (const auto& a : placed) {
+                numbers += a.kind == "number";
+                extremes += a.kind == "extreme";
+                pointBoxes += a.kind == "point";
+                boxesChecked++;
+                // inside the frame by the margin of its kind
+                CHECK((a.kind == "number" ? area.adjusted(24, 14, -24, -14) : a.kind == "extreme" ? area.adjusted(20, 20, -20, -20) : area.adjusted(4, 4, -4, -4)).contains(a.box.center()));
+            }
+            std::printf("  width %d%s: %d numbers on lines, %d highs and lows, %d point boxes\n", width, variant == 2 ? " dense, with points" : points ? " with points" : "", numbers, extremes, pointBoxes);
+            CHECK(numbers > 5 && extremes >= 2 && (!points || pointBoxes > 5));
+            // no two boxes of the text on the chart over one another (two highs or lows are kept apart by their own radius)
+            for (size_t a = 0; a < placed.size(); a++) {
+                for (size_t b = a + 1; b < placed.size(); b++) {
+                    if (placed[a].kind == "extreme" && placed[b].kind == "extreme") {
+                        continue;
+                    }
+                    pairsChecked++;
+                    if (placed[a].box.intersects(placed[b].box)) {
+                        std::printf("  %s at (%.0f, %.0f) is over %s at (%.0f, %.0f)\n", placed[a].kind.c_str(), placed[a].box.center().x(), placed[a].box.center().y(), placed[b].kind.c_str(), placed[b].box.center().x(), placed[b].box.center().y());
+                    }
+                    CHECK(!placed[a].box.intersects(placed[b].box));
+                }
+            }
+        }
+    }
+    // numbers at points put on the very places of the numbers on the lines (the cities are where the numbers are): the points move off them or are left out, the numbers on the lines stay
+    {
         Product product;
         product.source = "TEST";
         product.id = "placement";
         product.label = "placement";
         product.fill = [] (const GfsChart::Grids& g) { return g.at("z"); };
         product.ramp.stops = {{5000, QColor{200, 220, 255}}, {5800, QColor{255, 240, 200}}};
-        GfsChart::ContourSet pressure, heights;
-        pressure.key = "p";
-        pressure.scale = 0.01;
-        pressure.interval = 4;
-        pressure.highsAndLows = true;
+        GfsChart::ContourSet heights;
         heights.key = "z";
         heights.scale = 0.1;
         heights.interval = 6;
-        product.contours = {pressure, heights};
-        GfsChart::VectorLines out;
-        GfsChart::Probe probe;
-        GfsChart::Options options;
-        options.width = width;
-        options.vectorOut = &out;
-        options.probe = &probe;
-        options.magColors = false;
+        product.contours = {heights};
+        const GfsChart::Sector * sector = GfsChart::sector("CONUS");
         GfsData::Run run;
         run.date = "20261108";
         run.cycle = "12";
-        const GfsChart::Sector * sector = GfsChart::sector("CONUS");
-        CHECK(sector != nullptr);
-        const auto image = GfsChart::render(product, *sector, grids, run, 12, options);
-        CHECK(!image.isNull());
-        const double left = probe.areaLeft, top = probe.areaTop, w = probe.areaWidth, h = probe.areaHeight;   // (the picture is at scale 1)
+        std::vector<GfsChart::Options::PlacedBox> first;
+        GfsChart::Probe probe;
+        GfsChart::Options options;
+        options.width = 1000;
+        options.placedOut = &first;
+        options.probe = &probe;
+        options.magColors = false;
+        GfsChart::render(product, *sector, grids, run, 12, options);
         const double yTop = mercatorY(sector->north), yBottom = mercatorY(sector->south);
-        const auto pixel = [&] (const GfsChart::VectorLines::Label& l) {
-            return QPointF{left + (l.lon - sector->west) / (sector->east - sector->west) * w, top + (yTop - mercatorY(l.lat)) / (yTop - yBottom) * h};
-        };
-        std::vector<QRectF> extremes, numbers;
-        for (const auto& l : out.labels) {
-            const auto at = pixel(l);
-            if (l.text == "H" || l.text == "L") {
-                extremes.push_back(QRectF{at.x() - 14.0, at.y() - 10.0, 28.0, 32.0});   // (the value is 13 pixels under the letter: the box has both)
-            } else if (l.text.size() <= 3 && !l.text.isEmpty() && (l.text.at(0).isDigit() || l.text.at(0) == '-')) {
-                numbers.push_back(QRectF{at.x() - l.text.size() * 4.0 - 4.0, at.y() - 9.0, l.text.size() * 8.0 + 8.0, 18.0});
+        std::vector<std::pair<float, float>> places;
+        for (const auto& a : first) {
+            if (a.kind == "number") {
+                const double lon = sector->west + (a.box.center().x() - probe.areaLeft) / probe.areaWidth * (sector->east - sector->west);
+                const double y = yTop - (a.box.center().y() - probe.areaTop) / probe.areaHeight * (yTop - yBottom);
+                places.emplace_back(static_cast<float>(lon), static_cast<float>((2.0 * std::atan(std::exp(y)) - pi / 2.0) * 180.0 / pi));
             }
         }
-        std::printf("  width %d: %zu highs and lows, %zu labels\n", width, extremes.size() / 2 + extremes.size() % 2, numbers.size());
-        CHECK(!extremes.empty() && !numbers.empty());
-        // the values under the highs and lows are numbers too: they sit inside the boxes of their own letters, not another's. A number on a line must be clear of every letter's box
-        for (const auto& n : numbers) {
-            checkedNumbers++;
-            bool ownValue = false;
-            for (const auto& e : extremes) {
-                if (e.intersects(n)) {
-                    // a value printed under its own letter has its center inside that letter's box, 13 pixels under the letter: those are the extremes' own labels, not numbers on lines
-                    ownValue = ownValue || (std::abs(n.center().x() - e.center().x()) < 1.0 && std::abs(n.center().y() - (e.top() + 10.0 + 13.0)) < 1.0);
-                    if (!ownValue) {
-                        std::printf("  a number at (%.0f, %.0f) is over a high or low at (%.0f, %.0f)\n", n.center().x(), n.center().y(), e.center().x(), e.center().y());
-                    }
-                    CHECK(ownValue);
+        CHECK(places.size() > 10);
+        product.pointValues = {{"t", QColor{20, 20, 20}, "Temperature"}, {"w", QColor{30, 30, 160}, "Percent"}};
+        product.quantity = GfsChart::Quantity::Temperature;
+        std::vector<GfsChart::Options::PlacedBox> second;
+        options.placedOut = &second;
+        options.places = places;
+        GfsChart::render(product, *sector, grids, run, 12, options);
+        int numbers = 0, pointBoxes = 0;
+        for (const auto& a : second) {
+            numbers += a.kind == "number";
+            pointBoxes += a.kind == "point";
+            for (const auto& b : second) {
+                if (a.kind == "number" && b.kind == "point") {
+                    CHECK(!a.box.intersects(b.box));
+                    pairsChecked++;
                 }
             }
         }
-        for (size_t a = 0; a < numbers.size(); a++) {
-            CHECK((QRectF{left, top, w, h}.contains(numbers[a].center())));
-            for (size_t b = a + 1; b < numbers.size(); b++) {
-                checkedPairs++;
-                CHECK(!numbers[a].intersects(numbers[b]));
-            }
-        }
+        std::printf("  on the numbers' places: %zu places, %d numbers on lines, %d point boxes\n", places.size(), numbers, pointBoxes);
+        CHECK(numbers > 10 && pointBoxes > 5);
     }
-    std::printf("  %d numbers and %d pairs checked\n", checkedNumbers, checkedPairs);
+    std::printf("  %d boxes, %d pairs checked\n", boxesChecked, pairsChecked);
     std::printf(failures == 0 ? "OK\n" : "FAILED: %d\n", failures);
     return failures == 0 ? 0 : 1;
 }

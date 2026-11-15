@@ -368,6 +368,13 @@ namespace GfsChart {
         bool hasMarker{false};                 // a mark at a place (the saved location a local area is round) with its name
         double markerLat{0}, markerLon{0};
         std::string markerName;
+        // Where text was put, for a test or a tool (nothing is drawn differently): every box the picture reserved for a number on a line ("number"), a high or low ("extreme"), a number at a point
+        // ("point") and the maximum ("max"), in the picture's pixels at scale 1
+        struct PlacedBox {
+            QRectF box;
+            std::string kind;
+        };
+        std::vector<PlacedBox> * placedOut{nullptr};
         bool markMax{false};                   // a mark at the place of the largest value of the fill on view (the one the legend marks), with the number
         bool fahrenheit{true};                 // the user's US units: degrees F, inches
         bool magColors{true};                  // the charts that have one use the model guidance site's own color bands (drawn at our resolution)

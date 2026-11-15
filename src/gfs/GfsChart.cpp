@@ -1883,6 +1883,7 @@ struct PointValuesState {
     QPainter& p;
     const QFont& font;
     bool us;
+    const std::vector<QRectF>& avoid;   // where the numbers on the lines and the highs and lows already are: the point values keep clear of them
 };
 
 void drawPointValues(PointValuesState& state) {
@@ -1900,7 +1901,7 @@ void drawPointValues(PointValuesState& state) {
             numberFont.setPointSizeF(std::max(7.0, font.pointSizeF() * 0.9));
             const QFontMetricsF numberMetrics{numberFont};
             const double gap = 5.0;   // between the numbers of one point
-            std::vector<QRectF> boxes;
+            std::vector<QRectF> boxes = state.avoid;
             // one point's numbers side by side, centred on `at`; false (nothing drawn) when no value there or the box would cover another
             const auto place = [&] (const QPointF& at, double lon, double lat) {
                 std::vector<QString> texts;
@@ -1923,6 +1924,9 @@ void drawPointValues(PointValuesState& state) {
                     }
                 }
                 boxes.push_back(box);
+                if (options.placedOut != nullptr) {
+                    options.placedOut->push_back({box, "point"});
+                }
                 if (options.noLabels) {
                     return true;
                 }
@@ -2773,8 +2777,15 @@ void drawTracksMarkerAndTicks(Frame& f, const Label& drawLabel, const Halo& halo
 }
 
 // The contour lines of every set, their numbers and the highs and lows; the numbers on the lines are returned, to be drawn after the barbs.
+// What the contour stage puts on the picture that is drawn later: the numbers on the lines (after the barbs, so that no barb is over one), and the boxes of everything it placed (the numbers, the highs
+// and lows), for what is placed after it
+struct ContourText {
+    std::vector<std::tuple<QPointF, QString, QColor>> numbers;
+    std::vector<QRectF> boxes;
+};
+
 template <class Halo>
-std::vector<std::tuple<QPointF, QString, QColor>> drawContours(Frame& f, const Halo& halo, const QImage& map) {
+ContourText drawContours(Frame& f, const Halo& halo, const QImage& map) {
     const Product& product = f.product;
     const Grids& grids = f.grids;
     const Options& options = f.options;
@@ -2812,6 +2823,9 @@ std::vector<std::tuple<QPointF, QString, QColor>> drawContours(Frame& f, const H
                 const auto at = view.toPixel(e.lon, e.lat);
                 if (area.adjusted(20, 20, -20, -20).contains(at)) {
                     placed.push_back(QRectF{at.x() - 14.0, at.y() - 10.0, 28.0, 32.0});   // the letter and the value under it
+                    if (options.placedOut != nullptr) {
+                        options.placedOut->push_back({placed.back(), "extreme"});
+                    }
                 }
             }
         }
@@ -2879,6 +2893,9 @@ std::vector<std::tuple<QPointF, QString, QColor>> drawContours(Frame& f, const H
                     const bool crowded = std::any_of(placed.begin(), placed.end(), [&box] (const QRectF& other) { return other.intersects(box); });   // a number over another is unreadable: skip it
                     if (!crowded && area.adjusted(24, 14, -24, -14).contains(mid)) {
                         placed.push_back(box);
+                        if (options.placedOut != nullptr) {
+                            options.placedOut->push_back({box, "number"});
+                        }
                         if (options.vectorOut != nullptr) {
                             options.vectorOut->labels.push_back({view.lonAt(mid.x()), view.latAt(mid.y()), text, color.darker(130)});
                         } else {
@@ -2904,7 +2921,7 @@ std::vector<std::tuple<QPointF, QString, QColor>> drawContours(Frame& f, const H
         }
     }
 
-    return numbersToDraw;
+    return {numbersToDraw, placed};
 }
 
 // What the stages that make the map need: the chart, where it is drawn and the view.
@@ -3267,20 +3284,20 @@ QImage render(const Product& drawn, const Sector& sector, const Grids& fetched, 
     drawCoastlines(frame);
     drawStreamlines(frame);
     lap("coastlines");
-    const auto numbersToDraw = drawContours(frame, halo, map);
+    const auto contourText = drawContours(frame, halo, map);
     lap("contours");
     {
         BarbsState barbs{product, grids, options, sector, area, view, span, p};
         drawBarbs(barbs);
     }
-    for (const auto& [at, text, color] : numbersToDraw) {   // (over the barbs, with their halo: a number is read before a barb is)
+    for (const auto& [at, text, color] : contourText.numbers) {   // (over the barbs, with their halo: a number is read before a barb is)
         halo(at, text, color);
     }
     if (options.markMax && !std::isnan(fillMax) && !product.linesOnly) {
         drawMaxMark(frame, halo, made.maxAt, fillMax);
     }
     {
-        PointValuesState values{product, grids, options, sector, area, view, span, p, font, us};
+        PointValuesState values{product, grids, options, sector, area, view, span, p, font, us, contourText.boxes};
         drawPointValues(values);
     }
     drawTracksMarkerAndTicks(frame, drawLabel, halo);
