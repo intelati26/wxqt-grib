@@ -180,6 +180,46 @@ QImage WorldRender::renderWorld(const std::vector<Source>& sources, int projecti
         }
         p.drawPath(path);
     }
+    // the wind barbs are the background, under the lines and their numbers. They are on the world grid, the size they have on a world map 2800 pixels wide (as the chart pictures are) (and the same points as the map's): each from the finest model that has the wind there
+    const double marks = width / 2800.0;
+    // pixels along a parallel for one degree of longitude: at the equator, and on a polar map (which stops at 20 degrees) at 55 degrees
+    const bool polar = projection == GlobeMapView::Projection::PolarNorth || projection == GlobeMapView::Projection::PolarSouth;
+    const double referenceLat = polar ? (projection == GlobeMapView::Projection::PolarNorth ? 55.0 : -55.0) : 0.0;
+    double x0 = 0.0, y0 = 0.0, x1 = 0.0, y1 = 0.0;
+    GlobeMapView::forward(projection, referenceLat, 0.0, x0, y0);
+    GlobeMapView::forward(projection, referenceLat, 1.0, x1, y1);
+    const double perDegree = std::hypot(x1 - x0, y1 - y0) * scale;
+    bool anyWind = false;
+    for (const auto& s : sources) {
+        anyWind = anyWind || (!s.windU.empty() && !s.windV.empty());
+    }
+    if (anyWind && perDegree > 0.0) {
+        const auto look = BarbGrid::look(360.0, perDegree, marks);
+        const double step = look.step;
+        p.setPen(QPen{QColor{20, 20, 20, 230}, std::max(1.0, marks)});
+        p.setBrush(QColor{20, 20, 20});
+        BarbGrid::forEachWorldNode(step, [&] (double lat, double lon) {
+            double x, y;
+            if (!GlobeMapView::forward(projection, lat, lon - centerLon > 180.0 ? lon - centerLon - 360.0 : (lon - centerLon < -180.0 ? lon - centerLon + 360.0 : lon - centerLon), x, y)) {
+                return;
+            }
+            for (size_t i = sources.size(); i > 0; i--) {   // the finest first
+                const auto& s = sources[i - 1];
+                if (s.windU.empty() || s.windV.empty()) {
+                    continue;
+                }
+                const float u = sampleAt(s.windU, lon, lat), v = sampleAt(s.windV, lon, lat);
+                if (!std::isnan(u) && !std::isnan(v)) {
+                    const double from = std::fmod(std::atan2(-u, -v) * 180.0 / 3.14159265358979 + 360.0, 360.0);
+                    double nx = x, ny = y;   // where north points on this map (up on the world maps, along the meridian on the polar ones)
+                    GlobeMapView::forward(projection, std::min(89.9, lat + 0.5), lon - centerLon > 180.0 ? lon - centerLon - 360.0 : (lon - centerLon < -180.0 ? lon - centerLon + 360.0 : lon - centerLon), nx, ny);
+                    const double tilt = std::atan2((nx - x), (ny - y)) * 180.0 / 3.14159265358979;
+                    WindBarb::draw(p, QPointF{width / 2.0 + x * scale, height / 2.0 - y * scale}, std::fmod(from + tilt + 720.0, 360.0), std::hypot(u, v) * 1.943844, look.length, lat < 0.0);
+                    break;
+                }
+            }
+        });
+    }
     // the lines of the chart (the heights): from the finest model that covers the whole world, so that no regional model adds a second set of lines over its area; every second level, as the
     // chart does on a map of the whole earth; a number on the long ones
     {
@@ -266,46 +306,6 @@ QImage WorldRender::renderWorld(const std::vector<Source>& sources, int projecti
                 }
             }
         }
-    }
-    // the wind barbs on the world grid, the size they have on a world map 2800 pixels wide (as the chart pictures are) (and the same points as the map's): each from the finest model that has the wind there
-    const double marks = width / 2800.0;
-    // pixels along a parallel for one degree of longitude: at the equator, and on a polar map (which stops at 20 degrees) at 55 degrees
-    const bool polar = projection == GlobeMapView::Projection::PolarNorth || projection == GlobeMapView::Projection::PolarSouth;
-    const double referenceLat = polar ? (projection == GlobeMapView::Projection::PolarNorth ? 55.0 : -55.0) : 0.0;
-    double x0 = 0.0, y0 = 0.0, x1 = 0.0, y1 = 0.0;
-    GlobeMapView::forward(projection, referenceLat, 0.0, x0, y0);
-    GlobeMapView::forward(projection, referenceLat, 1.0, x1, y1);
-    const double perDegree = std::hypot(x1 - x0, y1 - y0) * scale;
-    bool anyWind = false;
-    for (const auto& s : sources) {
-        anyWind = anyWind || (!s.windU.empty() && !s.windV.empty());
-    }
-    if (anyWind && perDegree > 0.0) {
-        const auto look = BarbGrid::look(360.0, perDegree, marks);
-        const double step = look.step;
-        p.setPen(QPen{QColor{20, 20, 20, 230}, std::max(1.0, marks)});
-        p.setBrush(QColor{20, 20, 20});
-        BarbGrid::forEachWorldNode(step, [&] (double lat, double lon) {
-            double x, y;
-            if (!GlobeMapView::forward(projection, lat, lon - centerLon > 180.0 ? lon - centerLon - 360.0 : (lon - centerLon < -180.0 ? lon - centerLon + 360.0 : lon - centerLon), x, y)) {
-                return;
-            }
-            for (size_t i = sources.size(); i > 0; i--) {   // the finest first
-                const auto& s = sources[i - 1];
-                if (s.windU.empty() || s.windV.empty()) {
-                    continue;
-                }
-                const float u = sampleAt(s.windU, lon, lat), v = sampleAt(s.windV, lon, lat);
-                if (!std::isnan(u) && !std::isnan(v)) {
-                    const double from = std::fmod(std::atan2(-u, -v) * 180.0 / 3.14159265358979 + 360.0, 360.0);
-                    double nx = x, ny = y;   // where north points on this map (up on the world maps, along the meridian on the polar ones)
-                    GlobeMapView::forward(projection, std::min(89.9, lat + 0.5), lon - centerLon > 180.0 ? lon - centerLon - 360.0 : (lon - centerLon < -180.0 ? lon - centerLon + 360.0 : lon - centerLon), nx, ny);
-                    const double tilt = std::atan2((nx - x), (ny - y)) * 180.0 / 3.14159265358979;
-                    WindBarb::draw(p, QPointF{width / 2.0 + x * scale, height / 2.0 - y * scale}, std::fmod(from + tilt + 720.0, 360.0), std::hypot(u, v) * 1.943844, look.length, lat < 0.0);
-                    break;
-                }
-            }
-        });
     }
     return image;
 }

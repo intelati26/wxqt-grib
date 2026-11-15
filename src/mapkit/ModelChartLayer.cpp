@@ -694,13 +694,13 @@ void ModelChartLayer::paint(QPainter& painter, MapHost& host) {
     const QRectF drawn = QRectF{a, b}.normalized();
     painter.drawImage(QRectF{QPointF{snap(drawn.left()) - px, snap(drawn.top())}, QPointF{snap(drawn.right()) + px, snap(drawn.bottom())}}, shownImage->image);   // (a pixel wider each side: the smoothed edge of the picture is not a dark line where the world goes round)
     painter.restore();
-    paintContours(painter, host, *shownImage);
-    if (!barbsByOwner) {
+    if (!barbsByOwner) {   // the barbs are the background: under the lines and their numbers
         if (shownImage->vectors.windSets.empty() || shownImage->vectors.ownBarbs) {   // (the first ticked wind is the chart's barbs when it has none of its own: drawn with the others, in its color)
             paintBarbs(painter, host, {this});
         }
         paintStackedBarbs(painter, host, *shownImage);
     }
+    paintContours(painter, host, *shownImage);
     render(host);   // (asks only when what is on hand no longer fits the view)
 }
 
