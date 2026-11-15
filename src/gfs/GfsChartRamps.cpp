@@ -201,5 +201,14 @@ Ramp upperStratosphereTemperature() {   // degrees C at 5 to 1 mb: the same colo
              {-20, QColor{"#f8d97e"}}, {-10, QColor{"#e57741"}}, {0, QColor{"#c54331"}}, {10, QColor{"#8e1f2c"}}}};
 }
 
+Ramp potentialVorticityRamp(double top) {   // PVU, 0 to `top`: white through lilac and purple to deep red, the vortex's edge and core (the sign of the southern hemisphere is turned over, so one scale does for both)
+    const std::pair<double, const char *> stops[] = {{0.0, "#f4f1fa"}, {0.08, "#d9d2ee"}, {0.18, "#a79bd6"}, {0.32, "#6f6cc0"}, {0.46, "#4a97c8"}, {0.6, "#6cc3a6"}, {0.74, "#e7de7a"}, {0.87, "#ee9a48"}, {1.0, "#b8252b"}};
+    Ramp r;
+    for (const auto& [fraction, color] : stops) {
+        r.stops.push_back({fraction * top, QColor{color}});
+    }
+    return r;
+}
+
 }  // namespace detail
 }  // namespace GfsChart

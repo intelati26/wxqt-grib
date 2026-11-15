@@ -87,6 +87,41 @@ for (const auto& [level, interval] : {std::pair{"100 mb", 6.0}, {"70 mb", 8.0}, 
     temp.quantity = Quantity::Temperature;
     p.push_back(temp);
 }
+// Ertel potential vorticity on a pressure level, in PVU (1e-6 K m2 / kg s), from the temperature at the level and at the levels above and below it and the wind at the level: PV = -g (zeta + f) dtheta/dp,
+// zeta the relative vorticity on the pressure surface (the slope terms are left out: good in the stratosphere, where the surfaces are nearly flat). The southern hemisphere's sign is turned over, so the
+// vortex of either pole is positive. The GFS files carry no PV on pressure levels (only the 2 PVU surface), so it is worked out; the levels above and below are those the files have.
+const auto potentialVorticity = [] (double pAbove, double pLevel, double pBelow) {
+    return [=] (const Grids& g) {
+        auto zeta = GfsGrid::vorticity(GfsGrid::smoothed(pick(g, "u"), 1), GfsGrid::smoothed(pick(g, "v"), 1));   // 1 / s
+        const auto& ta = pick(g, "ta"), & tb = pick(g, "tb");
+        constexpr double kappa = 0.2857, gravity = 9.80665, omega = 7.2921e-5, pi = 3.14159265358979;
+        const double thetaAbove = std::pow(1000.0 / pAbove, kappa), thetaBelow = std::pow(1000.0 / pBelow, kappa);
+        (void) pLevel;
+        for (int r = 0; r < zeta.rows; r++) {
+            const double lat = zeta.lat0 - r * zeta.step;
+            const double f = 2.0 * omega * std::sin(lat * pi / 180.0), hemisphere = lat < 0.0 ? -1.0 : 1.0;
+            for (int c = 0; c < zeta.columns; c++) {
+                const size_t at = static_cast<size_t>(r) * static_cast<size_t>(zeta.columns) + static_cast<size_t>(c);
+                const double dtheta = ((tb.values[at] + 273.15) * thetaBelow - (ta.values[at] + 273.15) * thetaAbove) / ((pBelow - pAbove) * 100.0);   // K / Pa
+                zeta.values[at] = static_cast<float>(hemisphere * 1e6 * -gravity * (zeta.values[at] + f) * dtheta);
+            }
+        }
+        return zeta;
+    };
+};
+// potential vorticity: the stratosphere's levels (the polar vortex is its high PV), the scale to the level's own size (PV grows steeply with height as the air gets more stable; the tops are a quarter above
+// the largest value seen on the 15 November 2026 00Z initial state north of 30 N)
+for (const auto& [level, above, below, top, interval] : {std::tuple{100, 70, 150, 40.0, 6.0}, {70, 50, 100, 60.0, 8.0}, {50, 40, 70, 90.0, 8.0}, {30, 20, 40, 220.0, 12.0}, {20, 10, 30, 360.0, 12.0}, {10, 7, 20, 560.0, 16.0}}) {
+    const auto levelText = std::to_string(level) + " mb";
+    auto x = upper((std::to_string(level) + "_pv_ht").c_str(), (std::to_string(level) + "mb Potential Vorticity, Wind and Height").c_str(), levelText.c_str(), interval);
+    x.wants.push_back(want("ta", "TMP", (std::to_string(above) + " mb").c_str()));
+    x.wants.push_back(want("tb", "TMP", (std::to_string(below) + " mb").c_str()));
+    x.fill = potentialVorticity(above, level, below);
+    x.ramp = potentialVorticityRamp(top);
+    x.fillTitle = "Potential vorticity (PVU)";
+    x.legendStep = top >= 360 ? 100 : top >= 200 ? 50 : top >= 90 ? 20 : 10;
+    p.push_back(x);
+}
 {   // humidity
     auto x = upper("500_rh_ht", "500mb Relative Humidity and Height", "500 mb", 6);
     x.wants = {want("z", "HGT", "500 mb"), want("rh", "RH", "500 mb"), want("u", "UGRD", "500 mb"), want("v", "VGRD", "500 mb")};
