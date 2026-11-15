@@ -93,6 +93,7 @@
 #include "misc/NiceWeatherOutlook.h"
 #include "hurricane/HurricaneViewer.h"
 #include "mapkit/MasterMapViewer.h"
+#include "mapkit/VortexSection.h"
 #include "climate/TempHistoryViewer.h"
 #include "mapkit/WorldRender.h"
 #include "mapkit/ModelChartLayer.h"
@@ -851,6 +852,32 @@ int main(int argc, char * argv[]) {
                     }
                     qWarning("history: %zu pictures, %zu skipped", frames.size(), skipped.size());
                     QTimer::singleShot(500, qApp, &QCoreApplication::quit);
+                });
+            } else if (route.startsWith("section:")) {   // WXQT_OPEN=section:<model>:<yyyyMMddHH from>:<yyyyMMddHH to>:<step hours>:<out.png>[:north|south][:levels 10,30,50,...]: the vortex section (the 60 degree zonal-mean wind, a row for each level), then quits
+                const auto parts = route.split(':');
+                auto from = QDateTime::fromString(parts.value(2), "yyyyMMddHH"), to = QDateTime::fromString(parts.value(3), "yyyyMMddHH");
+                from.setTimeZone(QTimeZone::utc());
+                to.setTimeZone(QTimeZone::utc());
+                std::vector<QDateTime> when;
+                for (auto t = from; t <= to; t = t.addSecs(3600LL * std::max(1, parts.value(4).toInt()))) {
+                    when.push_back(t);
+                }
+                std::vector<int> levels;
+                for (const auto& l : (parts.value(7).isEmpty() ? QString{"10,30,50,100,500,850"} : parts.value(7)).split(',')) {
+                    levels.push_back(l.toInt());
+                }
+                const bool south = parts.value(6) == "south";
+                const auto model = parts.value(1).toStdString();
+                const QString out = parts.value(5);
+                QTimer::singleShot(500, &a, [when, levels, south, model, out, &a] {
+                    VortexSection::Series series;
+                    const bool ok = VortexSection::collect(model, when, levels, south, series, [] (size_t i, size_t n) { qWarning("section: time %zu of %zu", i + 1, n); return true; });
+                    const auto image = ok ? VortexSection::draw(series, 1400, QString::fromStdString(model) + " initial states, " + when.front().toString("yyyy-MM-dd") + " to " + when.back().toString("yyyy-MM-dd")) : QImage{};
+                    qWarning("section: %s (%zu levels)", image.isNull() ? "no picture" : "saved", series.levels.size());
+                    if (!image.isNull()) {
+                        image.save(out, "PNG");
+                    }
+                    QTimer::singleShot(200, &a, &QCoreApplication::quit);
                 });
             } else if (route.startsWith("looprange:")) {   // WXQT_OPEN=looprange:<yyyyMMddHHmm from>:<yyyyMMddHHmm to>:<layer id>: the master map looping between the two times
                 const auto parts = route.split(':');
