@@ -196,6 +196,7 @@ public:
         std::vector<InventoryField> found, gone, notCataloged;   // wanted and listed / wanted and not listed / listed and not wanted
     };
     Inventory inventory(const Run& run, const std::vector<Need>& needs) const;
+    std::string fileOfWant(const Want& want) const { return fileFor(want); }   // the file kind a want is read from (for the catalogue check's lists)
 
 private:
     bool one(const Run& run, int forecastHour, const std::string& file, const std::vector<GfsGrid::IdxRecord>& index, const Want& want, GfsGrid::Grid& out, std::string& error) const;

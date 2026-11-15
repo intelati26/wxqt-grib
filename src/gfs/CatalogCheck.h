@@ -6,6 +6,7 @@
 #ifndef CATALOGCHECK_H
 #define CATALOGCHECK_H
 
+#include <map>
 #include <string>
 #include <vector>
 #include <QJsonObject>
@@ -23,6 +24,7 @@ namespace CatalogCheck {
         std::string model, label, run, checkedAt, note;   // note: why nothing was checked (empty when it was)
         bool checked{false}, firstCheck{false};
         std::vector<Field> found, gone, neverFound, notCataloged;
+        std::map<std::string, std::vector<std::string>> usedBy;   // key(field) -> the ids of the charts that ask for it (found, gone and never found fields)
         std::string summary() const;   // "212 of 214 fields found; 1 gone, 1 never found; 480 not cataloged"
     };
     // The report of an inventory: the previous status of `model` (the fields found last time) decides what is gone and what was never found.

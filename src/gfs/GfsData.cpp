@@ -1336,8 +1336,8 @@ GfsData::Inventory GfsData::inventory(const Run& run, const std::vector<Need>& n
         out.note = "no chart asks for anything";
         return out;
     }
-    if (source.custom || source.wrf.enabled || source.om.enabled || source.tarMember) {
-        out.note = source.custom ? "a Zarr store: its arrays are not listed by this check" : source.om.enabled ? "Open-Meteo's files: the variables are not listed by this check" : source.tarMember ? "a tar of files: not listed by this check" : "local runs";
+    if (source.custom || source.wrf.enabled || source.tarMember) {
+        out.note = source.custom ? "a Zarr store: its arrays are not listed by this check" : source.tarMember ? "a tar of files: not listed by this check" : "local runs";
         return out;
     }
     std::set<std::pair<int, std::string>> files;
@@ -1360,6 +1360,65 @@ GfsData::Inventory GfsData::inventory(const Run& run, const std::vector<Need>& n
     }
     int read = 0, unreadable = 0;
     for (const auto& [hour, file] : files) {
+        if (source.om.enabled) {   // an Open-Meteo file: its variables are the children of the file's root, read by range (the same few requests a field read starts with)
+            std::string url;
+            for (const auto& candidate : urlsFor(run, hour, file)) {
+                url = resolveUrl(candidate);
+                if (!url.empty()) {
+                    break;
+                }
+            }
+            if (url.empty() || !config.tail) {
+                unreadable++;
+                continue;
+            }
+            OmFile::Io io;
+            io.merge = 262144;
+            io.max = 8u << 20;
+            io.range = [this, &url] (uint64_t offset, uint64_t size, std::string& bytes) {
+                if (size == 0) {
+                    bytes.clear();
+                    return true;
+                }
+                const auto got = config.bytes(url, static_cast<long long>(offset), static_cast<long long>(offset + size - 1));
+                bytes.assign(got.constData(), static_cast<size_t>(got.size()));
+                return static_cast<uint64_t>(got.size()) >= size;
+            };
+            io.tail = [this, &url] (uint64_t size, std::string& bytes) {
+                const auto got = config.tail(url, static_cast<long long>(size));
+                bytes.assign(got.constData(), static_cast<size_t>(got.size()));
+                return static_cast<uint64_t>(got.size()) >= size;
+            };
+            OmFile om;
+            std::string why;
+            if (!om.open(io, why)) {
+                unreadable++;
+                continue;
+            }
+            read++;
+            std::set<std::string> usedNames;
+            for (const auto& need : needs) {
+                if (need.hour != hour || fileFor(need.want) != file) {
+                    continue;
+                }
+                // the file's name for it; a wind given as speed and direction ("wind_speed_10m/wind_direction_10m") needs both
+                const auto name = source.variableOf ? source.variableOf(need.want) : need.want.variable;
+                bool all = !name.empty();
+                for (const auto& piece : QString::fromStdString(name).split('/', Qt::SkipEmptyParts)) {
+                    const auto part = piece.toStdString();
+                    usedNames.insert(part);
+                    all = all && om.has(part);
+                }
+                auto& entry = wanted[wantKey(need.want)];
+                entry.second = all ? 1 : std::max(entry.second, 0);
+            }
+            for (const auto& listedName : om.names()) {
+                if (usedNames.count(listedName) == 0 && seenNot.insert(file + "|" + listedName).second) {
+                    out.notCataloged.push_back({listedName, "", "", file});
+                }
+            }
+            continue;
+        }
         if (source.wholeFile && source.netcdf) {   // a NetCDF file: the names of its variables, by GDAL (the subdatasets)
             std::string url;
             for (const auto& candidate : urlsFor(run, hour, file)) {

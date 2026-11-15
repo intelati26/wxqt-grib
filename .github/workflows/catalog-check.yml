@@ -3,7 +3,8 @@
 #   - fails the run and opens (or updates) ONE issue when a field the charts ask for is GONE: it was in the model's files at the last
 #     check and is not now (a renamed variable, a dropped level). The failure and the issue are the maintainer's alert;
 #   - closes that issue when nothing is gone any more;
-#   - keeps the full result (the lists of "never found" and "not cataloged" fields too) as an artifact and in the run's summary.
+#   - keeps the full result (the lists of "never found" and "not cataloged" fields too) as an artifact and in the run's summary, with the field catalogue
+#     (tools/catalog_report.py: families, which models have which, as CSV and Markdown).
 # The last check's found fields are kept between runs in the Actions cache: the first run has nothing to compare with (nothing is gone then).
 # Nothing here reports anything from anyone's computer: the project's own runner asks the public servers, nobody else is involved.
 name: Catalogue check
@@ -113,6 +114,10 @@ jobs:
           PY
           cat summary.md >> "$GITHUB_STEP_SUMMARY"
 
+      - name: Make the field catalogue (families, which models have which)
+        if: always() && hashFiles('catalog.json') != ''
+        run: python3 tools/catalog_report.py catalog.json catalog-report
+
       - name: Keep what this check found for the next one
         if: always() && hashFiles('.xdg-data/wxqt/servers/catalog-status.json') != ''
         uses: actions/cache/save@v5
@@ -128,6 +133,7 @@ jobs:
           path: |
             catalog.json
             catalog.log
+            catalog-report/
           retention-days: 30
           if-no-files-found: warn
 

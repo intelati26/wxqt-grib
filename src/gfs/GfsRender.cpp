@@ -298,6 +298,20 @@ CatalogCheck::Report GfsRender::checkCatalog(Session& session, const std::string
     const auto before = CatalogCheck::keptFound(model, had);
     auto report = CatalogCheck::make(model, run.id(), gfs.inventory(run, needs), before, had);
     report.label = def->label;
+    for (const auto& product : GfsChart::products()) {   // which charts ask for each field (by the same key as the inventory's fields)
+        if (product.source != model) {
+            continue;
+        }
+        std::set<std::string> mine;
+        for (const int hour : {first, later}) {
+            for (const auto& need : GfsChart::needs(product, hour)) {
+                mine.insert(CatalogCheck::key({need.want.variable, need.want.level, need.want.detail, gfs.fileOfWant(need.want)}));
+            }
+        }
+        for (const auto& key : mine) {
+            report.usedBy[key].push_back(product.id);
+        }
+    }
     CatalogCheck::keep(report);
     return report;
 }

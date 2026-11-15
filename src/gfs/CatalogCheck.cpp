@@ -51,10 +51,21 @@ CatalogCheck::Report CatalogCheck::make(const std::string& model, const std::str
 }
 
 namespace {
-    QJsonArray fields(const std::vector<CatalogCheck::Field>& list, size_t limit) {
+    QJsonArray fields(const std::vector<CatalogCheck::Field>& list, size_t limit, const std::map<std::string, std::vector<std::string>> * usedBy = nullptr) {
         QJsonArray out;
         for (size_t i = 0; i < list.size() && i < limit; i++) {
             QJsonObject o;
+            if (usedBy != nullptr) {   // the charts that ask for it
+                const auto found = usedBy->find(CatalogCheck::key(list[i]));
+                if (found != usedBy->end()) {
+                    QJsonArray charts;
+                    for (size_t c = 0; c < found->second.size() && c < 8; c++) {
+                        charts.append(QString::fromStdString(found->second[c]));
+                    }
+                    o["used_by"] = charts;
+                    o["used_by_count"] = static_cast<int>(found->second.size());
+                }
+            }
             o["variable"] = QString::fromStdString(list[i].variable);
             o["level"] = QString::fromStdString(list[i].level);
             if (!list[i].detail.empty()) {
@@ -77,9 +88,10 @@ QJsonObject CatalogCheck::toJson(const Report& r) {
     o["checked"] = r.checked;
     o["note"] = QString::fromStdString(r.note);
     o["summary"] = QString::fromStdString(r.summary());
-    o["found"] = static_cast<int>(r.found.size());
-    o["gone"] = fields(r.gone, 500);
-    o["never_found"] = fields(r.neverFound, 500);
+    o["found_count"] = static_cast<int>(r.found.size());
+    o["found"] = fields(r.found, 5000, &r.usedBy);
+    o["gone"] = fields(r.gone, 500, &r.usedBy);
+    o["never_found"] = fields(r.neverFound, 500, &r.usedBy);
     o["not_cataloged"] = fields(r.notCataloged, 2000);
     o["not_cataloged_count"] = static_cast<int>(r.notCataloged.size());
     return o;
