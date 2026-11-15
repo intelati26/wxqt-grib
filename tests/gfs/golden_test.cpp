@@ -60,6 +60,26 @@ GfsChart::Grids fields() {
     // an anomaly in standard deviations, one deviation in decameters, and the anomaly in decameters
     g["anom"] = made([pi] (double lon, double lat) { return 2.6 * std::sin(lon * pi / 28.0) * std::cos(lat * pi / 22.0); });
     g["sz"] = made([] (double, double lat) { return 4.0 + 0.05 * (lat - 18.0); });
+    {   // another model's field: a regional grid of 0.1 degree (the chart's is 0.25 or more), 40 by 20 degrees, with a few cells of no value inside it
+        GfsGrid::Grid x;
+        x.columns = 400;
+        x.rows = 200;
+        x.lon0 = -112.0;
+        x.lat0 = 46.0;
+        x.step = 0.1;
+        x.values.resize(static_cast<size_t>(x.columns) * static_cast<size_t>(x.rows));
+        for (int r = 0; r < x.rows; r++) {
+            for (int c = 0; c < x.columns; c++) {
+                const double lon = x.lon0 + c * x.step, lat = x.lat0 - r * x.step;
+                double v = 85.0 * std::exp(-(std::pow((lon + 98.0) / 5.0, 2.0) + std::pow((lat - 36.0) / 3.0, 2.0))) + 55.0 * std::exp(-(std::pow((lon + 84.0) / 3.0, 2.0) + std::pow((lat - 33.0) / 5.0, 2.0)));
+                if (lon > -90.0 && lon < -89.0 && lat > 30.0 && lat < 40.0) {
+                    v = std::nan("");   // a gap in the other model's field
+                }
+                x.values[static_cast<size_t>(r) * static_cast<size_t>(x.columns) + static_cast<size_t>(c)] = static_cast<float>(v);
+            }
+        }
+        g["x1_fill"] = x;
+    }
     g["rd"] = made([pi] (double lon, double lat) { return 10.0 * std::sin(lon * pi / 28.0) * std::cos(lat * pi / 22.0); });
     g["max"] = made([pi] (double lon, double lat) { return 55.0 + 30.0 * std::sin(lon * pi / 21.0) * std::cos(lat * pi / 16.0); });
     return g;
@@ -175,6 +195,12 @@ std::vector<Case> cases() {
         p.overlays.push_back({"o_fill|Dewpoint", translucent(rampOf({{0, QColor{150, 110, 60}}, {10, QColor{110, 190, 120}}, {20, QColor{60, 150, 200}}, {25, QColor{80, 60, 160}}}), 150, 12.0)});
         p.contours = {lines("p", 1.0, 4.0, QColor{30, 30, 30})};
         out.push_back({"overlay_fill", p, "CONUS", base});
+    }
+    {   // a field of another model over the chart: a regional grid ten times finer than the chart's, with its edge (NaN outside), clear under a value, sampled by the pixel (section 10 of the plan)
+        auto p = basic("cross_fill", temperatureRamp(), "t");
+        p.overlays.push_back({"x1_fill", translucent(rampOf({{0, QColor{255, 255, 255}}, {20, QColor{250, 215, 120}}, {50, QColor{235, 110, 50}}, {80, QColor{140, 30, 120}}}), 190, 15.0)});
+        p.contours = {lines("h", 0.1, 6.0, QColor{30, 30, 30})};
+        out.push_back({"cross_fill", p, "CONUS", base});
     }
     {   // rain with the snow and the mixed precipitation painted over it where they have a value
         auto p = basic("precip_type", rampOf({{0.1, QColor{140, 230, 140}}, {2, QColor{60, 190, 80}}, {6, QColor{20, 130, 50}}, {12, QColor{10, 80, 40}}}), "r");

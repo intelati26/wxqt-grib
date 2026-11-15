@@ -532,6 +532,93 @@ bool GfsRender::latestCycle(const std::string& model, std::string& cycle, const 
 namespace {
     // The first set of lines of the chart from each of `others`, for the same valid time as `run` + `hour`, drawn on `chart` over the screen's own lines: one color for each model and no fill. The
     // others' runs are their newest one at or before this run's time that they make (a model that runs every 12 hours uses its 12Z run for an 18Z one), the hour moved to keep the valid time.
+    // Another model's chart for a valid time: the model's newest run at or before the base chart's run `start` (up to three cycles back) that offers the hour the valid time falls on, its fields read
+    // for the chart's needs. False with the reason in `error` when the model has no run, no hour or no data for it. (The matching of section 10 of the plan: the other models' lines and a cross fill.)
+    bool loadMatching(GfsRender::Session& session, const std::string& other, const GfsChart::Product& product, const QDateTime& start, const QDateTime& valid, GfsChart::Grids& loaded, GfsData::Run& used, int& usedHour, std::string& error) {
+        auto gfs = data(session.folder(), other);
+        GfsData::Run newest;
+        if (!newestRun(gfs, newest)) {
+            error = "could not find a " + other + " run";
+            return false;
+        }
+        auto newestTime = QDateTime::fromString(QString::fromStdString(newest.id()), "yyyyMMddHH");
+        newestTime.setTimeZone(QTimeZone::utc());
+        auto t = std::min(start, newestTime);
+        const int step = gfs.model().cycleHours;
+        while (t.time().hour() % step != 0) {
+            t = t.addSecs(-3600);
+        }
+        const auto * def = GfsModels::find(other);
+        std::string why;
+        bool ok = false;
+        for (int back = 0; back < 3 && !ok; back++, t = t.addSecs(-static_cast<qint64>(step) * 3600)) {
+            const int h = static_cast<int>((valid.toSecsSinceEpoch() - t.toSecsSinceEpoch()) / 3600);
+            bool offered = def == nullptr;
+            for (const auto& range : def ? def->hours : std::vector<GfsModels::Hours>{}) {
+                offered = offered || (h >= range.from && h <= range.to && (h - range.from) % range.step == 0);
+            }
+            if (!offered) {
+                why = other + " has no forecast for " + valid.toString("ddd HH").toStdString() + "Z from its " + t.toString("HH").toStdString() + "Z run (hour " + std::to_string(h) + ")";
+                continue;
+            }
+            used = {t.toString("yyyyMMdd").toStdString(), t.toString("HH").toStdString()};
+            usedHour = h;
+            loaded.clear();
+            ok = gfs.load(used, GfsChart::needs(product, h), loaded, why);
+        }
+        if (!ok) {
+            error = why.empty() ? other + " could not be read" : why;
+        }
+        return ok;
+    }
+
+    // Another model's chart laid over this one's as a translucent fill: its fields for the valid time of `run` + `hour` (loadMatching), its own fill made from them and its own scale, put in the chart's
+    // grids under a key the picture's legend and read-out already know ("...fill|name"). A grid of another spacing needs nothing: the picture samples every grid by the pixel's place. When the
+    // other model has no field for that time the chart is left as it is and its title says so (the base chart is what was asked for).
+    void addCrossFill(GfsRender::Session& session, GfsChart::Product& chart, GfsChart::Grids& grids, const GfsData::Run& run, int hour, const std::string& model, const std::string& other, const std::string& otherChart) {
+        auto start = QDateTime::fromString(QString::fromStdString(run.id()), "yyyyMMddHH");
+        start.setTimeZone(QTimeZone::utc());
+        const auto valid = start.addSecs(static_cast<qint64>(hour) * 3600);
+        const auto * product = GfsChart::product(otherChart, other);
+        std::string problem;
+        GfsChart::Grids loaded;
+        GfsData::Run used;
+        int usedHour = 0;
+        if (other == model && otherChart == chart.id) {
+            problem = "it is the chart itself";
+        } else if (product == nullptr || !product->fill) {
+            problem = other + " has no fill chart " + otherChart;
+        } else if (!loadMatching(session, other, *product, start, valid, loaded, used, usedHour, problem)) {
+            // (the reason is in `problem`)
+        } else {
+            static const GfsClimate climate{UtilityGrib::gdalBinDir()};
+            if (product->derive) {
+                product->derive(loaded, GfsChart::Context{usedHour, used, &climate, product->source});
+            }
+            auto fill = product->fill(loaded);
+            if (fill.empty()) {
+                problem = "its field is empty";
+            } else {
+                const auto name = other + " " + used.cycle + "Z: " + (product->fillTitleFor ? product->fillTitleFor(usedHour) : product->fillTitle);
+                auto ramp = GfsChart::defaultRamp(*product, false);
+                if (ramp.stops.size() >= 2) {   // translucent, the chart's own fill still read through it (a color already clear stays clear), and clear under the lowest sixth of the scale (the "from" of a ticked fill: the section 10 picker lets the person set it)
+                    const double clearBelow = ramp.stops.front().first + (ramp.stops.back().first - ramp.stops.front().first) / 6.0;
+                    for (auto& stop : ramp.stops) {
+                        stop.second.setAlpha(stop.first < clearBelow ? 0 : std::min(stop.second.alpha(), 175));
+                    }
+                }
+                const std::string key = "x1_fill|" + name;
+                grids[key] = std::move(fill);
+                chart.overlays.push_back({key, ramp});
+                chart.label += " with " + other + " " + (product->label.empty() ? otherChart : product->label) + " (fill)";
+                return;
+            }
+        }
+        const bool noTime = problem.find("has no forecast") != std::string::npos || problem.find("could not") != std::string::npos;   // (short: the header cuts a long title; the reason goes to the log)
+        chart.label += " [" + other + ": " + (noTime ? "no field for this time" : "not drawn") + "]";
+        qWarning("cross fill %s %s not drawn: %s", other.c_str(), otherChart.c_str(), problem.c_str());
+    }
+
     bool addOverlays(GfsRender::Session& session, GfsChart::Product& chart, GfsChart::Grids& grids, const std::string& model, const GfsData::Run& run, int hour, const std::vector<std::string>& others, bool keepFill, std::string& error) {
         if (chart.contours.empty()) {
             error = "this chart has no lines (heights, pressure) to put the other models' over; pick a chart with lines";
@@ -565,42 +652,10 @@ namespace {
                 error = other + " has no chart " + chart.id;
                 return false;
             }
-            auto gfs = data(session.folder(), other);
-            GfsData::Run newest;
-            if (!newestRun(gfs, newest)) {
-                error = "could not find a " + other + " run";
-                return false;
-            }
-            auto newestTime = QDateTime::fromString(QString::fromStdString(newest.id()), "yyyyMMddHH");
-            newestTime.setTimeZone(QTimeZone::utc());
-            auto t = std::min(start, newestTime);
-            const int step = gfs.model().cycleHours;
-            while (t.time().hour() % step != 0) {
-                t = t.addSecs(-3600);
-            }
-            const auto * def = GfsModels::find(other);
             GfsChart::Grids loaded;
             GfsData::Run used;
             int usedHour = 0;
-            std::string why;
-            bool ok = false;
-            for (int back = 0; back < 3 && !ok; back++, t = t.addSecs(-static_cast<qint64>(step) * 3600)) {
-                const int h = static_cast<int>((valid.toSecsSinceEpoch() - t.toSecsSinceEpoch()) / 3600);
-                bool offered = def == nullptr;
-                for (const auto& range : def ? def->hours : std::vector<GfsModels::Hours>{}) {
-                    offered = offered || (h >= range.from && h <= range.to && (h - range.from) % range.step == 0);
-                }
-                if (!offered) {
-                    why = other + " has no forecast for " + valid.toString("ddd HH").toStdString() + "Z from its " + t.toString("HH").toStdString() + "Z run (hour " + std::to_string(h) + ")";
-                    continue;
-                }
-                used = {t.toString("yyyyMMdd").toStdString(), t.toString("HH").toStdString()};
-                usedHour = h;
-                loaded.clear();
-                ok = gfs.load(used, GfsChart::needs(*product, h), loaded, why);
-            }
-            if (!ok) {
-                error = why.empty() ? other + " could not be read" : why;
+            if (!loadMatching(session, other, *product, start, valid, loaded, used, usedHour, error)) {
                 return false;
             }
             if (product->derive) {
@@ -1305,6 +1360,9 @@ QByteArray GfsRender::png(Session& session, const std::string& model, const std:
         if (!addOverlays(session, composed, grids, model, run, hour, variant.overlayModels, variant.overlayKeepFill, error)) {
             return {};
         }
+    }
+    if (!variant.crossModel.empty() && !variant.crossChart.empty() && variant.kind == Variant::Kind::None && !isHafs(model)) {   // another model's fill over this one's (a time it lacks is said in the title)
+        addCrossFill(session, composed, grids, run, hour, model, variant.crossModel, variant.crossChart);
     }
     const auto prefs = OptionPrefs::read();
     GfsChart::Probe bareProbe;   // (a bare chart needs the place of its map to cut it out)

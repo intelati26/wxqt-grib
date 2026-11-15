@@ -982,6 +982,10 @@ int main(int argc, char * argv[]) {
                 for (const auto& id : qEnvironmentVariable("WXQT_OVERLAYS").split(',', Qt::SkipEmptyParts)) {
                     ticked.push_back(id.toStdString());
                 }
+                if (const auto cross = qEnvironmentVariable("WXQT_CROSS"); cross.contains(':')) {   // WXQT_CROSS=<model>:<chart id>: another model's chart laid over this one as a translucent fill (section 10 of the plan)
+                    variant.crossModel = cross.section(':', 0, 0).toStdString();
+                    variant.crossChart = cross.section(':', 1).toStdString();
+                }
                 GfsChart::Probe probe;
                 const auto bytes = GfsRender::png(session, parts.value(1).toStdString(), parts.value(2).toStdString(), parts.value(4).toStdString(), parts.value(6).toStdString(), parts.value(3).toInt(), ticked, error, &probe, variant);
                 if (parts.value(2) == "nice_weather" && probe.valid()) {   // the area at each level, as the nice weather page counts it
