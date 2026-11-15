@@ -2049,7 +2049,7 @@ What the published file may contain is deliberately small and checked, because i
 **Steps, each useful alone** (reordered by the goal: 1, 2 and 7 give a fix with no release; 3 to 5 make it visible)
 1. **The server table and `{name}` tokens** in the model files, the built-in table, `Servers::base`; the RRFS, REFS and GEFS URLs converted; a test that every built-in model expands to the same URLs as before (as `run_modelfile.sh` does for the files). No behaviour change.
 2. **Override files** (A) with the merge rules and their tests (replace, set, prepend, append, a bad file leaves the model alone, the id check).
-3. **The status record** (C) written by the code that already makes the requests and the run probe (`GfsData` run search, `probe_file`), the state machine with a fake clock and a fake fetch (no network): OK, Late, Down, Gone, Moved, sticky promotion and the retry.
+3. **The status record** (C) written by the code that already makes the requests and the run probe (`GfsData` run search, `probe_file`), the state machine with a fake clock and a fake fetch (no network): OK, Late, Down, Retired, Moved, Changed, sticky promotion and the retry.
 4. **Settings: the Servers table and the overrides list** (D), the notice line in the Model Viewer.
 5. **Dated cutovers** (E).
 6. **Code constants** (`rrfsStream`, the OPeNDAP bases, the point page) moved to the table.
