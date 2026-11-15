@@ -7,6 +7,10 @@
 #include <future>
 #include <thread>
 #include <QBrush>
+#include <QCheckBox>
+#include <QDesktopServices>
+#include <QDir>
+#include <QUrl>
 #include <QCoreApplication>
 #include <QHBoxLayout>
 #include <QHeaderView>
@@ -18,6 +22,8 @@
 #include <QTimer>
 #include "gfs/GfsClimate.h"
 #include "gfs/GfsModels.h"
+#include "gfs/Servers.h"
+#include "util/Utility.h"
 #include "models/UtilityGrib.h"
 #include "ui/UiStandards.h"
 
@@ -57,6 +63,71 @@ SettingsSourcesBox::SettingsSourcesBox(QWidget * parent)
                               "fields of the model's first chart (nothing is downloaded). This looks when you open the tab, or press Check again.", this};
     about->setWordWrap(true);
     layout->addWidget(about);
+    {   // the servers by name (section 20 of the plan): a model's url begins with {@name}; where each name points, from which layer, and the project's file that can move them without a release
+        auto * heading = new QLabel{"<b>Servers</b>: the places the models read from, by name. The program has its own list; the project publishes a newer one that is read once a day "
+                                    "(so a server that moves is fixed without a new version); a <code>servers.json</code> in your models folder, or a base typed here, goes over both.", this};
+        heading->setWordWrap(true);
+        layout->addWidget(heading);
+        serversTable = new QTableWidget{0, 4, this};
+        serversTable->setHorizontalHeaderLabels({"Server", "Places (the first is tried first)", "From", "What it is"});
+        serversTable->horizontalHeader()->setSectionResizeMode(QHeaderView::ResizeToContents);
+        serversTable->horizontalHeader()->setStretchLastSection(true);
+        serversTable->verticalHeader()->setVisible(false);
+        serversTable->setSelectionBehavior(QAbstractItemView::SelectRows);
+        serversTable->setToolTip("Double-click a Places cell to type a base of your own for that server (kept in the settings; empty puts the usual back).");
+        layout->addWidget(serversTable);
+        QObject::connect(serversTable, &QTableWidget::cellChanged, this, [this] (int r, int c) {
+            if (c != 1 || serversTable->signalsBlocked()) {
+                return;
+            }
+            const auto name = serversTable->item(r, 0)->text().toStdString();
+            auto text = serversTable->item(r, 1)->text().trimmed();
+            text = text.section('\n', 0, 0).section(" | ", 0, 0).trimmed();
+            const auto now = Servers::table();
+            const auto found = now.find(name);
+            if (found != now.end() && !found->second.bases.empty() && text.toStdString() == found->second.bases.front()) {
+                return;   // (unchanged)
+            }
+            Utility::writePref("SERVER_" + name, text.startsWith("https://") ? text.toStdString() : std::string{});
+            Servers::reload();
+            refreshServers();
+        });
+        auto * serversRow = new QHBoxLayout;
+        auto * fetchBox = new QCheckBox{"Read server updates from the project (once a day)", this};
+        fetchBox->setChecked(Utility::readPref("SERVERS_FETCH", "on") == "on");
+        fetchBox->setToolTip("One request a day to the project's repository for a short list of server names and addresses. Nothing about you is sent. Off: only the program's list and yours.");
+        QObject::connect(fetchBox, &QCheckBox::toggled, this, [] (bool on) { Utility::writePref("SERVERS_FETCH", on ? "on" : "off"); });
+        auto * anyBox = new QCheckBox{"Allow other hosts in the project's file", this};
+        anyBox->setChecked(Utility::readPref("SERVERS_ANY_HOST", "off") == "on");
+        anyBox->setToolTip("Off: the project's file may only name hosts the program reads from today (NOAA, AWS, Google, NASA, DWD, ECCC, Open-Meteo ...). On: any https host.");
+        QObject::connect(anyBox, &QCheckBox::toggled, this, [this] (bool on) { Utility::writePref("SERVERS_ANY_HOST", on ? "on" : "off"); Servers::reload(); refreshServers(); });
+        auto * fetchNow = UiStandards::button(this, "Fetch now");
+        QObject::connect(fetchNow, &QPushButton::clicked, this, [this, fetchNow] {
+            fetchNow->setEnabled(false);
+            serversStatus->setText("Fetching...");
+            auto * guard = new QObject{this};
+            std::thread{[this, fetchNow, guard] {
+                Servers::refreshFromProject(nullptr);
+                QMetaObject::invokeMethod(guard, [this, fetchNow, guard] { fetchNow->setEnabled(true); refreshServers(); guard->deleteLater(); }, Qt::QueuedConnection);
+            }}.detach();
+        });
+        auto * openFolder = UiStandards::button(this, "Your file...");
+        openFolder->setToolTip("Opens the folder of your own models: a servers.json there (the same format as the project's) goes over the project's.");
+        QObject::connect(openFolder, &QPushButton::clicked, this, [] {
+            const auto folder = QString::fromStdString(Servers::userFile()).section('/', 0, -2);
+            QDir{}.mkpath(folder);
+            QDesktopServices::openUrl(QUrl::fromLocalFile(folder));
+        });
+        serversStatus = new QLabel{this};
+        serversRow->addWidget(fetchBox);
+        serversRow->addWidget(anyBox);
+        serversRow->addStretch(1);
+        serversRow->addWidget(fetchNow);
+        serversRow->addWidget(openFolder);
+        layout->addLayout(serversRow);
+        layout->addWidget(serversStatus);
+        refreshServers();
+    }
     table = new QTableWidget{0, 5, this};
     table->setHorizontalHeaderLabels({"Model", "Status", "Newest run (UTC)", "Seconds", "What was found"});
     table->horizontalHeader()->setSectionResizeMode(QHeaderView::ResizeToContents);
@@ -131,6 +202,34 @@ SettingsSourcesBox::SettingsSourcesBox(QWidget * parent)
 
 SettingsSourcesBox::~SettingsSourcesBox() {
     generation->fetch_add(1);   // answers of a look in progress go nowhere
+}
+
+void SettingsSourcesBox::refreshServers() {
+    const QSignalBlocker blocker{serversTable};
+    serversTable->setRowCount(0);
+    int r = 0;
+    for (const auto& [name, entry] : Servers::table()) {
+        serversTable->insertRow(r);
+        auto * nameItem = new QTableWidgetItem{QString::fromStdString(name)};
+        nameItem->setFlags(nameItem->flags() & ~Qt::ItemIsEditable);
+        QString places;
+        for (const auto& base : entry.bases) {
+            places += (places.isEmpty() ? "" : " | ") + QString::fromStdString(base);
+        }
+        auto * from = new QTableWidgetItem{QString::fromStdString(entry.origin)};
+        from->setFlags(from->flags() & ~Qt::ItemIsEditable);
+        auto * note = new QTableWidgetItem{QString::fromStdString(entry.note)};
+        note->setFlags(note->flags() & ~Qt::ItemIsEditable);
+        serversTable->setItem(r, 0, nameItem);
+        serversTable->setItem(r, 1, new QTableWidgetItem{places});
+        serversTable->setItem(r, 2, from);
+        serversTable->setItem(r, 3, note);
+        r++;
+    }
+    serversTable->setMinimumHeight(serversTable->horizontalHeader()->height() + std::max(r, 1) * 28 + 6);
+    serversTable->setMaximumHeight(serversTable->minimumHeight());
+    const auto last = Servers::lastFetch();
+    serversStatus->setText(last.when.empty() ? "The project's file has not been read yet." : QString::fromStdString("The project's file, " + last.when + ": " + (last.ok ? "read (" : "not used (") + last.result + ")"));
 }
 
 void SettingsSourcesBox::entered() {

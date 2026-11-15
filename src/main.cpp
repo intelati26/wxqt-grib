@@ -49,6 +49,8 @@
 #include <QThread>
 #include "common/GlobalVariables.h"
 #include "gfs/GfsModels.h"
+#include "gfs/Servers.h"
+#include "settings/SettingsSourcesBox.h"
 #include <QDir>
 #include <QStandardPaths>
 #include "gfs/GfsRender.h"
@@ -218,6 +220,9 @@ int main(int argc, char * argv[]) {
         const auto folder = QStandardPaths::writableLocation(QStandardPaths::AppDataLocation) + "/models";
         QDir{}.mkpath(folder);
         GfsModels::setUserFolder(folder.toStdString());
+    }
+    if (!qEnvironmentVariableIsSet("WXQT_OPEN") && qEnvironmentVariable("QT_QPA_PLATFORM") != "offscreen") {   // the project's file of servers (section 20 of the plan): once a day, a few seconds after the start
+        QTimer::singleShot(8000, &a, [] { Servers::refreshIfDue(); });
     }
     Cfs30Loader::registerLoader();   // the CFS's next 30 days against its normal as a Model Viewer model
     WpcPppLoader::registerLoader();   // the Weather Prediction Center's probabilistic precipitation portal as a Model Viewer model
@@ -1315,6 +1320,12 @@ int main(int argc, char * argv[]) {
                 std::string cycle, other;
                 const auto a = GfsRender::hafsTrack("HAFSA", storm, cycle), b = GfsRender::hafsTrack("HAFSB", storm, other);
                 new HafsIntensityViewer{&w, storm, a, b, cycle};
+            } else if (route.startsWith("serverspage:")) {   // WXQT_OPEN=serverspage:<out.png>: the Model Sources settings tab (the servers by name above the models' check), saved a moment after it opens
+                auto * box = new SettingsSourcesBox;
+                box->resize(1100, 720);
+                box->show();
+                const auto file = route.section(':', 1, 1);
+                QTimer::singleShot(1500, box, [box, file] { box->grab().save(file); QTimer::singleShot(200, qApp, &QCoreApplication::quit); });
             } else if (route.startsWith("crosspicker:")) {   // WXQT_OPEN=crosspicker:<out.png>[:<model to start on>]: the "Another model's field" dialog as it opens, saved, then closed
                 const auto file = route.section(':', 1, 1);
                 const auto start = route.section(':', 2, 2);

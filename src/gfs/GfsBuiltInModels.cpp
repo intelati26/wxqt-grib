@@ -17,7 +17,7 @@ id = GEOS-FP
 label = NASA GMAO GEOS-FP 0.25 degree
 kind = netcdf
 # the directory is the run; the file name has the run, then the time the average is for (stamped half an hour after the hour it begins); `+` is %2B in a url
-url = https://portal.nccs.nasa.gov/datashare/gmao/geos-fp/forecast/Y{year}/M{month}/D{day}/H{cycle}/GEOS.fp.fcst.{file}.{date}_{cycle}%2B{valid}.V01.nc4
+url = {@geos-nccs}/Y{year}/M{month}/D{day}/H{cycle}/GEOS.fp.fcst.{file}.{date}_{cycle}%2B{valid}.V01.nc4
 file = when level="aerosol" => tavg3_2d_aer_Nx
 # the four levels of the hourly collection stay there; every other level is a band of the 3 hourly instantaneous collection (42 levels, 1000 to 0.1 hPa, one variable each: H, T, U, V, QV, OMEGA, EPV)
 file = when level~"^(1000|850|500|250) mb$" => tavg1_2d_slv_Nx
@@ -82,7 +82,7 @@ id = GFS
 alternate = IFS | ECMWF's global model, from ECMWF's server (a different model, not the same forecast)
 label = NOAA/NCEP GFS 0.25 degree
 kind = grib
-url = https://noaa-gfs-bdp-pds.s3.amazonaws.com/gfs.{date}/{cycle}/atmos/gfs.t{cycle}z.pgrb2.0p25.f{hour3}
+url = {@gfs-aws}/gfs.{date}/{cycle}/atmos/gfs.t{cycle}z.pgrb2.0p25.f{hour3}
 subset_url = https://nomads.ncep.noaa.gov/cgi-bin/filter_gfs_0p25.pl?dir=%2Fgfs.{date}%2F{cycle}%2Fatmos&file=gfs.t{cycle}z.pgrb2.0p25.f{hour3}{variables}{levels}&subregion=&leftlon={west}&rightlon={east}&toplat={north}&bottomlat={south}
 cycle_hours = 6
 lag_hours = 3
@@ -154,9 +154,9 @@ alternate = SPCREFS | the same RRFS system from SPC's server, as ensemble produc
 label = NOAA/NCEP REFS, 5 member 3 km ensemble
 source_label = NOAA/NCEP REFS
 kind = grib
-url = when file~"^rrfs/" => https://noaa-rrfs-ops-pds.s3.amazonaws.com/rrfs.{date}/{cycle}/rrfs.t{cycle}z.{name}.f{hour3}.conus.grib2
-url = when file~"^ens:" => https://noaa-rrfs-ops-pds.s3.amazonaws.com/refs.{date}/{cycle}/ensprod/refs.t{cycle}z.{tail}.f{hour2}.conus.grib2
-url = https://noaa-rrfs-ops-pds.s3.amazonaws.com/rrfsens.{date}/{cycle}/{dir}/rrfs.t{cycle}z.{dir}.{name}nomads.3km.f{hour3}.conus.grib2
+url = when file~"^rrfs/" => {@rrfs-ops}/rrfs.{date}/{cycle}/rrfs.t{cycle}z.{name}.f{hour3}.conus.grib2
+url = when file~"^ens:" => {@rrfs-ops}/refs.{date}/{cycle}/ensprod/refs.t{cycle}z.{tail}.f{hour2}.conus.grib2
+url = {@rrfs-ops}/rrfsens.{date}/{cycle}/{dir}/rrfs.t{cycle}z.{dir}.{name}nomads.3km.f{hour3}.conus.grib2
 file = when stat~"^ens:" => {stat}
 file = when stat=rrfs level~"^[0-9]+ mb$" => rrfs/prslev.3km
 file = when stat=rrfs => rrfs/2dfld.3km
@@ -432,8 +432,8 @@ legacy_label = ECMWF IFS 0.25 degree (open data, CC BY 4.0)
 run_note = 0.1 degree
 legacy_run_note = 0.25 degree
 kind = grib
-url = https://storage.googleapis.com/ecmwf-open-data/{date}/{cycle}z/ifs/0p1/oper/{date}{cycle}0000-{hour}h-oper-fc-{file}.grib2
-legacy_url = 2026102006 => https://storage.googleapis.com/ecmwf-open-data/{date}/{cycle}z/ifs/0p25/oper/{date}{cycle}0000-{hour}h-oper-fc.grib2
+url = {@ecmwf-gcs}/{date}/{cycle}z/ifs/0p1/oper/{date}{cycle}0000-{hour}h-oper-fc-{file}.grib2
+legacy_url = 2026102006 => {@ecmwf-gcs}/{date}/{cycle}z/ifs/0p25/oper/{date}{cycle}0000-{hour}h-oper-fc.grib2
 file_default = sfc
 file = when level~"^[0-9]+ mb$" => pl
 file = sfc
@@ -462,7 +462,7 @@ id = IFS-ENS
 alternate = GEFS | NOAA's ensemble, from NOAA's AWS bucket (a different model)
 label = ECMWF IFS ensemble (ENS), 50 members, 0.25 degree (open data, CC BY 4.0)
 kind = grib
-url = https://storage.googleapis.com/ecmwf-open-data/{date}/{cycle}z/ifs/0p25/enfo/{date}{cycle}0000-{hour}h-enfo-ef.grib2
+url = {@ecmwf-gcs}/{date}/{cycle}z/ifs/0p25/enfo/{date}{cycle}0000-{hour}h-enfo-ef.grib2
 index_format = ecmwf
 index_suffix = .index
 index_replaces = .grib2
@@ -482,7 +482,7 @@ list = true
 id = ENS-ALL
 label = All ensembles pooled: ECMWF ENS, GEFS and GEPS (102 members), 0.5 degree
 kind = grib
-url = https://storage.googleapis.com/ecmwf-open-data/{date}/{cycle}z/ifs/0p25/enfo/{date}{cycle}0000-{hour}h-enfo-ef.grib2
+url = {@ecmwf-gcs}/{date}/{cycle}z/ifs/0p25/enfo/{date}{cycle}0000-{hour}h-enfo-ef.grib2
 index_format = ecmwf
 index_suffix = .index
 index_replaces = .grib2
@@ -501,7 +501,7 @@ id = AIFS
 alternate = AIGFS | NOAA's AI global model, from NOAA's AWS bucket (a different model)
 label = ECMWF AIFS 0.25 degree (an AI model; open data, CC BY 4.0)
 kind = grib
-url = https://storage.googleapis.com/ecmwf-open-data/{date}/{cycle}z/aifs-single/0p25/oper/{date}{cycle}0000-{hour}h-oper-fc.grib2
+url = {@ecmwf-gcs}/{date}/{cycle}z/aifs-single/0p25/oper/{date}{cycle}0000-{hour}h-oper-fc.grib2
 index_format = ecmwf
 index_suffix = .index
 index_replaces = .grib2
@@ -1278,7 +1278,7 @@ clone_skip = anom, 500_vort_ht, 850_vort_ht, 850_stream_vort, 850vor_500ht_200wd
 id = RRFS-AK
 label = NOAA/NCEP RRFS Alaska, 3 km
 kind = grib
-url = https://noaa-rrfs-ops-pds.s3.amazonaws.com/rrfs.{date}/{cycle}/rrfs.t{cycle}z.{file}.f{hour3}.ak.grib2
+url = {@rrfs-ops}/rrfs.{date}/{cycle}/rrfs.t{cycle}z.{file}.f{hour3}.ak.grib2
 file_default = 2dfld.3km
 file = when level~"^[0-9]+ mb$" => prslev.3km
 file = 2dfld.3km
@@ -1310,7 +1310,7 @@ clone_rename = PRMSL:MSLET
 id = RRFS-FIREWX
 label = NOAA/NCEP RRFS fire weather nest, 1.5 km
 kind = grib
-url = https://noaa-rrfs-ops-pds.s3.amazonaws.com/firewx.{date}/{cycle}/rrfs.t{cycle}z.{file}.f{hour3}.firewx_lcc.grib2
+url = {@rrfs-ops}/firewx.{date}/{cycle}/rrfs.t{cycle}z.{file}.f{hour3}.firewx_lcc.grib2
 file_default = 2dfld.1p5km
 file = when level~"^[0-9]+ mb$" => prslev.1p5km
 file = 2dfld.1p5km
@@ -1341,7 +1341,7 @@ clone_rename = PRMSL:MSLET
 id = RRFS-HI
 label = NOAA/NCEP RRFS Hawaii, 2.5 km
 kind = grib
-url = https://noaa-rrfs-ops-pds.s3.amazonaws.com/rrfs.{date}/{cycle}/rrfs.t{cycle}z.{file}.f{hour3}.hi.grib2
+url = {@rrfs-ops}/rrfs.{date}/{cycle}/rrfs.t{cycle}z.{file}.f{hour3}.hi.grib2
 file_default = 2dfld.2p5km
 file = when level~"^[0-9]+ mb$" => prslev.2p5km
 file = 2dfld.2p5km
@@ -1372,7 +1372,7 @@ clone_rename = PRMSL:MSLET
 id = RRFS-PR
 label = NOAA/NCEP RRFS Puerto Rico and the Virgin Islands, 2.5 km
 kind = grib
-url = https://noaa-rrfs-ops-pds.s3.amazonaws.com/rrfs.{date}/{cycle}/rrfs.t{cycle}z.{file}.f{hour3}.pr.grib2
+url = {@rrfs-ops}/rrfs.{date}/{cycle}/rrfs.t{cycle}z.{file}.f{hour3}.pr.grib2
 file_default = 2dfld.2p5km
 file = when level~"^[0-9]+ mb$" => prslev.2p5km
 file = 2dfld.2p5km
@@ -1404,7 +1404,7 @@ id = RRFS-NA
 alternate = HRDPS | Canada's 2.5 km model, which covers the northern United States, from Environment Canada's server (a different model)
 label = NOAA/NCEP RRFS North America, 13 km
 kind = grib
-url = https://noaa-rrfs-ops-pds.s3.amazonaws.com/rrfs.{date}/{cycle}/rrfs.t{cycle}z.{file}.f{hour3}.na.grib2
+url = {@rrfs-ops}/rrfs.{date}/{cycle}/rrfs.t{cycle}z.{file}.f{hour3}.na.grib2
 file_default = 2dfld.13km
 file = when level~"^[0-9]+ mb$" => prslev.13km
 file = 2dfld.13km
@@ -1434,7 +1434,7 @@ id = RRFS
 alternate = SPCREFS | the same RRFS system from SPC's server, as ensemble products (the control member is one of them)
 label = NOAA/NCEP RRFS 3 km
 kind = grib
-url = https://noaa-rrfs-ops-pds.s3.amazonaws.com/rrfs.{date}/{cycle}/rrfs.t{cycle}z.{file}.f{hour3}.conus.grib2
+url = {@rrfs-ops}/rrfs.{date}/{cycle}/rrfs.t{cycle}z.{file}.f{hour3}.conus.grib2
 file_default = 2dfld.3km
 file = when level~"^[0-9]+ mb$" => prslev.3km
 file = 2dfld.3km
@@ -2191,7 +2191,7 @@ id = GFS-WAVE
 alternate = MF-WAVE | Meteo-France's global wave model, via Open-Meteo (a different model)
 label = NOAA/NCEP GFS-Wave 0.16 degree
 kind = grib
-url = https://noaa-gfs-bdp-pds.s3.amazonaws.com/gfs.{date}/{cycle}/wave/gridded/gfswave.t{cycle}z.global.0p16.f{hour3}.grib2
+url = {@gfs-aws}/gfs.{date}/{cycle}/wave/gridded/gfswave.t{cycle}z.global.0p16.f{hour3}.grib2
 cycle_hours = 6
 lag_hours = 5
 probe_hour = 384

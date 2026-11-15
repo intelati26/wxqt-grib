@@ -29,6 +29,9 @@ private:
     void start();
     void setRow(int row, const GfsRender::SourceCheck&);
     void refreshClimate();   // the climatology rows: stored, or how far the background work is
+    void refreshServers();   // the table of servers by name (Servers::table) and the state of the project's file
+    QTableWidget * serversTable{};
+    QLabel * serversStatus{};
     QTableWidget * climateTable{};
     QPushButton * climateButton{};
     QLabel * climateSummary{};

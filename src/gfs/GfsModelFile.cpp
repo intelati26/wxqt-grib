@@ -4,6 +4,7 @@
 // *****************************************************************************
 
 #include "gfs/GfsModelFile.h"
+#include "gfs/Servers.h"
 #include "gfs/GeosOpendap.h"
 #include "util/Utility.h"
 #include "util/UtilityIO.h"
@@ -137,6 +138,12 @@ namespace {
 
     // {date} {yy} {cycle} {prev_cycle} {hour} {hour2} {hour3} {file} {/file} {file3} {dir} {name} {tag} {tail} {storm} {year} {month} {day}
     std::string expandUrl(std::string url, const Definition& d, const Run& run, int hour, const std::string& alt, const std::string& previous) {
+        if (!Servers::nameIn(url).empty()) {   // a server by name (`{@rrfs-ops}/...`): its first place; urlsOf gives the others
+            const auto first = Servers::places(url);
+            if (!first.empty()) {
+                url = first.front();
+            }
+        }
         const auto slash = alt.find('/');
         const auto directory = slash == std::string::npos ? std::string{} : alt.substr(0, slash);
         const auto name = slash == std::string::npos ? alt : alt.substr(slash + 1);
@@ -191,6 +198,12 @@ namespace {
             alternatives.push_back({});
         }
         std::vector<std::string> out;
+        const auto pushPlaces = [&] (const std::string& pattern, const std::string& alt) {   // a pattern that begins with a server's name is one place for each of its bases (the first first)
+            const auto bases = Servers::nameIn(pattern).empty() ? std::vector<std::string>{pattern} : Servers::places(pattern);
+            for (const auto& each : bases.empty() ? std::vector<std::string>{pattern} : bases) {
+                out.push_back(expandUrl(each, d, run, hour, alt, previous));
+            }
+        };
         if (!d.legacyBefore.empty() && run.date + run.cycle < d.legacyBefore) {   // a run from before the files changed: its one file, whatever the record
             out.push_back(expandUrl(d.legacyUrl, d, run, hour, {}, previous));
             return out;
@@ -212,7 +225,7 @@ namespace {
                 }
             }
             if (chosen != nullptr) {
-                out.push_back(expandUrl(chosen->pattern, d, run, hour, alt, previous));
+                pushPlaces(chosen->pattern, alt);
                 continue;
             }
             for (const auto& rule : d.urls) {
@@ -222,7 +235,7 @@ namespace {
                 if (directory.empty() && rule.pattern.find("{dir}") != std::string::npos) {
                     continue;   // a file that is not "directory/name" has no place where the url wants one
                 }
-                out.push_back(expandUrl(rule.pattern, d, run, hour, alt, previous));
+                pushPlaces(rule.pattern, alt);
             }
         }
         return out;
@@ -246,6 +259,17 @@ namespace {
     }
 
     std::string urlProblem(const std::string& url) {
+        if (url.rfind("{@", 0) == 0) {   // a server by name: its bases are checked where the table is read (Servers::parse); what follows is the path
+            const auto name = Servers::nameIn(url);
+            if (name.empty()) {
+                return "a server by name is {@name} with a plain name (a to z, 0 to 9 and -)";
+            }
+            const auto rest = url.substr(name.size() + 3);
+            if (!rest.empty() && rest[0] != '/') {
+                return "a path follows {@name} with a /";
+            }
+            return textProblem(rest);
+        }
         const bool https = url.rfind("https://", 0) == 0;
         if (!https && url.rfind("http://", 0) != 0) {
             return "a url begins with https:// or http://";
@@ -925,7 +949,7 @@ GfsModelFile::Parsed GfsModelFile::parse(const std::string& original, const std:
     source.om.enabled = kind == "om";
     source.wrf.enabled = kind == "wrf";
     source.custom = kind == "custom";
-    const bool candidatesWanted = std::count_if(definition->urls.begin(), definition->urls.end(), [] (const Rule& r) { return r.conditions.empty(); }) > 1;
+    const bool candidatesWanted = std::count_if(definition->urls.begin(), definition->urls.end(), [] (const Rule& r) { return r.conditions.empty(); }) > 1 || std::any_of(definition->urls.begin(), definition->urls.end(), [] (const Rule& r) { return !Servers::nameIn(r.pattern).empty(); });
     const bool ecmwf = indexFormat == "ecmwf";
     const std::string id = def.id;
     def.source = [definition, source, candidatesWanted, ecmwf, stormModel, id, wrfFoldersPref] (const std::string& storm) {
