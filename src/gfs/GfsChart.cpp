@@ -8375,6 +8375,26 @@ void drawPointValues(PointValuesState& state) {
     }
 }
 
+// What the stages of the drawing share once the painter exists: the chart, where it is drawn, and the font. A stage function takes a Frame and unpacks only what it uses.
+struct Frame {
+    const Product& product;
+    const Grids& grids;
+    const Options& options;
+    const Sector& sector;
+    const GfsData::Run& run;
+    int forecastHour;
+    const View& view;
+    const QRectF& area;
+    double S;
+    int margin;
+    QImage& image;
+    QPainter& p;
+    QFont& font;
+    const QFontMetricsF& metrics;
+    bool us;
+    double span;
+};
+
 // The title, the line under it (each name in the color it is drawn in) and the run and valid times at the right.
 struct HeaderState {
     const Product& product;
@@ -8772,6 +8792,489 @@ void drawLegend(LegendState& state, const Label& drawLabel) {
     }()));
 }
 
+// Coastlines and borders from Options::lines, on the map.
+void drawCoastlines(Frame& f) {
+    const Options& options = f.options;
+    const Sector& sector = f.sector;
+    const GfsData::Run& run = f.run;
+    const View& view = f.view;
+    QPainter& p = f.p;
+    // coastlines and borders
+    p.setPen(QPen{QColor{40, 40, 40, 210}, 0.9});
+    for (const auto& line : options.lines) {
+        QPainterPath path;
+        bool started = false;
+        double previous = 0.0;
+        for (const auto& pt : line) {
+            if (pt.second < sector.south - 3 || pt.second > sector.north + 3) {
+                started = false;
+                continue;
+            }
+            // a longitude equivalent to the view's: the lines are -180..180, the view may reach past either
+            double lon = pt.first;
+            while (lon < sector.west - 25.0) {
+                lon += 360.0;
+            }
+            while (lon >= sector.west + 335.0) {
+                lon -= 360.0;
+            }
+            if (lon > sector.east + 25.0) {   // far off the right edge (the far side of the dateline, say): a line to it would run across the chart
+                started = false;
+                continue;
+            }
+            if (started && std::abs(lon - previous) > 180.0) {   // a coast that crosses the date line (Chukotka, Fiji, the Antarctic ring): not a line across the whole chart
+                started = false;
+            }
+            previous = lon;
+            const auto at = view.toPixel(lon, pt.second);
+            started ? path.lineTo(at) : path.moveTo(at);
+            started = true;
+        }
+        p.drawPath(path);
+    }
+
+
+}
+
+// Streamlines: evenly spaced lines along a wind, over the fill.
+void drawStreamlines(Frame& f) {
+    const Product& product = f.product;
+    const Grids& grids = f.grids;
+    const View& view = f.view;
+    const QRectF& area = f.area;
+    QPainter& p = f.p;
+    // streamlines: evenly spaced lines along the wind (the conformal map puts the wind's direction on the screen as it is: east to the right, north up)
+    if (!product.streamU.empty() && grids.count(product.streamU) && grids.count(product.streamV)) {
+        const auto& su = grids.at(product.streamU);
+        const auto& sv = grids.at(product.streamV);
+        const double separation = 17.0, testDistance = 8.0, step = 2.5;
+        struct Spot {
+            QPointF at;
+        };
+        const double cell = testDistance;
+        const int cols = static_cast<int>(area.width() / cell) + 2, rowsN = static_cast<int>(area.height() / cell) + 2;
+        std::vector<std::vector<QPointF>> hash(static_cast<size_t>(cols) * static_cast<size_t>(rowsN));
+        const auto slot = [&] (const QPointF& pt) { return static_cast<size_t>(static_cast<int>((pt.y() - area.top()) / cell)) * static_cast<size_t>(cols) + static_cast<size_t>(static_cast<int>((pt.x() - area.left()) / cell)); };
+        const auto tooClose = [&] (const QPointF& pt, double distance) {
+            const int cx = static_cast<int>((pt.x() - area.left()) / cell), cy = static_cast<int>((pt.y() - area.top()) / cell);
+            const int reach = static_cast<int>(std::ceil(distance / cell));
+            for (int dy = -reach; dy <= reach; dy++) {
+                for (int dx = -reach; dx <= reach; dx++) {
+                    const int x = cx + dx, y = cy + dy;
+                    if (x < 0 || y < 0 || x >= cols || y >= rowsN) {
+                        continue;
+                    }
+                    for (const auto& other : hash[static_cast<size_t>(y) * static_cast<size_t>(cols) + static_cast<size_t>(x)]) {
+                        if (std::hypot(other.x() - pt.x(), other.y() - pt.y()) < distance) {
+                            return true;
+                        }
+                    }
+                }
+            }
+            return false;
+        };
+        const auto wind = [&] (const QPointF& pt, double& ux, double& vy) {   // the unit direction on the screen, false where there is no wind
+            const double lon = view.lonAt(pt.x()), lat = view.latAt(pt.y());
+            const float uu = su.sample(lon, lat), vv = sv.sample(lon, lat);
+            const double speedNow = std::hypot(uu, vv);
+            if (std::isnan(uu) || std::isnan(vv) || speedNow < 0.3) {
+                return false;
+            }
+            ux = uu / speedNow;
+            vy = -vv / speedNow;
+            return true;
+        };
+        const auto trace = [&] (QPointF from, double sign, std::vector<QPointF>& out) {
+            QPointF at = from;
+            for (int i = 0; i < 500; i++) {
+                double ux, vy;
+                if (!wind(at, ux, vy)) {
+                    break;
+                }
+                const QPointF mid = at + QPointF{ux, vy} * (sign * step / 2.0);
+                double mx, my;
+                if (!wind(mid, mx, my)) {
+                    break;
+                }
+                at += QPointF{mx, my} * (sign * step);
+                if (!area.contains(at) || tooClose(at, testDistance)) {
+                    break;
+                }
+                out.push_back(at);
+            }
+        };
+        p.setBrush(Qt::NoBrush);
+        const QColor lineColor{25, 25, 25, 215};
+        for (double y = area.top() + separation / 2; y < area.bottom(); y += separation) {
+            for (double x = area.left() + separation / 2; x < area.right(); x += separation) {
+                const QPointF seed{x, y};
+                if (tooClose(seed, separation * 0.8)) {
+                    continue;
+                }
+                std::vector<QPointF> forward, backward;
+                trace(seed, 1.0, forward);
+                trace(seed, -1.0, backward);
+                if (forward.size() + backward.size() < 8) {
+                    continue;
+                }
+                std::vector<QPointF> line(backward.rbegin(), backward.rend());
+                line.push_back(seed);
+                line.insert(line.end(), forward.begin(), forward.end());
+                QPainterPath path;
+                path.moveTo(line.front());
+                for (const auto& pt : line) {
+                    path.lineTo(pt);
+                    hash[slot(pt)].push_back(pt);
+                }
+                p.setPen(QPen{lineColor, 1.1});
+                p.drawPath(path);
+                // an arrowhead at the middle
+                const size_t m = line.size() / 2;
+                if (m > 2 && m + 2 < line.size()) {
+                    const QPointF dir = line[m + 2] - line[m - 2];
+                    const double length = std::hypot(dir.x(), dir.y());
+                    if (length > 0.1) {
+                        const QPointF unit = dir / length, normal{-unit.y(), unit.x()};
+                        QPolygonF head;
+                        head << line[m] + unit * 4.0 << line[m] - unit * 3.0 + normal * 3.2 << line[m] - unit * 3.0 - normal * 3.2;
+                        p.setBrush(lineColor);
+                        p.setPen(Qt::NoPen);
+                        p.drawPolygon(head);
+                        p.setBrush(Qt::NoBrush);
+                    }
+                }
+            }
+        }
+    }
+
+}
+
+// The storm tracks and their key, the marker of a local area, and the marks along the frame.
+template <class Label, class Halo>
+void drawTracksMarkerAndTicks(Frame& f, const Label& drawLabel, const Halo& halo) {
+    const Options& options = f.options;
+    const Sector& sector = f.sector;
+    const int forecastHour = f.forecastHour;
+    const View& view = f.view;
+    const QRectF& area = f.area;
+    const double S = f.S;
+    QPainter& p = f.p;
+    QFont& font = f.font;
+    const double span = f.span;
+    // the other model's track under it, dashed
+    if (!options.trackOther.empty()) {
+        QPolygonF other;
+        for (const auto& t : options.trackOther) {
+            other << view.toPixel(t.lon, t.lat);
+        }
+        p.setBrush(Qt::NoBrush);
+        p.setPen(QPen{QColor{255, 255, 255, 220}, 4.0, Qt::SolidLine, Qt::RoundCap, Qt::RoundJoin});
+        p.drawPolyline(other);
+        p.setPen(QPen{QColor{20, 90, 220}, 2.0, Qt::DashLine, Qt::RoundCap, Qt::RoundJoin});
+        p.drawPolyline(other);
+        for (const auto& t : options.trackOther) {
+            if (t.hour % 24 == 0) {
+                const auto at = view.toPixel(t.lon, t.lat);
+                p.setPen(QPen{QColor{20, 90, 220}, 1.5});
+                p.setBrush(QColor{20, 90, 220});
+                p.drawEllipse(at, 3.0, 3.0);
+            }
+        }
+    }
+    // a storm track with the wind radii of the hour shown
+    if (!options.track.empty()) {
+        const auto destination = [] (double lat, double lon, double bearing, double nm) {
+            const double d = nm * 1.852 / 6371.0, b = bearing * pi / 180.0, la = lat * pi / 180.0;
+            const double lat2 = std::asin(std::sin(la) * std::cos(d) + std::cos(la) * std::sin(d) * std::cos(b));
+            const double lon2 = lon * pi / 180.0 + std::atan2(std::sin(b) * std::sin(d) * std::cos(la), std::cos(d) - std::sin(la) * std::sin(lat2));
+            return std::pair{lon2 * 180.0 / pi, lat2 * 180.0 / pi};
+        };
+        const TrackPoint * now = nullptr;
+        for (const auto& t : options.track) {
+            if (t.hour == forecastHour) {
+                now = &t;
+            }
+        }
+        if (now && options.windRadii) {   // 64 kt over 50 over 34, each quadrant's radius out along its quarter of the circle
+            static const QColor colors[3] = {QColor{255, 235, 0, 70}, QColor{255, 140, 0, 90}, QColor{230, 20, 20, 110}};
+            for (int row = 0; row < 3; row++) {
+                QPolygonF poly;
+                bool any = false;
+                for (int q = 0; q < 4; q++) {
+                    const double r = now->radii[row][q];
+                    any = any || r > 0.0;
+                    for (int step = 0; step <= 18; step++) {
+                        const double bearing = q * 90.0 + step * 5.0;
+                        const auto [lon, lat] = destination(now->lat, now->lon, bearing, r);
+                        poly << (r > 0.0 ? view.toPixel(lon, lat) : view.toPixel(now->lon, now->lat));
+                    }
+                }
+                if (any) {
+                    p.setPen(QPen{colors[row].darker(160), 1.5});
+                    p.setBrush(colors[row]);
+                    p.drawPolygon(poly);
+                }
+            }
+        }
+        QPolygonF line;
+        for (const auto& t : options.track) {
+            line << view.toPixel(t.lon, t.lat);
+        }
+        p.setBrush(Qt::NoBrush);
+        p.setPen(QPen{QColor{255, 255, 255, 230}, 4.5, Qt::SolidLine, Qt::RoundCap, Qt::RoundJoin});
+        p.drawPolyline(line);
+        p.setPen(QPen{QColor{20, 20, 20}, 2.0, Qt::SolidLine, Qt::RoundCap, Qt::RoundJoin});
+        p.drawPolyline(line);
+        QFont small = p.font();
+        small.setPixelSize(11);
+        small.setBold(true);
+        p.setFont(small);
+        for (const auto& t : options.track) {
+            if (t.hour % 12 != 0 && &t != now) {
+                continue;
+            }
+            const auto at = view.toPixel(t.lon, t.lat);
+            const bool current = &t == now;
+            p.setPen(QPen{QColor{20, 20, 20}, 1.5});
+            p.setBrush(current ? QColor{255, 255, 255} : QColor{20, 20, 20});
+            p.drawEllipse(at, current ? 6.0 : 3.5, current ? 6.0 : 3.5);
+            if (current || t.hour % 24 == 0) {
+                halo(at + QPointF{9.0, -7.0}, QString{"+%1 h  %2 kt  %3 mb"}.arg(t.hour).arg(t.wind).arg(t.pressure), QColor{20, 20, 20});
+            }
+        }
+    }
+    if (!options.track.empty() && !options.trackName.empty()) {   // the key of the tracks
+        QFont keyFont = p.font();
+        keyFont.setPixelSize(12);
+        keyFont.setBold(true);
+        p.setFont(keyFont);
+        const QString first = QString::fromStdString(options.trackName), second = QString::fromStdString(options.trackOtherName);
+        const double width = 60.0 + QFontMetricsF{keyFont}.horizontalAdvance(first) + (options.trackOther.empty() ? 0.0 : 40.0 + QFontMetricsF{keyFont}.horizontalAdvance(second));
+        const QRectF box{area.right() - width - 8.0, area.top() + 8.0, width, 24.0};
+        p.setPen(Qt::NoPen);
+        p.setBrush(QColor{255, 255, 255, 215});
+        p.drawRoundedRect(box, 4.0, 4.0);
+        double x = box.left() + 8.0;
+        const double y = box.center().y();
+        p.setPen(QPen{QColor{20, 20, 20}, 2.0});
+        p.drawLine(QPointF{x, y}, QPointF{x + 22.0, y});
+        drawLabel(QPointF{x + 28.0, y + 4.0}, first);
+        x += 28.0 + QFontMetricsF{keyFont}.horizontalAdvance(first) + 14.0;
+        if (!options.trackOther.empty()) {
+            p.setPen(QPen{QColor{20, 90, 220}, 2.0, Qt::DashLine});
+            p.drawLine(QPointF{x, y}, QPointF{x + 22.0, y});
+            p.setPen(QColor{20, 20, 20});
+            drawLabel(QPointF{x + 28.0, y + 4.0}, second);
+        }
+    }
+    p.setClipping(false);
+    p.setPen(QPen{QColor{60, 60, 60}, 1.0});
+    p.setBrush(Qt::NoBrush);
+    p.drawRect(area);
+    if (options.hasMarker) {   // the place a local area is round: a ring and its name
+        const auto at = view.toPixel(options.markerLon, options.markerLat);
+        if (area.contains(at)) {
+            p.setClipRect(area);
+            p.setPen(QPen{QColor{255, 255, 255}, 4.0});
+            p.drawEllipse(at, 6.0, 6.0);
+            p.setPen(QPen{QColor{200, 20, 20}, 2.0});
+            p.drawEllipse(at, 6.0, 6.0);
+            p.drawLine(QPointF{at.x() - 10, at.y()}, QPointF{at.x() + 10, at.y()});
+            p.drawLine(QPointF{at.x(), at.y() - 10}, QPointF{at.x(), at.y() + 10});
+            if (!options.markerName.empty()) {
+                QFont f = p.font();
+                f.setBold(true);
+                p.setFont(f);
+                const QString label = QString::fromStdString(options.markerName);
+                p.setPen(QColor{255, 255, 255});
+                for (const QPointF d : {QPointF{1, 1}, QPointF{-1, 1}, QPointF{1, -1}, QPointF{-1, -1}}) {
+                    drawLabel(at + QPointF{10, -8} + d, label);
+                }
+                p.setPen(QColor{140, 10, 10});
+                drawLabel(at + QPointF{10, -8}, label);
+            }
+            p.setClipping(false);
+        }
+    }
+    if (options.ticks) {   // latitude and longitude marks along the frame: a step that gives five or six across, numbered along the bottom and the left
+        const auto stepFor = [] (double span) {
+            static const double steps[] = {0.1, 0.25, 0.5, 1.0, 2.0, 5.0, 10.0, 15.0, 30.0};
+            for (const double step : steps) {
+                if (span / step <= 7.0) {
+                    return step;
+                }
+            }
+            return 30.0;
+        };
+        const auto numberOf = [] (double v, double step, const char * plus, const char * minus) {
+            const double a = std::fabs(v);
+            return QString::number(a, 'f', step < 1.0 ? (step < 0.25 ? 2 : 1) : 0) + QString::fromUtf8("\xC2\xB0") + (v >= 0 ? plus : minus);
+        };
+        QFont f = p.font();
+        f.setBold(false);
+        f.setPixelSize(11);
+        p.setFont(f);
+        p.setPen(QColor{40, 40, 40});
+        const double lonStep = stepFor(sector.east - sector.west);
+        for (double lon = std::ceil(sector.west / lonStep) * lonStep; lon <= sector.east + 1e-9; lon += lonStep) {
+            const double x = view.toPixel(lon, sector.south).x();
+            if (x < area.left() + 18 || x > area.right() - 18) {
+                continue;
+            }
+            for (const double y : {area.top(), area.bottom()}) {
+                const double dir = y == area.top() ? 1.0 : -1.0;
+                p.drawLine(QPointF{x, y}, QPointF{x, y + dir * 7.0});
+            }
+            double shownLon = lon;
+            if (shownLon > 180.0) {
+                shownLon -= 360.0;
+            }
+            drawLabel(QRectF{x - 30, area.bottom() - 22, 60, 14}, Qt::AlignHCenter, numberOf(shownLon, lonStep, "E", "W"));
+        }
+        const double latStep = stepFor(sector.north - sector.south);
+        for (double lat = std::ceil(sector.south / latStep) * latStep; lat <= sector.north + 1e-9; lat += latStep) {
+            const double y = view.toPixel(sector.west, lat).y();
+            if (y < area.top() + 10 || y > area.bottom() - 10) {
+                continue;
+            }
+            for (const double x : {area.left(), area.right()}) {
+                const double dir = x == area.left() ? 1.0 : -1.0;
+                p.drawLine(QPointF{x, y}, QPointF{x + dir * 7.0, y});
+            }
+            drawLabel(QRectF{area.left() + 9, y - 7, 60, 14}, Qt::AlignLeft | Qt::AlignVCenter, numberOf(lat, latStep, "N", "S"));
+        }
+        p.setPen(QPen{QColor{60, 60, 60}, 1.0});
+    }
+
+}
+
+// The contour lines of every set, their numbers and the highs and lows; the numbers on the lines are returned, to be drawn after the barbs.
+template <class Halo>
+std::vector<std::tuple<QPointF, QString, QColor>> drawContours(Frame& f, const Halo& halo, const QImage& map) {
+    const Product& product = f.product;
+    const Grids& grids = f.grids;
+    const Options& options = f.options;
+    const Sector& sector = f.sector;
+    const View& view = f.view;
+    const QRectF& area = f.area;
+    const double S = f.S;
+    QPainter& p = f.p;
+    const double span = f.span;
+    // the wider the view, the sparser the lines, the highs and lows, and the barbs
+    const double extremeRadius = span > 150.0 ? 12.0 : span > 80.0 ? 8.0 : 6.0;
+    std::vector<QRectF> placed;   // where the numbers on the lines already are
+    std::vector<std::tuple<QPointF, QString, QColor>> numbersToDraw;   // the numbers on the lines, drawn after the barbs so that no barb is over one
+    // where the wind barbs will stand (they are drawn after the lines): the numbers keep clear of them when they can
+    const bool barbsShown = !options.noBarbs && ((!product.barbU.empty() && grids.count(product.barbU) && grids.count(product.barbV)) || std::any_of(product.barbSets.begin(), product.barbSets.end(), [&grids] (const auto& set) { return grids.count(set.u) && grids.count(set.v); }));
+    const auto barbLook = BarbGrid::look(span, area.width() / std::max(0.1, span));
+    const auto nearBarb = [&] (const QPointF& at) {
+        const double la = std::round(view.latAt(at.y()) / barbLook.step) * barbLook.step;
+        const double lonStep = BarbGrid::lonStep(barbLook.step, la);
+        const double lo = std::round(view.lonAt(at.x()) / lonStep) * lonStep;
+        const auto node = view.toPixel(lo, la);
+        return std::hypot(node.x() - at.x(), node.y() - at.y()) < barbLook.length * 1.1;
+    };
+    for (const auto& set : product.contours) {
+        const double interval = set.interval * (span > 150.0 ? 2.0 : 1.0);
+        GfsGrid::Grid smooth;
+        if (set.smoothKm > 0.0) {   // a 3 x 3 average n times spreads as sqrt(2n/3) cells: the passes that reach the radius (at most 60)
+            const double cells = set.smoothKm / (std::max(grids.at(set.key).step, 0.001) * 111.0);
+            smooth = GfsGrid::smoothed(grids.at(set.key), std::clamp(static_cast<int>(std::lround(1.5 * cells * cells)), 1, 60));
+        }
+        const GfsGrid::Grid fine = set.smoothKm > 0.0 ? GfsGrid::Grid{} : GfsGrid::reducedForLines(grids.at(set.key));   // a 3 km grid is averaged to about 8 km for its lines
+        const auto& grid = set.smoothKm > 0.0 ? smooth : (fine.empty() ? grids.at(set.key) : fine);
+        double lo = 1e18, hi = -1e18;
+        for (int y = 0; y < map.height(); y += 6) {
+            for (int x = 0; x < map.width(); x += 6) {
+                const float value = grid.sample(view.lonAt(area.left() + x / S), view.latAt(area.top() + y / S));
+                if (!std::isnan(value)) {
+                    lo = std::min<double>(lo, value * set.scale);
+                    hi = std::max<double>(hi, value * set.scale);
+                }
+            }
+        }
+        if (set.onlyBelowZero) {
+            hi = std::min(hi, -interval / 2.0);
+        }
+        for (double level = std::max(std::ceil((lo - set.base) / interval) * interval + set.base, std::ceil((set.minimum - set.base) / interval) * interval + set.base); level <= hi; level += interval) {
+            const bool heavy = !set.uniform && std::fmod(std::abs(level - set.base), interval * 5) < 1e-6 || (set.colorBelow.isValid() && std::abs(level - set.split) < 1e-6);
+            const QColor color = set.colorBelow.isValid() && level <= set.split ? set.colorBelow : set.color;
+            for (const auto& line : GfsGrid::contour(grid, level / set.scale, sector.west, sector.south, sector.east, sector.north)) {
+                QPainterPath path;
+                bool first = true;
+                for (const auto& pt : line) {
+                    const auto at = view.toPixel(pt.lon, pt.lat);   // already continuous across west..east
+                    first ? path.moveTo(at) : path.lineTo(at);
+                    first = false;
+                }
+                p.setBrush(Qt::NoBrush);
+                QPen pen{QColor{color.red(), color.green(), color.blue(), 230}, (heavy ? 1.6 : 1.0) * set.width};
+                if (set.dashed) {
+                    pen.setStyle(Qt::DashLine);
+                }
+                if (options.vectorOut != nullptr) {   // handed over: the map draws the line (and its number) at its own zoom
+                    VectorLines::Line out;
+                    out.color = pen.color();
+                    out.width = pen.widthF();
+                    out.dashed = set.dashed;
+                    for (const auto& pt : line) {
+                        out.lonLat.emplace_back(pt.lon, pt.lat);
+                    }
+                    options.vectorOut->lines.push_back(std::move(out));
+                } else {
+                    p.setPen(pen);
+                    p.drawPath(path);
+                }
+                // one label near the middle of a line long enough to carry it; not over another number, and, when the line has a free stretch, not over a wind barb
+                if (set.labelled && path.length() > 150.0) {
+                    QPointF mid = path.pointAtPercent(0.5);
+                    const QString text = interval < 1.0 ? QString::number(level, 'f', interval < 0.1 ? 2 : 1) : QString::number(static_cast<int>(std::lround(level)));
+                    const auto boxAt = [&text] (const QPointF& at) { return QRectF{at.x() - text.size() * 4.0 - 4.0, at.y() - 9.0, text.size() * 8.0 + 8.0, 18.0}; };
+                    const auto free = [&] (const QPointF& at) {
+                        const auto b = boxAt(at);
+                        return area.adjusted(24, 14, -24, -14).contains(at) && !std::any_of(placed.begin(), placed.end(), [&b] (const QRectF& other) { return other.intersects(b); });
+                    };
+                    if (barbsShown) {   // along the line from the middle: the first place a number is clear of the others and of the barbs
+                        for (const double at : {0.5, 0.4, 0.6, 0.3, 0.7, 0.2, 0.8}) {
+                            const auto candidate = path.pointAtPercent(at);
+                            if (free(candidate) && !nearBarb(candidate)) {
+                                mid = candidate;
+                                break;
+                            }
+                        }
+                    }
+                    const QRectF box = boxAt(mid);
+                    const bool crowded = std::any_of(placed.begin(), placed.end(), [&box] (const QRectF& other) { return other.intersects(box); });   // a number over another is unreadable: skip it
+                    if (!crowded && area.adjusted(24, 14, -24, -14).contains(mid)) {
+                        placed.push_back(box);
+                        if (options.vectorOut != nullptr) {
+                            options.vectorOut->labels.push_back({view.lonAt(mid.x()), view.latAt(mid.y()), text, color.darker(130)});
+                        } else {
+                            numbersToDraw.emplace_back(mid, interval < 1.0 ? QString::number(level, 'f', interval < 0.1 ? 2 : 1) : QString::number(static_cast<int>(std::lround(level))), color.darker(130));   // a fractional interval keeps its decimals
+                        }
+                    }
+                }
+            }
+        }
+        if (set.highsAndLows) {
+            for (const auto& e : GfsGrid::extremes(grid, extremeRadius, sector.west, sector.south, sector.east, sector.north)) {
+                const auto at = view.toPixel(e.lon, e.lat);
+                if (area.adjusted(20, 20, -20, -20).contains(at)) {
+                    if (options.vectorOut != nullptr) {
+                        options.vectorOut->labels.push_back({e.lon, e.lat, e.high ? "H" : "L", e.high ? QColor{20, 60, 170} : QColor{190, 30, 30}});
+                        options.vectorOut->labels.push_back({e.lon, view.latAt(at.y() + 13), QString::number(static_cast<int>(std::lround(e.value * set.scale))), QColor{40, 40, 40}});
+                    } else {
+                        halo(at, e.high ? "H" : "L", e.high ? QColor{20, 60, 170} : QColor{190, 30, 30});
+                        halo(at + QPointF{0, 13}, QString::number(static_cast<int>(std::lround(e.value * set.scale))), QColor{40, 40, 40});
+                    }
+                }
+            }
+        }
+    }
+
+    return numbersToDraw;
+}
+
 QImage render(const Product& drawn, const Sector& sector, const Grids& fetched, const GfsData::Run& run, int forecastHour, const Options& options) {
     const bool timing = std::getenv("WXQT_TIMING") != nullptr;   // WXQT_TIMING=1: the seconds each stage of the drawing takes, to stderr
     auto lapAt = std::chrono::steady_clock::now();
@@ -9027,40 +9530,6 @@ QImage render(const Product& drawn, const Sector& sector, const Grids& fetched, 
     p.setClipRect(area);
 
     lap("overlays");
-    // coastlines and borders
-    p.setPen(QPen{QColor{40, 40, 40, 210}, 0.9});
-    for (const auto& line : options.lines) {
-        QPainterPath path;
-        bool started = false;
-        double previous = 0.0;
-        for (const auto& pt : line) {
-            if (pt.second < sector.south - 3 || pt.second > sector.north + 3) {
-                started = false;
-                continue;
-            }
-            // a longitude equivalent to the view's: the lines are -180..180, the view may reach past either
-            double lon = pt.first;
-            while (lon < sector.west - 25.0) {
-                lon += 360.0;
-            }
-            while (lon >= sector.west + 335.0) {
-                lon -= 360.0;
-            }
-            if (lon > sector.east + 25.0) {   // far off the right edge (the far side of the dateline, say): a line to it would run across the chart
-                started = false;
-                continue;
-            }
-            if (started && std::abs(lon - previous) > 180.0) {   // a coast that crosses the date line (Chukotka, Fiji, the Antarctic ring): not a line across the whole chart
-                started = false;
-            }
-            previous = lon;
-            const auto at = view.toPixel(lon, pt.second);
-            started ? path.lineTo(at) : path.moveTo(at);
-            started = true;
-        }
-        p.drawPath(path);
-    }
-
     QFont font = p.font();
     font.setPixelSize(11);
     font.setBold(true);
@@ -9086,225 +9555,12 @@ QImage render(const Product& drawn, const Sector& sector, const Grids& fetched, 
         p.setBrush(color);
         p.drawPath(path);
     };
-
-    // streamlines: evenly spaced lines along the wind (the conformal map puts the wind's direction on the screen as it is: east to the right, north up)
-    if (!product.streamU.empty() && grids.count(product.streamU) && grids.count(product.streamV)) {
-        const auto& su = grids.at(product.streamU);
-        const auto& sv = grids.at(product.streamV);
-        const double separation = 17.0, testDistance = 8.0, step = 2.5;
-        struct Spot {
-            QPointF at;
-        };
-        const double cell = testDistance;
-        const int cols = static_cast<int>(area.width() / cell) + 2, rowsN = static_cast<int>(area.height() / cell) + 2;
-        std::vector<std::vector<QPointF>> hash(static_cast<size_t>(cols) * static_cast<size_t>(rowsN));
-        const auto slot = [&] (const QPointF& pt) { return static_cast<size_t>(static_cast<int>((pt.y() - area.top()) / cell)) * static_cast<size_t>(cols) + static_cast<size_t>(static_cast<int>((pt.x() - area.left()) / cell)); };
-        const auto tooClose = [&] (const QPointF& pt, double distance) {
-            const int cx = static_cast<int>((pt.x() - area.left()) / cell), cy = static_cast<int>((pt.y() - area.top()) / cell);
-            const int reach = static_cast<int>(std::ceil(distance / cell));
-            for (int dy = -reach; dy <= reach; dy++) {
-                for (int dx = -reach; dx <= reach; dx++) {
-                    const int x = cx + dx, y = cy + dy;
-                    if (x < 0 || y < 0 || x >= cols || y >= rowsN) {
-                        continue;
-                    }
-                    for (const auto& other : hash[static_cast<size_t>(y) * static_cast<size_t>(cols) + static_cast<size_t>(x)]) {
-                        if (std::hypot(other.x() - pt.x(), other.y() - pt.y()) < distance) {
-                            return true;
-                        }
-                    }
-                }
-            }
-            return false;
-        };
-        const auto wind = [&] (const QPointF& pt, double& ux, double& vy) {   // the unit direction on the screen, false where there is no wind
-            const double lon = view.lonAt(pt.x()), lat = view.latAt(pt.y());
-            const float uu = su.sample(lon, lat), vv = sv.sample(lon, lat);
-            const double speedNow = std::hypot(uu, vv);
-            if (std::isnan(uu) || std::isnan(vv) || speedNow < 0.3) {
-                return false;
-            }
-            ux = uu / speedNow;
-            vy = -vv / speedNow;
-            return true;
-        };
-        const auto trace = [&] (QPointF from, double sign, std::vector<QPointF>& out) {
-            QPointF at = from;
-            for (int i = 0; i < 500; i++) {
-                double ux, vy;
-                if (!wind(at, ux, vy)) {
-                    break;
-                }
-                const QPointF mid = at + QPointF{ux, vy} * (sign * step / 2.0);
-                double mx, my;
-                if (!wind(mid, mx, my)) {
-                    break;
-                }
-                at += QPointF{mx, my} * (sign * step);
-                if (!area.contains(at) || tooClose(at, testDistance)) {
-                    break;
-                }
-                out.push_back(at);
-            }
-        };
-        p.setBrush(Qt::NoBrush);
-        const QColor lineColor{25, 25, 25, 215};
-        for (double y = area.top() + separation / 2; y < area.bottom(); y += separation) {
-            for (double x = area.left() + separation / 2; x < area.right(); x += separation) {
-                const QPointF seed{x, y};
-                if (tooClose(seed, separation * 0.8)) {
-                    continue;
-                }
-                std::vector<QPointF> forward, backward;
-                trace(seed, 1.0, forward);
-                trace(seed, -1.0, backward);
-                if (forward.size() + backward.size() < 8) {
-                    continue;
-                }
-                std::vector<QPointF> line(backward.rbegin(), backward.rend());
-                line.push_back(seed);
-                line.insert(line.end(), forward.begin(), forward.end());
-                QPainterPath path;
-                path.moveTo(line.front());
-                for (const auto& pt : line) {
-                    path.lineTo(pt);
-                    hash[slot(pt)].push_back(pt);
-                }
-                p.setPen(QPen{lineColor, 1.1});
-                p.drawPath(path);
-                // an arrowhead at the middle
-                const size_t m = line.size() / 2;
-                if (m > 2 && m + 2 < line.size()) {
-                    const QPointF dir = line[m + 2] - line[m - 2];
-                    const double length = std::hypot(dir.x(), dir.y());
-                    if (length > 0.1) {
-                        const QPointF unit = dir / length, normal{-unit.y(), unit.x()};
-                        QPolygonF head;
-                        head << line[m] + unit * 4.0 << line[m] - unit * 3.0 + normal * 3.2 << line[m] - unit * 3.0 - normal * 3.2;
-                        p.setBrush(lineColor);
-                        p.setPen(Qt::NoPen);
-                        p.drawPolygon(head);
-                        p.setBrush(Qt::NoBrush);
-                    }
-                }
-            }
-        }
-    }
-
-    lap("coastlines");
-    // the wider the view, the sparser the lines, the highs and lows, and the barbs
     const double span = sector.east - sector.west;
-    const double extremeRadius = span > 150.0 ? 12.0 : span > 80.0 ? 8.0 : 6.0;
-    std::vector<QRectF> placed;   // where the numbers on the lines already are
-    std::vector<std::tuple<QPointF, QString, QColor>> numbersToDraw;   // the numbers on the lines, drawn after the barbs so that no barb is over one
-    // where the wind barbs will stand (they are drawn after the lines): the numbers keep clear of them when they can
-    const bool barbsShown = !options.noBarbs && ((!product.barbU.empty() && grids.count(product.barbU) && grids.count(product.barbV)) || std::any_of(product.barbSets.begin(), product.barbSets.end(), [&grids] (const auto& set) { return grids.count(set.u) && grids.count(set.v); }));
-    const auto barbLook = BarbGrid::look(span, area.width() / std::max(0.1, span));
-    const auto nearBarb = [&] (const QPointF& at) {
-        const double la = std::round(view.latAt(at.y()) / barbLook.step) * barbLook.step;
-        const double lonStep = BarbGrid::lonStep(barbLook.step, la);
-        const double lo = std::round(view.lonAt(at.x()) / lonStep) * lonStep;
-        const auto node = view.toPixel(lo, la);
-        return std::hypot(node.x() - at.x(), node.y() - at.y()) < barbLook.length * 1.1;
-    };
-    for (const auto& set : product.contours) {
-        const double interval = set.interval * (span > 150.0 ? 2.0 : 1.0);
-        GfsGrid::Grid smooth;
-        if (set.smoothKm > 0.0) {   // a 3 x 3 average n times spreads as sqrt(2n/3) cells: the passes that reach the radius (at most 60)
-            const double cells = set.smoothKm / (std::max(grids.at(set.key).step, 0.001) * 111.0);
-            smooth = GfsGrid::smoothed(grids.at(set.key), std::clamp(static_cast<int>(std::lround(1.5 * cells * cells)), 1, 60));
-        }
-        const GfsGrid::Grid fine = set.smoothKm > 0.0 ? GfsGrid::Grid{} : GfsGrid::reducedForLines(grids.at(set.key));   // a 3 km grid is averaged to about 8 km for its lines
-        const auto& grid = set.smoothKm > 0.0 ? smooth : (fine.empty() ? grids.at(set.key) : fine);
-        double lo = 1e18, hi = -1e18;
-        for (int y = 0; y < map.height(); y += 6) {
-            for (int x = 0; x < map.width(); x += 6) {
-                const float value = grid.sample(view.lonAt(area.left() + x / S), view.latAt(area.top() + y / S));
-                if (!std::isnan(value)) {
-                    lo = std::min<double>(lo, value * set.scale);
-                    hi = std::max<double>(hi, value * set.scale);
-                }
-            }
-        }
-        if (set.onlyBelowZero) {
-            hi = std::min(hi, -interval / 2.0);
-        }
-        for (double level = std::max(std::ceil((lo - set.base) / interval) * interval + set.base, std::ceil((set.minimum - set.base) / interval) * interval + set.base); level <= hi; level += interval) {
-            const bool heavy = !set.uniform && std::fmod(std::abs(level - set.base), interval * 5) < 1e-6 || (set.colorBelow.isValid() && std::abs(level - set.split) < 1e-6);
-            const QColor color = set.colorBelow.isValid() && level <= set.split ? set.colorBelow : set.color;
-            for (const auto& line : GfsGrid::contour(grid, level / set.scale, sector.west, sector.south, sector.east, sector.north)) {
-                QPainterPath path;
-                bool first = true;
-                for (const auto& pt : line) {
-                    const auto at = view.toPixel(pt.lon, pt.lat);   // already continuous across west..east
-                    first ? path.moveTo(at) : path.lineTo(at);
-                    first = false;
-                }
-                p.setBrush(Qt::NoBrush);
-                QPen pen{QColor{color.red(), color.green(), color.blue(), 230}, (heavy ? 1.6 : 1.0) * set.width};
-                if (set.dashed) {
-                    pen.setStyle(Qt::DashLine);
-                }
-                if (options.vectorOut != nullptr) {   // handed over: the map draws the line (and its number) at its own zoom
-                    VectorLines::Line out;
-                    out.color = pen.color();
-                    out.width = pen.widthF();
-                    out.dashed = set.dashed;
-                    for (const auto& pt : line) {
-                        out.lonLat.emplace_back(pt.lon, pt.lat);
-                    }
-                    options.vectorOut->lines.push_back(std::move(out));
-                } else {
-                    p.setPen(pen);
-                    p.drawPath(path);
-                }
-                // one label near the middle of a line long enough to carry it; not over another number, and, when the line has a free stretch, not over a wind barb
-                if (set.labelled && path.length() > 150.0) {
-                    QPointF mid = path.pointAtPercent(0.5);
-                    const QString text = interval < 1.0 ? QString::number(level, 'f', interval < 0.1 ? 2 : 1) : QString::number(static_cast<int>(std::lround(level)));
-                    const auto boxAt = [&text] (const QPointF& at) { return QRectF{at.x() - text.size() * 4.0 - 4.0, at.y() - 9.0, text.size() * 8.0 + 8.0, 18.0}; };
-                    const auto free = [&] (const QPointF& at) {
-                        const auto b = boxAt(at);
-                        return area.adjusted(24, 14, -24, -14).contains(at) && !std::any_of(placed.begin(), placed.end(), [&b] (const QRectF& other) { return other.intersects(b); });
-                    };
-                    if (barbsShown) {   // along the line from the middle: the first place a number is clear of the others and of the barbs
-                        for (const double at : {0.5, 0.4, 0.6, 0.3, 0.7, 0.2, 0.8}) {
-                            const auto candidate = path.pointAtPercent(at);
-                            if (free(candidate) && !nearBarb(candidate)) {
-                                mid = candidate;
-                                break;
-                            }
-                        }
-                    }
-                    const QRectF box = boxAt(mid);
-                    const bool crowded = std::any_of(placed.begin(), placed.end(), [&box] (const QRectF& other) { return other.intersects(box); });   // a number over another is unreadable: skip it
-                    if (!crowded && area.adjusted(24, 14, -24, -14).contains(mid)) {
-                        placed.push_back(box);
-                        if (options.vectorOut != nullptr) {
-                            options.vectorOut->labels.push_back({view.lonAt(mid.x()), view.latAt(mid.y()), text, color.darker(130)});
-                        } else {
-                            numbersToDraw.emplace_back(mid, interval < 1.0 ? QString::number(level, 'f', interval < 0.1 ? 2 : 1) : QString::number(static_cast<int>(std::lround(level))), color.darker(130));   // a fractional interval keeps its decimals
-                        }
-                    }
-                }
-            }
-        }
-        if (set.highsAndLows) {
-            for (const auto& e : GfsGrid::extremes(grid, extremeRadius, sector.west, sector.south, sector.east, sector.north)) {
-                const auto at = view.toPixel(e.lon, e.lat);
-                if (area.adjusted(20, 20, -20, -20).contains(at)) {
-                    if (options.vectorOut != nullptr) {
-                        options.vectorOut->labels.push_back({e.lon, e.lat, e.high ? "H" : "L", e.high ? QColor{20, 60, 170} : QColor{190, 30, 30}});
-                        options.vectorOut->labels.push_back({e.lon, view.latAt(at.y() + 13), QString::number(static_cast<int>(std::lround(e.value * set.scale))), QColor{40, 40, 40}});
-                    } else {
-                        halo(at, e.high ? "H" : "L", e.high ? QColor{20, 60, 170} : QColor{190, 30, 30});
-                        halo(at + QPointF{0, 13}, QString::number(static_cast<int>(std::lround(e.value * set.scale))), QColor{40, 40, 40});
-                    }
-                }
-            }
-        }
-    }
-
+    Frame frame{product, grids, options, sector, run, forecastHour, view, area, S, margin, image, p, font, metrics, us, span};
+    drawCoastlines(frame);
+    drawStreamlines(frame);
+    lap("coastlines");
+    const auto numbersToDraw = drawContours(frame, halo, map);
     lap("contours");
     {
         BarbsState barbs{product, grids, options, sector, area, view, span, p};
@@ -9317,191 +9573,7 @@ QImage render(const Product& drawn, const Sector& sector, const Grids& fetched, 
         PointValuesState values{product, grids, options, sector, area, view, span, p, font, us};
         drawPointValues(values);
     }
-    // the other model's track under it, dashed
-    if (!options.trackOther.empty()) {
-        QPolygonF other;
-        for (const auto& t : options.trackOther) {
-            other << view.toPixel(t.lon, t.lat);
-        }
-        p.setBrush(Qt::NoBrush);
-        p.setPen(QPen{QColor{255, 255, 255, 220}, 4.0, Qt::SolidLine, Qt::RoundCap, Qt::RoundJoin});
-        p.drawPolyline(other);
-        p.setPen(QPen{QColor{20, 90, 220}, 2.0, Qt::DashLine, Qt::RoundCap, Qt::RoundJoin});
-        p.drawPolyline(other);
-        for (const auto& t : options.trackOther) {
-            if (t.hour % 24 == 0) {
-                const auto at = view.toPixel(t.lon, t.lat);
-                p.setPen(QPen{QColor{20, 90, 220}, 1.5});
-                p.setBrush(QColor{20, 90, 220});
-                p.drawEllipse(at, 3.0, 3.0);
-            }
-        }
-    }
-    // a storm track with the wind radii of the hour shown
-    if (!options.track.empty()) {
-        const auto destination = [] (double lat, double lon, double bearing, double nm) {
-            const double d = nm * 1.852 / 6371.0, b = bearing * pi / 180.0, la = lat * pi / 180.0;
-            const double lat2 = std::asin(std::sin(la) * std::cos(d) + std::cos(la) * std::sin(d) * std::cos(b));
-            const double lon2 = lon * pi / 180.0 + std::atan2(std::sin(b) * std::sin(d) * std::cos(la), std::cos(d) - std::sin(la) * std::sin(lat2));
-            return std::pair{lon2 * 180.0 / pi, lat2 * 180.0 / pi};
-        };
-        const TrackPoint * now = nullptr;
-        for (const auto& t : options.track) {
-            if (t.hour == forecastHour) {
-                now = &t;
-            }
-        }
-        if (now && options.windRadii) {   // 64 kt over 50 over 34, each quadrant's radius out along its quarter of the circle
-            static const QColor colors[3] = {QColor{255, 235, 0, 70}, QColor{255, 140, 0, 90}, QColor{230, 20, 20, 110}};
-            for (int row = 0; row < 3; row++) {
-                QPolygonF poly;
-                bool any = false;
-                for (int q = 0; q < 4; q++) {
-                    const double r = now->radii[row][q];
-                    any = any || r > 0.0;
-                    for (int step = 0; step <= 18; step++) {
-                        const double bearing = q * 90.0 + step * 5.0;
-                        const auto [lon, lat] = destination(now->lat, now->lon, bearing, r);
-                        poly << (r > 0.0 ? view.toPixel(lon, lat) : view.toPixel(now->lon, now->lat));
-                    }
-                }
-                if (any) {
-                    p.setPen(QPen{colors[row].darker(160), 1.5});
-                    p.setBrush(colors[row]);
-                    p.drawPolygon(poly);
-                }
-            }
-        }
-        QPolygonF line;
-        for (const auto& t : options.track) {
-            line << view.toPixel(t.lon, t.lat);
-        }
-        p.setBrush(Qt::NoBrush);
-        p.setPen(QPen{QColor{255, 255, 255, 230}, 4.5, Qt::SolidLine, Qt::RoundCap, Qt::RoundJoin});
-        p.drawPolyline(line);
-        p.setPen(QPen{QColor{20, 20, 20}, 2.0, Qt::SolidLine, Qt::RoundCap, Qt::RoundJoin});
-        p.drawPolyline(line);
-        QFont small = p.font();
-        small.setPixelSize(11);
-        small.setBold(true);
-        p.setFont(small);
-        for (const auto& t : options.track) {
-            if (t.hour % 12 != 0 && &t != now) {
-                continue;
-            }
-            const auto at = view.toPixel(t.lon, t.lat);
-            const bool current = &t == now;
-            p.setPen(QPen{QColor{20, 20, 20}, 1.5});
-            p.setBrush(current ? QColor{255, 255, 255} : QColor{20, 20, 20});
-            p.drawEllipse(at, current ? 6.0 : 3.5, current ? 6.0 : 3.5);
-            if (current || t.hour % 24 == 0) {
-                halo(at + QPointF{9.0, -7.0}, QString{"+%1 h  %2 kt  %3 mb"}.arg(t.hour).arg(t.wind).arg(t.pressure), QColor{20, 20, 20});
-            }
-        }
-    }
-    if (!options.track.empty() && !options.trackName.empty()) {   // the key of the tracks
-        QFont keyFont = p.font();
-        keyFont.setPixelSize(12);
-        keyFont.setBold(true);
-        p.setFont(keyFont);
-        const QString first = QString::fromStdString(options.trackName), second = QString::fromStdString(options.trackOtherName);
-        const double width = 60.0 + QFontMetricsF{keyFont}.horizontalAdvance(first) + (options.trackOther.empty() ? 0.0 : 40.0 + QFontMetricsF{keyFont}.horizontalAdvance(second));
-        const QRectF box{area.right() - width - 8.0, area.top() + 8.0, width, 24.0};
-        p.setPen(Qt::NoPen);
-        p.setBrush(QColor{255, 255, 255, 215});
-        p.drawRoundedRect(box, 4.0, 4.0);
-        double x = box.left() + 8.0;
-        const double y = box.center().y();
-        p.setPen(QPen{QColor{20, 20, 20}, 2.0});
-        p.drawLine(QPointF{x, y}, QPointF{x + 22.0, y});
-        drawLabel(QPointF{x + 28.0, y + 4.0}, first);
-        x += 28.0 + QFontMetricsF{keyFont}.horizontalAdvance(first) + 14.0;
-        if (!options.trackOther.empty()) {
-            p.setPen(QPen{QColor{20, 90, 220}, 2.0, Qt::DashLine});
-            p.drawLine(QPointF{x, y}, QPointF{x + 22.0, y});
-            p.setPen(QColor{20, 20, 20});
-            drawLabel(QPointF{x + 28.0, y + 4.0}, second);
-        }
-    }
-    p.setClipping(false);
-    p.setPen(QPen{QColor{60, 60, 60}, 1.0});
-    p.setBrush(Qt::NoBrush);
-    p.drawRect(area);
-    if (options.hasMarker) {   // the place a local area is round: a ring and its name
-        const auto at = view.toPixel(options.markerLon, options.markerLat);
-        if (area.contains(at)) {
-            p.setClipRect(area);
-            p.setPen(QPen{QColor{255, 255, 255}, 4.0});
-            p.drawEllipse(at, 6.0, 6.0);
-            p.setPen(QPen{QColor{200, 20, 20}, 2.0});
-            p.drawEllipse(at, 6.0, 6.0);
-            p.drawLine(QPointF{at.x() - 10, at.y()}, QPointF{at.x() + 10, at.y()});
-            p.drawLine(QPointF{at.x(), at.y() - 10}, QPointF{at.x(), at.y() + 10});
-            if (!options.markerName.empty()) {
-                QFont f = p.font();
-                f.setBold(true);
-                p.setFont(f);
-                const QString label = QString::fromStdString(options.markerName);
-                p.setPen(QColor{255, 255, 255});
-                for (const QPointF d : {QPointF{1, 1}, QPointF{-1, 1}, QPointF{1, -1}, QPointF{-1, -1}}) {
-                    drawLabel(at + QPointF{10, -8} + d, label);
-                }
-                p.setPen(QColor{140, 10, 10});
-                drawLabel(at + QPointF{10, -8}, label);
-            }
-            p.setClipping(false);
-        }
-    }
-    if (options.ticks) {   // latitude and longitude marks along the frame: a step that gives five or six across, numbered along the bottom and the left
-        const auto stepFor = [] (double span) {
-            static const double steps[] = {0.1, 0.25, 0.5, 1.0, 2.0, 5.0, 10.0, 15.0, 30.0};
-            for (const double step : steps) {
-                if (span / step <= 7.0) {
-                    return step;
-                }
-            }
-            return 30.0;
-        };
-        const auto numberOf = [] (double v, double step, const char * plus, const char * minus) {
-            const double a = std::fabs(v);
-            return QString::number(a, 'f', step < 1.0 ? (step < 0.25 ? 2 : 1) : 0) + QString::fromUtf8("\xC2\xB0") + (v >= 0 ? plus : minus);
-        };
-        QFont f = p.font();
-        f.setBold(false);
-        f.setPixelSize(11);
-        p.setFont(f);
-        p.setPen(QColor{40, 40, 40});
-        const double lonStep = stepFor(sector.east - sector.west);
-        for (double lon = std::ceil(sector.west / lonStep) * lonStep; lon <= sector.east + 1e-9; lon += lonStep) {
-            const double x = view.toPixel(lon, sector.south).x();
-            if (x < area.left() + 18 || x > area.right() - 18) {
-                continue;
-            }
-            for (const double y : {area.top(), area.bottom()}) {
-                const double dir = y == area.top() ? 1.0 : -1.0;
-                p.drawLine(QPointF{x, y}, QPointF{x, y + dir * 7.0});
-            }
-            double shownLon = lon;
-            if (shownLon > 180.0) {
-                shownLon -= 360.0;
-            }
-            drawLabel(QRectF{x - 30, area.bottom() - 22, 60, 14}, Qt::AlignHCenter, numberOf(shownLon, lonStep, "E", "W"));
-        }
-        const double latStep = stepFor(sector.north - sector.south);
-        for (double lat = std::ceil(sector.south / latStep) * latStep; lat <= sector.north + 1e-9; lat += latStep) {
-            const double y = view.toPixel(sector.west, lat).y();
-            if (y < area.top() + 10 || y > area.bottom() - 10) {
-                continue;
-            }
-            for (const double x : {area.left(), area.right()}) {
-                const double dir = x == area.left() ? 1.0 : -1.0;
-                p.drawLine(QPointF{x, y}, QPointF{x + dir * 7.0, y});
-            }
-            drawLabel(QRectF{area.left() + 9, y - 7, 60, 14}, Qt::AlignLeft | Qt::AlignVCenter, numberOf(lat, latStep, "N", "S"));
-        }
-        p.setPen(QPen{QColor{60, 60, 60}, 1.0});
-    }
-
+    drawTracksMarkerAndTicks(frame, drawLabel, halo);
     {   // header
         HeaderState header{product, run, forecastHour, p, image, S, margin, font, us};
         drawHeader(header, drawLabel);
