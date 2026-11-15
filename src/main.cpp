@@ -842,7 +842,7 @@ int main(int argc, char * argv[]) {
                     std::vector<QByteArray> frames;
                     std::vector<QString> skipped;
                     QDir{}.mkpath(folder);
-                    map->initialStateFrames(when, projection, qEnvironmentVariableIntValue("WXQT_WORLD_WIDTH") > 0 ? qEnvironmentVariableIntValue("WXQT_WORLD_WIDTH") : 800, frames, skipped, [&when] (size_t i) { qWarning("history: frame %zu of %zu (%s)", i + 1, when.size(), when[i].toString("yyyy-MM-dd HH").toUtf8().constData()); return true; }, qEnvironmentVariableIsSet("WXQT_HISTORY_STRIP"));
+                    map->initialStateFrames(when, projection, qEnvironmentVariableIntValue("WXQT_WORLD_WIDTH") > 0 ? qEnvironmentVariableIntValue("WXQT_WORLD_WIDTH") : 800, frames, skipped, [&when] (size_t i) { qWarning("history: frame %zu of %zu (%s)", i + 1, when.size(), when[i].toString("yyyy-MM-dd HH").toUtf8().constData()); return true; }, qEnvironmentVariableIsSet("WXQT_HISTORY_STRIP"), [] { auto t = QDateTime::fromString(qEnvironmentVariable("WXQT_HISTORY_CHANGE"), "yyyyMMddHH"); if (t.isValid()) { t.setTimeZone(QTimeZone::utc()); } return t; }());
                     for (size_t i = 0; i < frames.size(); i++) {
                         QFile out{folder + QString{"/frame%1.png"}.arg(i, 3, 10, QChar{'0'})};
                         if (out.open(QIODevice::WriteOnly)) {

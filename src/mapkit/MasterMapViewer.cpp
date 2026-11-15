@@ -1810,12 +1810,19 @@ static QByteArray withStrip(const QByteArray& png, size_t at, const std::vector<
 // The frames of a history of initial states: for each time the layer is put at it (the run at that time, its first hour) and the whole world exported as it is, quietly, to a picture that is read
 // back. `progress(i)` is asked before each one and says false to stop. The times that gave no picture are named in `skipped`. False when stopped. `strip`: each picture has the vortex's numbers
 // through the whole history drawn under it (when the chart gives none, there is no strip).
-bool MasterMapViewer::initialStateFrames(const std::vector<QDateTime>& when, GlobeMapView::Projection projection, int width, std::vector<QByteArray>& frames, std::vector<QString>& skipped, const std::function<bool(size_t)>& progress, bool strip) {
+bool MasterMapViewer::initialStateFrames(const std::vector<QDateTime>& when, GlobeMapView::Projection projection, int width, std::vector<QByteArray>& frames, std::vector<QString>& skipped, const std::function<bool(size_t)>& progress, bool strip, const QDateTime& changeFrom) {
     auto * chart = modelLayer();
     if (chart == nullptr) {
         return false;
     }
     QTemporaryDir folder;
+    changeSince = changeFrom;
+    changeBase.clear();
+    changeBaseWhen = QDateTime{};
+    struct Reset {   // (however the history ends, the next export is the chart itself)
+        MasterMapViewer * self;
+        ~Reset() { self->changeSince = QDateTime{}; self->changeBase.clear(); }
+    } reset{this};
     std::vector<QDateTime> made;   // the times that gave a picture, and their numbers
     std::vector<double> wind, temperature;
     for (size_t i = 0; i < when.size(); i++) {
@@ -1894,6 +1901,18 @@ void MasterMapViewer::saveInitialStates() {
     column->addLayout(form);
     auto * barbs = barbDensityCombo(&dialog);
     form->addRow("Wind barbs", barbs);
+    auto * changeBox = new QCheckBox{"Show the change since the initial state of", &dialog};
+    auto * since = new QDateTimeEdit{from->dateTime(), &dialog};
+    since->setDisplayFormat("yyyy-MM-dd HH:mm 'Z'");
+    since->setTimeSpec(Qt::UTC);
+    since->setEnabled(false);
+    QObject::connect(changeBox, &QCheckBox::toggled, since, &QWidget::setEnabled);
+    {
+        auto * changeRow = new QHBoxLayout;
+        changeRow->addWidget(changeBox);
+        changeRow->addWidget(since, 1);
+        column->addLayout(changeRow);
+    }
     auto * stripBox = new QCheckBox{"Add the vortex strip under each picture: the zonal-mean wind at 60\u00b0 (and the polar cap's temperature on a temperature chart) through the dates", &dialog};
     stripBox->setToolTip("One value per picture, the line drawn up to the picture shown. The wind's change of sign (to below zero) is a sudden warming. Needs a chart with the wind (barbs): the strip is left out when it has none");
     column->addWidget(stripBox);
@@ -1946,7 +1965,7 @@ void MasterMapViewer::saveInitialStates() {
         progress.setLabelText(QString{"Drawing %1 (%2 of %3)..."}.arg(when[i].toString("yyyy-MM-dd HH") + "Z").arg(i + 1).arg(when.size()));
         QCoreApplication::processEvents();
         return !progress.wasCanceled();
-    }, stripBox->isChecked());
+    }, stripBox->isChecked(), changeBox->isChecked() ? since->dateTime().toUTC() : QDateTime{});
     if (!finished) {
         return;
     }
@@ -2190,6 +2209,7 @@ bool MasterMapViewer::modelSpec(string& chart, vector<string>& models, QDateTime
 void MasterMapViewer::exportWorldTo(const QString& path, GlobeMapView::Projection projection, double centre, int width, bool highResolution, bool graticule, bool quiet) {
     status("drawing the world ...");
     QCoreApplication::processEvents();
+    vector<MapLegendRow> changeRows;
     QImage world;
     string highNote;
     {   // a polar map with a model chart on the map is always painted from the model's grid (the Mercator picture stops at 85 degrees, short of the pole)
@@ -2260,6 +2280,59 @@ void MasterMapViewer::exportWorldTo(const QString& path, GlobeMapView::Projectio
                     vortexNumbers.capTemperature = sum / weights;
                 }
             }
+        }
+        if (changeSince.isValid()) {   // the change since an earlier initial state: each model's fill minus its own fill at that time, on a scale that is white at no change
+            if (changeBaseWhen != changeSince || changeBase.empty()) {
+                changeBase.clear();
+                QEventLoop loop;
+                status("reading the initial state to compare with ...");
+                new FutureVoid{this, [&] { changeBase = WorldRender::loadSources(chart, models, changeSince); }, [&loop] { loop.quit(); }};
+                loop.exec();
+                changeBaseWhen = changeSince;
+            }
+            const bool temperature = chart.find("_temp_") != string::npos;
+            const double reach = temperature ? 30.0 : std::max(10.0, sources.front().ramp.stops.empty() ? 60.0 : std::abs(sources.front().ramp.stops.back().first) / 2.0);
+            GfsChart::Ramp ramp;
+            const std::pair<double, const char *> colors[] = {{-1.0, "#2c3e9c"}, {-2.0 / 3, "#3f74b8"}, {-1.0 / 3, "#7fb8e0"}, {-1.0 / 6, "#c5e0ef"}, {0.0, "#f5f5f5"}, {1.0 / 6, "#f8d9c0"}, {1.0 / 3, "#f0a878"}, {2.0 / 3, "#d9553a"}, {1.0, "#8e1f1f"}};
+            for (const auto& [fraction, color] : colors) {
+                ramp.stops.push_back({fraction * reach, QColor{color}});
+            }
+            for (auto& source : sources) {
+                const WorldRender::Source * base = nullptr;
+                for (const auto& candidate : changeBase) {
+                    if (candidate.model == source.model) {
+                        base = &candidate;
+                    }
+                }
+                if (base == nullptr || base->grid.empty()) {
+                    source.grid = {};
+                    continue;
+                }
+                auto& g = source.grid;
+                for (int row = 0; row < g.rows; row++) {
+                    for (int column = 0; column < g.columns; column++) {
+                        const double lon = g.lon0 + column * g.step, lat = g.lat0 - row * g.step;
+                        float then = base->grid.sample(lon, lat);
+                        if (std::isnan(then)) {
+                            then = base->grid.sample(lon + 360.0, lat);
+                        }
+                        float& value = g.values[static_cast<size_t>(row) * static_cast<size_t>(g.columns) + static_cast<size_t>(column)];
+                        value = std::isnan(then) ? std::nanf("") : value - then;
+                    }
+                }
+                source.ramp = ramp;
+            }
+            sources.erase(std::remove_if(sources.begin(), sources.end(), [] (const auto& source) { return source.grid.empty(); }), sources.end());
+            if (sources.empty()) {
+                return;
+            }
+            changeRows.clear();
+            MapLegendRow row;
+            row.title = QString{"Change since %1Z (%2):"}.arg(changeSince.toUTC().toString("yyyy-MM-dd HH"), temperature ? QString{"\u00b0C"} : QString{"chart units"});
+            for (const auto& [value, color] : ramp.stops) {
+                row.entries.push_back({MapLegendEntry::Square, color, QString::number(value, 'f', 0)});
+            }
+            changeRows.push_back(row);
         }
         std::atomic<int> rows{0};
         double halfW, halfH;
@@ -2356,6 +2429,9 @@ void MasterMapViewer::exportWorldTo(const QString& path, GlobeMapView::Projectio
                 rows.push_back(std::move(row));
             }
         }
+    }
+    if (!changeRows.empty()) {   // a change: its own scale instead of the chart's
+        rows = changeRows;
     }
     const double scale = std::min(width / 1000.0, 2.6);   // the header, legend and credits keep one size on the picture whatever its width (a 16000 pixel picture does not get letters six times as large as a 2400 pixel one)
     const bool combo = std::any_of(layers.begin(), layers.end(), [] (const auto& layer) { return layer->enabled() && layer->id() == "model/combo"; });
