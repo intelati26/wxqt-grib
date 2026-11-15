@@ -96,7 +96,8 @@ namespace {
             "<pre>id = MYMODEL\nlabel = My regional model, 3 km\nkind = grib\nurl = https://example.org/{date}/{cycle}/m.t{cycle}z.f{hour3}.grib2\n"
             "cycle_hours = 6\nlag_hours = 4\nhours = 0-48/1\nclone = true\nclone_variables = HGT, TMP, UGRD, VGRD, PRMSL\n"
             "why = What it adds and when to trust it.\nlink = source | The data's page | https://example.org/data</pre>"
-            "<p>The full list of keys is in <code>docs/model-files.md</code> in the source.</p>";
+            "<p>The full list of keys is in <i>Editing the program's data &gt; Model files</i> here (and <code>docs/model-files.md</code> in the source). A <code>url</code> can begin with a server by name "
+            "(<code>{@rrfs-ops}/...</code>), so that a server that moves is changed in one place: see <i>Servers</i>. A map of your own is a chart file, not a model.</p>";
         const auto problems = GfsModels::userProblems();
         if (!problems.empty()) {
             out += "<h3>Files that were not used</h3><ul>";
@@ -112,11 +113,15 @@ namespace {
         return "<h2>Model sources</h2><p>Models and analyses change: files move, products are retired and replaced. Settings &gt; Model Sources asks each model's server for its newest run "
                "and whether that run lists the fields of the model's first chart, when you open the tab. Nothing is downloaded and nothing runs in the background.</p>"
                "<p>A <b>PROBLEM</b> there means the server did not answer, or the files are no longer where the program looks. The model's page here has the people who run it, "
-               "which is where a notice of a change is usually found.</p>";
+               "which is where a notice of a change is usually found.</p>"
+               "<p>The <b>Servers</b> table above the models lists the places the models read from, by name, and which list each came from (the program's, the project's, yours): a server that has moved is "
+               "fixed there by typing the new address, or in a <code>servers.json</code> of your own, with no new version. <i>Editing the program's data</i> in this Help has the rules.</p>"
+               "<p>To see whether a model's files still have what its charts ask for, run <code>WXQT_OPEN=catalogcheck:&lt;model&gt;:&lt;out.json&gt;</code> (see <i>The rules</i>): it lists fields that are gone, "
+               "never found, or in the files but not charted.</p>";
     }
 }
 
-HelpViewer::HelpViewer(Window * parent)
+HelpViewer::HelpViewer(QWidget * parent, const std::string& topic)
     : Window{parent}
 {
     setTitle("Help and further reading");
@@ -124,7 +129,15 @@ HelpViewer::HelpViewer(Window * parent)
     tree = new QTreeWidget{split};
     tree->setHeaderHidden(true);
     page = new QTextBrowser{split};
-    page->setOpenExternalLinks(true);
+    page->setOpenLinks(false);   // a link to another guide (server-file.md) opens that page here; a web address opens in the browser
+    QObject::connect(page, &QTextBrowser::anchorClicked, this, [this] (const QUrl& url) {
+        const auto text = url.toString();
+        if (url.scheme() == "http" || url.scheme() == "https") {
+            QDesktopServices::openUrl(url);
+        } else if (text.endsWith(".md") && QFile::exists(":/help/guides/" + text.section('/', -1))) {
+            showTopic("guide:" + text.section('/', -1).chopped(3).toStdString());
+        }
+    });
     split->addWidget(tree);
     split->addWidget(page);
     split->setStretchFactor(1, 1);
@@ -141,6 +154,13 @@ HelpViewer::HelpViewer(Window * parent)
         item->setData(0, Qt::UserRole, QString::fromStdString("model:" + d.id));
         item->setToolTip(0, QString::fromStdString(d.label));
     }
+    auto * editing = new QTreeWidgetItem{tree, {"Editing the program's data"}};   // the files a person can edit with no code and no release: one page for the rules they share, one for each kind
+    for (const auto& [title, id] : std::vector<std::pair<const char *, const char *>>{{"The rules, and which file for which job", "guide:editing-rules"}, {"Servers (servers.json)", "guide:server-file"},
+                                                                                     {"Chart files (your own maps)", "guide:chart-files"}, {"Model files (.model)", "guide:model-files"}}) {
+        auto * item = new QTreeWidgetItem{editing, {title}};
+        item->setData(0, Qt::UserRole, id);
+    }
+    tree->expandItem(editing);
     auto * howTo = new QTreeWidgetItem{tree, {"Adding a model"}};
     howTo->setData(0, Qt::UserRole, "add");
     auto * check = new QTreeWidgetItem{tree, {"Model sources"}};
@@ -155,7 +175,10 @@ HelpViewer::HelpViewer(Window * parent)
     box.getAndShow(this);
     setSize(1000, 640);
     page->setHtml("<h2>Help and further reading</h2><p>Pick a model on the left to see why it matters, what the app shows of it and where its data and its documentation are. "
-                  "<i>Adding a model</i> says how to add one of your own.</p>");
+                  "<i>Adding a model</i> says how to add one of your own, and <i>Editing the program's data</i> says how to change a server, a model's layout or a map with no code and no new version.</p>");
+    if (!topic.empty()) {
+        showTopic(topic);
+    }
 }
 
 void HelpViewer::showTopic(const std::string& topic) {
@@ -168,6 +191,14 @@ void HelpViewer::showTopic(const std::string& topic) {
             page->setHtml(modelPage(*d));
             return;
         }
+    } else if (topic.compare(0, 6, "guide:") == 0) {   // a page of the guides (docs/*.md, bundled): shown as it is written
+        QFile file{QString::fromStdString(":/help/guides/" + topic.substr(6) + ".md")};
+        if (file.open(QIODevice::ReadOnly)) {
+            page->setMarkdown(QString::fromUtf8(file.readAll()));
+        } else {
+            page->setHtml("<p>This page is not in this build.</p>");
+        }
+        return;
     } else if (topic == "add") {
         page->setHtml(addModelPage());
         return;

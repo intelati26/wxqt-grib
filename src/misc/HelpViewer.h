@@ -17,7 +17,8 @@ class QTreeWidget;
 // model added by file carries them in its `why` and `link` lines, so it is in here too.
 class HelpViewer : public Window {
 public:
-    explicit HelpViewer(Window *);
+    // `topic` opens a page at once: "guide:editing-rules", "guide:server-file", "guide:chart-files", "guide:model-files", "add", "sources" or "model:<id>"
+    explicit HelpViewer(QWidget *, const std::string& topic = {});
 
 private:
     void showTopic(const std::string& topic);

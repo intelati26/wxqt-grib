@@ -23,6 +23,7 @@
 #include "gfs/GfsClimate.h"
 #include "gfs/GfsModels.h"
 #include "gfs/Servers.h"
+#include "misc/HelpViewer.h"
 #include "util/Utility.h"
 #include "models/UtilityGrib.h"
 #include "ui/UiStandards.h"
@@ -118,7 +119,11 @@ SettingsSourcesBox::SettingsSourcesBox(QWidget * parent)
             QDir{}.mkpath(folder);
             QDesktopServices::openUrl(QUrl::fromLocalFile(folder));
         });
+        auto * helpButton = UiStandards::button(this, "Help...");
+        helpButton->setToolTip("How servers, model files and chart files are edited with no new version: the rules, and the format of each.");
+        QObject::connect(helpButton, &QPushButton::clicked, this, [this] { new HelpViewer{this->window(), "guide:server-file"}; });
         serversStatus = new QLabel{this};
+        serversRow->addWidget(helpButton);
         serversRow->addWidget(fetchBox);
         serversRow->addWidget(anyBox);
         serversRow->addStretch(1);

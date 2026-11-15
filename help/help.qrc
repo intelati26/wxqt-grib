@@ -1,5 +1,9 @@
 <!DOCTYPE RCC><RCC version="1.0">
 <qresource prefix="/help">
+    <file alias="guides/editing-rules.md">../docs/editing-rules.md</file>
+    <file alias="guides/server-file.md">../docs/server-file.md</file>
+    <file alias="guides/chart-files.md">../docs/chart-files.md</file>
+    <file alias="guides/model-files.md">../docs/model-files.md</file>
     <file alias="models/AIFS.md">models/AIFS.md</file>
     <file alias="models/AIGFS.md">models/AIGFS.md</file>
     <file alias="models/AROME.md">models/AROME.md</file>

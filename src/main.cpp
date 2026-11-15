@@ -50,6 +50,7 @@
 #include "common/GlobalVariables.h"
 #include "gfs/GfsModels.h"
 #include "gfs/Servers.h"
+#include "misc/HelpViewer.h"
 #include <atomic>
 #include <thread>
 #include <QJsonDocument>
@@ -1363,6 +1364,11 @@ int main(int argc, char * argv[]) {
                         QMetaObject::invokeMethod(&a, [&a] { QTimer::singleShot(200, &a, &QCoreApplication::quit); }, Qt::QueuedConnection);
                     }}.detach();
                 });
+            } else if (route.startsWith("helppage:")) {   // WXQT_OPEN=helppage:<topic>:<out.png> (guide:server-file, guide:editing-rules, guide:chart-files, guide:model-files, add, sources, model:GFS): the Help window on that page, saved, then quits
+                const auto parts = route.split(':');
+                auto * help = new HelpViewer{&w, route.section(':', 1, 2).section(':', 0, 1).toStdString()};
+                const auto file = route.section(':', 3, 3);
+                QTimer::singleShot(1500, help, [help, file] { help->grab().save(file); QTimer::singleShot(200, qApp, &QCoreApplication::quit); });
             } else if (route.startsWith("serverspage:")) {   // WXQT_OPEN=serverspage:<out.png>: the Model Sources settings tab (the servers by name above the models' check), saved a moment after it opens
                 auto * box = new SettingsSourcesBox;
                 box->resize(1100, 720);
