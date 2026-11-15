@@ -4,6 +4,7 @@
 // *****************************************************************************
 
 #include "gfs/GfsChart.h"
+#include "gfs/GfsChartInternal.h"
 #include <limits>
 #include <QDate>
 #include <algorithm>
@@ -34,6 +35,7 @@
 #include "ui/WindBarb.h"
 
 namespace GfsChart {
+using namespace detail;
 namespace {
 
 // the number without trailing zeros: 2, 0.25
@@ -146,8 +148,6 @@ const std::vector<std::string>& ingredientSources() {
     return all;
 }
 
-    constexpr double pi = 3.14159265358979323846;
-    constexpr double msToKnots = 1.943844;
 
     double mercatorY(double lat) {
         const double clamped = std::clamp(lat, -82.0, 82.0) * pi / 180.0;
@@ -372,15 +372,6 @@ const std::vector<std::string>& ingredientSources() {
         const double tl = 1.0 / (1.0 / (td - 56.0) + std::log(t / td) / 800.0) + 56.0;
         const double r = 0.62197 * e / (p - e);   // kg/kg
         return t * std::pow(1000.0 / (p - e), 0.2854 * (1.0 - 0.28 * r)) * std::exp((3.376 / tl - 0.00254) * r * 1000.0 * (1.0 + 0.81 * r));
-    }
-
-    GfsGrid::Grid pick(const Grids& g, const std::string& key) {
-        const auto found = g.find(key);
-        return found == g.end() ? GfsGrid::Grid{} : found->second;
-    }
-
-    GfsData::Want want(const std::string& key, const std::string& variable, const std::string& level) {
-        return {key, variable, level, ""};
     }
 
     // ---- the chance of an amount of precipitation, for every ensemble: the share of the members whose total (or amount in a period) is at or over it. The bands are those of the commercial ensemble
@@ -6746,78 +6737,7 @@ const std::vector<Product>& products() {
         };
 
         // ---- GEOS-FP (NASA GMAO): the aerosol fields the model is used for, from its 3 hourly aerosol collection (kg/m3, drawn in micrograms; dust has a chart of its own in several forms)
-        const auto geosRecipes = [&] {
-            const auto stretched = [] (const Ramp& base, double factor) {
-                Ramp out = base;
-                for (auto& stop : out.stops) {
-                    stop.first *= factor;
-                }
-                return out;
-            };
-            // micrograms per cubic meter of dust at the surface: nothing under 5, then yellows to browns to purple where a dust storm is
-            const Ramp dust{{{0, QColor{246, 226, 150, 0}}, {5, QColor{246, 226, 150, 0}}, {10, QColor{"#f5dc8a"}}, {25, QColor{"#eab552"}}, {50, QColor{"#d98a3a"}}, {100, QColor{"#c0602a"}}, {250, QColor{"#9a3a25"}},
-                             {500, QColor{"#6f1d3a"}}, {1000, QColor{"#4a0f5c"}}}};
-            const Ramp optical{{{0, QColor{232, 243, 216, 0}}, {0.05, QColor{232, 243, 216, 0}}, {0.1, QColor{"#e8f3d8"}}, {0.25, QColor{"#cfe6a0"}}, {0.5, QColor{"#f1e27a"}}, {1.0, QColor{"#f0a63a"}},
-                                {2.0, QColor{"#d63a2a"}}, {3.0, QColor{"#7a1a6a"}}}};
-            const Ramp airQuality{{{0, QColor{0, 228, 0, 0}}, {4, QColor{0, 228, 0, 0}}, {12, QColor{"#00e400"}}, {35, QColor{"#ffff00"}}, {55, QColor{"#ff7e00"}}, {150, QColor{"#ff0000"}}, {250, QColor{"#8f3f97"}},
-                                   {500, QColor{"#7e0023"}}}};
-            const Ramp smoke{{{0, QColor{217, 205, 184, 0}}, {2, QColor{217, 205, 184, 0}}, {5, QColor{"#d9cdb8"}}, {10, QColor{"#b8a58a"}}, {25, QColor{"#8c735a"}}, {50, QColor{"#5d4a3a"}}, {100, QColor{"#3a2c25"}},
-                              {250, QColor{"#1c1410"}}}};
-            struct Spec {
-                const char * id;
-                const char * label;
-                std::vector<std::pair<const char *, double>> parts;   // variable and the factor to micrograms (or the unit) per cubic meter, added up
-                double scale;                                         // kg/m3 to micrograms, kg/m2 to milligrams (1e6) or 1 for an optical thickness
-                const Ramp * ramp;
-                const char * title;
-            };
-            const std::vector<Spec> specs{
-                {"dust_surface", "Dust: surface concentration", {{"DUSMASS", 1.0}}, 1e9, &dust, "Dust at the surface (micrograms per cubic meter)"},
-                {"dust_pm25", "Dust: fine (PM2.5) surface concentration", {{"DUSMASS25", 1.0}}, 1e9, &dust, "Dust smaller than 2.5 micrometers at the surface (micrograms per cubic meter)"},
-                {"dust_column", "Dust: column mass", {{"DUCMASS", 1.0}}, 1e6, nullptr, "Dust in the whole column (milligrams per square meter)"},
-                {"dust_aod", "Dust: aerosol optical thickness", {{"DUEXTTAU", 1.0}}, 1.0, &optical, "Dust optical thickness at 550 nm (the amount of light it takes out; over 1 is thick)"},
-                {"aod_total", "All aerosols: optical thickness", {{"TOTEXTTAU", 1.0}}, 1.0, &optical, "Total aerosol optical thickness at 550 nm"},
-                {"pm25_total", "Fine particles (PM2.5), all species", {{"DUSMASS25", 1.0}, {"SSSMASS25", 1.0}, {"BCSMASS", 1.0}, {"OCSMASS", 1.4}, {"SO4SMASS", 1.375}}, 1e9, &airQuality,
-                 "PM2.5 at the surface: dust, sea salt, black and organic carbon, sulfate (micrograms per cubic meter)"},
-                {"smoke_surface", "Smoke: black and organic carbon at the surface", {{"BCSMASS", 1.0}, {"OCSMASS", 1.4}}, 1e9, &smoke, "Black carbon plus organic matter at the surface (micrograms per cubic meter)"},
-                {"sulfate_surface", "Sulfate at the surface", {{"SO4SMASS", 1.0}}, 1e9, &smoke, "Sulfate at the surface (micrograms per cubic meter)"},
-                {"seasalt_surface", "Sea salt at the surface", {{"SSSMASS", 1.0}}, 1e9, &smoke, "Sea salt at the surface (micrograms per cubic meter)"},
-            };
-            for (const auto& spec : specs) {
-                Product x;
-                x.source = "GEOS-FP";
-                x.id = spec.id;
-                x.label = spec.label;
-                std::vector<std::string> keys;
-                for (size_t i = 0; i < spec.parts.size(); i++) {
-                    keys.push_back("a" + std::to_string(i));
-                    x.wants.push_back(GfsData::Want{keys.back(), spec.parts[i].first, "aerosol", "", ""});
-                }
-                x.wants.push_back(GfsData::Want{"u", "UGRD", "10 m above ground", "", ""});
-                x.wants.push_back(GfsData::Want{"v", "VGRD", "10 m above ground", "", ""});
-                const auto parts = spec.parts;
-                const double scale = spec.scale;
-                x.derive = [parts, keys, scale] (Grids& g, const Context&) {
-                    auto sum = g.at(keys.front());
-                    for (size_t i = 0; i < sum.values.size(); i++) {
-                        double total = 0.0;
-                        for (size_t k = 0; k < keys.size(); k++) {
-                            total += static_cast<double>(g.at(keys[k]).values[i]) * parts[k].second;
-                        }
-                        sum.values[i] = std::isfinite(total) ? static_cast<float>(total * scale) : std::nanf("");
-                    }
-                    g["total"] = std::move(sum);
-                };
-                x.fill = [] (const Grids& g) { return pick(g, "total"); };
-                x.ramp = spec.ramp ? *spec.ramp : stretched(dust, 2.0);   // the column in milligrams: twice the surface scale, roughly a kilometer and a half of mixed layer
-                x.fillTitle = spec.title;
-                x.legendStep = 0;
-                x.barbU = "u";
-                x.barbV = "v";
-                x.periodHours = 3;   // the collection is 3 hour averages
-                p.push_back(x);
-            }
-        };
+        const auto geosRecipes = [&] { geosProducts(p); };
 
         // The models in the registry's order: each one's clone of the GFS charts, then the charts of its own
         const std::map<std::string, std::function<void()>> own{{"GEFS", gefsRecipes}, {"GEPS", gepsRecipes}, {"SPCPOST", [&] { spcRecipes("SPCPOST", false); }}, {"SPCGEFS", [&] { spcRecipes("SPCGEFS", true); }}, {"SFCOA", [&] { mesoRecipes("SFCOA"); }}, {"SPCREFS", spcRefsRecipes}, {"CFS30", cfs30Recipes}, {"EC46", [&] { openMeteoRecipes("EC46"); }}, {"SEAS5", [&] { openMeteoRecipes("SEAS5"); }}, {"WPC-PPP", pppRecipes}, {"RRFSD", [&] { mesoRecipes("RRFSD"); }}, {"RRFS", [&] { rrfsRecipes("RRFS"); }}, {"HRRR", [&] { rrfsRecipes("HRRR"); }}, {"HRRR-AK", [&] { rrfsRecipes("HRRR-AK"); }}, {"MPAS-HT", [&] { rrfsRecipes("MPAS-HT"); }}, {"MPAS-RN", [&] { rrfsRecipes("MPAS-RN"); }}, {"RRFS-AK", [&] { rrfsRecipes("RRFS-AK"); }}, {"RRFS-FIREWX", [&] { rrfsRecipes("RRFS-FIREWX"); }}, {"RRFS-HI", [&] { rrfsRecipes("RRFS-HI"); }}, {"RRFS-PR", [&] { rrfsRecipes("RRFS-PR"); }}, {"RRFS-NA", [&] { rrfsRecipes("RRFS-NA"); }}, {"GEOS-FP", geosRecipes}, {"IFS-ENS", ensRecipes}, {"ENS-ALL", ensAllRecipes}, {"REFS", refsRecipes}, {"HREF", hrefRecipes}, {"MF-SST", [&] { sstRecipes("MF-SST"); }}, {"MF-WAVE", [&] { mfWaveRecipes("MF-WAVE"); }}, {"MF-CURRENT", [&] { currentRecipes("MF-CURRENT"); }}, {"COPERNICUS", [&] { camsRecipes("COPERNICUS"); }}, {"GFS-WAVE", [&] { waveRecipes("GFS-WAVE"); }}, {"GEFS-WAVE", [&] { waveRecipes("GEFS-WAVE"); }}, {"HAFSA", [&] { hafsRecipes("HAFSA"); }}, {"HAFSB", [&] { hafsRecipes("HAFSB"); }}};
