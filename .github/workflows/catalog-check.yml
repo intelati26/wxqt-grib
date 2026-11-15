@@ -1,0 +1,157 @@
+# The product catalogue against each model's newest files, once a day (section 20 of docs/plans.md: "Gone or not cataloged").
+# Builds the program on Linux, runs its headless check over every model (WXQT_OPEN=catalogcheck:*), and
+#   - fails the run and opens (or updates) ONE issue when a field the charts ask for is GONE: it was in the model's files at the last
+#     check and is not now (a renamed variable, a dropped level). The failure and the issue are the maintainer's alert;
+#   - closes that issue when nothing is gone any more;
+#   - keeps the full result (the lists of "never found" and "not cataloged" fields too) as an artifact and in the run's summary.
+# The last check's found fields are kept between runs in the Actions cache: the first run has nothing to compare with (nothing is gone then).
+# Nothing here reports anything from anyone's computer: the project's own runner asks the public servers, nobody else is involved.
+name: Catalogue check
+
+on:
+  schedule:
+    - cron: '17 7 * * *'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  issues: write
+
+concurrency:
+  group: catalog-check
+  cancel-in-progress: false
+
+jobs:
+  check:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 90
+    env:
+      XDG_DATA_HOME: ${{ github.workspace }}/.xdg-data
+      XDG_CONFIG_HOME: ${{ github.workspace }}/.xdg-config
+      QT_QPA_PLATFORM: offscreen
+    steps:
+      - uses: actions/checkout@v7
+
+      - name: Install build dependencies
+        timeout-minutes: 15
+        run: |
+          apt_opts="-o Acquire::Retries=3 -o Acquire::http::Timeout=20 -o Acquire::https::Timeout=20"
+          for attempt in 1 2 3; do
+            if sudo apt-get $apt_opts update && sudo apt-get $apt_opts install -y --no-install-recommends \
+                g++ make qt6-base-dev webp gdal-bin; then
+              exit 0
+            fi
+            echo "apt failed (attempt $attempt of 3); trying again in $((attempt * 20)) seconds"
+            sleep $((attempt * 20))
+          done
+          exit 1
+
+      - name: Generate resources + .pro
+        run: |
+          cd resourceCreation
+          ./createResourcesImage.py
+          ./createResourcesRes.py
+          cd ..
+          ./makeAll.py --pro
+
+      - name: Set up sccache
+        uses: mozilla-actions/sccache-action@v0.0.11
+
+      - name: Build
+        env:
+          SCCACHE_GHA_ENABLED: 'true'
+        run: |
+          make -j"$(nproc)" CXX="sccache g++"
+          sccache --show-stats
+
+      - name: Restore what the last check found
+        id: last
+        uses: actions/cache/restore@v5
+        with:
+          path: .xdg-data/wxqt/servers/catalog-status.json
+          key: catalog-status-none
+          restore-keys: |
+            catalog-status-
+
+      - name: Check every model
+        run: |
+          mkdir -p .xdg-data/wxqt/servers .xdg-config
+          # a model's check reads indexes only (no field is downloaded); 6 models at a time; the run stops itself at 40 minutes
+          timeout 2400 build/release/wxqt 2>catalog.log || true
+          ls -la catalog.json || true
+        env:
+          WXQT_OPEN: 'catalogcheck:*:catalog.json'
+
+      - name: Read the result
+        id: result
+        run: |
+          python3 - <<'PY'
+          import json, os
+          try:
+              data = json.load(open('catalog.json'))
+          except Exception as e:
+              print('::error::the check wrote no result:', e)
+              raise SystemExit(1)
+          checked = [m for m in data if m['checked']]
+          gone = [(m['model'], f) for m in checked for f in m['gone']]
+          never = [(m['model'], f) for m in checked for f in m['never_found']]
+          lines = ['## Catalogue check', '',
+                   f'{len(data)} models, {len(checked)} checked, **{len(gone)} fields gone**, {len(never)} never found.', '',
+                   '| model | run | result |', '|---|---|---|']
+          for m in sorted(data, key=lambda m: m['model']):
+              lines.append(f"| {m['model']} | {m['run']} | {m['summary']} |")
+          def name(f):
+              return f"{f['variable']}@{f['level']}" + (f"|{f['detail']}" if f.get('detail') else '')
+          body = ['These fields are asked for by the program\'s charts, were in the model\'s files at the last check, and are not in the newest run:', '']
+          for model, f in gone:
+              body.append(f"- **{model}**: `{name(f)}`")
+          body += ['', 'A renamed variable or a dropped level. Fix the model file (`url`, `file` and `nc_variable` rules; see docs/model-files.md and docs/editing-rules.md) or take the field out of the model\'s `clone_levels` / `clone_fields`.',
+                   '', f"Run: {os.environ['GITHUB_SERVER_URL']}/{os.environ['GITHUB_REPOSITORY']}/actions/runs/{os.environ['GITHUB_RUN_ID']}"]
+          open('summary.md', 'w').write('\n'.join(lines) + '\n')
+          open('issue.md', 'w').write('\n'.join(body) + '\n')
+          open(os.environ['GITHUB_OUTPUT'], 'a').write(f'gone={len(gone)}\n')
+          PY
+          cat summary.md >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Keep what this check found for the next one
+        if: always() && hashFiles('.xdg-data/wxqt/servers/catalog-status.json') != ''
+        uses: actions/cache/save@v5
+        with:
+          path: .xdg-data/wxqt/servers/catalog-status.json
+          key: catalog-status-${{ github.run_id }}
+
+      - name: Keep the full result
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: catalog-check
+          path: |
+            catalog.json
+            catalog.log
+          retention-days: 30
+          if-no-files-found: warn
+
+      - name: Open, update or close the issue
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GONE: ${{ steps.result.outputs.gone }}
+        run: |
+          title="Catalogue check: fields gone from a model's files"
+          number="$(gh issue list --label catalog-check --state open --json number --jq '.[0].number // empty')"
+          gh label create catalog-check --description "The daily catalogue check found a change in a model's files" --color D93F0B 2>/dev/null || true
+          if [ "${GONE:-0}" -gt 0 ]; then
+            if [ -n "$number" ]; then
+              gh issue edit "$number" --body-file issue.md
+              gh issue comment "$number" --body "Still gone at $(date -u +%F): ${GONE} field(s). See the run for the lists."
+            else
+              gh issue create --title "$title" --label catalog-check --body-file issue.md
+            fi
+          elif [ -n "$number" ]; then
+            gh issue close "$number" --comment "Nothing is gone from any model's files at $(date -u +%F)."
+          fi
+
+      - name: Fail when a field is gone
+        if: steps.result.outputs.gone != '0'
+        run: |
+          echo "::error::${{ steps.result.outputs.gone }} field(s) are gone from a model's files (the issue and the run summary list them)"
+          exit 1
