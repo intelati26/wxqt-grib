@@ -1,4 +1,4 @@
-FORWARD 1: 2732 chart entries, 873 distinct ids; ids whose mode, line families or barbs differ between models: 27
+FORWARD 1: 2742 chart entries, 883 distinct ids; ids whose mode, line families or barbs differ between models: 27
    precip_p06: AIFS=Precipitation, hours #/Pressure,Thickness; AIGFS=Precipitation, hours #/Pressure,Thickness; GEFS=Mean precipitation, # hours/Ensemble mean / spread; GEPS=P
    precip_p12: AIFS=Precipitation, hours #/Pressure,Thickness; AIGFS=Precipitation, hours #/Pressure,Thickness; GEFS=Precipitation, hours #/; GEPS=Precipitation, hours #/Press
    precip_p24: AIFS=Precipitation, hours #/Pressure,Thickness; AIGFS=Precipitation, hours #/Pressure,Thickness; GEFS=Mean precipitation, # hours/Ensemble mean / spread; GEPS=P
@@ -18,14 +18,14 @@ BACKWARD 1: expanding every preset with its dropdown values: ids lost 0; combina
    ENS-ALL: 24 gaps, e.g. ['all_spag_500_522_570', 'all_spag_500_522_576', 'all_spag_500_522_582']
    IFS-ENS: 24 gaps, e.g. ['spag_500_522_570', 'spag_500_522_576', 'spag_500_522_582']
    GFS: 5 gaps, e.g. ['1000_700_thick', '1000_700_thick_type', '850_500_thick']
-   HRRR-AK: 5 gaps, e.g. ['1000_700_thick', '1000_700_thick_type', '850_500_thick']
    HRRR: 5 gaps, e.g. ['1000_700_thick', '1000_700_thick_type', '850_500_thick']
+   HRRR-AK: 5 gaps, e.g. ['1000_700_thick', '1000_700_thick_type', '850_500_thick']
    REFS: 5 gaps, e.g. ['ens_1000_700_thick', 'ens_850_500_thick', 'ens_850_850_thick']
-   RRFS-AK: 5 gaps, e.g. ['1000_700_thick', '1000_700_thick_type', '850_500_thick']
    RRFS: 5 gaps, e.g. ['1000_700_thick', '1000_700_thick_type', '850_500_thick']
+   RRFS-AK: 5 gaps, e.g. ['1000_700_thick', '1000_700_thick_type', '850_500_thick']
    RRFS-FIREWX: 5 gaps, e.g. ['1000_700_thick', '1000_700_thick_type', '850_500_thick']
 BACKWARD 2: vocabulary entries no chart uses: 0
-VOCABULARY: barbs 1, extra fills 1, fill field 375, level 20, line family 10, mode 6, streamlines 1
-PRESETS: 1890 presets for 2732 chart entries across 76 models (largest: SPCREFS 113 of 168, HRRR-AK 75 of 94, HRRR 75 of 94, RRFS-AK 75 of 94, RRFS 75 of 94, RRFS-FIREWX 75 of 94)
+VOCABULARY: barbs 1, extra fills 1, fill field 375, level 22, line family 10, mode 6, streamlines 1
+PRESETS: 1890 presets for 2742 chart entries across 76 models (largest: SPCREFS 113 of 168, HRRR 75 of 94, HRRR-AK 75 of 94, RRFS 75 of 94, RRFS-AK 75 of 94, RRFS-FIREWX 75 of 94)
 CORE: 45 distinct combinations of mode + line families + barbs + streamlines + bands when the fill field and the level are dropdowns
-SHORT LIST: 536 presets for 2732 chart entries; per model: GEFS 29/130, HRRR-AK 18/94, HRRR 18/94, RRFS-AK 18/94, RRFS 18/94, RRFS-FIREWX 18/94, RRFS-HI 18/94, RRFS-NA 18/94, RRFS-PR 18/94, GFS 17/64, AIGFS 13/46, GEPS 13/55
+SHORT LIST: 536 presets for 2742 chart entries; per model: GEFS 29/130, HRRR 18/94, HRRR-AK 18/94, RRFS 18/94, RRFS-AK 18/94, RRFS-FIREWX 18/94, RRFS-HI 18/94, RRFS-NA 18/94, RRFS-PR 18/94, GFS 17/74, AIGFS 13/46, GEPS 13/55

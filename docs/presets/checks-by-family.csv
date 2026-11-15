@@ -368,7 +368,7 @@ sim_radar_comp,Composite Reflectivity with Updraft Helicity of 40 or more,Severe
 sim_radar_max,Maximum Simulated Radar of the last hour,Severe: storm structure,10,1,Value,Maximum reflectivity of the last hour,,,,,,,,,,,,,,,,,,,,dBZ,Maximum reflectivity of the last hour,
 ppp_#h_sn_expected,"# hr Snow, expected amount","Snow: amount in the period (expected, percentiles)",1,4,Amount: expected / percentile,"WPC # hour snow, expected amount",,,,,,,,,,,,,,,,,,24/36/48/72,,,"WPC # hour snow, expected amount",
 ppp_#h_sn_p#,"# hr Snow, #th percentile","Snow: amount in the period (expected, percentiles)",1,28,Amount: expected / percentile,"WPC # hour snow, #th percentile of the members",,,,,,,,,,,,,,,,,,24/36/48/72,05/10/25/50/75/90/95,,"WPC # hour snow, #th percentile of the members",
-ppp_#h_sn_prob_#p#,"# hr Snow, chance of # in or more",Snow: chance of an amount,1,32,Chance of a limit,WPC # hour snow: chance of # in or more,above the limit,,,,,,,,,,,,,,,,,24/36/48/72,0/1/2/4/6/8/12/18 | 0/00/10,%,WPC # hour snow: chance of # in or more,
+ppp_#h_sn_prob_#p#,"# hr Snow, chance of # in or more",Snow: chance of an amount,1,32,Chance of a limit,WPC # hour snow: chance of # in or more,above the limit,,,,,,,,,,,,,,,,,24/36/48/72,0/1/2/4/6/8/12/18 | 00/0/10,%,WPC # hour snow: chance of # in or more,
 #m_apparent_temp,2 m Apparent Temperature and 10 m Wind,Surface,1,1,Value,# m apparent temperature,,,,,,,,,,,,,,yes,,,,,,,# m apparent temperature,
 #m_dewp_#m_wnd,2m Dew Point and 10m Wind,Surface,20,1,Value,2 fields in one dropdown,,,,,,,,,,,,,,yes,,,,,,,one scale per field,
 #m_dewpoint,"MSLP, 10m wind, 2m dewpoint",Surface,24,1,Value,# m dewpoint,,yes,,,,,,,,,,,,yes,,,,,,,# m dewpoint,
@@ -431,11 +431,11 @@ steering_#_#,850-200mb Mean Wind (Steering Flow),Tropical and dynamics,30,1,Valu
 #_pw_ht,"850mb Height, Precipitable Water and Wind",Upper air,24,1,Value,Precipitable water,,,yes,,,,,,,,,,,yes,,,,,,,Precipitable water,
 #_rh_ht,#mb Relative Humidity and Height,Upper air,38,3,Value,2 fields in one dropdown,,,yes,,,,,,,,,,,yes,,,500 mb/700 mb/850 mb,,,%,one scale per field,yes
 #_temp,Mean #mb Temperature and Spread,Upper air,1,4,Value,Spread of the # mb temperature,,,,,yes,,,,,,,,,,,,250 mb/500 mb/700 mb/850 mb,,,K,Spread of the # mb temperature,
-#_temp_ht,"#mb Temperature, Wind and Height",Upper air,38,7,Value,2 fields in one dropdown,,,yes,,,,,,,,,,,yes,,,10 mb/100 mb/30 mb/50 mb/500 mb/850 mb/925 mb,,,,one scale per field,
+#_temp_ht,"#mb Temperature, Wind and Height",Upper air,38,12,Value,2 fields in one dropdown,,,yes,,,,,,,,,,,yes,,1/2/5/10/20/30/50/70/100/500/850/925,10 mb/100 mb/20 mb/30 mb/50 mb/500 mb/70 mb/850 mb/925 mb,,,,one scale per field,
 #_temp_mslp,"700mb Temperature, Wind and MSLP",Upper air,35,1,Value,#mb temperature,,yes,,,,,,,,,,,,yes,,,,,,,#mb temperature,
 #_temp_wnd,925mb Temperature and Wind,Upper air,10,1,Value,# mb temperature,,,,,,,,,,,,,,yes,,,,,,,# mb temperature,
 #_wnd,Mean #mb Winds and Spread,Upper air,11,6,Value,2 fields in one dropdown,,,,,,,,,,,,,,yes,,,250 mb/300 mb/500 mb/700 mb/850 mb/925 mb,,,kt/m/s,one scale per field,
-#_wnd_ht,#mb Wind and Height,Upper air,38,9,Value,Wind speed,,,yes,,,,,,,,,,,yes,,,10 mb/100 mb/200 mb/250 mb/30 mb/300 mb/50 mb/500 mb/850 mb,,,kt,Wind speed,yes
+#_wnd_ht,#mb Wind and Height,Upper air,38,14,Value,Wind speed,,,yes,,,,,,,,,,,yes,,1/2/5/10/20/30/50/70/100/200/250/300/500/850,10 mb/100 mb/20 mb/200 mb/250 mb/30 mb/300 mb/50 mb/500 mb/70 mb/850 mb,,,kt,Wind speed,yes
 ens_#_rh,#mb Relative Humidity,Upper air,1,2,Ensemble: members / spread,Mean relative humidity,,,yes,,,,,,,,,,,yes,,,700 mb/850 mb,,,%,Mean relative humidity,
 ens_#_temp,#mb Temperature,Upper air,1,2,Ensemble: members / spread,Mean temperature,,,yes,,,,,,,,,,,yes,,,700 mb/850 mb,,,,Mean temperature,
 ens_#_wnd,#mb Wind,Upper air,1,2,Ensemble: members / spread,Mean wind speed,,,yes,,,,,,,,,,,yes,,,250 mb/850 mb,,,kt,Mean wind speed,
