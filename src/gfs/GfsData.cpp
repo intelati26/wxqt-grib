@@ -1344,15 +1344,21 @@ GfsData::Inventory GfsData::inventory(const Run& run, const std::vector<Need>& n
     for (const auto& need : needs) {
         files.insert({need.hour, fileFor(need.want)});
     }
-    std::set<std::string> asked, seenNot;   // "variable|level|detail" of what is wanted; of what is listed and not wanted
+    // a want is found when ANY hour's file lists it (an accumulation is not in hour 0, the first hour may have no file at all): by variable, level, detail and file, the forecast text left out
+    std::map<std::string, std::pair<InventoryField, int>> wanted;   // key -> the field, 1 found / 0 not listed / -1 its files could not be read
+    const auto wantKey = [this] (const Want& w) { return w.variable + "|" + w.level + "|" + (w.detail.empty() ? source.defaultDetail : w.detail) + "|" + fileFor(w); };
     for (const auto& need : needs) {
-        asked.insert(need.want.variable + "|" + need.want.level + "|" + (need.want.detail.empty() ? source.defaultDetail : need.want.detail));
+        const auto key = wantKey(need.want);
+        if (wanted.count(key) == 0) {
+            wanted[key] = {{need.want.variable, need.want.level, need.want.detail, fileFor(need.want)}, -1};
+        }
     }
-    std::set<std::string> askedPlain;   // the same without the detail: a record listed with a detail of its own is the plain one's cousin
+    std::set<std::string> askedPlain, askedDetailed, seenNot;
     for (const auto& need : needs) {
         askedPlain.insert(need.want.variable + "|" + need.want.level);
+        askedDetailed.insert(need.want.variable + "|" + need.want.level + "|" + (need.want.detail.empty() ? source.defaultDetail : need.want.detail));
     }
-    std::set<std::string> counted;
+    int read = 0, unreadable = 0;
     for (const auto& [hour, file] : files) {
         if (source.wholeFile && source.netcdf) {   // a NetCDF file: the names of its variables, by GDAL (the subdatasets)
             std::string url;
@@ -1364,27 +1370,27 @@ GfsData::Inventory GfsData::inventory(const Run& run, const std::vector<Need>& n
                 url.clear();
             }
             if (url.empty() || url.find_first_of("\"'\\ ") != std::string::npos) {
-                out.note = "the file of f" + pad(hour, 3) + (file.empty() ? "" : " " + file) + " is not there";
-                return out;
+                unreadable++;
+                continue;
             }
             QProcess info;
             info.start(QString::fromStdString(config.gdalBin) + "/gdalinfo", {"--config", "GDAL_HTTP_USERAGENT", "wxqt", "--config", "CPL_VSIL_CURL_CHUNK_SIZE", "2097152", QString::fromStdString("/vsicurl/" + url)});
             if (!info.waitForFinished(120000)) {
                 info.kill();
-                out.note = "GDAL did not answer for the file of f" + pad(hour, 3);
-                return out;
+                unreadable++;
+                continue;
             }
             std::set<std::string> listed;
             for (const auto& line : QString::fromUtf8(info.readAllStandardOutput()).split('\n')) {
-                const auto at = line.indexOf("_NAME=NETCDF:");
-                if (line.contains("SUBDATASET_") && at >= 0) {
+                if (line.contains("SUBDATASET_") && line.indexOf("_NAME=NETCDF:") >= 0) {
                     listed.insert(line.section("\":", -1).trimmed().toStdString());
                 }
             }
             if (listed.empty()) {
-                out.note = "GDAL listed no variables of the file of f" + pad(hour, 3);
-                return out;
+                unreadable++;
+                continue;
             }
+            read++;
             std::set<std::string> usedNames;
             for (const auto& need : needs) {
                 if (need.hour != hour || fileFor(need.want) != file) {
@@ -1392,11 +1398,8 @@ GfsData::Inventory GfsData::inventory(const Run& run, const std::vector<Need>& n
                 }
                 const auto name = source.variableOf ? source.variableOf(need.want) : need.want.variable;
                 usedNames.insert(name);
-                const auto key = need.want.variable + "|" + need.want.level + "|" + need.want.detail + "|" + file;
-                if (!counted.insert(key).second) {
-                    continue;
-                }
-                (listed.count(name) ? out.found : out.gone).push_back({need.want.variable, need.want.level, need.want.detail, file});
+                auto& entry = wanted[wantKey(need.want)];
+                entry.second = listed.count(name) ? 1 : std::max(entry.second, 0);
             }
             for (const auto& name : listed) {
                 if (usedNames.count(name) == 0 && seenNot.insert(file + "|" + name).second) {
@@ -1419,31 +1422,43 @@ GfsData::Inventory GfsData::inventory(const Run& run, const std::vector<Need>& n
         }
         const auto index = source.parseIndex ? source.parseIndex(bytes, first) : GfsGrid::parseIdx(bytes);
         if (index.empty()) {
-            out.note = "no index for f" + pad(hour, 3) + (file.empty() ? "" : " (" + file + ")");
-            return out;
+            unreadable++;   // (a model with no file at the first hour: the wants of that hour are looked for at the next)
+            continue;
         }
+        read++;
         for (const auto& need : needs) {
-            if (need.hour != hour || fileFor(need.want) != file || (hour == 0 && !need.want.forecast.empty())) {
+            if (need.hour != hour || fileFor(need.want) != file) {
                 continue;
             }
             const auto& w = need.want;
-            const auto key = w.variable + "|" + w.level + "|" + w.detail + "|" + w.forecast + "|" + file;
-            if (!counted.insert(key).second) {
-                continue;
-            }
             const bool there = GfsGrid::find(index, w.variable, w.level, w.forecast, w.detail.empty() ? source.defaultDetail : w.detail, source.matchRunTime ? run.id() : std::string{}) != nullptr;
-            (there ? out.found : out.gone).push_back({w.variable, w.level, w.detail, file});
+            auto& entry = wanted[wantKey(w)];
+            entry.second = there ? 1 : std::max(entry.second, 0);
         }
         for (const auto& record : index) {
             const auto plain = record.variable + "|" + record.level;
             const auto detailed = plain + "|" + record.detail;
-            if (askedPlain.count(plain) || asked.count(detailed) || !seenNot.insert(file + "|" + detailed).second) {
+            if (askedPlain.count(plain) || askedDetailed.count(detailed) || !seenNot.insert(file + "|" + detailed).second) {
                 continue;
             }
             out.notCataloged.push_back({record.variable, record.level, record.detail, file});
         }
     }
+    if (read == 0) {
+        out.note = unreadable > 0 ? "no index or variable list could be read for any file the charts use" : "nothing to read";
+        return out;
+    }
+    for (const auto& [key, entry] : wanted) {
+        if (entry.second == 1) {
+            out.found.push_back(entry.first);
+        } else if (entry.second == 0) {
+            out.gone.push_back(entry.first);
+        }
+    }
     out.checked = true;
+    if (unreadable > 0) {
+        out.note = std::to_string(unreadable) + " file(s) could not be read (those fields are neither found nor gone)";
+    }
     return out;
 }
 

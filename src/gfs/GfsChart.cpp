@@ -5,6 +5,7 @@
 
 #include "gfs/GfsChart.h"
 #include "gfs/GfsChartInternal.h"
+#include "gfs/UserCharts.h"
 #include <limits>
 #include <QDate>
 #include <algorithm>
@@ -483,6 +484,19 @@ const std::vector<Product>& products() {
                     chart.periodHours = chart.id == "12hour_precip_chance" ? 12 : 6;
                 }
             }
+        }
+        {   // the person's own charts (section 21 of the plan): *.chart.json in the models folder, after every built-in one; an id a model already has is left out
+            std::vector<Product> mine;
+            std::vector<std::string> problems;
+            UserCharts::load(UserCharts::folder(), mine, problems);
+            for (auto& chart : mine) {
+                if (std::any_of(p.begin(), p.end(), [&chart] (const Product& other) { return other.source == chart.source && other.id == chart.id; })) {
+                    problems.push_back("the chart " + chart.id + " of " + chart.source + " is left out: the model has a chart of that id");
+                    continue;
+                }
+                p.push_back(std::move(chart));
+            }
+            userChartsRecordProblems(problems);
         }
         return p;
     }();

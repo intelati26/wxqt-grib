@@ -74,6 +74,7 @@ namespace GfsModels {
     std::string pickerGroup(const std::string& id);
     // the folder of the user's own *.model files (set before the first call of all(): the registry is made once), and the files in it that were not used and why
     void setUserFolder(const std::string& folder);
+    std::string userFolderPath();   // the folder set (empty before)
     std::vector<std::string> userProblems();
     // in the order they are listed and their charts made
     const std::vector<Def>& all();

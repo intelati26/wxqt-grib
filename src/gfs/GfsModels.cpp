@@ -4,6 +4,7 @@
 // *****************************************************************************
 
 #include "gfs/GfsModels.h"
+#include "gfs/UserCharts.h"
 #include <QDate>
 #include <algorithm>
 #include <cstdio>
@@ -282,8 +283,16 @@ void GfsModels::setUserFolder(const std::string& folder) {
     userFolder = folder;
 }
 
+std::string GfsModels::userFolderPath() {
+    return userFolder;
+}
+
 std::vector<std::string> GfsModels::userProblems() {
     std::vector<std::string> out;
+    (void) GfsChart::products();   // (the chart files are read when the charts are made: their problems join the model files')
+    for (const auto& problem : UserCharts::problems()) {
+        out.push_back(problem);
+    }
     for (const auto& parsed : GfsModelFile::loadFolder(userFolder)) {
         if (!parsed.ok) {
             out.push_back(parsed.origin + ": " + parsed.error);
