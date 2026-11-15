@@ -192,6 +192,19 @@ bool ChartPickers::chooseCrossFill(QWidget * parent, const std::string& model, s
             models->addItem(QString::fromStdString(def.id + "   " + def.label), QString::fromStdString(def.id));
         }
     }
+    // the common ones first (the SPC's processing of the REFS: the calibrated thunderstorm probability of 4 hours is the most used); only those this build has
+    auto * common = new QComboBox{&dialog};
+    for (const auto& [id, label] : std::vector<std::pair<std::string, std::string>>{
+             {"SPCPOST:thunder_4hr", "SPC REFS thunderstorm probability, 4-hour (REFSCT)"}, {"SPCPOST:thunder_1hr", "SPC REFS thunderstorm probability, 1-hour (REFSCT)"},
+             {"SPCPOST:thunder_full", "SPC REFS thunderstorm probability, rest of the convective day (REFSCT)"}, {"SPCREFS:cref_max", "SPC REFS composite reflectivity, ensemble maximum"},
+             {"SPCREFS:uh25_04h_max_overlap_max", "SPC REFS 4-h maximum 2-5 km updraft helicity, ensemble maximum"}}) {
+        if (GfsChart::product(id.substr(id.find(':') + 1), id.substr(0, id.find(':'))) != nullptr) {
+            common->addItem(QString::fromStdString(label), QString::fromStdString(id));
+        }
+    }
+    common->insertItem(0, "Common choices...", QString{});
+    common->setCurrentIndex(0);
+    layout->addWidget(common);
     auto * search = new QLineEdit{&dialog};
     search->setPlaceholderText("Search the charts");
     search->setClearButtonEnabled(true);
@@ -222,6 +235,22 @@ bool ChartPickers::chooseCrossFill(QWidget * parent, const std::string& model, s
             models->setCurrentIndex(at);
         }
     }
+    const auto choose = [models, list, search] (const std::string& id) {   // put the model and the chart on a "model:chart id"
+        const auto colonAt = id.find(':');
+        const auto at = models->findData(QString::fromStdString(id.substr(0, colonAt)));
+        if (colonAt == std::string::npos || at < 0) {
+            return;
+        }
+        search->clear();
+        models->setCurrentIndex(at);   // (fills the list)
+        for (int i = 0; i < list->count(); i++) {
+            if (list->item(i)->data(Qt::UserRole).toString().toStdString() == id.substr(colonAt + 1)) {
+                list->setCurrentRow(i);
+                list->scrollToItem(list->item(i));
+            }
+        }
+    };
+    QObject::connect(common, &QComboBox::activated, &dialog, [common, choose] (int index) { choose(common->itemData(index).toString().toStdString()); });
     QObject::connect(models, &QComboBox::currentIndexChanged, &dialog, fill);
     QObject::connect(search, &QLineEdit::textChanged, &dialog, fill);
     fill();
@@ -231,6 +260,9 @@ bool ChartPickers::chooseCrossFill(QWidget * parent, const std::string& model, s
                 list->setCurrentRow(i);
             }
         }
+    }
+    if (colon == std::string::npos && common->count() > 1) {   // nothing chosen yet: the first common choice is the one in the list
+        choose(common->itemData(1).toString().toStdString());
     }
     auto * buttons = new QDialogButtonBox{QDialogButtonBox::Ok | QDialogButtonBox::Cancel, &dialog};
     auto * none = buttons->addButton("No field", QDialogButtonBox::DestructiveRole);

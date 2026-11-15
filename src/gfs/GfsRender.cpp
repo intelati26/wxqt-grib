@@ -604,7 +604,7 @@ namespace {
                 if (ramp.stops.size() >= 2) {   // translucent, the chart's own fill still read through it (a color already clear stays clear), and clear under the lowest sixth of the scale (the "from" of a ticked fill: the section 10 picker lets the person set it)
                     const double clearBelow = ramp.stops.front().first + (ramp.stops.back().first - ramp.stops.front().first) / 6.0;
                     for (auto& stop : ramp.stops) {
-                        stop.second.setAlpha(stop.first < clearBelow ? 0 : std::min(stop.second.alpha(), 175));
+                        stop.second.setAlpha(stop.first < clearBelow ? 0 : std::min(stop.second.alpha(), 215));
                     }
                 }
                 const std::string key = "x1_fill|" + name;
