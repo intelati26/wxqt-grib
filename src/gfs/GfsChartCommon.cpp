@@ -33,5 +33,16 @@ std::string generatedId(const std::string& templateId, const std::vector<double>
     return id;
 }
 
+// equivalent potential temperature (Bolton 1980) in K from temperature in C, relative humidity in percent and the pressure in hPa
+double thetaE(double tC, double rh, double p) {
+    const double t = tC + 273.15;
+    const double es = 6.112 * std::exp(17.67 * tC / (tC + 243.5));
+    const double e = std::max(0.01, rh / 100.0 * es);
+    const double td = 243.5 * std::log(e / 6.112) / (17.67 - std::log(e / 6.112)) + 273.15;
+    const double tl = 1.0 / (1.0 / (td - 56.0) + std::log(t / td) / 800.0) + 56.0;
+    const double r = 0.62197 * e / (p - e);   // kg/kg
+    return t * std::pow(1000.0 / (p - e), 0.2854 * (1.0 - 0.28 * r)) * std::exp((3.376 / tl - 0.00254) * r * 1000.0 * (1.0 + 0.81 * r));
+}
+
 }  // namespace detail
 }  // namespace GfsChart

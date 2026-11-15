@@ -11,6 +11,7 @@
 #include <string>
 #include <vector>
 #include "gfs/GfsChart.h"
+#include "gfs/GfsModels.h"
 
 // What the files that make the chart catalogue share (GfsChart.cpp and the GfsProducts*.cpp, one for each family of models): small helpers, and the functions that add a family's charts to the
 // list. Not for use outside the chart code.
@@ -65,6 +66,9 @@ inline GfsGrid::Grid vorticityOf(const Grids& g) {
 
 // the number without trailing zeros: 2, 0.25
 std::string trimmed(double value);
+
+// equivalent potential temperature (Bolton 1980) in K from temperature in C, relative humidity in percent and the pressure in hPa
+double thetaE(double tC, double rh, double p);
 
 // template id -> a function making the product for the chosen values (filled when the registry is built)
 std::map<std::string, std::function<Product(const std::vector<double>&)>>& generators();
@@ -198,6 +202,12 @@ void rrfsProducts(std::vector<Product>& p, const std::string& model);
 void refsProducts(std::vector<Product>& p);
 
 void nbmProducts(std::vector<Product>& p);
+
+// (plainPrecip: the GFS precipitation charts before the lines are put on them, for the models whose maps have none)
+void cloneFrom(std::vector<Product>& p, const GfsModels::Def& def, const std::map<std::string, Product>& plainPrecip);
+
+// the GFS charts; plainPrecip is filled with the precipitation charts before the lines are put on them
+void gfsProducts(std::vector<Product>& p, std::map<std::string, Product>& plainPrecip);
 
 }  // namespace detail
 }  // namespace GfsChart
