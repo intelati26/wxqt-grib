@@ -1083,6 +1083,7 @@ QByteArray GfsRender::png(Session& session, const std::string& model, const std:
         }
     }
     GfsChart::Options options;
+    options.markMax = Utility::readPref("MODEL_MAX_MARK", "false").compare(0, 1, "t") == 0;   // the model screen's "Mark the maximum"
     {   // latitude / longitude marks: always on an area round a saved location, and on every chart when the settings pref says "all"
         const bool isLocal = sectorId.compare(0, 6, "LOCAL:") == 0;
         const auto mode = Utility::readPref("MODEL_TICKS", "local");

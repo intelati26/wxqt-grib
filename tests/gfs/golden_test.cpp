@@ -254,6 +254,14 @@ std::vector<Case> cases() {
         p.quantity = GfsChart::Quantity::Temperature;
         out.push_back({"point_values", p, "CONUS", base});
     }
+    {   // the ring at the largest value of the fill, with its number (the text is off here: the ring and the place it keeps)
+        auto p = basic("max_mark", temperatureRamp(), "t");
+        p.contours = {lines("h", 0.1, 6.0, QColor{30, 30, 30})};
+        p.quantity = GfsChart::Quantity::Temperature;
+        auto o = base;
+        o.markMax = true;
+        out.push_back({"max_mark", p, "CONUS", o});
+    }
     return out;
 }
 

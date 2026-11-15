@@ -8395,6 +8395,24 @@ struct Frame {
     double span;
 };
 
+// The place of the largest value of the fill on view (the one the legend marks): a ring and the number beside it, on the side that has room.
+template <class Halo>
+void drawMaxMark(Frame& f, const Halo& halo, const QPointF& at, double value) {
+    QPainter& p = f.p;
+    const QRectF& area = f.area;
+    p.setBrush(Qt::NoBrush);
+    p.setPen(QPen{QColor{255, 255, 255}, 4.0});
+    p.drawEllipse(at, 5.0, 5.0);
+    p.setPen(QPen{QColor{20, 20, 20}, 1.8});
+    p.drawEllipse(at, 5.0, 5.0);
+    const double v = shown(f.product.quantity, value, f.us);
+    const QString text = QString::number(v, 'f', std::abs(v) < 10.0 && f.product.quantity != Quantity::Other ? 1 : 0);
+    const double width = text.size() * 8.0 + 8.0;
+    const double dx = at.x() + 12.0 + width / 2.0 > area.right() - 4.0 ? -(12.0 + width / 2.0) : 12.0 + width / 2.0;   // to the left of the ring when the right has no room
+    const double dy = at.y() - 10.0 < area.top() + 8.0 ? 10.0 : -10.0;
+    halo(QPointF{at.x() + dx, at.y() + dy}, text, QColor{20, 20, 20});
+}
+
 // The title, the line under it (each name in the color it is drawn in) and the run and valid times at the right.
 struct HeaderState {
     const Product& product;
@@ -9378,6 +9396,7 @@ void fillProbe(MapFrame& f, const GfsGrid::Grid& fill, const std::string& windU,
 struct FillResult {
     QImage map;
     float fillMax, fillMin, anyMax, anyMin;
+    QPointF maxAt;   // where the largest value the picture shows is, in the picture's own pixels (1x)
 };
 
 // The fill, a pixel at a time (the ramp is in the grid's units; fully clear parts show the pale ground).
@@ -9388,6 +9407,7 @@ FillResult paintFill(MapFrame& f, const GfsGrid::Grid& fill, const Ramp * ramp) 
     QImage map(static_cast<int>(std::lround(area.width() * S)), static_cast<int>(std::lround(area.height() * S)), QImage::Format_ARGB32_Premultiplied);
     map.fill(QColor{244, 244, 244});
     float fillMax = std::nanf(""), fillMin = std::nanf(""), anyMax = std::nanf(""), anyMin = std::nanf("");   // the largest and smallest value on view: marked on the legend
+    QPointF maxAt;
     for (int y = 0; y < map.height(); y++) {
         auto * row = reinterpret_cast<QRgb *>(map.scanLine(y));
         const double lat = view.latAt(area.top() + (y + 0.5) / S);
@@ -9404,6 +9424,7 @@ FillResult paintFill(MapFrame& f, const GfsGrid::Grid& fill, const Ramp * ramp) 
                 if (qAlpha(c) >= 128) {   // (what the picture shows: the clear part of a scale, a reflectivity under 5 dBZ, is not in the range)
                     if (std::isnan(fillMax) || value > fillMax) {
                         fillMax = value;
+                        maxAt = QPointF{area.left() + (x + 0.5) / S, area.top() + (y + 0.5) / S};
                     }
                     if (std::isnan(fillMin) || value < fillMin) {
                         fillMin = value;
@@ -9419,7 +9440,7 @@ FillResult paintFill(MapFrame& f, const GfsGrid::Grid& fill, const Ramp * ramp) 
             }
         }
     }
-    return {std::move(map), fillMax, fillMin, anyMax, anyMin};
+    return {std::move(map), fillMax, fillMin, anyMax, anyMin, maxAt};
 }
 
 // The fills painted over the first where they have a value (the snow and the mixed precipitation over the rain; the ticked fills).
@@ -9640,6 +9661,9 @@ QImage render(const Product& drawn, const Sector& sector, const Grids& fetched, 
     }
     for (const auto& [at, text, color] : numbersToDraw) {   // (over the barbs, with their halo: a number is read before a barb is)
         halo(at, text, color);
+    }
+    if (options.markMax && !std::isnan(fillMax) && !product.linesOnly) {
+        drawMaxMark(frame, halo, made.maxAt, fillMax);
     }
     {
         PointValuesState values{product, grids, options, sector, area, view, span, p, font, us};

@@ -254,6 +254,17 @@ ModelViewer::ModelViewer(Window * parent, const string& modelType)
             refreshLoaded();
             reload();
         });
+        buttonMaxMark = entry(menuMap, "Mark the maximum", "A ring and the number at the largest value on view: the place of the one the color bar marks. Off leaves the map clean, in the window and in what is saved or exported.", true);
+        buttonMaxMark->setChecked(Utility::readPref("MODEL_MAX_MARK", "false").compare(0, 1, "t") == 0);
+        QObject::connect(buttonMaxMark, &QAction::toggled, this, [this] (bool on) {
+            Utility::writePref("MODEL_MAX_MARK", on ? "true" : "false");
+            frames.clear();   // every picture drawn so far has the mark (or has not)
+            frameOrder.clear();
+            frameBytes = 0;
+            failedAhead.clear();
+            refreshLoaded();
+            reload();
+        });
         buttonOnMap = entry(menuMap, "On the map...", "This chart on the master map (scroll and zoom it, put radar, satellite, storms or rivers with it): the same model, chart, area and valid time", false);
         QObject::connect(buttonOnMap, &QAction::triggered, this, [this] {
             if (GfsRender::drawsModel(objectModel.model) && openMap) {
