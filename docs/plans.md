@@ -1980,3 +1980,59 @@ day (more when changed), text only.
 
 **Open questions:** the start date to default to (1 October?) and whether the history is of the GFS only or compared with ERA5 for the same dates (the reanalysis is the better truth, a few days behind); the levels (10 and 50 mb first, then the rest); whether the history player is its own screen or a mode of the Model Viewer's loop.
 
+
+## 20. Servers in one place: overrides, a server table and a status page (sketch, 2026-11-15; hypothetical, nothing written)
+
+Raised while thinking about portability: NOAA's RRFS moved from `para` to `prod`, the IFS 0.1 degree set replaced the 0.25 degree one on 2026-10-20, a bucket can be renamed. Today each of those is an edit and a release. This sketches how a change of server could be made by the person, quickly, with the program saying which server it is reading and when one fails.
+
+**What the program already has** (read from `GfsModelFile.cpp`, `GfsModels.cpp`, `GfsData.cpp`, `docs/model-files.md`, 2026-11-15):
+- A model is a model file (`url`, `file`, `hours`, `lag_hours`, `probe_file` ...); the 19 built-in ones are text in `GfsBuiltInModels.cpp`, the person's own are `*.model` files in a folder (`GfsModels::setUserFolder`).
+- **`url` is repeatable and the places are tried in order** (`GfsData::urlsFor`, `source.candidates`), so a fallback server is already one more `url` line. What is missing is memory: every request tries the first one again, a dead first server costs a failed request per file, and nothing says which one answered.
+- `legacy_url = yyyyMMddHH => pattern` (one dated cutover, the IFS) and `alternate = ID | words` (a hint in the chart message: choose that other model; not a failover).
+- The person's folder is read **after** the built-in models and **a file that repeats a built-in id is dropped** (`userProblems` says why). So a built-in model's server cannot be changed without a release.
+- Settings has a "Model Sources" tab (`SettingsMain::showModelSources`) that checks the servers of the models; Help has "the sources check".
+- Servers also live **in code**, outside the model files: `rrfsStream{"prod"}` in `UtilityGrib.cpp` (the older RRFS viewer path, NOMADS), the Open-Meteo and GEOS OPeNDAP bases, the SPC and WPC addresses of the point page. A cutover that touches them is an edit of code.
+
+**The pieces, smallest first**
+
+**A. Override files.** A file in the person's folder with `override = GFS` (an existing id) changes only the keys it lists and leaves the rest of the built-in definition:
+- *Replace* keys (`lag_hours`, `cycle_hours`, `hours`, `kind` is not allowed): the new value wins.
+- *Repeatable* keys (`url`, `file`, `nc_variable`): the file's lines replace the built-in ones as a set, unless it says `url_prepend` / `url_append`, which put its places before / after (the usual case: "try this server first"). A `when` rule with the same condition replaces that rule only.
+- Not overridable: `id`, `label`'s credit text (a credit follows the data's real source), `clone` rules, anything that changes which charts exist. The merged text is parsed as one definition by the same parser, so every error the parser has is reported by the existing `userProblems` with the file and line, and a file that does not parse leaves the built-in model untouched.
+- Order of precedence: **Settings > the person's override file > built in.** The registry (`GfsModels::all`) merges once at the start, as it makes its list now; a change takes a restart (the registry is built once), or `GfsModels::reload()` when there is one.
+- A tag on the model: "overridden by <file>" in the model's page and the sources check, so a person who forgets it can see why a model reads where it does.
+
+**B. A server table.** A small list of named servers (`server = rrfs-ops | https://noaa-rrfs-ops-pds.s3.amazonaws.com | https://noaa-rrfs-ops-pds.s3.us-east-1.amazonaws.com`: a name, a base, then the fallbacks), built in as one more text in the built-in list and extendable in the person's folder. Model `url` lines use `{rrfs-ops}/rrfs.{date}/...` for the base. Then:
+- A flip is **one entry**, and the models that share the server follow (REFS, RRFS and the RRFS ensemble share one bucket today; GEFS and GFS another).
+- The code's own copies (`rrfsStream`, the OPeNDAP bases, the point page's SPC and WPC addresses) become table lookups (`Servers::base("rrfs-ops")`), so a cutover is never a code edit again. The built-in default stays in the program: the table never has to exist for the program to work.
+- A person's change is a Settings entry (`SERVER_<name>` in the preferences: the base to use, optionally a fallback), which beats the file's, which beats the built-in.
+
+**C. The status of each server** (what the Settings tab shows and what notices the person). For each (server, model) it keeps: the last time a request succeeded, the last time one failed and why (HTTP status, timeout, the file is not there), the newest run seen, the time it took, and the number of failures in a row. Kept in a small file in the cache folder (`servers-status.json`), not in the preferences. States, from those:
+- **OK**: the newest expected run (the model's cycle, less `lag_hours`) is there.
+- **Late**: the run is later than `lag_hours` says it should be (a delay; do nothing, say it).
+- **Down**: three failures in a row over at least ten minutes, or a 404 for the run's probe file for every cycle tried (`cycles_to_try`).
+- **Gone**: Down for more than seven days. It is what the para-to-prod move would have looked like: the old server's runs stop and the new one's start.
+- **Moved** (found by the sources check, not by a chart): the fallback server has a newer run than the first. This is the cutover signal; the first server may be about to go.
+- **Sticky promotion:** the order of `url` places is a preference, not a fact. When the first place fails and the second answers for the newest run twice in a row, the second is tried first from then on (kept in the status file, with a notice "RRFS is read from its fallback server"), and the first is tried again every few hours (a failure costs one request, a recovery takes one success). A person's explicit order (Settings or an override) is never reordered.
+
+**D. The Settings page.** The "Model Sources" tab becomes two parts:
+- *Servers:* a table, one row for each named server: name, models that use it, the base now in use (editable), fallbacks, state, last OK, newest run, latency; buttons "Check now", "Use this fallback", "Reset to built in", "Copy as override file". A row's state is coloured the way the rest of the program colours status.
+- *Overrides:* the files in the person's folder, each with the model it changes, the keys, and its problem if it has one; "Open folder", "New override for ..." (writes a starting file with the built-in `url` lines in it, to edit).
+- In the Model Viewer, one line in the run menu's tooltip says which server the chart was read from, and a notice (the existing `notice()` line) appears when it is a fallback or a server is Late or Down: "RRFS: first server is down since 14:20, reading the fallback".
+
+**E. Dated cutovers** (the general `legacy_url`): `url_from = yyyyMMddHH => pattern` repeatable, each a run time from which a place applies, so a model that changes its files twice, or a server that is switched at a known hour, is a few lines. The IFS's `legacy_url` becomes one of them (the old key stays, read as the first).
+
+**F. Remote patches (optional; the person's decision; not recommended on by default).** A short JSON file of server entries fetched from a fixed address in the project's repository, so a cutover could be fixed for everyone the day it happens. It is the only piece that makes the program contact the project, so: off until asked for in Settings, one request a day at most, the generic `wxqt` agent, nothing about the person in it, read-only (it can only set server-table entries, never code or a model's charts), shown in the Servers table as "from the project", and overridable by the person's own entry. Without it the other pieces still make a cutover a ten minute change for anyone who can edit a text file.
+
+**Steps, each useful alone**
+1. **The server table and `{name}` tokens** in the model files, the built-in table, `Servers::base`; the RRFS, REFS and GEFS URLs converted; a test that every built-in model expands to the same URLs as before (as `run_modelfile.sh` does for the files). No behaviour change.
+2. **Override files** (A) with the merge rules and their tests (replace, set, prepend, append, a bad file leaves the model alone, the id check).
+3. **The status record** (C) written by the code that already makes the requests and the run probe (`GfsData` run search, `probe_file`), the state machine with a fake clock and a fake fetch (no network): OK, Late, Down, Gone, Moved, sticky promotion and the retry.
+4. **Settings: the Servers table and the overrides list** (D), the notice line in the Model Viewer.
+5. **Dated cutovers** (E).
+6. **Code constants** (`rrfsStream`, the OPeNDAP bases, the point page) moved to the table.
+7. Remote patches (F), only if wanted.
+
+**Tests, none needing a network:** the expansion of every built-in model before and after step 1; the merge of an override (keys replaced, repeatable keys, a rule replaced by its condition, an error reported with its line, the built-in left whole on a bad file); the status states from a script of successes and failures at fake times; the sticky promotion and its retry; a settings entry beating a file beating the built-in.
+
+**Open points:** (1) whether the registry can be reloaded without a restart (it is made once, `static`; the Model Viewer holds `Def` pointers); (2) whether a changed server should change the cache key of what was read from it (the same run on another server is the same data, so no; a different product under the same name, para against prod, is a different run and the run id already differs by date, but a model that keeps its date and changes its numbers is not covered: an override can add `cache_tag`); (3) how much of the status is shown without being asked (a banner for Down and Gone only, the rest in the Settings table); (4) whether the sources check should run on its own once a day and write the status (a handful of HEAD requests for each server) or only when asked.
