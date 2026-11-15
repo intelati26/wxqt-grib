@@ -245,6 +245,63 @@ GfsRender::SourceCheck GfsRender::checkSource(Session& session, const std::strin
     return finish();
 }
 
+CatalogCheck::Report GfsRender::checkCatalog(Session& session, const std::string& model) {
+    CatalogCheck::Report skipped;
+    skipped.model = model;
+    const auto * def = GfsModels::find(model);
+    if (def == nullptr) {
+        skipped.note = "not a model of this build";
+        return skipped;
+    }
+    skipped.label = def->label;
+    if (def->storm) {
+        skipped.note = "needs an active storm to look at";
+        return skipped;
+    }
+    if (UtilityGrib::gdalBinDir().empty()) {
+        skipped.note = "GDAL not found";
+        return skipped;
+    }
+    const auto gfs = data(session.folder(), model);
+    GfsData::Run run;
+    if (gfs.model().checkRun.size() == 10) {
+        run = GfsData::Run{gfs.model().checkRun.substr(0, 8), gfs.model().checkRun.substr(8, 2)};
+    } else if (!gfs.latestRun(run)) {
+        skipped.note = "no run found on the server (offline, or the files moved)";
+        return skipped;
+    }
+    // what every chart of the model asks for at the first hour and, for the accumulations, at the next one
+    std::vector<GfsData::Need> needs;
+    int later = def->hours.empty() ? 0 : (def->hours.front().step > 6 ? def->hours.front().step : 6);
+    if (!def->hours.empty() && def->hours.front().to < later) {
+        later = def->hours.front().to;
+    }
+    const int first = def->hours.empty() ? 0 : def->hours.front().from;
+    int charts = 0;
+    for (const auto& product : GfsChart::products()) {
+        if (product.source != model) {
+            continue;
+        }
+        charts++;
+        for (const int hour : {first, later}) {
+            for (auto& need : GfsChart::needs(product, hour)) {
+                needs.push_back(std::move(need));
+            }
+        }
+    }
+    if (charts == 0) {
+        skipped.note = "the model has no charts";
+        skipped.run = run.id();
+        return skipped;
+    }
+    bool had = false;
+    const auto before = CatalogCheck::keptFound(model, had);
+    auto report = CatalogCheck::make(model, run.id(), gfs.inventory(run, needs), before, had);
+    report.label = def->label;
+    CatalogCheck::keep(report);
+    return report;
+}
+
 bool GfsRender::firstHourMissing(Session& session, const std::string& model, const std::string& param, const std::string& runId) {
     const auto * def = GfsModels::find(model);
     const auto * product = GfsChart::product(param, model);

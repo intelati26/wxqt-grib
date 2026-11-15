@@ -50,6 +50,11 @@
 #include "common/GlobalVariables.h"
 #include "gfs/GfsModels.h"
 #include "gfs/Servers.h"
+#include <atomic>
+#include <thread>
+#include <QJsonDocument>
+#include <QJsonArray>
+#include "gfs/CatalogCheck.h"
 #include "settings/SettingsSourcesBox.h"
 #include <QDir>
 #include <QStandardPaths>
@@ -1320,6 +1325,44 @@ int main(int argc, char * argv[]) {
                 std::string cycle, other;
                 const auto a = GfsRender::hafsTrack("HAFSA", storm, cycle), b = GfsRender::hafsTrack("HAFSB", storm, other);
                 new HafsIntensityViewer{&w, storm, a, b, cycle};
+            } else if (route.startsWith("catalogcheck:")) {   // WXQT_OPEN=catalogcheck:<model, or * for every one>:<out.json>: the product catalogue against each model's newest files (Gone / Not cataloged), a line for each model on stderr, then quits
+                const auto parts = route.split(':');
+                const auto wanted = parts.value(1).toStdString();
+                const auto out = parts.value(2);
+                std::vector<std::string> models;
+                for (const auto& def : GfsModels::all()) {
+                    if (wanted == "*" ? !def.storm : def.id == wanted) {
+                        models.push_back(def.id);
+                    }
+                }
+                QTimer::singleShot(500, &a, [models, out, &a] {
+                    std::thread{[models, out, &a] {
+                        std::vector<CatalogCheck::Report> reports(models.size());
+                        std::atomic<size_t> next{0};
+                        std::vector<std::thread> workers;
+                        for (int w = 0; w < 6; w++) {
+                            workers.emplace_back([&] {
+                                GfsRender::Session session;
+                                for (size_t i = next++; i < models.size(); i = next++) {
+                                    reports[i] = GfsRender::checkCatalog(session, models[i]);
+                                    fprintf(stderr, "catalog %-14s %s\n", models[i].c_str(), reports[i].summary().c_str());
+                                }
+                            });
+                        }
+                        for (auto& t : workers) {
+                            t.join();
+                        }
+                        QJsonArray all;
+                        for (const auto& r : reports) {
+                            all.append(CatalogCheck::toJson(r));
+                        }
+                        QFile file{out};
+                        if (file.open(QIODevice::WriteOnly)) {
+                            file.write(QJsonDocument{all}.toJson());
+                        }
+                        QMetaObject::invokeMethod(&a, [&a] { QTimer::singleShot(200, &a, &QCoreApplication::quit); }, Qt::QueuedConnection);
+                    }}.detach();
+                });
             } else if (route.startsWith("serverspage:")) {   // WXQT_OPEN=serverspage:<out.png>: the Model Sources settings tab (the servers by name above the models' check), saved a moment after it opens
                 auto * box = new SettingsSourcesBox;
                 box->resize(1100, 720);

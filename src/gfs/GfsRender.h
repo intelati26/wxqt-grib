@@ -11,6 +11,7 @@
 #include <QByteArray>
 #include <QString>
 #include <QtGlobal>
+#include "gfs/CatalogCheck.h"
 #include "gfs/GfsChart.h"
 #include "sounding/SoundingProfile.h"
 #include "tropical/PhaseSpace.h"
@@ -121,6 +122,8 @@ namespace GfsRender {
         double seconds{0.0};
     };
     SourceCheck checkSource(Session& session, const std::string& model);
+    // The model's product catalogue against its newest run's files (CatalogCheck): every field its charts ask for and every record the files list. Blocking, reads indexes only. The result is kept for the next check.
+    CatalogCheck::Report checkCatalog(Session& session, const std::string& model);
     // True when the chart cannot be made at the model's first forecast hour (hour 0): the run has no file for that hour (the REFS ensemble products start at hour 1), or the chart
     // is only an accumulation, which hour 0 has none of. The run's index is read, no field is downloaded; a lost connection or a run that is not there is not an answer (false), and
     // the file is only called missing when the next hour's is there. runId is "yyyyMMddHH".

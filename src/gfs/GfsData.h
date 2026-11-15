@@ -185,6 +185,17 @@ public:
     // Whether a run has what `needs` asks for, without downloading any field: the index of each file lists the records (or, for a source with no index, the file answers; a NetCDF file's
     // variables and a Zarr store's arrays are not looked into). `detail` says what was found or what is missing.
     bool check(const Run& run, const std::vector<Need>& needs, std::string& detail) const;
+    // Every field `needs` asks for against what the files of the run list (section 20 of the plan: Gone / Not cataloged): the wants the index (or a NetCDF file's variables) lists, the ones it does not, and
+    // the records it lists that nobody asks for. Reads the index (or the variable list) of each file, never a field. `note` says why nothing was checked (no index to read: Open-Meteo, a tar, a Zarr store).
+    struct InventoryField {
+        std::string variable, level, detail, file;
+    };
+    struct Inventory {
+        bool checked{false};
+        std::string note;
+        std::vector<InventoryField> found, gone, notCataloged;   // wanted and listed / wanted and not listed / listed and not wanted
+    };
+    Inventory inventory(const Run& run, const std::vector<Need>& needs) const;
 
 private:
     bool one(const Run& run, int forecastHour, const std::string& file, const std::vector<GfsGrid::IdxRecord>& index, const Want& want, GfsGrid::Grid& out, std::string& error) const;

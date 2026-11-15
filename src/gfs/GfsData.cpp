@@ -1330,6 +1330,123 @@ bool GfsData::check(const Run& run, const std::vector<Need>& needs, std::string&
     return true;
 }
 
+GfsData::Inventory GfsData::inventory(const Run& run, const std::vector<Need>& needs) const {
+    Inventory out;
+    if (needs.empty()) {
+        out.note = "no chart asks for anything";
+        return out;
+    }
+    if (source.custom || source.wrf.enabled || source.om.enabled || source.tarMember) {
+        out.note = source.custom ? "a Zarr store: its arrays are not listed by this check" : source.om.enabled ? "Open-Meteo's files: the variables are not listed by this check" : source.tarMember ? "a tar of files: not listed by this check" : "local runs";
+        return out;
+    }
+    std::set<std::pair<int, std::string>> files;
+    for (const auto& need : needs) {
+        files.insert({need.hour, fileFor(need.want)});
+    }
+    std::set<std::string> asked, seenNot;   // "variable|level|detail" of what is wanted; of what is listed and not wanted
+    for (const auto& need : needs) {
+        asked.insert(need.want.variable + "|" + need.want.level + "|" + (need.want.detail.empty() ? source.defaultDetail : need.want.detail));
+    }
+    std::set<std::string> askedPlain;   // the same without the detail: a record listed with a detail of its own is the plain one's cousin
+    for (const auto& need : needs) {
+        askedPlain.insert(need.want.variable + "|" + need.want.level);
+    }
+    std::set<std::string> counted;
+    for (const auto& [hour, file] : files) {
+        if (source.wholeFile && source.netcdf) {   // a NetCDF file: the names of its variables, by GDAL (the subdatasets)
+            std::string url;
+            for (const auto& candidate : urlsFor(run, hour, file)) {
+                url = resolveUrl(candidate);
+                if (!url.empty() && config.bytes(url, 0, 3).size() == 4) {
+                    break;
+                }
+                url.clear();
+            }
+            if (url.empty() || url.find_first_of("\"'\\ ") != std::string::npos) {
+                out.note = "the file of f" + pad(hour, 3) + (file.empty() ? "" : " " + file) + " is not there";
+                return out;
+            }
+            QProcess info;
+            info.start(QString::fromStdString(config.gdalBin) + "/gdalinfo", {"--config", "GDAL_HTTP_USERAGENT", "wxqt", "--config", "CPL_VSIL_CURL_CHUNK_SIZE", "2097152", QString::fromStdString("/vsicurl/" + url)});
+            if (!info.waitForFinished(120000)) {
+                info.kill();
+                out.note = "GDAL did not answer for the file of f" + pad(hour, 3);
+                return out;
+            }
+            std::set<std::string> listed;
+            for (const auto& line : QString::fromUtf8(info.readAllStandardOutput()).split('\n')) {
+                const auto at = line.indexOf("_NAME=NETCDF:");
+                if (line.contains("SUBDATASET_") && at >= 0) {
+                    listed.insert(line.section("\":", -1).trimmed().toStdString());
+                }
+            }
+            if (listed.empty()) {
+                out.note = "GDAL listed no variables of the file of f" + pad(hour, 3);
+                return out;
+            }
+            std::set<std::string> usedNames;
+            for (const auto& need : needs) {
+                if (need.hour != hour || fileFor(need.want) != file) {
+                    continue;
+                }
+                const auto name = source.variableOf ? source.variableOf(need.want) : need.want.variable;
+                usedNames.insert(name);
+                const auto key = need.want.variable + "|" + need.want.level + "|" + need.want.detail + "|" + file;
+                if (!counted.insert(key).second) {
+                    continue;
+                }
+                (listed.count(name) ? out.found : out.gone).push_back({need.want.variable, need.want.level, need.want.detail, file});
+            }
+            for (const auto& name : listed) {
+                if (usedNames.count(name) == 0 && seenNot.insert(file + "|" + name).second) {
+                    out.notCataloged.push_back({name, "", "", file});
+                }
+            }
+            continue;
+        }
+        if (source.wholeFile) {
+            out.note = "a file with no index: its records are not listed by this check";
+            return out;
+        }
+        const auto bytes = config.bytes(indexUrl(run, hour, file), 0, -1).toStdString();
+        Want first;
+        for (const auto& need : needs) {
+            if (need.hour == hour && fileFor(need.want) == file) {
+                first = need.want;
+                break;
+            }
+        }
+        const auto index = source.parseIndex ? source.parseIndex(bytes, first) : GfsGrid::parseIdx(bytes);
+        if (index.empty()) {
+            out.note = "no index for f" + pad(hour, 3) + (file.empty() ? "" : " (" + file + ")");
+            return out;
+        }
+        for (const auto& need : needs) {
+            if (need.hour != hour || fileFor(need.want) != file || (hour == 0 && !need.want.forecast.empty())) {
+                continue;
+            }
+            const auto& w = need.want;
+            const auto key = w.variable + "|" + w.level + "|" + w.detail + "|" + w.forecast + "|" + file;
+            if (!counted.insert(key).second) {
+                continue;
+            }
+            const bool there = GfsGrid::find(index, w.variable, w.level, w.forecast, w.detail.empty() ? source.defaultDetail : w.detail, source.matchRunTime ? run.id() : std::string{}) != nullptr;
+            (there ? out.found : out.gone).push_back({w.variable, w.level, w.detail, file});
+        }
+        for (const auto& record : index) {
+            const auto plain = record.variable + "|" + record.level;
+            const auto detailed = plain + "|" + record.detail;
+            if (askedPlain.count(plain) || asked.count(detailed) || !seenNot.insert(file + "|" + detailed).second) {
+                continue;
+            }
+            out.notCataloged.push_back({record.variable, record.level, record.detail, file});
+        }
+    }
+    out.checked = true;
+    return out;
+}
+
 QString GfsData::partialGrib(const Run& run, int hour, const std::string& file) const {
     // the messages kept for this run, hour and file, joined (a GRIB file is only messages one after the other): made when asked, from whatever has been downloaded, in any session
     QString prefix = QString::fromStdString(source.id + "_" + run.id() + "_f" + pad(hour, 3) + "_" + file + "_");
