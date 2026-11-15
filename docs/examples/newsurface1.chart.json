@@ -1,0 +1,22 @@
+{
+  "version": 1,
+  "charts": [
+    {
+      "id": "newsurface1",
+      "model": "GFS",
+      "label": "NewSurface1: 2 m temperature and 500 mb height",
+      "group": "Your charts",
+      "fill": {
+        "field": "TMP@2 m above ground",
+        "ramp": "temperature",
+        "title": "2 m temperature",
+        "quantity": "temperature",
+        "legend_step": 5
+      },
+      "contours": [
+        { "field": "HGT@500 mb", "scale": 0.1, "interval": 6, "title": "500 mb height (dam)", "color": "#202020" }
+      ],
+      "barbs": { "u": "UGRD@10 m above ground", "v": "VGRD@10 m above ground" }
+    }
+  ]
+}

@@ -13,6 +13,11 @@ for alias, path in re.findall(r'<file alias="([^"]+)">([^<]+)</file>', qrc):
     full = os.path.normpath(os.path.join(root, 'help', path))
     if not os.path.isfile(full):
         print('FAIL: the qrc names a file that is not there:', path); fails += 1
+    else:   # in a git checkout the file must be committed too: docs/ is excluded by default, so a new guide needs `git add -f` (a clean checkout, the CI, would not have it)
+        import subprocess
+        tracked = subprocess.run(['git', '-C', root, 'ls-files', '--error-unmatch', os.path.relpath(full, root)], capture_output=True)
+        if os.path.isdir(os.path.join(root, '.git')) and tracked.returncode != 0:
+            print('FAIL: the qrc names a file that git does not track (git add -f):', path); fails += 1
     bundled[alias] = full
 tree = open(os.path.join(root, 'src', 'misc', 'HelpViewer.cpp')).read()
 guides = set(re.findall(r'"guide:([a-z0-9-]+)"', tree))
