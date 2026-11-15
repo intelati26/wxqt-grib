@@ -61,6 +61,9 @@
 #include "models/ChartPickers.h"
 #include "models/ProductPicker.h"
 #include "objects/UtilityAnimationExport.h"
+#include <QDateTimeEdit>
+#include <QFormLayout>
+#include <QTemporaryDir>
 #include "models/SoundingViewer.h"
 #include "settings/Location.h"
 #include "objects/FutureVoid.h"
@@ -1684,6 +1687,132 @@ void MasterMapViewer::saveModelLoop() {
     UtilityAnimationExport::saveWithDialog(this, frames.size() >= 2 ? frames : std::vector<QByteArray>{}, interval, frames.front(), name, QByteArray{}, false, name);
 }
 
+// The frames of a history of initial states: for each time the layer is put at it (the run at that time, its first hour) and the whole world exported as it is, quietly, to a picture that is read
+// back. `progress(i)` is asked before each one and says false to stop. The times that gave no picture are named in `skipped`. False when stopped.
+bool MasterMapViewer::initialStateFrames(const std::vector<QDateTime>& when, GlobeMapView::Projection projection, int width, std::vector<QByteArray>& frames, std::vector<QString>& skipped, const std::function<bool(size_t)>& progress) {
+    auto * chart = modelLayer();
+    if (chart == nullptr) {
+        return false;
+    }
+    QTemporaryDir folder;
+    for (size_t i = 0; i < when.size(); i++) {
+        if (!progress(i)) {
+            return false;
+        }
+        chart->setAsOf(when[i], *this);   // the run at that time, its first hour
+        const QString file = folder.filePath(QString{"frame%1.png"}.arg(i, 5, 10, QChar{'0'}));
+        exportWorldTo(file, projection, 0.0, width, true, true, true);
+        QFile written{file};
+        if (written.open(QIODevice::ReadOnly)) {
+            frames.push_back(written.readAll());
+            written.close();
+            QFile::remove(file);
+        } else {
+            skipped.push_back(when[i].toString("MM-dd HH") + "Z");
+        }
+    }
+    return true;
+}
+
+// The model chart's initial state (the f000 of the run at each time) from one date to another, each drawn on a world projection (the north polar one is the polar vortex), as a loop. The layer is
+// put at each time in turn (the run at that time, hour 0) and the whole world is exported as it is for one picture.
+void MasterMapViewer::saveInitialStates() {
+    auto * chart = modelLayer();
+    if (chart == nullptr) {
+        return;
+    }
+    QDialog dialog{this};
+    dialog.setWindowTitle("Save a history of initial states");
+    auto * column = new QVBoxLayout{&dialog};
+    column->addWidget(new QLabel{"The chart's initial state (the first hour of each run: what the model started from) at each time between the two dates, one picture each on a world map projection, as a loop. "
+                                 "A picture needs the whole world's fields of that run (a few megabytes): a season of four a day takes a while.", &dialog});
+    static_cast<QLabel *>(column->itemAt(0)->widget())->setWordWrap(true);
+    const auto now = QDateTime::currentDateTimeUtc();
+    // the default start: the first of October of this season (the vortex forms in the autumn), or of the year before when it is not yet October
+    const int seasonYear = now.date().month() >= 10 ? now.date().year() : now.date().year() - 1;
+    auto * from = new QDateTimeEdit{QDateTime{QDate{seasonYear, 10, 1}, QTime{0, 0}, QTimeZone::utc()}, &dialog};
+    auto * to = new QDateTimeEdit{QDateTime{now.date(), QTime{now.time().hour() / 6 * 6, 0}, QTimeZone::utc()}.addSecs(-6 * 3600), &dialog};
+    for (auto * edit : {from, to}) {
+        edit->setDisplayFormat("yyyy-MM-dd HH:mm 'Z'");
+        edit->setTimeSpec(Qt::UTC);
+    }
+    auto * step = UiStandards::combo(&dialog);
+    for (const int hours : {6, 12, 24}) {
+        step->addItem(QString{"Every %1 hours"}.arg(hours), hours);
+    }
+    step->setCurrentIndex(2);
+    auto * projection = UiStandards::combo(&dialog);
+    projection->addItem("North polar (the pole to 30 N)", static_cast<int>(GlobeMapView::Projection::PolarNorth));
+    projection->addItem("South polar (the pole to 30 S)", static_cast<int>(GlobeMapView::Projection::PolarSouth));
+    projection->addItem("Equal Earth", static_cast<int>(GlobeMapView::Projection::EqualEarth));
+    auto * width = UiStandards::combo(&dialog);
+    for (const int w : {800, 1200, 1600}) {
+        width->addItem(QString::number(w) + " pixels wide", w);
+    }
+    width->setCurrentIndex(1);
+    auto * form = new QFormLayout;
+    form->addRow("From", from);
+    form->addRow("To", to);
+    form->addRow("Step", step);
+    form->addRow("Map", projection);
+    form->addRow("Size", width);
+    column->addLayout(form);
+    auto * count = new QLabel{&dialog};
+    const auto showCount = [from, to, step, count] {
+        const long seconds = from->dateTime().secsTo(to->dateTime());
+        const int n = seconds < 0 ? 0 : static_cast<int>(seconds / (3600L * step->currentData().toInt())) + 1;
+        count->setText(QString::number(n) + " pictures");
+    };
+    QObject::connect(from, &QDateTimeEdit::dateTimeChanged, &dialog, showCount);
+    QObject::connect(to, &QDateTimeEdit::dateTimeChanged, &dialog, showCount);
+    QObject::connect(step, &QComboBox::currentIndexChanged, &dialog, showCount);
+    showCount();
+    column->addWidget(count);
+    auto * buttons = new QDialogButtonBox{QDialogButtonBox::Ok | QDialogButtonBox::Cancel, &dialog};
+    QObject::connect(buttons, &QDialogButtonBox::accepted, &dialog, &QDialog::accept);
+    QObject::connect(buttons, &QDialogButtonBox::rejected, &dialog, &QDialog::reject);
+    column->addWidget(buttons);
+    if (dialog.exec() != QDialog::Accepted) {
+        return;
+    }
+    std::vector<QDateTime> when;
+    for (auto t = from->dateTime().toUTC(); t <= to->dateTime().toUTC(); t = t.addSecs(3600LL * step->currentData().toInt())) {
+        when.push_back(t);
+    }
+    if (when.empty()) {
+        return;
+    }
+    const auto chosenProjection = static_cast<GlobeMapView::Projection>(projection->currentData().toInt());
+    if (GlobeMapView::isPolar(chosenProjection)) {
+        GlobeMapView::setPolarFrame(30, false);
+    }
+    QProgressDialog progress{"Drawing the initial states...", "Cancel", 0, static_cast<int>(when.size()), this};
+    progress.setWindowModality(Qt::WindowModal);
+    progress.setMinimumDuration(0);
+    std::vector<QByteArray> frames;
+    std::vector<QString> skipped;
+    const bool finished = initialStateFrames(when, chosenProjection, width->currentData().toInt(), frames, skipped, [&progress, &when] (size_t i) {
+        progress.setValue(static_cast<int>(i));
+        progress.setLabelText(QString{"Drawing %1 (%2 of %3)..."}.arg(when[i].toString("yyyy-MM-dd HH") + "Z").arg(i + 1).arg(when.size()));
+        QCoreApplication::processEvents();
+        return !progress.wasCanceled();
+    });
+    if (!finished) {
+        return;
+    }
+    progress.setValue(static_cast<int>(when.size()));
+    if (frames.empty()) {
+        QMessageBox::warning(this, "Save a history", "No picture could be drawn: the chart may not be in the runs of those times.");
+        return;
+    }
+    if (!skipped.empty()) {
+        QMessageBox::information(this, "Save a history", QString{"%1 of the times had no picture (%2) and are left out."}.arg(skipped.size()).arg(QStringList{skipped.begin(), skipped.begin() + std::min<size_t>(skipped.size(), 6)}.join(", ")));
+    }
+    const int interval = speedCombo->currentIndex() == 0 ? 1200 : speedCombo->currentIndex() == 1 ? 650 : 280;
+    const auto name = QString::fromStdString(chart->modelName() + "_" + chart->chartId() + "_initial_" + when.front().toString("yyyyMMddHH").toStdString() + "-" + when.back().toString("yyyyMMddHH").toStdString());
+    UtilityAnimationExport::saveWithDialog(this, frames.size() >= 2 ? frames : std::vector<QByteArray>{}, interval, frames.front(), name, QByteArray{}, false, name);
+}
+
 bool MasterMapViewer::saveModelChart(const QString& path, string& problem) {
     for (const auto& layer : layers) {
         if (layer->id() == "model/chart" && layer->enabled()) {
@@ -1908,7 +2037,7 @@ bool MasterMapViewer::modelSpec(string& chart, vector<string>& models, QDateTime
     return true;
 }
 
-void MasterMapViewer::exportWorldTo(const QString& path, GlobeMapView::Projection projection, double centre, int width, bool highResolution, bool graticule) {
+void MasterMapViewer::exportWorldTo(const QString& path, GlobeMapView::Projection projection, double centre, int width, bool highResolution, bool graticule, bool quiet) {
     status("drawing the world ...");
     QCoreApplication::processEvents();
     QImage world;
@@ -2130,8 +2259,10 @@ void MasterMapViewer::exportWorldTo(const QString& path, GlobeMapView::Projectio
         QMessageBox::warning(this, "Export the whole world", "The file could not be written: " + path);
         return;
     }
-    ChartExport::remember(path);
-    status("Saved " + path.toStdString());
+    if (!quiet) {
+        ChartExport::remember(path);
+        status("Saved " + path.toStdString());
+    }
 }
 
 // Export: one window asks what to save (the view, the whole world, a model chart titled, a loop of its hours) and the choices that go with it (an area at full color, a lighter ACIS map behind);
@@ -2149,6 +2280,7 @@ void MasterMapViewer::exportView() {
     if (chart != nullptr) {
         ask.addKind("titled", "The model chart, titled (the Model Viewer's picture)", "With its title, run and valid times, the legend and the credit");
         ask.addKind("loop", "The model chart as a loop of hours, titled", "Every hour of the run drawn so far, as a loop");
+        ask.addKind("history", "The model chart's initial states from a date, as a loop (the polar vortex)", "The first hour of each run, from one date to another, on a polar or world map");
         ask.selectKind("titled");
     }
     {   // the areas of the NWS: the one outlined on the map is the first choice
@@ -2180,6 +2312,10 @@ void MasterMapViewer::exportView() {
     }
     if (kind == "loop") {
         saveModelLoop();
+        return;
+    }
+    if (kind == "history") {
+        saveInitialStates();
         return;
     }
     setExportOffice(ask.value("area").toStdString());

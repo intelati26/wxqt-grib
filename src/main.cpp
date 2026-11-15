@@ -820,6 +820,38 @@ int main(int argc, char * argv[]) {
                     }
                 }
                 QTimer::singleShot(100, &a, &QCoreApplication::quit);
+            } else if (route.startsWith("history:")) {   // WXQT_OPEN=history:<model>:<chart>:<yyyyMMddHH from>:<yyyyMMddHH to>:<step hours>:<out folder>[:north|south|equal]: the master map's history of initial states, each picture to a file (WXQT_WORLD_WIDTH), then quits
+                const auto parts = route.split(':');
+                auto first = QDateTime::fromString(parts.value(3), "yyyyMMddHH");
+                first.setTimeZone(QTimeZone::utc());
+                auto * map = MasterMapViewer::openModels(&w, parts.value(1).toStdString(), parts.value(2).toStdString(), "", first);
+                const QString folder = parts.value(6);
+                const auto kind = parts.value(7);
+                const auto projection = kind == "south" ? GlobeMapView::Projection::PolarSouth : kind == "equal" ? GlobeMapView::Projection::EqualEarth : GlobeMapView::Projection::PolarNorth;
+                if (GlobeMapView::isPolar(projection)) {
+                    GlobeMapView::setPolarFrame(qEnvironmentVariableIntValue("WXQT_POLAR_REACH") > 0 ? qEnvironmentVariableIntValue("WXQT_POLAR_REACH") : 30, false);
+                }
+                QTimer::singleShot(8000, map, [map, parts, folder, projection] {
+                    auto from = QDateTime::fromString(parts.value(3), "yyyyMMddHH"), to = QDateTime::fromString(parts.value(4), "yyyyMMddHH");
+                    from.setTimeZone(QTimeZone::utc());
+                    to.setTimeZone(QTimeZone::utc());
+                    std::vector<QDateTime> when;
+                    for (auto t = from; t <= to; t = t.addSecs(3600LL * std::max(1, parts.value(5).toInt()))) {
+                        when.push_back(t);
+                    }
+                    std::vector<QByteArray> frames;
+                    std::vector<QString> skipped;
+                    QDir{}.mkpath(folder);
+                    map->initialStateFrames(when, projection, qEnvironmentVariableIntValue("WXQT_WORLD_WIDTH") > 0 ? qEnvironmentVariableIntValue("WXQT_WORLD_WIDTH") : 800, frames, skipped, [&when] (size_t i) { qWarning("history: frame %zu of %zu (%s)", i + 1, when.size(), when[i].toString("yyyy-MM-dd HH").toUtf8().constData()); return true; });
+                    for (size_t i = 0; i < frames.size(); i++) {
+                        QFile out{folder + QString{"/frame%1.png"}.arg(i, 3, 10, QChar{'0'})};
+                        if (out.open(QIODevice::WriteOnly)) {
+                            out.write(frames[i]);
+                        }
+                    }
+                    qWarning("history: %zu pictures, %zu skipped", frames.size(), skipped.size());
+                    QTimer::singleShot(500, qApp, &QCoreApplication::quit);
+                });
             } else if (route.startsWith("looprange:")) {   // WXQT_OPEN=looprange:<yyyyMMddHHmm from>:<yyyyMMddHHmm to>:<layer id>: the master map looping between the two times
                 const auto parts = route.split(':');
                 auto * map = new MasterMapViewer{&w};
