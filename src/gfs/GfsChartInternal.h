@@ -7,6 +7,8 @@
 #define GFSCHARTINTERNAL_H
 
 #include <functional>
+#include <cmath>
+#include <functional>
 #include <map>
 #include <string>
 #include <vector>
@@ -62,6 +64,29 @@ inline ContourSet pressure() {
 // the relative vorticity of the wind (grids "u" and "v") in 1e-5 per second
 inline GfsGrid::Grid vorticityOf(const Grids& g) {
     return GfsGrid::scaled(GfsGrid::vorticity(GfsGrid::smoothed(pick(g, "u"), 1), GfsGrid::smoothed(pick(g, "v"), 1)), 1e5);
+}
+
+// Ertel potential vorticity on a pressure level, in PVU (1e-6 K m2 / kg s), from the temperature at the level and at the levels above (grid "ta", at pAbove mb) and below (grid "tb", at pBelow mb) it and
+// the wind at the level (grids "u", "v"): PV = -g (zeta + f) dtheta/dp, zeta the relative vorticity on the pressure surface (the slope terms are left out: good in the stratosphere, where the surfaces
+// are nearly flat). The southern hemisphere's sign is turned over, so the vortex of either pole is positive. The GFS files carry no PV on pressure levels (only the 2 PVU surface), so it is worked out.
+// pAbove equal to the level's own pressure is a one-sided difference (the IFS open data has 10 and 50 mb, no 7 or 20).
+inline std::function<GfsGrid::Grid(const Grids&)> potentialVorticityOf(double pAbove, double pBelow) {
+    return [=] (const Grids& g) {
+        auto zeta = GfsGrid::vorticity(GfsGrid::smoothed(pick(g, "u"), 1), GfsGrid::smoothed(pick(g, "v"), 1));   // 1 / s
+        const auto& ta = pick(g, "ta"), & tb = pick(g, "tb");
+        constexpr double kappa = 0.2857, gravity = 9.80665, omega = 7.2921e-5, pi = 3.14159265358979;
+        const double thetaAbove = std::pow(1000.0 / pAbove, kappa), thetaBelow = std::pow(1000.0 / pBelow, kappa);
+        for (int r = 0; r < zeta.rows; r++) {
+            const double lat = zeta.lat0 - r * zeta.step;
+            const double f = 2.0 * omega * std::sin(lat * pi / 180.0), hemisphere = lat < 0.0 ? -1.0 : 1.0;
+            for (int c = 0; c < zeta.columns; c++) {
+                const size_t at = static_cast<size_t>(r) * static_cast<size_t>(zeta.columns) + static_cast<size_t>(c);
+                const double dtheta = ((tb.values[at] + 273.15) * thetaBelow - (ta.values[at] + 273.15) * thetaAbove) / ((pBelow - pAbove) * 100.0);   // K / Pa
+                zeta.values[at] = static_cast<float>(hemisphere * 1e6 * -gravity * (zeta.values[at] + f) * dtheta);
+            }
+        }
+        return zeta;
+    };
 }
 
 // the number without trailing zeros: 2, 0.25

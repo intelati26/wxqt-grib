@@ -5,9 +5,9 @@ id,label,category,models,family,reads,field,level,mode,chance,product,window,lim
 100_pv_ht,"100mb Potential Vorticity, Wind and Height",Upper air,1,Value (field at a level),yes,Potential vorticity,100 mb,Value,,,,,,,100,Heights,yes,,,#_pv_ht,6,,
 100_temp_ht,"100mb Temperature, Wind and Height",Upper air,18,Value (field at a level),yes,Temperature,100 mb,Value,,,,,,,100,Heights,yes,,,#_temp_ht,12,,
 100_wnd_ht,100mb Wind and Height,Upper air,18,Value (field at a level),yes,Wind speed,100 mb,Value,,,,,,,100,Heights,yes,,,#_wnd_ht,14,,
-10_pv_ht,"10mb Potential Vorticity, Wind and Height",Upper air,1,Value (field at a level),yes,Potential vorticity,10 mb,Value,,,,,,,10,Heights,yes,,,#_pv_ht,6,,
-10_temp_ht,"10mb Temperature, Wind and Height",Upper air,4,Value (field at a level),yes,Temperature,10 mb,Value,,,,,,,10,Heights,yes,,,#_temp_ht,12,,
-10_wnd_ht,10mb Wind and Height,Upper air,4,Value (field at a level),yes,Wind speed,10 mb,Value,,,,,,,10,Heights,yes,,,#_wnd_ht,14,,
+10_pv_ht,"10mb Potential Vorticity, Wind and Height",Upper air,2,Value (field at a level),yes,Potential vorticity,10 mb,Value,,,,,,,10,Heights,yes,,,#_pv_ht,6,,
+10_temp_ht,"10mb Temperature, Wind and Height",Upper air,5,Value (field at a level),yes,Temperature,10 mb,Value,,,,,,,10,Heights,yes,,,#_temp_ht,12,,
+10_wnd_ht,10mb Wind and Height,Upper air,5,Value (field at a level),yes,Wind speed,10 mb,Value,,,,,,,10,Heights,yes,,,#_wnd_ht,14,,
 10m_maxwnd,Maximum 10m Wind in the last hour,Surface,10,Value (field at a level),yes,Strongest # m wind of the last hour,10 m,Value,,,,,,,10,,,,,#m_maxwnd,1,yes,
 10m_wnd,10m Wind and MSLP,Surface,11,Value (field at a level),yes,# m wind speed,10 m,Value,,,,,,,10,Pressure,yes,,,#m_wnd,1,yes,yes
 10m_wnd_2m_temp,"MSLP, 10m wind, 2m temperature",Surface,42,Value (field at a level),yes,# m temperature,10 m,Value,,,,,,,10 | 2,Pressure,yes,,,#m_wnd_#m_temp,1,yes,

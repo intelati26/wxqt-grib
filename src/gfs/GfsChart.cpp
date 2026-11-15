@@ -426,7 +426,26 @@ const std::vector<Product>& products() {
         const auto geosRecipes = [&] { geosProducts(p); };
 
         // The models in the registry's order: each one's clone of the GFS charts, then the charts of its own
-        const std::map<std::string, std::function<void()>> own{{"GEFS", gefsRecipes}, {"GEPS", gepsRecipes}, {"SPCPOST", [&] { spcRecipes("SPCPOST", false); }}, {"SPCGEFS", [&] { spcRecipes("SPCGEFS", true); }}, {"SFCOA", [&] { mesoRecipes("SFCOA"); }}, {"SPCREFS", spcRefsRecipes}, {"CFS30", cfs30Recipes}, {"EC46", [&] { openMeteoRecipes("EC46"); }}, {"SEAS5", [&] { openMeteoRecipes("SEAS5"); }}, {"WPC-PPP", pppRecipes}, {"RRFSD", [&] { mesoRecipes("RRFSD"); }}, {"RRFS", [&] { rrfsRecipes("RRFS"); }}, {"HRRR", [&] { rrfsRecipes("HRRR"); }}, {"HRRR-AK", [&] { rrfsRecipes("HRRR-AK"); }}, {"MPAS-HT", [&] { rrfsRecipes("MPAS-HT"); }}, {"MPAS-RN", [&] { rrfsRecipes("MPAS-RN"); }}, {"RRFS-AK", [&] { rrfsRecipes("RRFS-AK"); }}, {"RRFS-FIREWX", [&] { rrfsRecipes("RRFS-FIREWX"); }}, {"RRFS-HI", [&] { rrfsRecipes("RRFS-HI"); }}, {"RRFS-PR", [&] { rrfsRecipes("RRFS-PR"); }}, {"RRFS-NA", [&] { rrfsRecipes("RRFS-NA"); }}, {"GEOS-FP", geosRecipes}, {"IFS-ENS", ensRecipes}, {"ENS-ALL", ensAllRecipes}, {"REFS", refsRecipes}, {"HREF", hrefRecipes}, {"MF-SST", [&] { sstRecipes("MF-SST"); }}, {"MF-WAVE", [&] { mfWaveRecipes("MF-WAVE"); }}, {"MF-CURRENT", [&] { currentRecipes("MF-CURRENT"); }}, {"COPERNICUS", [&] { camsRecipes("COPERNICUS"); }}, {"GFS-WAVE", [&] { waveRecipes("GFS-WAVE"); }}, {"GEFS-WAVE", [&] { waveRecipes("GEFS-WAVE"); }}, {"HAFSA", [&] { hafsRecipes("HAFSA"); }}, {"HAFSB", [&] { hafsRecipes("HAFSB"); }}};
+        // the IFS 0.1 degree files have 10 and 50 mb above the 100 (no 7 or 20): its 10 mb potential vorticity is the one-sided difference between 10 and 50 mb (about a third of the GFS's, which differences 7 and 20 mb:
+        // not comparable in value, the same in pattern)
+        const auto ifsRecipes = [&] {
+            std::vector<Product> found;
+            for (const auto& chart : p) {
+                if (chart.source == "GFS" && chart.id == "10_pv_ht") {
+                    found.push_back(chart);
+                }
+            }
+            for (auto x : found) {
+                x.source = "IFS";
+                x.label = "10mb Potential Vorticity (10-50mb layer), Wind and Height";
+                x.wants = {want("z", "HGT", "10 mb"), want("u", "UGRD", "10 mb"), want("v", "VGRD", "10 mb"), want("ta", "TMP", "10 mb"), want("tb", "TMP", "50 mb")};
+                x.fill = potentialVorticityOf(10.0, 50.0);
+                x.ramp = potentialVorticityRamp(260.0);
+                x.legendStep = 50;
+                p.push_back(x);
+            }
+        };
+        const std::map<std::string, std::function<void()>> own{{"IFS", ifsRecipes}, {"GEFS", gefsRecipes}, {"GEPS", gepsRecipes}, {"SPCPOST", [&] { spcRecipes("SPCPOST", false); }}, {"SPCGEFS", [&] { spcRecipes("SPCGEFS", true); }}, {"SFCOA", [&] { mesoRecipes("SFCOA"); }}, {"SPCREFS", spcRefsRecipes}, {"CFS30", cfs30Recipes}, {"EC46", [&] { openMeteoRecipes("EC46"); }}, {"SEAS5", [&] { openMeteoRecipes("SEAS5"); }}, {"WPC-PPP", pppRecipes}, {"RRFSD", [&] { mesoRecipes("RRFSD"); }}, {"RRFS", [&] { rrfsRecipes("RRFS"); }}, {"HRRR", [&] { rrfsRecipes("HRRR"); }}, {"HRRR-AK", [&] { rrfsRecipes("HRRR-AK"); }}, {"MPAS-HT", [&] { rrfsRecipes("MPAS-HT"); }}, {"MPAS-RN", [&] { rrfsRecipes("MPAS-RN"); }}, {"RRFS-AK", [&] { rrfsRecipes("RRFS-AK"); }}, {"RRFS-FIREWX", [&] { rrfsRecipes("RRFS-FIREWX"); }}, {"RRFS-HI", [&] { rrfsRecipes("RRFS-HI"); }}, {"RRFS-PR", [&] { rrfsRecipes("RRFS-PR"); }}, {"RRFS-NA", [&] { rrfsRecipes("RRFS-NA"); }}, {"GEOS-FP", geosRecipes}, {"IFS-ENS", ensRecipes}, {"ENS-ALL", ensAllRecipes}, {"REFS", refsRecipes}, {"HREF", hrefRecipes}, {"MF-SST", [&] { sstRecipes("MF-SST"); }}, {"MF-WAVE", [&] { mfWaveRecipes("MF-WAVE"); }}, {"MF-CURRENT", [&] { currentRecipes("MF-CURRENT"); }}, {"COPERNICUS", [&] { camsRecipes("COPERNICUS"); }}, {"GFS-WAVE", [&] { waveRecipes("GFS-WAVE"); }}, {"GEFS-WAVE", [&] { waveRecipes("GEFS-WAVE"); }}, {"HAFSA", [&] { hafsRecipes("HAFSA"); }}, {"HAFSB", [&] { hafsRecipes("HAFSB"); }}};
         for (const auto& def : GfsModels::all()) {
             if (def.clone.enabled) {
                 cloneFromGfs(def);

@@ -813,8 +813,8 @@ ICON-EU,"700mb Temperature, Wind and MSLP",Upper air,Value,#mb temperature,Press
 ICON-EU,850-700mb Mean Relative Humidity,Upper air,Value,Mean relative humidity of # and # mb,,,,,,1,850_700_rh
 ICON-EU,"700-300mb Mean Relative Humidity, 500mb Height and Wind",Upper air,Value,"Mean relative humidity, #mb",Heights,yes,,,,1,rh_700_300
 IFS,Total Precipitation every # hours,Precipitation and moisture,Value,"Precipitation, hours #","Pressure,Thickness",,,,03/06/12/24/36/48/60,7,precip_p03 precip_p06 precip_p12 precip_p24 precip_p36 ...
-IFS,"#mb Temperature, Wind and Height",Upper air,Value,Temperature,Heights,yes,,,50/100/850/925,4,100_temp_ht 50_temp_ht 850_temp_ht 925_temp_ht
-IFS,#mb Wind and Height,Upper air,Value,Wind speed,Heights,yes,,,50/100/500/850,4,100_wnd_ht 500_wnd_ht 50_wnd_ht 850_wnd_ht
+IFS,"#mb Temperature, Wind and Height",Upper air,Value,Temperature,Heights,yes,,,10/50/100/850/925,5,100_temp_ht 10_temp_ht 50_temp_ht 850_temp_ht 925_temp_ht
+IFS,#mb Wind and Height,Upper air,Value,Wind speed,Heights,yes,,,10/50/100/500/850,5,100_wnd_ht 10_wnd_ht 500_wnd_ht 50_wnd_ht 850_wnd_ht
 IFS,"MSLP, #-#mb thickness and precipitation",Precipitation and moisture,Value,"Precipitation, hours #","Pressure,Thickness",,,,850/1000 | 500/700/850,3,1000_500_thick 1000_850_thick 850_700_thick
 IFS,#mb Wind and Height,Upper air,Value,Wind speed,Heights,,,,200/250/300,3,200_wnd_ht 250_wnd_ht 300_wnd_ht
 IFS,"#mb Vorticity, Wind, and Height",Tropical and dynamics,Value,Relative vorticity,Heights,yes,,,500/850,2,500_vort_ht 850_vort_ht
@@ -839,6 +839,7 @@ IFS,"850mb Equivalent Potential Temperature, Wind and Height",Tropical and dynam
 IFS,"850mb Vorticity, 500mb Height, 200mb Wind",Tropical and dynamics,Value,#mb relative vorticity,Heights,yes,,,,1,850vor_500ht_200wd
 IFS,850-200mb Deep-Layer Wind Shear,Tropical and dynamics,Value,Shear magnitude,Pressure,yes,,,,1,shear_850_200
 IFS,850-200mb Mean Wind (Steering Flow),Tropical and dynamics,Value,Mean wind speed,Pressure,yes,,,,1,steering_850_200
+IFS,"10mb Potential Vorticity (10-50mb layer), Wind and Height",Upper air,Value,Potential vorticity,Heights,yes,,,,1,10_pv_ht
 IFS,"700mb Relative Humidity, Height and Omega",Upper air,Value,Relative humidity,"Heights,Omega",yes,,,,1,700_rh_ht
 IFS,"700mb Temperature, Wind and MSLP",Upper air,Value,#mb temperature,Pressure,yes,,,,1,700_temp_mslp
 IFS,850-700mb Mean Relative Humidity,Upper air,Value,Mean relative humidity of # and # mb,,,,,,1,850_700_rh

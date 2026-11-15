@@ -437,7 +437,7 @@ overlays = true
 list = true
 clone = true
 clone_variables = HGT, TMP, RH, UGRD, VGRD, VVEL, SPFH, PRMSL, DPT, GUST, TCDC, PWAT, CAPE, APCP, PRATE
-clone_levels = 1000 mb, 925 mb, 850 mb, 700 mb, 600 mb, 500 mb, 400 mb, 300 mb, 250 mb, 200 mb, 150 mb, 100 mb, 50 mb
+clone_levels = 1000 mb, 925 mb, 850 mb, 700 mb, 600 mb, 500 mb, 400 mb, 300 mb, 250 mb, 200 mb, 150 mb, 100 mb, 50 mb, 10 mb
 clone_pieces = false
 clone_skip = precip_p01
 )MODEL"},

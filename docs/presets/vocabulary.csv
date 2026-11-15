@@ -20,7 +20,7 @@ fill field,Chance of mixed-layer CAPE over # J/kg,7,2,ens_prob_cape_1000 ens_pro
 fill field,Chance of # in or more of snow in the hour,7,1,prob_1h_snow_0.1in prob_1h_snow_0.5in prob_1h_snow_1.5in prob_1h_snow_1in
 fill field,# m temperature,6,56,10m_wnd_2m_temp 2m_temp_10m_wnd 2m_tmpc member_2m_temp_mslp
 fill field,Chance of # in or more of precipitation in the # hours ending at the valid time,6,1,all_prob_24h_0.01in all_prob_24h_0.1in all_prob_24h_0.25in all_prob_24h_0.5in
-fill field,Potential vorticity,6,1,100_pv_ht 10_pv_ht 20_pv_ht 30_pv_ht
+fill field,Potential vorticity,6,2,100_pv_ht 10_pv_ht 20_pv_ht 30_pv_ht
 fill field,#-h QPF > # in (ensemble probability),6,1,qpf_01h_acc_prob_t>001 qpf_01h_acc_prob_t>0p010 qpf_06h_acc_prob_t>001 qpf_06h_acc_prob_t>002
 fill field,Relative vorticity,5,39,500_vort_ht 850_stream_vort 850_vort_ht max_relv_0_1km
 fill field,"Precipitation (green rain, blue snow, pink mixed), hours #",5,10,1000_850_thick_type 10m_wnd_precip_type 850_700_thick_type 850_temp_mslp_precip_type
@@ -390,7 +390,7 @@ level,50 mb,3,13,50_pv_ht 50_temp_ht 50_wnd_ht
 level,925 mb,3,34,925_temp_ht 925_temp_wnd 925_wnd
 level,1000-500 mb,3,15,1000_500_thick ens_1000_500_thick precip_rate_type
 level,1000-850 mb,3,15,1000_850_thick 1000_850_thick_type ens_1000_850_thick
-level,10 mb,3,4,10_pv_ht 10_temp_ht 10_wnd_ht
+level,10 mb,3,5,10_pv_ht 10_temp_ht 10_wnd_ht
 level,30 mb,3,3,30_pv_ht 30_temp_ht 30_wnd_ht
 level,20 mb,3,1,20_pv_ht 20_temp_ht 20_wnd_ht
 level,70 mb,3,1,70_pv_ht 70_temp_ht 70_wnd_ht

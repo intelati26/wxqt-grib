@@ -1213,6 +1213,9 @@ CHART IFS|Tropical and dynamics|shear_850_200|850-200mb Deep-Layer Wind Shear|Sh
 CHART IFS|Tropical and dynamics|steering_850_200|850-200mb Mean Wind (Steering Flow)|Mean wind speed (kt)|Sea level pressure (mb)|own||0
 CHART IFS|Upper air|100_temp_ht|100mb Temperature, Wind and Height|Temperature|Height (dam)|own||0
 CHART IFS|Upper air|100_wnd_ht|100mb Wind and Height|Wind speed (kt)|Height (dam)|own||0
+CHART IFS|Upper air|10_pv_ht|10mb Potential Vorticity (10-50mb layer), Wind and Height|Potential vorticity (PVU)|Height (dam)|own||0
+CHART IFS|Upper air|10_temp_ht|10mb Temperature, Wind and Height|Temperature|Height (dam)|own||0
+CHART IFS|Upper air|10_wnd_ht|10mb Wind and Height|Wind speed (kt)|Height (dam)|own||0
 CHART IFS|Upper air|200_wnd_ht|200mb Wind and Height|Wind speed (kt)|Height (dam)|||0
 CHART IFS|Upper air|250_wnd_ht|250mb Wind and Height|Wind speed (kt)|Height (dam)|||0
 CHART IFS|Upper air|300_wnd_ht|300mb Wind and Height|Wind speed (kt)|Height (dam)|||0
@@ -3912,6 +3915,9 @@ LEVELS IFS|100_temp_ht|z=HGT@100 mb,u=UGRD@100 mb,v=VGRD@100 mb,t=TMP@100 mb|HGT
 LEVELS IFS|100_wnd_ht|z=HGT@100 mb,u=UGRD@100 mb,v=VGRD@100 mb|HGT@100 mb|UGRD@100 mb
 LEVELS IFS|10m_wnd_2m_temp|t=TMP@2 m above ground,u=UGRD@10 m above ground,v=VGRD@10 m above ground,p=PRMSL@mean sea level|PRMSL@mean sea level|UGRD@10 m above ground
 LEVELS IFS|10m_wnd_precip|||
+LEVELS IFS|10_pv_ht|z=HGT@10 mb,u=UGRD@10 mb,v=VGRD@10 mb,ta=TMP@10 mb,tb=TMP@50 mb|HGT@10 mb|UGRD@10 mb
+LEVELS IFS|10_temp_ht|z=HGT@10 mb,u=UGRD@10 mb,v=VGRD@10 mb,t=TMP@10 mb|HGT@10 mb|UGRD@10 mb
+LEVELS IFS|10_wnd_ht|z=HGT@10 mb,u=UGRD@10 mb,v=VGRD@10 mb|HGT@10 mb|UGRD@10 mb
 LEVELS IFS|200_div_wnd|z=HGT@200 mb,u=UGRD@200 mb,v=VGRD@200 mb|HGT@200 mb|UGRD@200 mb
 LEVELS IFS|200_stream_div|z=HGT@200 mb,u=UGRD@200 mb,v=VGRD@200 mb||
 LEVELS IFS|200_wnd_ht|z=HGT@200 mb,u=UGRD@200 mb,v=VGRD@200 mb|HGT@200 mb|
