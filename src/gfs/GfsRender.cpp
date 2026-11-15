@@ -918,6 +918,44 @@ GfsChart::Options GfsRender::chartOptions(const OptionPrefs& prefs, const std::s
     return options;
 }
 
+GfsData::Run GfsRender::runForCycle(const GfsData::Run& newest, const std::string& wanted, int cycleHours) {
+    // the newest run stepped back, a cycle at a time, to the one at the hour asked for (an earlier cycle of the screen's choice)
+    auto t = QDateTime::fromString(QString::fromStdString(newest.id()), "yyyyMMddHH");
+    t.setTimeZone(QTimeZone::utc());
+    const int step = std::max(1, cycleHours);
+    for (int back = 0; back < 24 / step && t.toString("HH").toStdString() != wanted; back++) {
+        t = t.addSecs(-static_cast<qint64>(step) * 3600);
+    }
+    return {t.toString("yyyyMMdd").toStdString(), t.toString("HH").toStdString()};
+}
+
+bool GfsRender::hourForValidTime(const std::string& model, GfsData::Run& run, const std::string& validTime, int& hour, std::string& error) {
+    const auto * modelDef = GfsModels::find(model);
+    if (modelDef != nullptr && modelDef->hourlyRuns && modelDef->hours.size() == 1 && modelDef->hours.front().to == 0 && validTime.size() == 10) {
+        run = {validTime.substr(0, 8), validTime.substr(8, 2)};   // an analysis is its own hour: the run of that time
+    }
+    auto start = QDateTime::fromString(QString::fromStdString(run.id()), "yyyyMMddHH");
+    auto valid = QDateTime::fromString(QString::fromStdString(validTime), "yyyyMMddHH");
+    start.setTimeZone(QTimeZone::utc());   // both are UTC: no daylight saving between them
+    valid.setTimeZone(QTimeZone::utc());
+    const auto seconds = start.secsTo(valid);
+    const auto label = valid.toString("ddd HH").toStdString() + "Z";
+    if (!start.isValid() || !valid.isValid() || seconds < 0 || seconds % 3600 != 0) {
+        error = model + " has no forecast for " + label + " (its newest run, " + run.id() + ", " + (seconds < 0 ? "starts after it)" : "does not reach it)");
+        return false;
+    }
+    hour = static_cast<int>(seconds / 3600);
+    bool offered = modelDef == nullptr;
+    for (const auto& range : modelDef ? modelDef->hours : std::vector<GfsModels::Hours>{}) {
+        offered = offered || (hour >= range.from && hour <= range.to && (hour - range.from) % range.step == 0);
+    }
+    if (!offered) {
+        error = model + " does not make an F" + std::to_string(hour) + " forecast for " + label + " from its " + run.id() + " run.";
+        return false;
+    }
+    return true;
+}
+
 QByteArray GfsRender::png(Session& session, const std::string& model, const std::string& param, const std::string& sectorId, const std::string& cycle, int hour, const std::vector<std::string>& overlays, std::string& error, GfsChart::Probe * probe, const Variant& variant) {
     try {   // a chart that cannot be made yet (the standard deviations still being worked out) says why
     const auto * base = GfsChart::product(param, model);
@@ -990,39 +1028,11 @@ QByteArray GfsRender::png(Session& session, const std::string& model, const std:
             }
         }
     } else if (!exact && wanted != run.cycle && wanted.size() == 2 && std::isdigit(static_cast<unsigned char>(wanted[0]))) {
-        auto t = QDateTime::fromString(QString::fromStdString(run.id()), "yyyyMMddHH");
-        t.setTimeZone(QTimeZone::utc());
-        const int step = gfs.model().cycleHours;
-        for (int back = 0; back < 24 / step && t.toString("HH").toStdString() != wanted; back++) {
-            t = t.addSecs(-static_cast<qint64>(step) * 3600);
-        }
-        run = {t.toString("yyyyMMdd").toStdString(), t.toString("HH").toStdString()};
+        run = runForCycle(run, wanted, gfs.model().cycleHours);
     }
     GfsChart::Grids grids;
-    if (!variant.validTime.empty()) {   // by the clock: the hour of the run used that is this valid time
-        if (const auto * analysis = GfsModels::find(model); analysis != nullptr && analysis->hourlyRuns && analysis->hours.size() == 1 && analysis->hours.front().to == 0 && variant.validTime.size() == 10) {
-            run = {variant.validTime.substr(0, 8), variant.validTime.substr(8, 2)};   // an analysis is its own hour: the run of that time
-        }
-        auto start = QDateTime::fromString(QString::fromStdString(run.id()), "yyyyMMddHH");
-        auto valid = QDateTime::fromString(QString::fromStdString(variant.validTime), "yyyyMMddHH");
-        start.setTimeZone(QTimeZone::utc());   // both are UTC: no daylight saving between them
-        valid.setTimeZone(QTimeZone::utc());
-        const auto seconds = start.secsTo(valid);
-        const auto label = valid.toString("ddd HH").toStdString() + "Z";
-        if (!start.isValid() || !valid.isValid() || seconds < 0 || seconds % 3600 != 0) {
-            error = model + " has no forecast for " + label + " (its newest run, " + run.id() + ", " + (seconds < 0 ? "starts after it)" : "does not reach it)");
-            return {};
-        }
-        hour = static_cast<int>(seconds / 3600);
-        const auto * modelDef = GfsModels::find(model);
-        bool offered = modelDef == nullptr;
-        for (const auto& range : modelDef ? modelDef->hours : std::vector<GfsModels::Hours>{}) {
-            offered = offered || (hour >= range.from && hour <= range.to && (hour - range.from) % range.step == 0);
-        }
-        if (!offered) {
-            error = model + " does not make an F" + std::to_string(hour) + " forecast for " + label + " from its " + run.id() + " run.";
-            return {};
-        }
+    if (!variant.validTime.empty() && !hourForValidTime(model, run, variant.validTime, hour, error)) {   // by the clock: the hour of the run used that is this valid time
+        return {};
     }
     if (base && !variant.member.empty()) {
         if (model == "SPCREFS") {

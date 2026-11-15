@@ -142,6 +142,13 @@ namespace GfsRender {
     // frame, the ring of a saved location, the mark of the maximum, the units, what the request hands back (the fill, the lines, the probe) and the size of the picture. A bare chart (the
     // map layer's) has no frame marks and no ring.
     GfsChart::Options chartOptions(const OptionPrefs& prefs, const std::string& sectorId, double localLat, double localLon, const std::string& localName, const Variant& variant, GfsChart::Probe * probe, GfsChart::Probe * bareProbe);
+
+    // The run at the hour asked for ("06"): the newest run stepped back, a cycle (cycleHours) at a time, to the one that starts then. The newest run itself when it is at that hour.
+    GfsData::Run runForCycle(const GfsData::Run& newest, const std::string& wanted, int cycleHours);
+
+    // The forecast hour of a run that is a valid time ("yyyyMMddHH", UTC): `hour`. An analysis (one hour, hour 0) is its own run, so `run` becomes the run of that time. False, with `error`, when the
+    // run starts after the valid time or the model makes no forecast for that hour.
+    bool hourForValidTime(const std::string& model, GfsData::Run& run, const std::string& validTime, int& hour, std::string& error);
 }
 
 #endif  // GFSRENDER_H
