@@ -268,7 +268,7 @@ The model screen's NCEP page lists only the models drawn from GRIB; the models t
 
 **Open points:** where the NBM text bulletins fit with the NBM GRIB model's own run list (the page could say which run it used, as the model does); whether the tab or a window of its own: a tab keeps the place box shared; whether wind in mph needs `windDirection` and the other bulletin elements added to `parameters()` or stays inside the new code.
 
-## 9. Charts as presets of the checks (plan, 2026-11-13; nothing written)
+## 9. Charts as presets of the checks (plan, 2026-11-13; the Checks picker and the alias table are built, 2026-11-13 to 15)
 
 Today the Model Viewer's picker lists every chart of a model (GFS: 62; the picker says 51 once the precipitation ones sit behind "Precip by parts"), and under the list a grid of checks (fill, lines, barbs by level and field) adds fields to the chosen chart. Most of the list is a base fill plus some of those same lines and barbs, so the list can shrink to a few base charts and the grid says the rest.
 
@@ -1944,7 +1944,7 @@ day (more when changed), text only.
   purpose), a marker on the map at the target point, and remarks shown as text; the parsing is small (line-based). History of
   plans from the archive listing.
 
-## 19. The polar vortex: the initial state of the global models since a date (idea, 2026-11-14; nothing written)
+## 19. The polar vortex: the initial state of the global models since a date (built 2026-11-14 to 15: history, strip, change, section, waves; see the notes below for what is left)
 
 **The wish:** watch the stratospheric polar vortex through the season: the f000 (the initial state) of the global models, as a history from a chosen date to now.
 
