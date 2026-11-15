@@ -72,6 +72,21 @@ for (const auto& [id, label, level, interval] : {std::tuple{"850_temp_ht", "850m
     x.quantity = Quantity::Temperature;
     p.push_back(x);
 }
+// the stratosphere, for the polar vortex: wind speed, and temperature, with the heights as lines (the levels the model files carry: 100, 50, 30 and 10 mb)
+for (const auto& [level, interval] : {std::pair{"100 mb", 6.0}, {"50 mb", 8.0}, {"30 mb", 12.0}, {"10 mb", 16.0}}) {
+    const std::string number = std::string{level}.substr(0, std::string{level}.size() - 3);
+    auto wind = upper((number + "_wnd_ht").c_str(), (number + "mb Wind and Height").c_str(), level, interval);
+    wind.legendStep = 20;
+    p.push_back(wind);
+    auto temp = upper((number + "_temp_ht").c_str(), (number + "mb Temperature, Wind and Height").c_str(), level, interval);
+    temp.wants.push_back(want("t", "TMP", level));
+    temp.fill = [] (const Grids& g) { return pick(g, "t"); };
+    temp.ramp = stratosphereTemperature();
+    temp.fillTitle = "Temperature";
+    temp.legendStep = 10;
+    temp.quantity = Quantity::Temperature;
+    p.push_back(temp);
+}
 {   // humidity
     auto x = upper("500_rh_ht", "500mb Relative Humidity and Height", "500 mb", 6);
     x.wants = {want("z", "HGT", "500 mb"), want("rh", "RH", "500 mb"), want("u", "UGRD", "500 mb"), want("v", "VGRD", "500 mb")};

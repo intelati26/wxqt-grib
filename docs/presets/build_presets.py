@@ -21,8 +21,8 @@ def norm(t):
 def level_of(lab, i):
     m = re.search(r'(\d{3,4})\s?-\s?(\d{3,4})\s?mb', lab)
     if m: return f'{m.group(1)}-{m.group(2)} mb'
-    m = re.search(r'(\d{3,4})\s?mb', lab, re.I) or re.search(r'^(\d{3,4})_', i)
-    if m and 100 <= int(m.group(1)) <= 1000: return f'{m.group(1)} mb'
+    m = re.search(r'(\d{2,4})\s?mb', lab, re.I) or re.search(r'^(\d{2,4})_', i)
+    if m and 10 <= int(m.group(1)) <= 1000: return f'{m.group(1)} mb'   # (the stratosphere too: 10, 30, 50 mb)
     if re.search(r'\b10 ?m\b', lab): return '10 m'
     if re.search(r'\b2 ?m\b', lab): return '2 m'
     return ''

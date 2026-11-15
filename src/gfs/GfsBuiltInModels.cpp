@@ -125,7 +125,7 @@ overlays = true
 list = true
 clone = true
 clone_variables = HGT, TMP, RH, UGRD, VGRD, VVEL, PRMSL, PWAT, CAPE, CIN, APCP, CRAIN, CSNOW, CFRZR, CICEP, TCDC, DPT, GUST, SNOD, WEASD, TMAX, TMIN, HLCY
-clone_levels = 10 mb, 50 mb, 100 mb, 200 mb, 250 mb, 300 mb, 400 mb, 500 mb, 700 mb, 850 mb, 925 mb, 1000 mb
+clone_levels = 10 mb, 30 mb, 50 mb, 100 mb, 200 mb, 250 mb, 300 mb, 400 mb, 500 mb, 700 mb, 850 mb, 925 mb, 1000 mb
 clone_pieces = true
 clone_prefix = "Mean "
 clone_plain = precip_p
@@ -1643,7 +1643,7 @@ overlays = true
 list = true
 clone = true
 clone_variables = HGT, TMP, RH, UGRD, VGRD, SPFH, VVEL, DPT, PRMSL, PWAT, CAPE, TCDC
-clone_levels = 10 mb, 50 mb, 100 mb, 200 mb, 250 mb, 300 mb, 400 mb, 500 mb, 700 mb, 850 mb, 925 mb, 1000 mb
+clone_levels = 10 mb, 30 mb, 50 mb, 100 mb, 200 mb, 250 mb, 300 mb, 400 mb, 500 mb, 700 mb, 850 mb, 925 mb, 1000 mb
 clone_skip = anom, precip
 clone_pieces = false
 )MODEL"},

@@ -116,6 +116,7 @@ const std::vector<std::string>& ingredientSources();
 
 // the color scales of the charts (GfsChartRamps.cpp)
 Ramp temperature();
+Ramp stratosphereTemperature();   // degrees C, -100 to -20
 Ramp bands4F(const Ramp& base, double lowF, double highF);
 Ramp windSpeed();
 Ramp vorticityRamp();   // units of 1e-5 per second; the cyclonic side only

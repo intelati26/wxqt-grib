@@ -191,5 +191,10 @@ Ramp snowfall() {   // centimeters of new snow, the steps at whole and simple in
              {50.8, QColor{"#5b2a8a"}}, {76.2, QColor{"#8b4aa6"}}}};
 }
 
+Ramp stratosphereTemperature() {   // degrees C at 100 to 10 mb: the polar winter's cold (-80 and below) in purples and blues, the warm side of a sudden warming in oranges
+    return {{{-100, QColor{"#4b2d7f"}}, {-90, QColor{"#5b55a8"}}, {-80, QColor{"#3f74b8"}}, {-70, QColor{"#4aa0d4"}}, {-60, QColor{"#9ad6e6"}}, {-50, QColor{"#dcefb4"}},
+             {-40, QColor{"#f8d97e"}}, {-30, QColor{"#e57741"}}, {-20, QColor{"#c54331"}}}};
+}
+
 }  // namespace detail
 }  // namespace GfsChart
