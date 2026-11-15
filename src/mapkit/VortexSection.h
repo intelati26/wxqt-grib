@@ -21,11 +21,16 @@ namespace VortexSection {
         std::vector<int> levels;                    // mb, the top of the atmosphere first
         std::vector<std::vector<double>> wind;      // [level][time], m/s, NaN where there is none
         bool south{false};
+        bool byLatitude{false};                     // the rows are latitudes (degrees, the pole first) of one level, not levels: the time-latitude section
+        int level{0};                               // mb, for the time-latitude section
     };
 
     // The mean wind of the circle of 60 degrees (north, or south) of the model's initial state at each time, for each level; blocking (a read of the fields of every level at every time): call
     // it from a thread. `progress(i, n)` is asked before each time and says false to stop. False when stopped or when nothing was read.
     bool collect(const std::string& model, const std::vector<QDateTime>& when, const std::vector<int>& levels, bool south, Series& out, const std::function<bool(size_t, size_t)>& progress);
+
+    // The time-latitude section of one level: the zonal-mean zonal wind at every 5 degrees from 25 to 85 (north, or south), one read of the level's wind for each time. The pole is the top row.
+    bool collectLatitudes(const std::string& model, const std::vector<QDateTime>& when, int level, bool south, Series& out, const std::function<bool(size_t, size_t)>& progress);
 
     // The planetary waves of one level: the amplitude of wave 1 and of wave 2 of the height on the circle of 60 degrees (a Fourier series of the heights every 2.5 degrees of longitude), and
     // the zonal-mean wind there, at each time. A vortex displaced toward a continent is wave 1; a split one is wave 2: the zonal mean wind can stay positive through both.

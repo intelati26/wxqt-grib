@@ -869,9 +869,11 @@ int main(int argc, char * argv[]) {
                 const bool south = parts.value(6) == "south";
                 const auto model = parts.value(1).toStdString();
                 const QString out = parts.value(5);
-                QTimer::singleShot(500, &a, [when, levels, south, model, out, &a] {
+                const int latitudesOf = parts.value(7).startsWith("lat") ? parts.value(7).mid(3).toInt() : 0;   // (":lat10": the time-latitude section of 10 mb)
+                QTimer::singleShot(500, &a, [when, levels, south, model, out, latitudesOf, &a] {
                     VortexSection::Series series;
-                    const bool ok = VortexSection::collect(model, when, levels, south, series, [] (size_t i, size_t n) { qWarning("section: time %zu of %zu", i + 1, n); return true; });
+                    const auto progress = [] (size_t i, size_t n) { qWarning("section: time %zu of %zu", i + 1, n); return true; };
+                    const bool ok = latitudesOf > 0 ? VortexSection::collectLatitudes(model, when, latitudesOf, south, series, progress) : VortexSection::collect(model, when, levels, south, series, progress);
                     const auto image = ok ? VortexSection::draw(series, 1400, QString::fromStdString(model) + " initial states, " + when.front().toString("yyyy-MM-dd") + " to " + when.back().toString("yyyy-MM-dd")) : QImage{};
                     qWarning("section: %s (%zu levels)", image.isNull() ? "no picture" : "saved", series.levels.size());
                     if (!image.isNull()) {

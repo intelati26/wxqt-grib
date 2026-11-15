@@ -71,6 +71,48 @@ bool VortexSection::collect(const std::string& model, const std::vector<QDateTim
     return !out.levels.empty();
 }
 
+bool VortexSection::collectLatitudes(const std::string& model, const std::vector<QDateTime>& when, int level, bool south, Series& out, const std::function<bool(size_t, size_t)>& progress) {
+    out = Series{};
+    out.when = when;
+    out.south = south;
+    out.byLatitude = true;
+    out.level = level;
+    for (int latitude = 85; latitude >= 25; latitude -= 5) {
+        out.levels.push_back(latitude);
+    }
+    out.wind.assign(out.levels.size(), std::vector<double>(when.size(), std::nan("")));
+    bool any = false;
+    for (size_t i = 0; i < when.size(); i++) {
+        if (!progress(i, when.size())) {
+            return false;
+        }
+        const auto sources = WorldRender::loadSources(std::to_string(level) + "_wnd_ht", {model}, when[i]);
+        if (sources.empty() || sources.front().windU.empty()) {
+            continue;
+        }
+        for (size_t row = 0; row < out.levels.size(); row++) {
+            const double latitude = south ? -out.levels[row] : out.levels[row];
+            double sum = 0.0;
+            int n = 0;
+            for (double lon = -180.0; lon < 180.0; lon += 2.5) {
+                float u = sources.front().windU.sample(lon, latitude);
+                if (std::isnan(u)) {
+                    u = sources.front().windU.sample(lon + 360.0, latitude);
+                }
+                if (!std::isnan(u)) {
+                    sum += u;
+                    n++;
+                }
+            }
+            if (n > 0) {
+                out.wind[row][i] = sum / n;
+                any = true;
+            }
+        }
+    }
+    return any;
+}
+
 QImage VortexSection::draw(const Series& series, int width, const QString& title) {
     if (series.levels.empty() || series.when.empty()) {
         return {};
@@ -94,7 +136,8 @@ QImage VortexSection::draw(const Series& series, int width, const QString& title
     p.setFont(font);
     p.setPen(QColor{80, 80, 80});
     p.drawText(QRectF{left, 36 * unit, width - left - right, 20 * unit}, Qt::AlignLeft | Qt::AlignVCenter,
-               QString{"Zonal-mean zonal wind on the circle of 60°%1 (m/s): red westerly, blue easterly (the winds have reversed)"}.arg(series.south ? "S" : "N"));
+               series.byLatitude ? QString{"Zonal-mean zonal wind at %1 mb by latitude (m/s): red westerly, blue easterly (the winds have reversed)"}.arg(series.level)
+                                                 : QString{"Zonal-mean zonal wind on the circle of 60°%1 (m/s): red westerly, blue easterly (the winds have reversed)"}.arg(series.south ? "S" : "N"));
     double reach = 10.0;   // the scale holds the largest wind seen, in tens
     for (const auto& row : series.wind) {
         for (const double v : row) {
@@ -112,7 +155,7 @@ QImage VortexSection::draw(const Series& series, int width, const QString& title
             p.fillRect(QRectF{left + cell * static_cast<double>(i), y, cell + 0.6, static_cast<double>(rowHeight)}, windColor(series.wind[l][i], reach));
         }
         p.setPen(QColor{40, 40, 40});
-        p.drawText(QRectF{4 * unit, y, left - 10 * unit, static_cast<double>(rowHeight)}, Qt::AlignRight | Qt::AlignVCenter, QString::number(series.levels[l]) + " mb");
+        p.drawText(QRectF{4 * unit, y, left - 10 * unit, static_cast<double>(rowHeight)}, Qt::AlignRight | Qt::AlignVCenter, series.byLatitude ? QString{"%1\u00b0%2"}.arg(series.levels[l]).arg(series.south ? "S" : "N") : QString::number(series.levels[l]) + " mb");
     }
     p.setPen(QPen{QColor{120, 120, 120}, std::max(1.0, unit)});
     p.setBrush(Qt::NoBrush);

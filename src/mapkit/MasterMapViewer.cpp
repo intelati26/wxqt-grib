@@ -59,6 +59,7 @@
 #include <QScrollArea>
 #include "mapkit/WorldRender.h"
 #include "mapkit/VortexSection.h"
+#include "settings/UIPreferences.h"
 #include "settings/RadarPreferences.h"
 #include "models/ChartPickers.h"
 #include "models/ProductPicker.h"
@@ -1699,7 +1700,7 @@ void MasterMapViewer::saveModelLoop() {
 // back. `progress(i)` is asked before each one and says false to stop. The times that gave no picture are named in `skipped`. False when stopped.
 // A strip under a picture of the history: the vortex's numbers through the season (the zonal-mean wind on the circle of 60 degrees, and the cap's mean temperature when the chart has it), one value
 // per picture, the line to the picture drawn bold with a ring at it. `level` names the chart's level ("10 mb"), `south` the southern winter.
-static QByteArray withStrip(const QByteArray& png, size_t at, const std::vector<QDateTime>& when, const std::vector<double>& wind, const std::vector<double>& temperature, const QString& level, bool south) {
+static QByteArray withStrip(const QByteArray& png, size_t at, const std::vector<QDateTime>& when, const std::vector<double>& wind, const std::vector<double>& temperature, const QString& level, bool south, bool fahrenheit) {
     QImage picture;
     if (!picture.loadFromData(png, "PNG")) {
         return png;
@@ -1794,7 +1795,7 @@ static QByteArray withStrip(const QByteArray& png, size_t at, const std::vector<
     painter.setPen(windColor);
     painter.drawText(QRectF{plot.left(), picture.height() + 6 * unit, plot.width() * 0.55, 22 * unit}, Qt::AlignLeft | Qt::AlignVCenter, words);
     if (hasTemperature) {
-        QString tempWords = QString{"Mean temperature beyond 60\u00b0%1 (\u00b0C)"}.arg(south ? "S" : "N");
+        QString tempWords = QString{"Mean temperature beyond 60\u00b0%1 (\u00b0%2)"}.arg(south ? "S" : "N", fahrenheit ? "F" : "C");
         if (!std::isnan(temperature[at])) {
             tempWords += QString{": %1"}.arg(temperature[at], 0, 'f', 1);
         }
@@ -1851,8 +1852,14 @@ bool MasterMapViewer::initialStateFrames(const std::vector<QDateTime>& when, Glo
         // the level of the chart ("10_wnd_ht": 10 mb)
         const auto id = QString::fromStdString(chart->chartId());
         const QString level = id.section('_', 0, 0).toInt() > 0 ? id.section('_', 0, 0) + " mb" : QString{};
+        const bool fahrenheit = UIPreferences::unitsF;   // (the legend follows the user's units: so does the strip)
+        if (fahrenheit) {
+            for (auto& t : temperature) {
+                t = t * 1.8 + 32.0;
+            }
+        }
         for (size_t i = 0; i < frames.size(); i++) {
-            frames[i] = withStrip(frames[i], i, made, wind, temperature, level, projection == GlobeMapView::Projection::PolarSouth);
+            frames[i] = withStrip(frames[i], i, made, wind, temperature, level, projection == GlobeMapView::Projection::PolarSouth, fahrenheit);
         }
     }
     return true;
@@ -2021,15 +2028,16 @@ void MasterMapViewer::saveVortexSection() {
     auto * picture = UiStandards::combo(&dialog);
     picture->addItem("The wind by level and time (a row for each level)", 0);
     picture->addItem("The waves of one level: wave 1 and 2 of the height, with the wind (a graph)", 1);
+    picture->addItem("The wind by latitude and time, at one level (a row for each 5 degrees)", 2);
     auto * waveLevel = UiStandards::combo(&dialog);
     for (const int mb : {1, 2, 5, 10, 20, 30, 50, 70, 100}) {
         waveLevel->addItem(QString::number(mb) + " mb", mb);
     }
     waveLevel->setCurrentIndex(3);
     waveLevel->setEnabled(false);
-    QObject::connect(picture, &QComboBox::currentIndexChanged, waveLevel, [picture, waveLevel] { waveLevel->setEnabled(picture->currentData().toInt() == 1); });
+    QObject::connect(picture, &QComboBox::currentIndexChanged, waveLevel, [picture, waveLevel] { waveLevel->setEnabled(picture->currentData().toInt() >= 1); });
     form->insertRow(0, "Picture", picture);
-    form->addRow("Level (the waves)", waveLevel);
+    form->addRow("Level (waves, latitudes)", waveLevel);
     column->addLayout(form);
     auto * buttons = new QDialogButtonBox{QDialogButtonBox::Ok | QDialogButtonBox::Cancel, &dialog};
     QObject::connect(buttons, &QDialogButtonBox::accepted, &dialog, &QDialog::accept);
@@ -2056,7 +2064,7 @@ void MasterMapViewer::saveVortexSection() {
     std::atomic<bool> stop{false};
     VortexSection::Series series;
     VortexSection::Waves waves;
-    const bool wavesWanted = picture->currentData().toInt() == 1;
+    const bool wavesWanted = picture->currentData().toInt() == 1, latitudesWanted = picture->currentData().toInt() == 2;
     const int wavesAt = waveLevel->currentData().toInt();
     bool ok = false;
     QEventLoop loop;
@@ -2071,7 +2079,7 @@ void MasterMapViewer::saveVortexSection() {
     ticker.start(250);
     new FutureVoid{this, [&] {
         const auto step = [&] (size_t i, size_t) { reached = i; return !stop.load(); };
-        ok = wavesWanted ? VortexSection::collectWaves(model, when, wavesAt, south, waves, step) : VortexSection::collect(model, when, levels, south, series, step);
+        ok = wavesWanted ? VortexSection::collectWaves(model, when, wavesAt, south, waves, step) : latitudesWanted ? VortexSection::collectLatitudes(model, when, wavesAt, south, series, step) : VortexSection::collect(model, when, levels, south, series, step);
     }, [&loop] { loop.quit(); }};
     loop.exec();
     ticker.stop();
@@ -2085,7 +2093,7 @@ void MasterMapViewer::saveVortexSection() {
         QMessageBox::warning(this, "Save the vortex section", "No wind could be read: the model has no wind charts in the runs of those times.");
         return;
     }
-    const auto path = QFileDialog::getSaveFileName(this, "Save the vortex section", ChartExport::startFolder() + "/" + ChartExport::fileName(wavesWanted ? "vortex waves" : "vortex section", "png"), "PNG image (*.png)");
+    const auto path = QFileDialog::getSaveFileName(this, "Save the vortex section", ChartExport::startFolder() + "/" + ChartExport::fileName(wavesWanted ? "vortex waves" : latitudesWanted ? "vortex latitudes" : "vortex section", "png"), "PNG image (*.png)");
     if (!path.isEmpty() && !image.save(path, "PNG")) {
         QMessageBox::warning(this, "Save the vortex section", "The file could not be written: " + path);
     }
