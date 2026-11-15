@@ -185,6 +185,7 @@ private:
         double wind{std::nan("")}, capTemperature{std::nan("")};
     };
     VortexNumbers vortexNumbers;
+    QComboBox * barbDensityBox{nullptr};   // the side panel's choice of the wind barbs' density (the setting BARB_SPACING)
     void saveInitialStates();                        // the model chart's initial state (the f000 of each run) from a date to another, on a world projection, as a GIF / video: the polar vortex through the season
     void saveModelLoop();                            // the hours of the model chart as a GIF / video of titled pictures
     // views kept by name: the layers on, the region and the model chart's settings

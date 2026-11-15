@@ -151,6 +151,28 @@ namespace {
     }
 }
 
+// The wind barbs' density as a box (the setting BARB_SPACING: the distance between the barbs, percent of normal; lower is denser). A value set in the Settings page that is none of the choices is added.
+static QComboBox * barbDensityCombo(QWidget * parent) {
+    auto * density = UiStandards::combo(parent);
+    for (const auto& [text, percent] : std::vector<std::pair<QString, int>>{{"Sparser", 150}, {"Normal", 100}, {"Denser", 75}, {"Densest", 55}, {"Packed", 40}}) {
+        density->addItem(text, percent);
+    }
+    const int now = Utility::readPrefInt("BARB_SPACING", 100);
+    int found = -1;
+    for (int i = 0; i < density->count(); i++) {
+        if (density->itemData(i).toInt() == now) {
+            found = i;
+        }
+    }
+    if (found < 0) {   // a value from the settings page
+        density->addItem(QString{"%1% apart"}.arg(now), now);
+        found = density->count() - 1;
+    }
+    density->setCurrentIndex(found);
+    density->setToolTip("How close together the wind barbs are drawn: on the model charts, the SAR winds and the exports. Finer values are in the Settings (radar box)");
+    return density;
+}
+
 MasterMapViewer::MasterMapViewer(Window * parent, const string& startView)
     : Window{parent}
     , comboView{this, {"Your layers"}}
@@ -263,24 +285,8 @@ MasterMapViewer::MasterMapViewer(Window * parent, const string& startView)
         auto * rowLayout = new QHBoxLayout{row};
         rowLayout->setContentsMargins(0, 0, 0, 0);
         rowLayout->addWidget(new QLabel{"Wind barbs:", row});
-        auto * density = UiStandards::combo(row);
-        const std::vector<std::pair<QString, int>> choices{{"Sparser", 150}, {"Normal", 100}, {"Denser", 75}, {"Densest", 55}};
-        for (const auto& [text, percent] : choices) {
-            density->addItem(text, percent);
-        }
-        const int now = Utility::readPrefInt("BARB_SPACING", 100);
-        int found = -1;
-        for (int i = 0; i < density->count(); i++) {
-            if (density->itemData(i).toInt() == now) {
-                found = i;
-            }
-        }
-        if (found < 0) {   // a value from the settings page
-            density->addItem(QString{"%1% apart"}.arg(now), now);
-            found = density->count() - 1;
-        }
-        density->setCurrentIndex(found);
-        density->setToolTip("How close together the wind barbs are drawn: on the model charts, the SAR winds and the exports. Finer values are in the Settings (radar box)");
+        auto * density = barbDensityCombo(row);
+        barbDensityBox = density;
         QObject::connect(density, &QComboBox::currentIndexChanged, [this, density] (int) {
             Utility::writePrefInt("BARB_SPACING", density->currentData().toInt());
             redraw();
@@ -1886,6 +1892,8 @@ void MasterMapViewer::saveInitialStates() {
     form->addRow("Map", projection);
     form->addRow("Size", width);
     column->addLayout(form);
+    auto * barbs = barbDensityCombo(&dialog);
+    form->addRow("Wind barbs", barbs);
     auto * stripBox = new QCheckBox{"Add the vortex strip under each picture: the zonal-mean wind at 60\u00b0 (and the polar cap's temperature on a temperature chart) through the dates", &dialog};
     stripBox->setToolTip("One value per picture, the line drawn up to the picture shown. The wind's change of sign (to below zero) is a sudden warming. Needs a chart with the wind (barbs): the strip is left out when it has none");
     column->addWidget(stripBox);
@@ -1906,6 +1914,16 @@ void MasterMapViewer::saveInitialStates() {
     column->addWidget(buttons);
     if (dialog.exec() != QDialog::Accepted) {
         return;
+    }
+    if (barbs->currentData().toInt() != Utility::readPrefInt("BARB_SPACING", 100)) {   // (the setting is the master map's own: its box follows)
+        Utility::writePrefInt("BARB_SPACING", barbs->currentData().toInt());
+        if (barbDensityBox != nullptr) {
+            const int at = barbDensityBox->findData(barbs->currentData().toInt());
+            QSignalBlocker blocker{barbDensityBox};
+            if (at >= 0) {
+                barbDensityBox->setCurrentIndex(at);
+            }
+        }
     }
     std::vector<QDateTime> when;
     for (auto t = from->dateTime().toUTC(); t <= to->dateTime().toUTC(); t = t.addSecs(3600LL * step->currentData().toInt())) {
