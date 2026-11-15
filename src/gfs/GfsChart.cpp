@@ -2805,6 +2805,16 @@ std::vector<std::tuple<QPointF, QString, QColor>> drawContours(Frame& f, const H
         }
         const GfsGrid::Grid fine = set.smoothKm > 0.0 ? GfsGrid::Grid{} : GfsGrid::reducedForLines(grids.at(set.key));   // a 3 km grid is averaged to about 8 km for its lines
         const auto& grid = set.smoothKm > 0.0 ? smooth : (fine.empty() ? grids.at(set.key) : fine);
+        std::vector<GfsGrid::Extreme> extremesHere;   // the highs and lows: their places are kept clear of the numbers on the lines (drawn with the lines of the set, below)
+        if (set.highsAndLows) {
+            extremesHere = GfsGrid::extremes(grid, extremeRadius, sector.west, sector.south, sector.east, sector.north);
+            for (const auto& e : extremesHere) {
+                const auto at = view.toPixel(e.lon, e.lat);
+                if (area.adjusted(20, 20, -20, -20).contains(at)) {
+                    placed.push_back(QRectF{at.x() - 14.0, at.y() - 10.0, 28.0, 32.0});   // the letter and the value under it
+                }
+            }
+        }
         double lo = 1e18, hi = -1e18;
         for (int y = 0; y < map.height(); y += 6) {
             for (int x = 0; x < map.width(); x += 6) {
@@ -2879,7 +2889,7 @@ std::vector<std::tuple<QPointF, QString, QColor>> drawContours(Frame& f, const H
             }
         }
         if (set.highsAndLows) {
-            for (const auto& e : GfsGrid::extremes(grid, extremeRadius, sector.west, sector.south, sector.east, sector.north)) {
+            for (const auto& e : extremesHere) {
                 const auto at = view.toPixel(e.lon, e.lat);
                 if (area.adjusted(20, 20, -20, -20).contains(at)) {
                     if (options.vectorOut != nullptr) {
