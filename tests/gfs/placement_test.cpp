@@ -231,6 +231,49 @@ int main(int argc, char ** argv) {
         }
         std::printf("  the marker put on %d numbers on lines, its name moved off the first place %d times\n", tried, moved);
         CHECK(tried > 3);
+        {   // the labels of a storm track, its points put on the very places of four numbers: no label is over a number, a point value, another label or the key
+            std::vector<GfsChart::TrackPoint> track;
+            int hour = 0;
+            for (const auto& a : first) {
+                if (a.kind != "number" || track.size() >= 4) {
+                    continue;
+                }
+                GfsChart::TrackPoint t;
+                t.hour = hour;
+                hour += 24;
+                t.lon = local.west + (a.box.center().x() - probe.areaLeft) / probe.areaWidth * (local.east - local.west);
+                const double y = yTop - (a.box.center().y() - probe.areaTop) / probe.areaHeight * (yTop - yBottom);
+                t.lat = (2.0 * std::atan(std::exp(y)) - pi / 2.0) * 180.0 / pi;
+                t.wind = 90;
+                t.pressure = 970;
+                track.push_back(t);
+            }
+            std::vector<GfsChart::Options::PlacedBox> third;
+            auto o = options;
+            o.placedOut = &third;
+            o.track = track;
+            o.trackName = "A track";
+            GfsChart::render(product, local, grids, run, 6, o);
+            int labels = 0, keys = 0;
+            for (const auto& t : third) {
+                labels += t.kind == "track" ? 1 : 0;
+                keys += t.kind == "track key" ? 1 : 0;
+                if (t.kind != "track") {
+                    continue;
+                }
+                for (const auto& other : third) {
+                    if (&other != &t && (other.kind == "number" || other.kind == "point" || other.kind == "track" || other.kind == "track key" || other.kind == "extreme")) {
+                        pairsChecked++;
+                        if (t.box.intersects(other.box)) {
+                            std::printf("  a track label at (%.0f, %.0f) is over a %s at (%.0f, %.0f)\n", t.box.center().x(), t.box.center().y(), other.kind.c_str(), other.box.center().x(), other.box.center().y());
+                        }
+                        CHECK(!t.box.intersects(other.box));
+                    }
+                }
+            }
+            std::printf("  the track: %d labels placed for 4 points on numbers, %d key\n", labels, keys);
+            CHECK(labels >= 2 && keys == 1);
+        }
     }
     std::printf("  %d boxes, %d pairs checked\n", boxesChecked, pairsChecked);
     std::printf(failures == 0 ? "OK\n" : "FAILED: %d\n", failures);

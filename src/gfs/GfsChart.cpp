@@ -2589,6 +2589,20 @@ void drawTracksMarkerAndTicks(Frame& f, const Label& drawLabel, const Halo& halo
     QPainter& p = f.p;
     QFont& font = f.font;
     const double span = f.span;
+    std::vector<QRectF> taken = avoid;   // the boxes already placed (the numbers, the point values, the highs and lows), and then the track's key and labels: what the names after them keep clear of
+    QRectF keyBox;
+    if (!options.track.empty() && !options.trackName.empty()) {   // the key of the tracks (drawn below): its place is taken first
+        QFont keyFont = p.font();
+        keyFont.setPixelSize(12);
+        keyFont.setBold(true);
+        const QString first = QString::fromStdString(options.trackName), second = QString::fromStdString(options.trackOtherName);
+        const double width = 60.0 + QFontMetricsF{keyFont}.horizontalAdvance(first) + (options.trackOther.empty() ? 0.0 : 40.0 + QFontMetricsF{keyFont}.horizontalAdvance(second));
+        keyBox = QRectF{area.right() - width - 8.0, area.top() + 8.0, width, 24.0};
+        taken.push_back(keyBox);
+        if (options.placedOut != nullptr) {
+            options.placedOut->push_back({keyBox, "track key"});
+        }
+    }
     // the other model's track under it, dashed
     if (!options.trackOther.empty()) {
         QPolygonF other;
@@ -2666,8 +2680,23 @@ void drawTracksMarkerAndTicks(Frame& f, const Label& drawLabel, const Halo& halo
             p.setPen(QPen{QColor{20, 20, 20}, 1.5});
             p.setBrush(current ? QColor{255, 255, 255} : QColor{20, 20, 20});
             p.drawEllipse(at, current ? 6.0 : 3.5, current ? 6.0 : 3.5);
-            if (current || t.hour % 24 == 0) {
-                halo(at + QPointF{9.0, -7.0}, QString{"+%1 h  %2 kt  %3 mb"}.arg(t.hour).arg(t.wind).arg(t.pressure), QColor{20, 20, 20});
+            if (current || t.hour % 24 == 0) {   // the label beside its point (off the dot: right and above, right and below, left and above, left and below, then past a number on the point, then higher), the first place clear of what is placed; none when no place is
+                const QString text = QString{"+%1 h  %2 kt  %3 mb"}.arg(t.hour).arg(t.wind).arg(t.pressure);
+                const double width = QFontMetricsF{small}.horizontalAdvance(text), reach = (current ? 6.0 : 3.5) + 4.0;
+                const double far = reach + 22.0, high = reach + 9.0, higher = reach + 30.0;   // (far: past a number that stands on the point)
+                for (const QPointF& offset : {QPointF{reach, -high}, QPointF{reach, high}, QPointF{-reach - width, -high}, QPointF{-reach - width, high}, QPointF{far, 0.0}, QPointF{-far - width, 0.0},
+                                              QPointF{reach, -higher}, QPointF{reach, higher}, QPointF{-reach - width, -higher}, QPointF{-reach - width, higher}}) {
+                    const QPointF centre = at + offset + QPointF{width / 2.0, 0.0};
+                    const QRectF box{centre.x() - width / 2.0 - 3.0, centre.y() - 9.0, width + 6.0, 18.0};
+                    if (area.adjusted(4, 4, -4, -4).contains(box) && std::none_of(taken.begin(), taken.end(), [&box] (const QRectF& other) { return other.intersects(box); })) {
+                        halo(centre, text, QColor{20, 20, 20});
+                        taken.push_back(box);
+                        if (options.placedOut != nullptr) {
+                            options.placedOut->push_back({box, "track"});
+                        }
+                        break;
+                    }
+                }
             }
         }
     }
@@ -2677,8 +2706,7 @@ void drawTracksMarkerAndTicks(Frame& f, const Label& drawLabel, const Halo& halo
         keyFont.setBold(true);
         p.setFont(keyFont);
         const QString first = QString::fromStdString(options.trackName), second = QString::fromStdString(options.trackOtherName);
-        const double width = 60.0 + QFontMetricsF{keyFont}.horizontalAdvance(first) + (options.trackOther.empty() ? 0.0 : 40.0 + QFontMetricsF{keyFont}.horizontalAdvance(second));
-        const QRectF box{area.right() - width - 8.0, area.top() + 8.0, width, 24.0};
+        const QRectF box = keyBox;
         p.setPen(Qt::NoPen);
         p.setBrush(QColor{255, 255, 255, 215});
         p.drawRoundedRect(box, 4.0, 4.0);
@@ -2723,7 +2751,7 @@ void drawTracksMarkerAndTicks(Frame& f, const Label& drawLabel, const Halo& halo
                 for (const QPointF offset : {QPointF{10, -8}, QPointF{10, 18}, QPointF{-10 - labelWidth, -8}, QPointF{-10 - labelWidth, 18}}) {
                     const QPointF candidate = at + offset;
                     const QRectF box = QRectF{candidate.x(), candidate.y() - labelMetrics.ascent(), labelWidth, labelMetrics.height()}.adjusted(-2, -2, 2, 2);
-                    if (!found && area.adjusted(4, 4, -4, -4).contains(box) && std::none_of(avoid.begin(), avoid.end(), [&box] (const QRectF& other) { return other.intersects(box); })) {
+                    if (!found && area.adjusted(4, 4, -4, -4).contains(box) && std::none_of(taken.begin(), taken.end(), [&box] (const QRectF& other) { return other.intersects(box); })) {
                         origin = candidate;
                         labelBox = box;
                         found = true;
