@@ -1883,7 +1883,7 @@ struct PointValuesState {
     QPainter& p;
     const QFont& font;
     bool us;
-    const std::vector<QRectF>& avoid;   // where the numbers on the lines and the highs and lows already are: the point values keep clear of them
+    std::vector<QRectF>& avoid;   // where the numbers on the lines and the highs and lows already are: the point values keep clear of them, and add their own boxes for what comes after
 };
 
 void drawPointValues(PointValuesState& state) {
@@ -1901,7 +1901,7 @@ void drawPointValues(PointValuesState& state) {
             numberFont.setPointSizeF(std::max(7.0, font.pointSizeF() * 0.9));
             const QFontMetricsF numberMetrics{numberFont};
             const double gap = 5.0;   // between the numbers of one point
-            std::vector<QRectF> boxes = state.avoid;
+            std::vector<QRectF>& boxes = state.avoid;
             // one point's numbers side by side, centred on `at`; false (nothing drawn) when no value there or the box would cover another
             const auto place = [&] (const QPointF& at, double lon, double lat) {
                 std::vector<QString> texts;
@@ -2579,7 +2579,7 @@ void drawStreamlines(Frame& f) {
 
 // The storm tracks and their key, the marker of a local area, and the marks along the frame.
 template <class Label, class Halo>
-void drawTracksMarkerAndTicks(Frame& f, const Label& drawLabel, const Halo& halo) {
+void drawTracksMarkerAndTicks(Frame& f, const Label& drawLabel, const Halo& halo, const std::vector<QRectF>& avoid) {
     const Options& options = f.options;
     const Sector& sector = f.sector;
     const int forecastHour = f.forecastHour;
@@ -2710,16 +2710,37 @@ void drawTracksMarkerAndTicks(Frame& f, const Label& drawLabel, const Halo& halo
             p.drawLine(QPointF{at.x() - 10, at.y()}, QPointF{at.x() + 10, at.y()});
             p.drawLine(QPointF{at.x(), at.y() - 10}, QPointF{at.x(), at.y() + 10});
             if (!options.markerName.empty()) {
-                QFont f = p.font();
-                f.setBold(true);
-                p.setFont(f);
+                QFont boldFont = p.font();
+                boldFont.setBold(true);
+                p.setFont(boldFont);
                 const QString label = QString::fromStdString(options.markerName);
+                // the name to the right and above the ring; when that is over a number or off the frame, below it, then to the left (above, then below)
+                const QFontMetricsF labelMetrics{boldFont};
+                const double labelWidth = labelMetrics.horizontalAdvance(label);
+                QPointF origin = at + QPointF{10, -8};
+                QRectF labelBox;
+                bool found = false;
+                for (const QPointF offset : {QPointF{10, -8}, QPointF{10, 18}, QPointF{-10 - labelWidth, -8}, QPointF{-10 - labelWidth, 18}}) {
+                    const QPointF candidate = at + offset;
+                    const QRectF box = QRectF{candidate.x(), candidate.y() - labelMetrics.ascent(), labelWidth, labelMetrics.height()}.adjusted(-2, -2, 2, 2);
+                    if (!found && area.adjusted(4, 4, -4, -4).contains(box) && std::none_of(avoid.begin(), avoid.end(), [&box] (const QRectF& other) { return other.intersects(box); })) {
+                        origin = candidate;
+                        labelBox = box;
+                        found = true;
+                    }
+                }
+                if (!found) {   // nowhere is free: the first place, as it always was
+                    labelBox = QRectF{origin.x(), origin.y() - labelMetrics.ascent(), labelWidth, labelMetrics.height()}.adjusted(-2, -2, 2, 2);
+                }
+                if (options.placedOut != nullptr) {
+                    options.placedOut->push_back({labelBox, "marker"});
+                }
                 p.setPen(QColor{255, 255, 255});
                 for (const QPointF d : {QPointF{1, 1}, QPointF{-1, 1}, QPointF{1, -1}, QPointF{-1, -1}}) {
-                    drawLabel(at + QPointF{10, -8} + d, label);
+                    drawLabel(origin + d, label);
                 }
                 p.setPen(QColor{140, 10, 10});
-                drawLabel(at + QPointF{10, -8}, label);
+                drawLabel(origin, label);
             }
             p.setClipping(false);
         }
@@ -3297,7 +3318,7 @@ QImage render(const Product& drawn, const Sector& sector, const Grids& fetched, 
     drawCoastlines(frame);
     drawStreamlines(frame);
     lap("coastlines");
-    const auto contourText = drawContours(frame, halo, map);
+    auto contourText = drawContours(frame, halo, map);
     lap("contours");
     {
         BarbsState barbs{product, grids, options, sector, area, view, span, p};
@@ -3313,7 +3334,7 @@ QImage render(const Product& drawn, const Sector& sector, const Grids& fetched, 
         PointValuesState values{product, grids, options, sector, area, view, span, p, font, us, contourText.boxes};
         drawPointValues(values);
     }
-    drawTracksMarkerAndTicks(frame, drawLabel, halo);
+    drawTracksMarkerAndTicks(frame, drawLabel, halo, contourText.boxes);
     {   // header
         HeaderState header{product, run, forecastHour, p, image, S, margin, font, us};
         drawHeader(header, drawLabel);

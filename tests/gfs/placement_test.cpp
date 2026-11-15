@@ -166,6 +166,72 @@ int main(int argc, char ** argv) {
         std::printf("  on the numbers' places: %zu places, %d numbers on lines, %d point boxes\n", places.size(), numbers, pointBoxes);
         CHECK(numbers > 10 && pointBoxes > 5);
     }
+    // the name of a marker (the ring on an area round a saved location) put so that its name would be on a number on a line: the name goes to a side that is free, and its box is clear of every number
+    {
+        Product product;
+        product.source = "TEST";
+        product.id = "placement";
+        product.label = "placement";
+        product.fill = [] (const GfsChart::Grids& g) { return g.at("z"); };
+        product.ramp.stops = {{5000, QColor{200, 220, 255}}, {5800, QColor{255, 240, 200}}};
+        GfsChart::ContourSet heights;
+        heights.key = "z";
+        heights.scale = 0.1;
+        heights.interval = 6;
+        product.contours = {heights};
+        const std::string id = GfsChart::localId(40.0, -95.0, 1500.0, "A place with a long name");
+        const auto local = GfsChart::localSector(id, -142.0, 18.0, -48.0, 62.0);
+        GfsData::Run run;
+        run.date = "20261108";
+        run.cycle = "12";
+        std::vector<GfsChart::Options::PlacedBox> first;
+        GfsChart::Probe probe;
+        GfsChart::Options options;
+        options.width = 900;
+        options.placedOut = &first;
+        options.probe = &probe;
+        options.magColors = false;
+        GfsChart::render(product, local, grids, run, 12, options);
+        const double yTop = mercatorY(local.north), yBottom = mercatorY(local.south);
+        int moved = 0, tried = 0;
+        for (const auto& a : first) {
+            if (a.kind != "number" || tried >= 8) {
+                continue;
+            }
+            tried++;
+            // the ring 45 pixels to the left of the number: the name, to the right of the ring, would be on the number
+            const double lon = local.west + (a.box.center().x() - 45.0 - probe.areaLeft) / probe.areaWidth * (local.east - local.west);
+            const double y = yTop - (a.box.center().y() - probe.areaTop) / probe.areaHeight * (yTop - yBottom);
+            std::vector<GfsChart::Options::PlacedBox> second;
+            auto o = options;
+            o.placedOut = &second;
+            o.hasMarker = true;
+            o.markerLon = lon;
+            o.markerLat = (2.0 * std::atan(std::exp(y)) - pi / 2.0) * 180.0 / pi;
+            o.markerName = "A place with a long name";
+            GfsChart::render(product, local, grids, run, 12, o);
+            bool haveMarker = false;
+            for (const auto& m : second) {
+                if (m.kind != "marker") {
+                    continue;
+                }
+                haveMarker = true;
+                for (const auto& n : second) {
+                    if (n.kind == "number") {
+                        pairsChecked++;
+                        if (m.box.intersects(n.box)) {
+                            std::printf("  the marker name at (%.0f, %.0f) is over a number at (%.0f, %.0f)\n", m.box.center().x(), m.box.center().y(), n.box.center().x(), n.box.center().y());
+                        }
+                        CHECK(!m.box.intersects(n.box));
+                    }
+                }
+                moved += m.box.center().x() < (probe.areaLeft + (o.markerLon - local.west) / (local.east - local.west) * probe.areaWidth) || m.box.center().y() > a.box.center().y() ? 1 : 0;   // (moved off the first place: left of the ring, or below it)
+            }
+            CHECK(haveMarker);
+        }
+        std::printf("  the marker put on %d numbers on lines, its name moved off the first place %d times\n", tried, moved);
+        CHECK(tried > 3);
+    }
     std::printf("  %d boxes, %d pairs checked\n", boxesChecked, pairsChecked);
     std::printf(failures == 0 ? "OK\n" : "FAILED: %d\n", failures);
     return failures == 0 ? 0 : 1;
