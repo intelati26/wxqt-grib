@@ -155,6 +155,14 @@ void pppProducts(std::vector<Product>& p);
 
 void cfs30Products(std::vector<Product>& p);
 
+void spcRefsProducts(std::vector<Product>& p);
+
+void ensProducts(std::vector<Product>& p);
+
+void ensAllProducts(std::vector<Product>& p);
+
+void hrefProducts(std::vector<Product>& p);
+
 }  // namespace detail
 }  // namespace GfsChart
 
