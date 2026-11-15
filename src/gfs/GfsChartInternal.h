@@ -29,8 +29,56 @@ inline GfsData::Want want(const std::string& key, const std::string& variable, c
     return {key, variable, level, ""};
 }
 
+// the color scales of the charts (GfsChartRamps.cpp)
+Ramp temperature();
+Ramp bands4F(const Ramp& base, double lowF, double highF);
+Ramp windSpeed();
+Ramp vorticityRamp();   // units of 1e-5 per second; the cyclonic side only
+Ramp precipitation();   // millimeters
+Ramp reflectivity();   // dBZ
+Ramp humidity();   // percent
+Ramp precipitableWater();   // millimeters
+Ramp snowChange();   // centimeters; transparent where nothing changes
+Ramp shearRamp();   // knots: calm to violent, the low shear tropical cyclones like in the pale greens
+Ramp divergenceRamp();   // 1e-5 per second: convergence in blues, divergence in warm colors, little of either left clear
+Ramp thetaERamp();   // kelvin
+Ramp heightAnomaly();   // decameters: below normal in blues, above in warm colors, within 1.5 clear
+Ramp standardAnomaly();   // standard deviations: within a quarter of one clear
+Ramp temperatureDeparture();   // degrees C: below the climate in blues, above in warm colors, within half a degree clear
+Ramp seaLevelPressure();   // millibars: lows in purples and blues, highs in yellows to reds
+Ramp precipitationDeparture();   // millimeters in the period: drier than the climate in browns, wetter in greens, within a few clear
+Ramp pressureAnomaly();   // millibars
+Ramp dewpoint();   // degrees C: dry in the browns, humid in greens and blues
+Ramp lowWind();   // knots, for the near-surface and 850 mb winds
+Ramp capeRamp();   // J/kg
+Ramp snowPrecipitation();   // millimeters of water
+Ramp mixedPrecipitation();   // freezing rain and ice pellets
+Ramp cloudCover();   // percent: clear sky pale, overcast a dark grey-blue
+Ramp spreadRamp(double top);   // the spread of an ensemble, from none (white) up through yellow and orange to a deep purple at `top`
+Ramp tropicalWind();   // knots: the Saffir-Simpson steps, tropical depression and storm in the cool colors, hurricanes warm to purple
+Ramp satelliteIr();   // brightness temperature in kelvin: warm surfaces dark, cool cloud light grey, then the cold tops in color to the coldest in white
+Ramp waterVapor();   // brightness temperature in kelvin: the moist, cold air in white through blue, dry air warm in orange to black
+Ramp seaSurfaceTemperature();   // degrees C: fine steps through the range that matters to a storm (26 C is where the warm water starts)
+Ramp airQuality(const std::vector<double>& steps);   // the six steps of the US air quality index (good, moderate, unhealthy for sensitive groups, unhealthy, very unhealthy, hazardous): the first step's value is where "good" ends
+Ramp uvIndex();   // the WHO steps: low (green), moderate (yellow), high (orange), very high (red), extreme (violet)
+Ramp currentSpeed();   // meters per second: slack water pale, the Gulf Stream and the Agulhas (1.5 and more) in strong colors
+Ramp seaLevelHeight();   // meters above the mean: below in blues, above in warm colors
+Ramp waveHeight();   // meters
+Ramp helicityRamp();   // m2/s2: storm-relative helicity, the 150 and 300 steps are where rotation starts to matter
+Ramp updraftHelicity();   // m2/s2: rotating updrafts, from 25 (weak) to 200 and more (a strong supercell)
+Ramp lowLevelVorticity();   // 1e-3 per second: the strongest vertical vorticity of the last hour in the lowest 1-2 km; the weak values clear, a mesocyclone from about 10, a tornadic circulation from 20
+Ramp echoTopRamp();   // thousands of feet
+Ramp ceilingRamp();   // feet: the flight category steps (500 LIFR, 1000 IFR, 3000 MVFR) in the strong colors
+Ramp visibilityRamp();   // statute miles: 1 and 3 are the IFR and MVFR steps
+Ramp lightningRamp();   // flashes: any lightning is yellow, a lot is purple
+Ramp wavePeriod();   // seconds: short choppy seas pale, long swell in deep colors
+Ramp probability();   // percent: nothing under 5, then pale green to deep magenta
+Ramp snowfall();   // centimeters of new snow, the steps at whole and simple inches (0.1, 1, 2, 4, 8, 12, 20, 30)
+
 // the charts of one family of models, added to the list
 void geosProducts(std::vector<Product>& p);
+
+void sstProducts(std::vector<Product>& p, const char * model);
 
 }  // namespace detail
 }  // namespace GfsChart
