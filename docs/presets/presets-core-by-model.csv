@@ -88,8 +88,8 @@ GDPS,Value,,,yes,,2,2,200 mb 850 mb,200_stream_div 850_stream_vort
 GDPS,Change,Pressure,,,,1,1,,mslp_trend
 GDPS,Change,Heights,,,,1,1,500 mb,z500_trend
 GDPS,Value,,,,,1,1,850-700 mb,850_700_rh
-GEFS,Value,Heights,yes,,,19,8,10 mb 100 mb 200 mb 30 mb 50 mb 500 mb 700-300 mb 850 mb 925 mb,200_div_wnd 850_thetae_ht 850vor_500ht_200wd 100_temp_ht
 GEFS,Ensemble: members / spread,Members,,,,18,1,200 mb 500 mb,200_1176_ht 200_1188_ht 200_1200_ht 200_1212_ht
+GEFS,Value,Heights,yes,,,17,8,10 mb 100 mb 200 mb 50 mb 500 mb 700-300 mb 850 mb 925 mb,200_div_wnd 850_thetae_ht 850vor_500ht_200wd 100_temp_ht
 GEFS,Amount: expected / percentile,,,,,10,6,10 m 2 m,efi_10m_wnd efi_2m_temp efi_mslp pct10_10m_wnd
 GEFS,Value,Pressure,yes,,,9,9,10 m 700 mb 850-200 mb,10m_wnd_precip sbcape_wind 10m_wnd_2m_temp 2m_dewpoint
 GEFS,Value,,,,,9,3,850-700 mb,dom_precip_type precip_p01 precip_p03 precip_p12

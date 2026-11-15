@@ -312,7 +312,7 @@ hours=0-384/6,
 clone enabled=1 specificHumidity=0 pieces=1 prefix=Mean 
 ids=
 variables=APCP,CAPE,CFRZR,CICEP,CIN,CRAIN,CSNOW,DPT,GUST,HGT,HLCY,PRMSL,PWAT,RH,SNOD,TCDC,TMAX,TMIN,TMP,UGRD,VGRD,VVEL,WEASD,
-levels=10 mb,100 mb,1000 mb,200 mb,250 mb,30 mb,300 mb,400 mb,50 mb,500 mb,700 mb,850 mb,925 mb,
+levels=10 mb,100 mb,1000 mb,200 mb,250 mb,300 mb,400 mb,50 mb,500 mb,700 mb,850 mb,925 mb,
 fields=
 skip=precip_p06,precip_p24,500_vort_ht,850_vort_ht,
 plain=precip_p,

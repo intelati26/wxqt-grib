@@ -392,7 +392,7 @@ level,925 mb,3,35,925_temp_ht 925_temp_wnd 925_wnd
 level,1000-500 mb,3,15,1000_500_thick ens_1000_500_thick precip_rate_type
 level,1000-850 mb,3,15,1000_850_thick 1000_850_thick_type ens_1000_850_thick
 level,10 mb,3,6,10_pv_ht 10_temp_ht 10_wnd_ht
-level,30 mb,3,4,30_pv_ht 30_temp_ht 30_wnd_ht
+level,30 mb,3,3,30_pv_ht 30_temp_ht 30_wnd_ht
 level,20 mb,3,2,20_pv_ht 20_temp_ht 20_wnd_ht
 level,70 mb,3,2,70_pv_ht 70_temp_ht 70_wnd_ht
 level,850-200 mb,2,33,shear_850_200 steering_850_200

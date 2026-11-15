@@ -410,8 +410,6 @@ CHART GEFS|Upper air|250_temp|Mean 250mb Temperature and Spread|Spread of the 25
 CHART GEFS|Upper air|250_wnd_ht|Mean 250mb Wind and Height|Wind speed (kt)|Height (dam)|||0
 CHART GEFS|Upper air|250_wnd|Mean 250mb Winds and Spread|Spread of the 250 mb wind speed (m/s)||own||0
 CHART GEFS|Upper air|300_wnd_ht|Mean 300mb Wind and Height|Wind speed (kt)|Height (dam)|||0
-CHART GEFS|Upper air|30_temp_ht|Mean 30mb Temperature, Wind and Height|Temperature|Height (dam)|own||0
-CHART GEFS|Upper air|30_wnd_ht|Mean 30mb Wind and Height|Wind speed (kt)|Height (dam)|own||0
 CHART GEFS|Upper air|500_rh_ht|Mean 500mb Relative Humidity and Height|Relative humidity (%)|Height (dam)|own||0
 CHART GEFS|Upper air|500_temp|Mean 500mb Temperature and Spread|Spread of the 500 mb temperature (K)|Mean temperature (C)|||0
 CHART GEFS|Upper air|500_wnd_ht|Mean 500mb Wind and Height|Wind speed (kt)|Height (dam)|own||0
@@ -3118,8 +3116,6 @@ LEVELS GEFS|2m_dewpoint|d=DPT@2 m above ground,u=UGRD@10 m above ground,v=VGRD@1
 LEVELS GEFS|2m_rh_10m_wnd_derived|t=TMP@2 m above ground,d=DPT@2 m above ground,u=UGRD@10 m above ground,v=VGRD@10 m above ground,p=PRMSL@mean sea level|PRMSL@mean sea level|UGRD@10 m above ground
 LEVELS GEFS|2m_temp|t=TMP@2 m above ground,s=TMP@2 m above ground|TMP@2 m above ground|
 LEVELS GEFS|300_wnd_ht|z=HGT@300 mb,u=UGRD@300 mb,v=VGRD@300 mb|HGT@300 mb|
-LEVELS GEFS|30_temp_ht|z=HGT@30 mb,u=UGRD@30 mb,v=VGRD@30 mb,t=TMP@30 mb|HGT@30 mb|UGRD@30 mb
-LEVELS GEFS|30_wnd_ht|z=HGT@30 mb,u=UGRD@30 mb,v=VGRD@30 mb|HGT@30 mb|UGRD@30 mb
 LEVELS GEFS|500_510_552_ht|||
 LEVELS GEFS|500_516_558_ht|||
 LEVELS GEFS|500_522_564_ht|||
