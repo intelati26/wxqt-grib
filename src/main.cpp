@@ -469,7 +469,18 @@ int main(int argc, char * argv[]) {
                 const auto parts = route.split(':');
                 auto when = QDateTime::fromString(parts.value(2), "yyyyMMddHHmm");
                 when.setTimeZone(QTimeZone::utc());
-                MasterMapViewer::openModels(&w, parts.value(1).toStdString(), parts.value(3).toStdString(), parts.value(4).replace('_', ':').toStdString(), when);
+                auto * models = MasterMapViewer::openModels(&w, parts.value(1).toStdString(), parts.value(3).toStdString(), parts.value(4).replace('_', ':').toStdString(), when);
+                if (const auto out = qEnvironmentVariable("WXQT_WORLD_EXPORT"); !out.isEmpty() && models != nullptr) {   // WXQT_WORLD_EXPORT=<file.png>[,north|south|equal] (WXQT_POLAR_REACH=<latitude>, WXQT_WORLD_WIDTH): the whole world with the chart, as the polar vortex chart is, after a while
+                    const auto kind = out.section(',', 1, 1);
+                    const auto projection = kind == "south" ? GlobeMapView::Projection::PolarSouth : kind == "equal" ? GlobeMapView::Projection::EqualEarth : GlobeMapView::Projection::PolarNorth;
+                    if (GlobeMapView::isPolar(projection)) {
+                        GlobeMapView::setPolarFrame(qEnvironmentVariableIntValue("WXQT_POLAR_REACH") > 0 ? qEnvironmentVariableIntValue("WXQT_POLAR_REACH") : 20, qEnvironmentVariableIntValue("WXQT_POLAR_WIDE") > 0);
+                    }
+                    QTimer::singleShot(qEnvironmentVariableIntValue("WXQT_EXPORT_MS") > 0 ? qEnvironmentVariableIntValue("WXQT_EXPORT_MS") : 25000, models, [models, out, projection] {
+                        models->exportWorldTo(out.section(',', 0, 0), projection, 0.0, qEnvironmentVariableIntValue("WXQT_WORLD_WIDTH") > 0 ? qEnvironmentVariableIntValue("WXQT_WORLD_WIDTH") : 1600, false, qEnvironmentVariableIntValue("WXQT_GRATICULE") > 0);
+                        QTimer::singleShot(3000, qApp, &QCoreApplication::quit);
+                    });
+                }
             } else if (route == "events" && !qEnvironmentVariable("WXQT_KEEP").isEmpty()) {   // WXQT_OPEN=events WXQT_KEEP=1: the first saved event is selected and its offline copy is made
                 auto * viewer = new EventsViewer{&w};
                 QTimer::singleShot(1500, viewer, [viewer] {
