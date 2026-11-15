@@ -8204,6 +8204,67 @@ bool rampFromText(const std::string& text, Ramp& ramp, std::string& error) {
     return true;
 }
 
+// The wind barbs, on a grid of pixels (BarbGrid): the chart's own and the ticked sets, each set from the same origin, the first the longest.
+struct BarbsState {
+    const Product& product;
+    const Grids& grids;
+    const Options& options;
+    const Sector& sector;
+    const QRectF& area;
+    const View& view;
+    double span;
+    QPainter& p;
+};
+
+void drawBarbs(BarbsState& state) {
+    const Product& product = state.product; const Grids& grids = state.grids; const Options& options = state.options; const Sector& sector = state.sector;
+    const QRectF& area = state.area; const View& view = state.view; const double span = state.span; QPainter& p = state.p;
+    // wind barbs on a grid of pixels
+    if (!options.noBarbs) {
+        struct DrawnSet {
+            const GfsGrid::Grid * u;
+            const GfsGrid::Grid * v;
+            QColor color;
+        };
+        std::vector<DrawnSet> sets;
+        if (!product.barbU.empty() && grids.count(product.barbU) && grids.count(product.barbV)) {
+            sets.push_back({&grids.at(product.barbU), &grids.at(product.barbV), QColor{20, 20, 20}});
+        }
+        for (const auto& set : product.barbSets) {
+            if (grids.count(set.u) && grids.count(set.v)) {
+                sets.push_back({&grids.at(set.u), &grids.at(set.v), set.color});
+            }
+        }
+        const double pixelsPerDegree = area.width() / std::max(0.1, span);
+        const auto look = BarbGrid::look(span, pixelsPerDegree);
+        for (double lat = std::ceil(std::max(-85.0, sector.south) / look.step) * look.step; !sets.empty() && lat <= std::min(85.0, sector.north); lat += look.step) {
+            const double lonStep = BarbGrid::lonStep(look.step, lat);
+            for (double lon = std::ceil(sector.west / lonStep) * lonStep; lon <= sector.east; lon += lonStep) {
+                const QPointF at = view.toPixel(lon, lat);
+                if (!area.contains(at)) {
+                    continue;
+                }
+                // every set from the same origin: the first the longest, each next a little shorter and drawn over it
+                for (size_t i = 0; i < sets.size(); i++) {
+                    float uu = sets[i].u->sample(lon, lat), vv = sets[i].v->sample(lon, lat);
+                    if (std::isnan(uu) || std::isnan(vv)) {
+                        uu = sets[i].u->sample(lon + 360.0, lat);
+                        vv = sets[i].v->sample(lon + 360.0, lat);
+                    }
+                    if (std::isnan(uu) || std::isnan(vv)) {
+                        continue;
+                    }
+                    QColor ink = sets[i].color;
+                    p.setPen(QPen{QColor{ink.red(), ink.green(), ink.blue(), 230}, sets.size() > 1 ? 1.3 : 1.0});
+                    p.setBrush(ink);
+                    const double from = std::fmod(std::atan2(-uu, -vv) * 180.0 / pi + 360.0, 360.0);
+                    WindBarb::draw(p, at, from, std::hypot(uu, vv) * msToKnots, look.length * (1.0 - 0.12 * static_cast<double>(i)), lat < 0.0);
+                }
+            }
+        }
+    }
+}
+
 // The numbers printed at points over the fill (Product::pointValues): at the cities, biggest first, then evenly over what is left of the map; never one box on another.
 struct PointValuesState {
     const Product& product;
@@ -9245,49 +9306,9 @@ QImage render(const Product& drawn, const Sector& sector, const Grids& fetched, 
     }
 
     lap("contours");
-    // wind barbs on a grid of pixels
-    if (!options.noBarbs) {
-        struct DrawnSet {
-            const GfsGrid::Grid * u;
-            const GfsGrid::Grid * v;
-            QColor color;
-        };
-        std::vector<DrawnSet> sets;
-        if (!product.barbU.empty() && grids.count(product.barbU) && grids.count(product.barbV)) {
-            sets.push_back({&grids.at(product.barbU), &grids.at(product.barbV), QColor{20, 20, 20}});
-        }
-        for (const auto& set : product.barbSets) {
-            if (grids.count(set.u) && grids.count(set.v)) {
-                sets.push_back({&grids.at(set.u), &grids.at(set.v), set.color});
-            }
-        }
-        const double pixelsPerDegree = area.width() / std::max(0.1, span);
-        const auto look = BarbGrid::look(span, pixelsPerDegree);
-        for (double lat = std::ceil(std::max(-85.0, sector.south) / look.step) * look.step; !sets.empty() && lat <= std::min(85.0, sector.north); lat += look.step) {
-            const double lonStep = BarbGrid::lonStep(look.step, lat);
-            for (double lon = std::ceil(sector.west / lonStep) * lonStep; lon <= sector.east; lon += lonStep) {
-                const QPointF at = view.toPixel(lon, lat);
-                if (!area.contains(at)) {
-                    continue;
-                }
-                // every set from the same origin: the first the longest, each next a little shorter and drawn over it
-                for (size_t i = 0; i < sets.size(); i++) {
-                    float uu = sets[i].u->sample(lon, lat), vv = sets[i].v->sample(lon, lat);
-                    if (std::isnan(uu) || std::isnan(vv)) {
-                        uu = sets[i].u->sample(lon + 360.0, lat);
-                        vv = sets[i].v->sample(lon + 360.0, lat);
-                    }
-                    if (std::isnan(uu) || std::isnan(vv)) {
-                        continue;
-                    }
-                    QColor ink = sets[i].color;
-                    p.setPen(QPen{QColor{ink.red(), ink.green(), ink.blue(), 230}, sets.size() > 1 ? 1.3 : 1.0});
-                    p.setBrush(ink);
-                    const double from = std::fmod(std::atan2(-uu, -vv) * 180.0 / pi + 360.0, 360.0);
-                    WindBarb::draw(p, at, from, std::hypot(uu, vv) * msToKnots, look.length * (1.0 - 0.12 * static_cast<double>(i)), lat < 0.0);
-                }
-            }
-        }
+    {
+        BarbsState barbs{product, grids, options, sector, area, view, span, p};
+        drawBarbs(barbs);
     }
     for (const auto& [at, text, color] : numbersToDraw) {   // (over the barbs, with their halo: a number is read before a barb is)
         halo(at, text, color);
