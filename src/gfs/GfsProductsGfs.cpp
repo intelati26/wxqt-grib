@@ -88,16 +88,96 @@ for (const auto& [level, interval] : {std::pair{"100 mb", 6.0}, {"70 mb", 8.0}, 
     p.push_back(temp);
 }
 // potential vorticity: the stratosphere's levels (the polar vortex is its high PV), the scale to the level's own size (PV grows steeply with height as the air gets more stable; the tops are a quarter above
-// the largest value seen on the 15 November 2026 00Z initial state north of 30 N)
-for (const auto& [level, above, below, top, interval] : {std::tuple{100, 70, 150, 40.0, 6.0}, {70, 50, 100, 60.0, 8.0}, {50, 40, 70, 90.0, 8.0}, {30, 20, 40, 220.0, 12.0}, {20, 10, 30, 360.0, 12.0}, {10, 7, 20, 560.0, 16.0}}) {
+// the largest value seen on the 15 November 2026 00Z initial state north of 30 N, with the log-pressure stability)
+for (const auto& [level, above, below, top, interval] : {std::tuple{100, 70, 150, 40.0, 6.0}, {70, 50, 100, 60.0, 8.0}, {50, 40, 70, 95.0, 8.0}, {30, 20, 40, 220.0, 12.0}, {20, 10, 30, 340.0, 12.0}, {10, 7, 20, 710.0, 16.0}}) {
     const auto levelText = std::to_string(level) + " mb";
     auto x = upper((std::to_string(level) + "_pv_ht").c_str(), (std::to_string(level) + "mb Potential Vorticity, Wind and Height").c_str(), levelText.c_str(), interval);
     x.wants.push_back(want("ta", "TMP", (std::to_string(above) + " mb").c_str()));
     x.wants.push_back(want("tb", "TMP", (std::to_string(below) + " mb").c_str()));
-    x.fill = potentialVorticityOf(above, below);
+    x.fill = potentialVorticityOf(above, level, below);
     x.ramp = potentialVorticityRamp(top);
     x.fillTitle = "Potential vorticity (PVU)";
-    x.legendStep = top >= 360 ? 100 : top >= 200 ? 50 : top >= 90 ? 20 : 10;
+    x.legendStep = top >= 340 ? 100 : top >= 200 ? 50 : top >= 90 ? 20 : 10;
+    p.push_back(x);
+}
+// Potential vorticity on an isentropic surface (a surface of one potential temperature, 850 K near 10 mb, 650 K near 20 mb, 530 K near 45 mb): the pressure-level PV (potentialVorticityOf, in log pressure)
+// at the levels round it, the pressure where the potential temperature crosses theta0 found in each column (linear in theta against ln p between two levels), and the PV, the wind and the pressure
+// put on it the same way. This is the form the polar vortex is usually shown in (the air does not cross these surfaces, so the PV follows the air). `levels` are the pressures (mb, the top first)
+// whose temperature is read; PV is made at every one that has a level on each side; the wind is read at those.
+for (const auto& [theta0, levels, top, name] : {std::tuple{850.0, std::vector<int>{3, 5, 7, 10, 20, 30}, 900.0, "850 K"}, {650.0, std::vector<int>{7, 10, 20, 30, 40, 50}, 400.0, "650 K"}, {600.0, std::vector<int>{7, 10, 20, 30, 40, 50, 70}, 250.0, "600 K"}, {530.0, std::vector<int>{20, 30, 40, 50, 70, 100}, 130.0, "530 K"}, {500.0, std::vector<int>{20, 30, 40, 50, 70, 100}, 70.0, "500 K"}}) {
+    Product x;
+    const std::string tag = std::to_string(static_cast<int>(theta0)) + "K";
+    x.id = tag + "_pv";
+    x.label = std::string{name} + " Isentropic Potential Vorticity, Wind and Pressure";
+    const auto levelName = [] (int mb) { return std::to_string(mb) + " mb"; };
+    for (size_t i = 0; i < levels.size(); i++) {
+        x.wants.push_back(want("t" + std::to_string(levels[i]), "TMP", levelName(levels[i])));
+        if (i > 0 && i + 1 < levels.size()) {
+            x.wants.push_back(want("u" + std::to_string(levels[i]), "UGRD", levelName(levels[i])));
+            x.wants.push_back(want("v" + std::to_string(levels[i]), "VGRD", levelName(levels[i])));
+        }
+    }
+    x.derive = [theta0, levels] (Grids& g, const Context&) {
+        constexpr double kappa = 0.2857;
+        const size_t n = levels.size();
+        std::vector<GfsGrid::Grid> pv(n), u(n), v(n);
+        for (size_t i = 1; i + 1 < n; i++) {
+            Grids one;
+            const auto key = [&levels] (char c, size_t at) { return std::string{c} + std::to_string(levels[at]); };
+            one["u"] = g[key('u', i)];
+            one["v"] = g[key('v', i)];
+            one["ta"] = g[key('t', i - 1)];
+            one["tb"] = g[key('t', i + 1)];
+            pv[i] = potentialVorticityOf(levels[i - 1], levels[i], levels[i + 1])(one);
+            u[i] = one["u"];
+            v[i] = one["v"];
+        }
+        auto out = pv[1];
+        GfsGrid::Grid pressure = out, windU = out, windV = out;
+        std::vector<double> theta(n), logp(n);
+        for (size_t i = 0; i < n; i++) {
+            logp[i] = std::log(static_cast<double>(levels[i]));
+        }
+        const double nan = std::nan("");
+        for (size_t at = 0; at < out.values.size(); at++) {
+            bool ok = true;
+            for (size_t i = 0; i < n; i++) {
+                theta[i] = (g["t" + std::to_string(levels[i])].values[at] + 273.15) * std::pow(1000.0 / levels[i], kappa);
+                ok = ok && !std::isnan(theta[i]);
+            }
+            out.values[at] = pressure.values[at] = windU.values[at] = windV.values[at] = static_cast<float>(nan);
+            if (!ok) {
+                continue;
+            }
+            for (size_t i = 1; i + 2 < n; i++) {   // between two levels that both have a PV: theta goes down with the index (the pressure grows)
+                if ((theta[i] - theta0) * (theta[i + 1] - theta0) > 0.0 || theta[i] == theta[i + 1]) {
+                    continue;
+                }
+                const double f = (theta0 - theta[i]) / (theta[i + 1] - theta[i]);
+                out.values[at] = static_cast<float>(pv[i].values[at] + f * (pv[i + 1].values[at] - pv[i].values[at]));
+                pressure.values[at] = static_cast<float>(std::exp(logp[i] + f * (logp[i + 1] - logp[i])));
+                windU.values[at] = static_cast<float>(u[i].values[at] + f * (u[i + 1].values[at] - u[i].values[at]));
+                windV.values[at] = static_cast<float>(v[i].values[at] + f * (v[i + 1].values[at] - v[i].values[at]));
+                break;
+            }
+        }
+        g["ipv"] = std::move(out);
+        g["ip"] = std::move(pressure);
+        g["iu"] = std::move(windU);
+        g["iv"] = std::move(windV);
+    };
+    x.fill = [] (const Grids& g) { return pick(g, "ipv"); };
+    x.ramp = potentialVorticityRamp(top);
+    x.fillTitle = "Potential vorticity on the surface (PVU)";
+    x.legendStep = top >= 800 ? 200 : top >= 400 ? 100 : top >= 200 ? 50 : 20;
+    ContourSet c;
+    c.key = "ip";
+    c.scale = 1.0;
+    c.interval = theta0 > 800 ? 1.0 : theta0 > 620 ? 2.0 : 5.0;
+    c.title = "Pressure of the " + std::string{name} + " surface (mb)";
+    x.contours = {c};
+    x.barbU = "iu";
+    x.barbV = "iv";
     p.push_back(x);
 }
 {   // humidity

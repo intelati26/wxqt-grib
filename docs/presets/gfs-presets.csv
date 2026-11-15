@@ -17,6 +17,7 @@ Total Accumulated Precipitation of Period,Precipitation and moisture,Value,"Prec
 MSLP and Precipitation (Rain / Snow / Mixed),Precipitation and moisture,Value,"Precipitation (green rain, blue snow, pink mixed), hours #",bands: rain / snow / mixed,,Pressure derived field + Thickness 1000-500mb thickness,,,yes,1,precip_type
 "Surface-Based CAPE, MSLP and 10m Wind",Severe: instability,Value,Surface-based CAPE,,,Pressure MSLP (checked),barbs @ 10 m (checked),,,1,sbcape_wind
 Simulated Composite Radar Reflectivity,Severe: storm structure,Value,Composite reflectivity,,,,,,,1,sim_radar_comp
+"# K Isentropic Potential Vorticity, Wind and Pressure",Surface,Value,Potential vorticity on the surface,,Number: 500/530/600/650/850,Pressure derived field,"barbs @ derived wind, not in the files (no level in the label)",,,5,530K_pv 650K_pv 850K_pv 500K_pv 600K_pv
 "MSLP, 10m wind, 2m temperature",Surface,Value,# m temperature,,,Pressure MSLP (checked),barbs @ 10 m (checked),,,1,10m_wnd_2m_temp
 "MSLP, 10m wind, 2m dewpoint",Surface,Value,# m dewpoint,,,Pressure MSLP (checked),barbs @ 10 m (checked),,,1,2m_dewpoint
 "2 m Relative Humidity (from temperature and dewpoint), MSLP and 10m Wind",Surface,Value,# m relative humidity,,,Pressure MSLP (checked),barbs @ 10 m (checked),,,1,2m_rh_10m_wnd_derived

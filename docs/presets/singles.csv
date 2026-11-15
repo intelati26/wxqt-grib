@@ -49,9 +49,9 @@ Swaths,Value,,,,,2,yes,2,swath_gust (Strongest # m gust since the); swath_wind (
 Tropical and dynamics,Value,Heights,yes,,,3,yes,38,200_div_wnd (Divergence); 850_thetae_ht (Equivalent potential tempera); 850vor_500ht_200wd (#mb relative vorticity)
 Tropical and dynamics,Value,,,yes,,2,yes,37,200_stream_div (Divergence); 850_stream_vort (Relative vorticity)
 Tropical and dynamics,Ensemble: members / spread,Heights,,,,2,yes,1,ens_250_vort_ht (Vorticity of the mean wind); ens_500_vort_ht (Vorticity of the mean wind)
-Tropical and dynamics,Value,Pressure,yes,,,2,yes,32,shear_850_200 (Shear magnitude); steering_850_200 (Mean wind speed)
+Tropical and dynamics,Value,Pressure,yes,,,2,yes,33,shear_850_200 (Shear magnitude); steering_850_200 (Mean wind speed)
 Upper air,Ensemble: members / spread,Heights,yes,,,6,yes,1,ens_250_wnd (Mean wind speed); ens_700_rh (Mean relative humidity); ens_700_temp (Mean temperature); ens_850_rh (Mean relative humidity); ens_850_temp (Mean temperature)
 Upper air,Value,Heights,yes,,,2,yes,30,"850_pw_ht (Precipitable water); rh_700_300 (Mean relative humidity, #mb)"
-Upper air,Value,Pressure,yes,,,1,,35,700_temp_mslp (#mb temperature)
+Upper air,Value,Pressure,yes,,,1,,36,700_temp_mslp (#mb temperature)
 Upper air,Value,,,,,1,,37,850_700_rh (Mean relative humidity of # )
 Upper air,Value,,yes,,,1,,10,925_temp_wnd (# mb temperature)

@@ -19,17 +19,30 @@ kind = netcdf
 # the directory is the run; the file name has the run, then the time the average is for (stamped half an hour after the hour it begins); `+` is %2B in a url
 url = https://portal.nccs.nasa.gov/datashare/gmao/geos-fp/forecast/Y{year}/M{month}/D{day}/H{cycle}/GEOS.fp.fcst.{file}.{date}_{cycle}%2B{valid}.V01.nc4
 file = when level="aerosol" => tavg3_2d_aer_Nx
+# the four levels of the hourly collection stay there; every other level is a band of the 3 hourly instantaneous collection (42 levels, 1000 to 0.1 hPa, one variable each: H, T, U, V, QV, OMEGA, EPV)
+file = when level~"^(1000|850|500|250) mb$" => tavg1_2d_slv_Nx
+file = when level~"^[0-9.]+ mb$" => inst3_3d_asm_Np
 file = tavg1_2d_slv_Nx
 valid_offset = 30
+# the instantaneous 3 hour collection is stamped at the hour itself (the offset is from the run's time plus the hour, not added to the 30 minutes of the averages)
+valid_offset_file = inst3_3d_asm_Np:0
+nc_levels = 1000, 975, 950, 925, 900, 875, 850, 825, 800, 775, 750, 725, 700, 650, 600, 550, 500, 450, 400, 350, 300, 250, 200, 150, 100, 70, 50, 40, 30, 20, 10, 7, 5, 4, 3, 2, 1, 0.7, 0.5, 0.4, 0.3, 0.1
 # the 3 hour aerosol averages are stamped in the middle of their period: the one that ends at forecast hour 3 of the 12Z run is 13:30
 valid_offset_file = tavg3_2d_aer_Nx:-90
 # the NOAA names the charts use -> this file's names
-nc_variable = when variable=HGT level~"^[0-9]+ mb$" => H{mb}
-nc_variable = when variable=TMP level~"^[0-9]+ mb$" => T{mb}
-nc_variable = when variable=UGRD level~"^[0-9]+ mb$" => U{mb}
-nc_variable = when variable=VGRD level~"^[0-9]+ mb$" => V{mb}
-nc_variable = when variable=SPFH level~"^[0-9]+ mb$" => Q{mb}
-nc_variable = when variable=VVEL level~"^[0-9]+ mb$" => OMEGA{mb}
+nc_variable = when variable=HGT level~"^(1000|850|500|250) mb$" => H{mb}
+nc_variable = when variable=TMP level~"^(1000|850|500|250) mb$" => T{mb}
+nc_variable = when variable=UGRD level~"^(1000|850|500|250) mb$" => U{mb}
+nc_variable = when variable=VGRD level~"^(1000|850|500|250) mb$" => V{mb}
+nc_variable = when variable=SPFH level~"^(1000|850|500|250) mb$" => Q{mb}
+nc_variable = when variable=VVEL level~"^(1000|850|500|250) mb$" => OMEGA{mb}
+nc_variable = when variable=HGT level~"^[0-9.]+ mb$" => H@lev
+nc_variable = when variable=TMP level~"^[0-9.]+ mb$" => T@lev
+nc_variable = when variable=UGRD level~"^[0-9.]+ mb$" => U@lev
+nc_variable = when variable=VGRD level~"^[0-9.]+ mb$" => V@lev
+nc_variable = when variable=SPFH level~"^[0-9.]+ mb$" => QV@lev
+nc_variable = when variable=VVEL level~"^[0-9.]+ mb$" => OMEGA@lev
+nc_variable = when variable=EPV level~"^[0-9.]+ mb$" => EPV@lev
 nc_variable = when variable=TMP level="2 m above ground" => T2M
 nc_variable = when variable=SPFH level="2 m above ground" => QV2M
 nc_variable = when variable=UGRD level="10 m above ground" => U10M
@@ -39,6 +52,8 @@ nc_variable = when variable=PRES level=surface => PS
 nc_variable = when variable=PWAT => TQV
 # Kelvin to degrees C, as the GRIB models arrive
 value_offset = TMP:-273.15
+# Ertel potential vorticity comes in K m2 / kg / s: to PVU (1e-6 of it)
+value_scale = EPV:1000000
 # NASA's GrADS Data Server gives one variable at one time of the hourly single-level collection: tried before the 48 MB file
 partial = geos-opendap
 # the grid is 0.3125 degrees of longitude by 0.25 of latitude: warped to a square 0.25 degree grid
@@ -56,10 +71,10 @@ overlays = true
 list = true
 clone = true
 clone_variables = HGT, TMP, UGRD, VGRD, SPFH, VVEL, PRMSL, PWAT, PRES, RH
-clone_fields = HGT|1000 mb, HGT|850 mb, HGT|500 mb, HGT|250 mb, TMP|850 mb, TMP|500 mb, TMP|250 mb, UGRD|850 mb, UGRD|500 mb, UGRD|250 mb, VGRD|850 mb, VGRD|500 mb, VGRD|250 mb, SPFH|850 mb, SPFH|500 mb, SPFH|250 mb, VVEL|500 mb, RH|850 mb, RH|500 mb, RH|250 mb
+clone_fields = HGT|1000 mb, HGT|850 mb, HGT|500 mb, HGT|250 mb, TMP|850 mb, TMP|500 mb, TMP|250 mb, UGRD|850 mb, UGRD|500 mb, UGRD|250 mb, VGRD|850 mb, VGRD|500 mb, VGRD|250 mb, SPFH|850 mb, SPFH|500 mb, SPFH|250 mb, VVEL|500 mb, RH|850 mb, RH|500 mb, RH|250 mb, HGT|925 mb, TMP|925 mb, UGRD|925 mb, VGRD|925 mb, HGT|700 mb, TMP|700 mb, UGRD|700 mb, VGRD|700 mb, HGT|300 mb, TMP|300 mb, UGRD|300 mb, VGRD|300 mb, HGT|200 mb, TMP|200 mb, UGRD|200 mb, VGRD|200 mb, HGT|100 mb, TMP|100 mb, UGRD|100 mb, VGRD|100 mb, HGT|70 mb, TMP|70 mb, UGRD|70 mb, VGRD|70 mb, HGT|50 mb, TMP|50 mb, UGRD|50 mb, VGRD|50 mb, HGT|30 mb, TMP|30 mb, UGRD|30 mb, VGRD|30 mb, HGT|20 mb, TMP|20 mb, UGRD|20 mb, VGRD|20 mb, HGT|10 mb, TMP|10 mb, UGRD|10 mb, VGRD|10 mb, HGT|5 mb, TMP|5 mb, UGRD|5 mb, VGRD|5 mb, HGT|2 mb, TMP|2 mb, UGRD|2 mb, VGRD|2 mb, HGT|1 mb, TMP|1 mb, UGRD|1 mb, VGRD|1 mb
 clone_pieces = false
 clone_specific_humidity = true
-clone_skip = anom, precip, thick, 850_vort_ht, 500_vort_ht
+clone_skip = anom, precip, thick, 850_vort_ht, 500_vort_ht, pv_ht
 )MODEL"},
         {"GFS", R"MODEL(
 # the GFS: the charts everything else is made from; NOMADS can cut a box of the fields out of a file, which is what a regional chart fetches

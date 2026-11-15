@@ -84,6 +84,7 @@ namespace {
         std::vector<std::pair<std::string, double>> scales;           // variable -> factor
         std::vector<std::pair<std::string, double>> offsets;          // variable -> amount added after the factor (Kelvin to degrees C)
         std::vector<Rule> variables;                                  // `nc_variable` rules: a NetCDF file's name for a want
+        std::vector<double> ncLevels;                                 // `nc_levels` the pressure levels of a NetCDF file's `lev` dimension, in its order: a variable named with a trailing `@lev` is then the band of the want's level
         std::map<std::string, int> validOffsetByFile;                 // `valid_offset_file` FILE:minutes: a collection stamped differently (a 3 hour average is stamped in the middle of its period)
         std::string tarMember;                                        // `tar_member` pattern: the file of an hour in the tar that is the url (kind = tar)
         std::string partial;                                          // `partial` NAME: a reader of part of a file tried before the whole file (geos-opendap)
@@ -584,6 +585,21 @@ GfsModelFile::Parsed GfsModelFile::parse(const std::string& original, const std:
                 break;
             }
             definition->validOffsetMinutes = n;
+        } else if (key == "nc_levels") {
+            definition->ncLevels.clear();
+            for (size_t at = 0; at <= value.size();) {
+                auto end = value.find(',', at);
+                end = end == std::string::npos ? value.size() : end;
+                const auto text = value.substr(at, end - at);
+                char * stop = nullptr;
+                const double level = std::strtod(text.c_str(), &stop);
+                if (stop == text.c_str()) {
+                    reader.fail("nc_levels is a list of pressure levels");
+                    break;
+                }
+                definition->ncLevels.push_back(level);
+                at = end + 1;
+            }
         } else if (key == "valid_offset_file") {
             const auto colon = value.find(':');
             if (colon == std::string::npos || !toInt(value.substr(colon + 1), n)) {
@@ -981,11 +997,37 @@ GfsModelFile::Parsed GfsModelFile::parse(const std::string& original, const std:
                 for (const auto& rule : d->variables) {
                     const bool all = std::all_of(rule.conditions.begin(), rule.conditions.end(), [&w] (const Condition& c) { return c.matches(w); });
                     if (all) {
-                        return expandWant(rule.pattern, w);
+                        auto name = expandWant(rule.pattern, w);
+                        if (name.size() > 4 && name.compare(name.size() - 4, 4, "@lev") == 0) {   // (the level is a band of the variable: ncBand)
+                            name.erase(name.size() - 4);
+                        }
+                        return name;
                     }
                 }
                 return w.variable;
             };
+            if (!d->ncLevels.empty()) {   // a variable of a collection that holds every level as the bands of one variable (NASA's 3 hourly pressure levels: `H@lev`): the band of the level
+                made.ncBand = [d] (const Run&, int, const Want& w) {
+                    for (const auto& rule : d->variables) {
+                        const bool all = std::all_of(rule.conditions.begin(), rule.conditions.end(), [&w] (const Condition& c) { return c.matches(w); });
+                        if (!all) {
+                            continue;
+                        }
+                        const auto name = expandWant(rule.pattern, w);
+                        if (name.size() <= 4 || name.compare(name.size() - 4, 4, "@lev") != 0) {
+                            return 0;
+                        }
+                        const double level = std::atof(w.level.c_str());
+                        for (size_t i = 0; i < d->ncLevels.size(); i++) {
+                            if (std::abs(d->ncLevels[i] - level) < 1e-6) {
+                                return static_cast<int>(i) + 1;
+                            }
+                        }
+                        return 0;
+                    }
+                    return 0;
+                };
+            }
         }
         if (!d->offsets.empty()) {
             made.valueOffset = [d] (const Want& w) {

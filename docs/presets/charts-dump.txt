@@ -456,15 +456,48 @@ CHART GEOS-FP|Changes and trends|z500_trend|500mb Height and 48-hour Change|500m
 CHART GEOS-FP|Precipitation and moisture|mslp_pwat|MSLP and Precipitable Water|Precipitable water|Sea level pressure (mb)|||0
 CHART GEOS-FP|Surface|10m_wnd_2m_temp|MSLP, 10m wind, 2m temperature|2 m temperature|Sea level pressure (mb)|own||0
 CHART GEOS-FP|Surface|mslp_10m_wind|MSLP and 10m Wind|10 m wind speed (kt)|Sea level pressure (mb)|own||0
+CHART GEOS-FP|Tropical and dynamics|200_div_wnd|200mb Divergence, Wind and Height|Divergence (1e-5 /s)|Height (dam)|own||0
+CHART GEOS-FP|Tropical and dynamics|200_stream_div|200mb Divergence and Streamlines|Divergence (1e-5 /s)|||streamlines|0
 CHART GEOS-FP|Tropical and dynamics|850_stream_vort|850mb Vorticity and Streamlines|Relative vorticity (1e-5 /s)|||streamlines|0
 CHART GEOS-FP|Tropical and dynamics|850_thetae_ht|850mb Equivalent Potential Temperature, Wind and Height|Equivalent potential temperature (K)|Height (dam)|own||0
+CHART GEOS-FP|Tropical and dynamics|850vor_500ht_200wd|850mb Vorticity, 500mb Height, 200mb Wind|850mb relative vorticity (1e-5 /s)|Height (dam)|own||0
+CHART GEOS-FP|Tropical and dynamics|shear_850_200|850-200mb Deep-Layer Wind Shear|Shear magnitude (kt)|Sea level pressure (mb)|own||0
+CHART GEOS-FP|Tropical and dynamics|steering_850_200|850-200mb Mean Wind (Steering Flow)|Mean wind speed (kt)|Sea level pressure (mb)|own||0
+CHART GEOS-FP|Upper air|100_pv_ht|100mb Potential Vorticity (its own), Wind and Height|Potential vorticity (PVU)|Height (dam)|own||0
+CHART GEOS-FP|Upper air|100_temp_ht|100mb Temperature, Wind and Height|Temperature|Height (dam)|own||0
+CHART GEOS-FP|Upper air|100_wnd_ht|100mb Wind and Height|Wind speed (kt)|Height (dam)|own||0
+CHART GEOS-FP|Upper air|10_pv_ht|10mb Potential Vorticity (its own), Wind and Height|Potential vorticity (PVU)|Height (dam)|own||0
+CHART GEOS-FP|Upper air|10_temp_ht|10mb Temperature, Wind and Height|Temperature|Height (dam)|own||0
+CHART GEOS-FP|Upper air|10_wnd_ht|10mb Wind and Height|Wind speed (kt)|Height (dam)|own||0
+CHART GEOS-FP|Upper air|1_temp_ht|1mb Temperature, Wind and Height|Temperature|Height (dam)|own||0
+CHART GEOS-FP|Upper air|1_wnd_ht|1mb Wind and Height|Wind speed (kt)|Height (dam)|own||0
+CHART GEOS-FP|Upper air|200_wnd_ht|200mb Wind and Height|Wind speed (kt)|Height (dam)|||0
+CHART GEOS-FP|Upper air|20_pv_ht|20mb Potential Vorticity (its own), Wind and Height|Potential vorticity (PVU)|Height (dam)|own||0
+CHART GEOS-FP|Upper air|20_temp_ht|20mb Temperature, Wind and Height|Temperature|Height (dam)|own||0
+CHART GEOS-FP|Upper air|20_wnd_ht|20mb Wind and Height|Wind speed (kt)|Height (dam)|own||0
 CHART GEOS-FP|Upper air|250_wnd_ht|250mb Wind and Height|Wind speed (kt)|Height (dam)|||0
+CHART GEOS-FP|Upper air|2_temp_ht|2mb Temperature, Wind and Height|Temperature|Height (dam)|own||0
+CHART GEOS-FP|Upper air|2_wnd_ht|2mb Wind and Height|Wind speed (kt)|Height (dam)|own||0
+CHART GEOS-FP|Upper air|300_wnd_ht|300mb Wind and Height|Wind speed (kt)|Height (dam)|||0
+CHART GEOS-FP|Upper air|30_pv_ht|30mb Potential Vorticity (its own), Wind and Height|Potential vorticity (PVU)|Height (dam)|own||0
+CHART GEOS-FP|Upper air|30_temp_ht|30mb Temperature, Wind and Height|Temperature|Height (dam)|own||0
+CHART GEOS-FP|Upper air|30_wnd_ht|30mb Wind and Height|Wind speed (kt)|Height (dam)|own||0
 CHART GEOS-FP|Upper air|500_rh_ht|500mb Relative Humidity and Height|Relative humidity (%)|Height (dam)|own||0
 CHART GEOS-FP|Upper air|500_wnd_ht|500mb Wind and Height|Wind speed (kt)|Height (dam)|own||0
+CHART GEOS-FP|Upper air|50_pv_ht|50mb Potential Vorticity (its own), Wind and Height|Potential vorticity (PVU)|Height (dam)|own||0
+CHART GEOS-FP|Upper air|50_temp_ht|50mb Temperature, Wind and Height|Temperature|Height (dam)|own||0
+CHART GEOS-FP|Upper air|50_wnd_ht|50mb Wind and Height|Wind speed (kt)|Height (dam)|own||0
+CHART GEOS-FP|Upper air|5_temp_ht|5mb Temperature, Wind and Height|Temperature|Height (dam)|own||0
+CHART GEOS-FP|Upper air|5_wnd_ht|5mb Wind and Height|Wind speed (kt)|Height (dam)|own||0
+CHART GEOS-FP|Upper air|700_temp_mslp|700mb Temperature, Wind and MSLP|700mb temperature|Sea level pressure (mb)|own||0
+CHART GEOS-FP|Upper air|70_pv_ht|70mb Potential Vorticity (its own), Wind and Height|Potential vorticity (PVU)|Height (dam)|own||0
+CHART GEOS-FP|Upper air|70_temp_ht|70mb Temperature, Wind and Height|Temperature|Height (dam)|own||0
+CHART GEOS-FP|Upper air|70_wnd_ht|70mb Wind and Height|Wind speed (kt)|Height (dam)|own||0
 CHART GEOS-FP|Upper air|850_pw_ht|850mb Height, Precipitable Water and Wind|Precipitable water|Height (dam)|own||0
 CHART GEOS-FP|Upper air|850_rh_ht|850mb Relative Humidity and Height|Relative humidity (%)|Height (dam)|own||0
 CHART GEOS-FP|Upper air|850_temp_ht|850mb Temperature, Wind and Height|Temperature|Height (dam)|own||0
 CHART GEOS-FP|Upper air|850_wnd_ht|850mb Height and Wind|Wind speed (kt)|Height (dam)|own||0
+CHART GEOS-FP|Upper air|925_temp_ht|925mb Temperature, Wind and Height|Temperature|Height (dam)|own||0
 CHART GEPS|Changes and trends|mslp_trend|Mean MSLP and 48-hour Change|Sea level pressure change (mb)|Sea level pressure (mb)|||0
 CHART GEPS|Changes and trends|snodpth_chng|Mean Snow Depth Change from F00|Snow depth change||||0
 CHART GEPS|Changes and trends|z500_trend|Mean 500mb Height and 48-hour Change|500mb height change (dam)|Height (dam)|||0
@@ -618,6 +651,9 @@ CHART GFS|Severe: storm structure|sim_radar_comp|Simulated Composite Radar Refle
 CHART GFS|Surface|10m_wnd_2m_temp|MSLP, 10m wind, 2m temperature|2 m temperature|Sea level pressure (mb)|own||0
 CHART GFS|Surface|2m_dewpoint|MSLP, 10m wind, 2m dewpoint|2 m dewpoint|Sea level pressure (mb)|own||0
 CHART GFS|Surface|2m_rh_10m_wnd_derived|2 m Relative Humidity (from temperature and dewpoint), MSLP and 10m Wind|2 m relative humidity (%)|Sea level pressure (mb)|own||0
+CHART GFS|Surface|530K_pv|530 K Isentropic Potential Vorticity, Wind and Pressure|Potential vorticity on the surface (PVU)|Pressure of the 530 K surface (mb)|own||0
+CHART GFS|Surface|650K_pv|650 K Isentropic Potential Vorticity, Wind and Pressure|Potential vorticity on the surface (PVU)|Pressure of the 650 K surface (mb)|own||0
+CHART GFS|Surface|850K_pv|850 K Isentropic Potential Vorticity, Wind and Pressure|Potential vorticity on the surface (PVU)|Pressure of the 850 K surface (mb)|own||0
 CHART GFS|Surface|mslp_10m_wind|MSLP and 10m Wind|10 m wind speed (kt)|Sea level pressure (mb)|own||0
 CHART GFS|Tropical and dynamics|200_div_wnd|200mb Divergence, Wind and Height|Divergence (1e-5 /s)|Height (dam)|own||0
 CHART GFS|Tropical and dynamics|200_stream_div|200mb Divergence and Streamlines|Divergence (1e-5 /s)|||streamlines|0
@@ -647,6 +683,7 @@ CHART GFS|Upper air|300_wnd_ht|300mb Wind and Height|Wind speed (kt)|Height (dam
 CHART GFS|Upper air|30_pv_ht|30mb Potential Vorticity, Wind and Height|Potential vorticity (PVU)|Height (dam)|own||0
 CHART GFS|Upper air|30_temp_ht|30mb Temperature, Wind and Height|Temperature|Height (dam)|own||0
 CHART GFS|Upper air|30_wnd_ht|30mb Wind and Height|Wind speed (kt)|Height (dam)|own||0
+CHART GFS|Upper air|500K_pv|500 K Isentropic Potential Vorticity, Wind and Pressure|Potential vorticity on the surface (PVU)|Pressure of the 500 K surface (mb)|own||0
 CHART GFS|Upper air|500_rh_ht|500mb Relative Humidity and Height|Relative humidity (%)|Height (dam)|own||0
 CHART GFS|Upper air|500_wnd_ht|500mb Wind and Height|Wind speed (kt)|Height (dam)|own||0
 CHART GFS|Upper air|50_pv_ht|50mb Potential Vorticity, Wind and Height|Potential vorticity (PVU)|Height (dam)|own||0
@@ -654,6 +691,7 @@ CHART GFS|Upper air|50_temp_ht|50mb Temperature, Wind and Height|Temperature|Hei
 CHART GFS|Upper air|50_wnd_ht|50mb Wind and Height|Wind speed (kt)|Height (dam)|own||0
 CHART GFS|Upper air|5_temp_ht|5mb Temperature, Wind and Height|Temperature|Height (dam)|own||0
 CHART GFS|Upper air|5_wnd_ht|5mb Wind and Height|Wind speed (kt)|Height (dam)|own||0
+CHART GFS|Upper air|600K_pv|600 K Isentropic Potential Vorticity, Wind and Pressure|Potential vorticity on the surface (PVU)|Pressure of the 600 K surface (mb)|own||0
 CHART GFS|Upper air|700_rh_ht|700mb Relative Humidity, Height and Omega|Relative humidity (%)|Height (dam);Omega (ubar/s, rising air)|own||0
 CHART GFS|Upper air|700_temp_mslp|700mb Temperature, Wind and MSLP|700mb temperature|Sea level pressure (mb)|own||0
 CHART GFS|Upper air|70_pv_ht|70mb Potential Vorticity, Wind and Height|Potential vorticity (PVU)|Height (dam)|own||0
@@ -3193,16 +3231,47 @@ LEVELS GEFS-WAVE|swell3_wv_ht|h=SWELL@3 in sequence,u=UGRD@surface,v=VGRD@surfac
 LEVELS GEFS-WAVE|wsea_dir_per|t=WVPER@surface,d=WVDIR@surface||
 LEVELS GEFS-WAVE|wsea_wv_ht|h=WVHGT@surface,u=UGRD@surface,v=VGRD@surface||UGRD@surface
 LEVELS GEFS|z500_trend|||
+LEVELS GEOS-FP|100_pv_ht|z=HGT@100 mb,u=UGRD@100 mb,v=VGRD@100 mb,pv=EPV@100 mb|HGT@100 mb|UGRD@100 mb
+LEVELS GEOS-FP|100_temp_ht|z=HGT@100 mb,u=UGRD@100 mb,v=VGRD@100 mb,t=TMP@100 mb|HGT@100 mb|UGRD@100 mb
+LEVELS GEOS-FP|100_wnd_ht|z=HGT@100 mb,u=UGRD@100 mb,v=VGRD@100 mb|HGT@100 mb|UGRD@100 mb
 LEVELS GEOS-FP|10m_wnd_2m_temp|t=TMP@2 m above ground,u=UGRD@10 m above ground,v=VGRD@10 m above ground,p=PRMSL@mean sea level|PRMSL@mean sea level|UGRD@10 m above ground
+LEVELS GEOS-FP|10_pv_ht|z=HGT@10 mb,u=UGRD@10 mb,v=VGRD@10 mb,pv=EPV@10 mb|HGT@10 mb|UGRD@10 mb
+LEVELS GEOS-FP|10_temp_ht|z=HGT@10 mb,u=UGRD@10 mb,v=VGRD@10 mb,t=TMP@10 mb|HGT@10 mb|UGRD@10 mb
+LEVELS GEOS-FP|10_wnd_ht|z=HGT@10 mb,u=UGRD@10 mb,v=VGRD@10 mb|HGT@10 mb|UGRD@10 mb
+LEVELS GEOS-FP|1_temp_ht|z=HGT@1 mb,u=UGRD@1 mb,v=VGRD@1 mb,t=TMP@1 mb|HGT@1 mb|UGRD@1 mb
+LEVELS GEOS-FP|1_wnd_ht|z=HGT@1 mb,u=UGRD@1 mb,v=VGRD@1 mb|HGT@1 mb|UGRD@1 mb
+LEVELS GEOS-FP|200_div_wnd|z=HGT@200 mb,u=UGRD@200 mb,v=VGRD@200 mb|HGT@200 mb|UGRD@200 mb
+LEVELS GEOS-FP|200_stream_div|z=HGT@200 mb,u=UGRD@200 mb,v=VGRD@200 mb||
+LEVELS GEOS-FP|200_wnd_ht|z=HGT@200 mb,u=UGRD@200 mb,v=VGRD@200 mb|HGT@200 mb|
+LEVELS GEOS-FP|20_pv_ht|z=HGT@20 mb,u=UGRD@20 mb,v=VGRD@20 mb,pv=EPV@20 mb|HGT@20 mb|UGRD@20 mb
+LEVELS GEOS-FP|20_temp_ht|z=HGT@20 mb,u=UGRD@20 mb,v=VGRD@20 mb,t=TMP@20 mb|HGT@20 mb|UGRD@20 mb
+LEVELS GEOS-FP|20_wnd_ht|z=HGT@20 mb,u=UGRD@20 mb,v=VGRD@20 mb|HGT@20 mb|UGRD@20 mb
 LEVELS GEOS-FP|250_wnd_ht|z=HGT@250 mb,u=UGRD@250 mb,v=VGRD@250 mb|HGT@250 mb|
+LEVELS GEOS-FP|2_temp_ht|z=HGT@2 mb,u=UGRD@2 mb,v=VGRD@2 mb,t=TMP@2 mb|HGT@2 mb|UGRD@2 mb
+LEVELS GEOS-FP|2_wnd_ht|z=HGT@2 mb,u=UGRD@2 mb,v=VGRD@2 mb|HGT@2 mb|UGRD@2 mb
+LEVELS GEOS-FP|300_wnd_ht|z=HGT@300 mb,u=UGRD@300 mb,v=VGRD@300 mb|HGT@300 mb|
+LEVELS GEOS-FP|30_pv_ht|z=HGT@30 mb,u=UGRD@30 mb,v=VGRD@30 mb,pv=EPV@30 mb|HGT@30 mb|UGRD@30 mb
+LEVELS GEOS-FP|30_temp_ht|z=HGT@30 mb,u=UGRD@30 mb,v=VGRD@30 mb,t=TMP@30 mb|HGT@30 mb|UGRD@30 mb
+LEVELS GEOS-FP|30_wnd_ht|z=HGT@30 mb,u=UGRD@30 mb,v=VGRD@30 mb|HGT@30 mb|UGRD@30 mb
 LEVELS GEOS-FP|500_rh_ht|z=HGT@500 mb,rh=RH@500 mb,u=UGRD@500 mb,v=VGRD@500 mb|HGT@500 mb|UGRD@500 mb
 LEVELS GEOS-FP|500_wnd_ht|z=HGT@500 mb,u=UGRD@500 mb,v=VGRD@500 mb|HGT@500 mb|UGRD@500 mb
+LEVELS GEOS-FP|50_pv_ht|z=HGT@50 mb,u=UGRD@50 mb,v=VGRD@50 mb,pv=EPV@50 mb|HGT@50 mb|UGRD@50 mb
+LEVELS GEOS-FP|50_temp_ht|z=HGT@50 mb,u=UGRD@50 mb,v=VGRD@50 mb,t=TMP@50 mb|HGT@50 mb|UGRD@50 mb
+LEVELS GEOS-FP|50_wnd_ht|z=HGT@50 mb,u=UGRD@50 mb,v=VGRD@50 mb|HGT@50 mb|UGRD@50 mb
+LEVELS GEOS-FP|5_temp_ht|z=HGT@5 mb,u=UGRD@5 mb,v=VGRD@5 mb,t=TMP@5 mb|HGT@5 mb|UGRD@5 mb
+LEVELS GEOS-FP|5_wnd_ht|z=HGT@5 mb,u=UGRD@5 mb,v=VGRD@5 mb|HGT@5 mb|UGRD@5 mb
+LEVELS GEOS-FP|700_temp_mslp|t=TMP@700 mb,u=UGRD@700 mb,v=VGRD@700 mb,p=PRMSL@mean sea level|PRMSL@mean sea level|UGRD@700 mb
+LEVELS GEOS-FP|70_pv_ht|z=HGT@70 mb,u=UGRD@70 mb,v=VGRD@70 mb,pv=EPV@70 mb|HGT@70 mb|UGRD@70 mb
+LEVELS GEOS-FP|70_temp_ht|z=HGT@70 mb,u=UGRD@70 mb,v=VGRD@70 mb,t=TMP@70 mb|HGT@70 mb|UGRD@70 mb
+LEVELS GEOS-FP|70_wnd_ht|z=HGT@70 mb,u=UGRD@70 mb,v=VGRD@70 mb|HGT@70 mb|UGRD@70 mb
 LEVELS GEOS-FP|850_pw_ht|z=HGT@850 mb,u=UGRD@850 mb,v=VGRD@850 mb,pw=PWAT@entire atmosphere (considered as a single layer)|HGT@850 mb|UGRD@850 mb
 LEVELS GEOS-FP|850_rh_ht|z=HGT@850 mb,rh=RH@850 mb,u=UGRD@850 mb,v=VGRD@850 mb|HGT@850 mb|UGRD@850 mb
 LEVELS GEOS-FP|850_stream_vort|z=HGT@850 mb,u=UGRD@850 mb,v=VGRD@850 mb||
 LEVELS GEOS-FP|850_temp_ht|z=HGT@850 mb,u=UGRD@850 mb,v=VGRD@850 mb,t=TMP@850 mb|HGT@850 mb|UGRD@850 mb
 LEVELS GEOS-FP|850_thetae_ht|z=HGT@850 mb,u=UGRD@850 mb,v=VGRD@850 mb,t=TMP@850 mb,rh=RH@850 mb|HGT@850 mb|UGRD@850 mb
+LEVELS GEOS-FP|850vor_500ht_200wd|z=HGT@500 mb,u=UGRD@850 mb,v=VGRD@850 mb,u2=UGRD@200 mb,v2=VGRD@200 mb|HGT@500 mb|UGRD@200 mb
 LEVELS GEOS-FP|850_wnd_ht|z=HGT@850 mb,u=UGRD@850 mb,v=VGRD@850 mb|HGT@850 mb|UGRD@850 mb
+LEVELS GEOS-FP|925_temp_ht|z=HGT@925 mb,u=UGRD@925 mb,v=VGRD@925 mb,t=TMP@925 mb|HGT@925 mb|UGRD@925 mb
 LEVELS GEOS-FP|aod_total|a0=TOTEXTTAU@aerosol,u=UGRD@10 m above ground,v=VGRD@10 m above ground||UGRD@10 m above ground
 LEVELS GEOS-FP|dust_aod|a0=DUEXTTAU@aerosol,u=UGRD@10 m above ground,v=VGRD@10 m above ground||UGRD@10 m above ground
 LEVELS GEOS-FP|dust_column|a0=DUCMASS@aerosol,u=UGRD@10 m above ground,v=VGRD@10 m above ground||UGRD@10 m above ground
@@ -3213,7 +3282,9 @@ LEVELS GEOS-FP|mslp_pwat|pw=PWAT@entire atmosphere (considered as a single layer
 LEVELS GEOS-FP|mslp_trend|||
 LEVELS GEOS-FP|pm25_total|a0=DUSMASS25@aerosol,a1=SSSMASS25@aerosol,a2=BCSMASS@aerosol,a3=OCSMASS@aerosol,a4=SO4SMASS@aerosol,u=UGRD@10 m above ground,v=VGRD@10 m above ground||UGRD@10 m above ground
 LEVELS GEOS-FP|seasalt_surface|a0=SSSMASS@aerosol,u=UGRD@10 m above ground,v=VGRD@10 m above ground||UGRD@10 m above ground
+LEVELS GEOS-FP|shear_850_200|u8=UGRD@850 mb,v8=VGRD@850 mb,u2=UGRD@200 mb,v2=VGRD@200 mb,p=PRMSL@mean sea level|PRMSL@mean sea level|
 LEVELS GEOS-FP|smoke_surface|a0=BCSMASS@aerosol,a1=OCSMASS@aerosol,u=UGRD@10 m above ground,v=VGRD@10 m above ground||UGRD@10 m above ground
+LEVELS GEOS-FP|steering_850_200|u0=UGRD@850 mb,v0=VGRD@850 mb,u1=UGRD@700 mb,v1=VGRD@700 mb,u2=UGRD@500 mb,v2=VGRD@500 mb,u3=UGRD@300 mb,v3=VGRD@300 mb,u4=UGRD@200 mb,v4=VGRD@200 mb,p=PRMSL@mean sea level|PRMSL@mean sea level|
 LEVELS GEOS-FP|sulfate_surface|a0=SO4SMASS@aerosol,u=UGRD@10 m above ground,v=VGRD@10 m above ground||UGRD@10 m above ground
 LEVELS GEOS-FP|z500_trend|||
 LEVELS GEPS|1000_500_thick|||
@@ -3334,14 +3405,18 @@ LEVELS GFS|30_pv_ht|z=HGT@30 mb,u=UGRD@30 mb,v=VGRD@30 mb,ta=TMP@20 mb,tb=TMP@40
 LEVELS GFS|30_temp_ht|z=HGT@30 mb,u=UGRD@30 mb,v=VGRD@30 mb,t=TMP@30 mb|HGT@30 mb|UGRD@30 mb
 LEVELS GFS|30_wnd_ht|z=HGT@30 mb,u=UGRD@30 mb,v=VGRD@30 mb|HGT@30 mb|UGRD@30 mb
 LEVELS GFS|500_hgt_anom|z=HGT@500 mb,u=UGRD@500 mb,v=VGRD@500 mb|HGT@500 mb|UGRD@500 mb
+LEVELS GFS|500K_pv|t20=TMP@20 mb,t30=TMP@30 mb,u30=UGRD@30 mb,v30=VGRD@30 mb,t40=TMP@40 mb,u40=UGRD@40 mb,v40=VGRD@40 mb,t50=TMP@50 mb,u50=UGRD@50 mb,v50=VGRD@50 mb,t70=TMP@70 mb,u70=UGRD@70 mb,v70=VGRD@70 mb,t100=TMP@100 mb||
 LEVELS GFS|500_rh_ht|z=HGT@500 mb,rh=RH@500 mb,u=UGRD@500 mb,v=VGRD@500 mb|HGT@500 mb|UGRD@500 mb
 LEVELS GFS|500_vort_ht|z=HGT@500 mb,u=UGRD@500 mb,v=VGRD@500 mb|HGT@500 mb|UGRD@500 mb
 LEVELS GFS|500_wnd_ht|z=HGT@500 mb,u=UGRD@500 mb,v=VGRD@500 mb|HGT@500 mb|UGRD@500 mb
 LEVELS GFS|50_pv_ht|z=HGT@50 mb,u=UGRD@50 mb,v=VGRD@50 mb,ta=TMP@40 mb,tb=TMP@70 mb|HGT@50 mb|UGRD@50 mb
 LEVELS GFS|50_temp_ht|z=HGT@50 mb,u=UGRD@50 mb,v=VGRD@50 mb,t=TMP@50 mb|HGT@50 mb|UGRD@50 mb
 LEVELS GFS|50_wnd_ht|z=HGT@50 mb,u=UGRD@50 mb,v=VGRD@50 mb|HGT@50 mb|UGRD@50 mb
+LEVELS GFS|530K_pv|t20=TMP@20 mb,t30=TMP@30 mb,u30=UGRD@30 mb,v30=VGRD@30 mb,t40=TMP@40 mb,u40=UGRD@40 mb,v40=VGRD@40 mb,t50=TMP@50 mb,u50=UGRD@50 mb,v50=VGRD@50 mb,t70=TMP@70 mb,u70=UGRD@70 mb,v70=VGRD@70 mb,t100=TMP@100 mb||
 LEVELS GFS|5_temp_ht|z=HGT@5 mb,u=UGRD@5 mb,v=VGRD@5 mb,t=TMP@5 mb|HGT@5 mb|UGRD@5 mb
 LEVELS GFS|5_wnd_ht|z=HGT@5 mb,u=UGRD@5 mb,v=VGRD@5 mb|HGT@5 mb|UGRD@5 mb
+LEVELS GFS|600K_pv|t7=TMP@7 mb,t10=TMP@10 mb,u10=UGRD@10 mb,v10=VGRD@10 mb,t20=TMP@20 mb,u20=UGRD@20 mb,v20=VGRD@20 mb,t30=TMP@30 mb,u30=UGRD@30 mb,v30=VGRD@30 mb,t40=TMP@40 mb,u40=UGRD@40 mb,v40=VGRD@40 mb,t50=TMP@50 mb,u50=UGRD@50 mb,v50=VGRD@50 mb,t70=TMP@70 mb||
+LEVELS GFS|650K_pv|t7=TMP@7 mb,t10=TMP@10 mb,u10=UGRD@10 mb,v10=VGRD@10 mb,t20=TMP@20 mb,u20=UGRD@20 mb,v20=VGRD@20 mb,t30=TMP@30 mb,u30=UGRD@30 mb,v30=VGRD@30 mb,t40=TMP@40 mb,u40=UGRD@40 mb,v40=VGRD@40 mb,t50=TMP@50 mb||
 LEVELS GFS|700_hgt_anom|z=HGT@700 mb,u=UGRD@700 mb,v=VGRD@700 mb,ps=PRES@surface|HGT@700 mb|UGRD@700 mb
 LEVELS GFS|700_rh_ht|z=HGT@700 mb,rh=RH@700 mb,o=VVEL@700 mb,u=UGRD@700 mb,v=VGRD@700 mb|HGT@700 mb;VVEL@700 mb|UGRD@700 mb
 LEVELS GFS|700_temp_mslp|t=TMP@700 mb,u=UGRD@700 mb,v=VGRD@700 mb,p=PRMSL@mean sea level|PRMSL@mean sea level|UGRD@700 mb
@@ -3351,6 +3426,7 @@ LEVELS GFS|70_wnd_ht|z=HGT@70 mb,u=UGRD@70 mb,v=VGRD@70 mb|HGT@70 mb|UGRD@70 mb
 LEVELS GFS|850_700_rh|r8=RH@850 mb,r7=RH@700 mb||
 LEVELS GFS|850_700_thick|||
 LEVELS GFS|850_700_thick_type|||
+LEVELS GFS|850K_pv|t3=TMP@3 mb,t5=TMP@5 mb,u5=UGRD@5 mb,v5=VGRD@5 mb,t7=TMP@7 mb,u7=UGRD@7 mb,v7=VGRD@7 mb,t10=TMP@10 mb,u10=UGRD@10 mb,v10=VGRD@10 mb,t20=TMP@20 mb,u20=UGRD@20 mb,v20=VGRD@20 mb,t30=TMP@30 mb||
 LEVELS GFS|850_pw_ht|z=HGT@850 mb,u=UGRD@850 mb,v=VGRD@850 mb,pw=PWAT@entire atmosphere (considered as a single layer)|HGT@850 mb|UGRD@850 mb
 LEVELS GFS|850_rh_ht|z=HGT@850 mb,rh=RH@850 mb,u=UGRD@850 mb,v=VGRD@850 mb|HGT@850 mb|UGRD@850 mb
 LEVELS GFS|850_stream_vort|z=HGT@850 mb,u=UGRD@850 mb,v=VGRD@850 mb||

@@ -426,8 +426,7 @@ const std::vector<Product>& products() {
         const auto geosRecipes = [&] { geosProducts(p); };
 
         // The models in the registry's order: each one's clone of the GFS charts, then the charts of its own
-        // the IFS 0.1 degree files have 10 and 50 mb above the 100 (no 7 or 20): its 10 mb potential vorticity is the one-sided difference between 10 and 50 mb (about a third of the GFS's, which differences 7 and 20 mb:
-        // not comparable in value, the same in pattern)
+        // the IFS 0.1 degree files have 10 and 50 mb above the 100 (no 7 or 20): its 10 mb potential vorticity is the one-sided difference between 10 and 50 mb (with the log-pressure stability it is close to the GFS's, which differences 7 and 20 mb: 583 against 568 PVU at 10 mb on 15 Nov 2026 00Z; GEOS's own is 718)
         const auto ifsRecipes = [&] {
             std::vector<Product> found;
             for (const auto& chart : p) {
@@ -439,13 +438,31 @@ const std::vector<Product>& products() {
                 x.source = "IFS";
                 x.label = "10mb Potential Vorticity (10-50mb layer), Wind and Height";
                 x.wants = {want("z", "HGT", "10 mb"), want("u", "UGRD", "10 mb"), want("v", "VGRD", "10 mb"), want("ta", "TMP", "10 mb"), want("tb", "TMP", "50 mb")};
-                x.fill = potentialVorticityOf(10.0, 50.0);
-                x.ramp = potentialVorticityRamp(260.0);
-                x.legendStep = 50;
+                x.fill = potentialVorticityOf(10.0, 10.0, 50.0);
+                x.ramp = potentialVorticityRamp(740.0);
+                x.legendStep = 100;
                 p.push_back(x);
             }
         };
-        const std::map<std::string, std::function<void()>> own{{"IFS", ifsRecipes}, {"GEFS", gefsRecipes}, {"GEPS", gepsRecipes}, {"SPCPOST", [&] { spcRecipes("SPCPOST", false); }}, {"SPCGEFS", [&] { spcRecipes("SPCGEFS", true); }}, {"SFCOA", [&] { mesoRecipes("SFCOA"); }}, {"SPCREFS", spcRefsRecipes}, {"CFS30", cfs30Recipes}, {"EC46", [&] { openMeteoRecipes("EC46"); }}, {"SEAS5", [&] { openMeteoRecipes("SEAS5"); }}, {"WPC-PPP", pppRecipes}, {"RRFSD", [&] { mesoRecipes("RRFSD"); }}, {"RRFS", [&] { rrfsRecipes("RRFS"); }}, {"HRRR", [&] { rrfsRecipes("HRRR"); }}, {"HRRR-AK", [&] { rrfsRecipes("HRRR-AK"); }}, {"MPAS-HT", [&] { rrfsRecipes("MPAS-HT"); }}, {"MPAS-RN", [&] { rrfsRecipes("MPAS-RN"); }}, {"RRFS-AK", [&] { rrfsRecipes("RRFS-AK"); }}, {"RRFS-FIREWX", [&] { rrfsRecipes("RRFS-FIREWX"); }}, {"RRFS-HI", [&] { rrfsRecipes("RRFS-HI"); }}, {"RRFS-PR", [&] { rrfsRecipes("RRFS-PR"); }}, {"RRFS-NA", [&] { rrfsRecipes("RRFS-NA"); }}, {"GEOS-FP", geosRecipes}, {"IFS-ENS", ensRecipes}, {"ENS-ALL", ensAllRecipes}, {"REFS", refsRecipes}, {"HREF", hrefRecipes}, {"MF-SST", [&] { sstRecipes("MF-SST"); }}, {"MF-WAVE", [&] { mfWaveRecipes("MF-WAVE"); }}, {"MF-CURRENT", [&] { currentRecipes("MF-CURRENT"); }}, {"COPERNICUS", [&] { camsRecipes("COPERNICUS"); }}, {"GFS-WAVE", [&] { waveRecipes("GFS-WAVE"); }}, {"GEFS-WAVE", [&] { waveRecipes("GEFS-WAVE"); }}, {"HAFSA", [&] { hafsRecipes("HAFSA"); }}, {"HAFSB", [&] { hafsRecipes("HAFSB"); }}};
+        // GEOS-FP's 3 hourly pressure-level collection carries Ertel potential vorticity itself (EPV, 42 levels): the model's own, not worked out from the temperature and wind as the GFS's is
+        const auto geosPv = [&] {
+            std::vector<Product> found;
+            for (const auto& chart : p) {
+                if (chart.source == "GFS" && chart.id.size() > 6 && chart.id.compare(chart.id.size() - 6, 6, "_pv_ht") == 0) {
+                    found.push_back(chart);
+                }
+            }
+            for (auto x : found) {
+                const std::string level = x.id.substr(0, x.id.find('_')) + " mb";
+                x.source = "GEOS-FP";
+                x.label = x.label.substr(0, x.label.find(" Potential")) + " Potential Vorticity (its own), Wind and Height";
+                x.wants = {want("z", "HGT", level), want("u", "UGRD", level), want("v", "VGRD", level), want("pv", "EPV", level)};
+                x.fill = [] (const Grids& g) { return pick(g, "pv"); };
+                x.ramp = potentialVorticityRamp(x.ramp.stops.back().first * 1.27);   // (its PV is a little larger than the worked-out one: 718 against 568 PVU at 10 mb on 15 Nov 2026 00Z)
+                p.push_back(x);
+            }
+        };
+        const std::map<std::string, std::function<void()>> own{{"IFS", ifsRecipes}, {"GEFS", gefsRecipes}, {"GEPS", gepsRecipes}, {"SPCPOST", [&] { spcRecipes("SPCPOST", false); }}, {"SPCGEFS", [&] { spcRecipes("SPCGEFS", true); }}, {"SFCOA", [&] { mesoRecipes("SFCOA"); }}, {"SPCREFS", spcRefsRecipes}, {"CFS30", cfs30Recipes}, {"EC46", [&] { openMeteoRecipes("EC46"); }}, {"SEAS5", [&] { openMeteoRecipes("SEAS5"); }}, {"WPC-PPP", pppRecipes}, {"RRFSD", [&] { mesoRecipes("RRFSD"); }}, {"RRFS", [&] { rrfsRecipes("RRFS"); }}, {"HRRR", [&] { rrfsRecipes("HRRR"); }}, {"HRRR-AK", [&] { rrfsRecipes("HRRR-AK"); }}, {"MPAS-HT", [&] { rrfsRecipes("MPAS-HT"); }}, {"MPAS-RN", [&] { rrfsRecipes("MPAS-RN"); }}, {"RRFS-AK", [&] { rrfsRecipes("RRFS-AK"); }}, {"RRFS-FIREWX", [&] { rrfsRecipes("RRFS-FIREWX"); }}, {"RRFS-HI", [&] { rrfsRecipes("RRFS-HI"); }}, {"RRFS-PR", [&] { rrfsRecipes("RRFS-PR"); }}, {"RRFS-NA", [&] { rrfsRecipes("RRFS-NA"); }}, {"GEOS-FP", [&] { geosRecipes(); geosPv(); }}, {"IFS-ENS", ensRecipes}, {"ENS-ALL", ensAllRecipes}, {"REFS", refsRecipes}, {"HREF", hrefRecipes}, {"MF-SST", [&] { sstRecipes("MF-SST"); }}, {"MF-WAVE", [&] { mfWaveRecipes("MF-WAVE"); }}, {"MF-CURRENT", [&] { currentRecipes("MF-CURRENT"); }}, {"COPERNICUS", [&] { camsRecipes("COPERNICUS"); }}, {"GFS-WAVE", [&] { waveRecipes("GFS-WAVE"); }}, {"GEFS-WAVE", [&] { waveRecipes("GEFS-WAVE"); }}, {"HAFSA", [&] { hafsRecipes("HAFSA"); }}, {"HAFSB", [&] { hafsRecipes("HAFSB"); }}};
         for (const auto& def : GfsModels::all()) {
             if (def.clone.enabled) {
                 cloneFromGfs(def);

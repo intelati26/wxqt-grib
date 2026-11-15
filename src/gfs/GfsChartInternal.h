@@ -69,8 +69,10 @@ inline GfsGrid::Grid vorticityOf(const Grids& g) {
 // Ertel potential vorticity on a pressure level, in PVU (1e-6 K m2 / kg s), from the temperature at the level and at the levels above (grid "ta", at pAbove mb) and below (grid "tb", at pBelow mb) it and
 // the wind at the level (grids "u", "v"): PV = -g (zeta + f) dtheta/dp, zeta the relative vorticity on the pressure surface (the slope terms are left out: good in the stratosphere, where the surfaces
 // are nearly flat). The southern hemisphere's sign is turned over, so the vortex of either pole is positive. The GFS files carry no PV on pressure levels (only the 2 PVU surface), so it is worked out.
-// pAbove equal to the level's own pressure is a one-sided difference (the IFS open data has 10 and 50 mb, no 7 or 20).
-inline std::function<GfsGrid::Grid(const Grids&)> potentialVorticityOf(double pAbove, double pBelow) {
+// pAbove equal to the level's own pressure is a one-sided difference (the IFS open data has 10 and 50 mb, no 7 or 20). The stability is the gradient in log pressure divided by the level's own
+// pressure, dtheta/dp = (dtheta/dln p) / p: the plain difference over the layer is the gradient at its middle, which for a wide layer in the stratosphere (theta rises like 1/p) is far too small
+// (checked 2026-11-15 against GEOS-FP's own EPV at 10 mb: 458 PVU for the plain difference of 7 and 20 mb, 234 for 10 and 50, GEOS's own 718).
+inline std::function<GfsGrid::Grid(const Grids&)> potentialVorticityOf(double pAbove, double pLevel, double pBelow) {
     return [=] (const Grids& g) {
         auto zeta = GfsGrid::vorticity(GfsGrid::smoothed(pick(g, "u"), 1), GfsGrid::smoothed(pick(g, "v"), 1));   // 1 / s
         const auto& ta = pick(g, "ta"), & tb = pick(g, "tb");
@@ -81,7 +83,7 @@ inline std::function<GfsGrid::Grid(const Grids&)> potentialVorticityOf(double pA
             const double f = 2.0 * omega * std::sin(lat * pi / 180.0), hemisphere = lat < 0.0 ? -1.0 : 1.0;
             for (int c = 0; c < zeta.columns; c++) {
                 const size_t at = static_cast<size_t>(r) * static_cast<size_t>(zeta.columns) + static_cast<size_t>(c);
-                const double dtheta = ((tb.values[at] + 273.15) * thetaBelow - (ta.values[at] + 273.15) * thetaAbove) / ((pBelow - pAbove) * 100.0);   // K / Pa
+                const double dtheta = ((tb.values[at] + 273.15) * thetaBelow - (ta.values[at] + 273.15) * thetaAbove) / (std::log(pBelow / pAbove) * pLevel * 100.0);   // K / Pa
                 zeta.values[at] = static_cast<float>(hemisphere * 1e6 * -gravity * (zeta.values[at] + f) * dtheta);
             }
         }

@@ -119,14 +119,14 @@ GEFS,Value,"Pressure, Temperature",,,yes,1,1,850 mb,850_temp_mslp_precip_type
 GEFS,Value,"Heights, Omega",yes,,,1,1,700 mb,700_rh_ht
 GEFS-WAVE,Value,,,yes,,5,5,,peak_dir_per swell1_dir_per swell2_dir_per swell3_dir_per
 GEFS-WAVE,Value,,yes,,,5,5,,sig_wv_ht swell1_wv_ht swell2_wv_ht swell3_wv_ht
+GEOS-FP,Value,Heights,yes,,,34,8,10 mb 100 mb 20 mb 200 mb 30 mb 50 mb 500 mb 70 mb 850 mb 925 mb,200_div_wnd 850_thetae_ht 850vor_500ht_200wd 100_pv_ht
 GEOS-FP,Value,,yes,,,9,9,,aod_total dust_aod dust_column dust_pm25
-GEOS-FP,Value,Heights,yes,,,7,5,500 mb 850 mb,850_thetae_ht 500_rh_ht 500_wnd_ht 850_pw_ht
-GEOS-FP,Value,Pressure,yes,,,2,2,10 m,10m_wnd_2m_temp mslp_10m_wind
+GEOS-FP,Value,Pressure,yes,,,5,5,10 m 700 mb 850-200 mb,10m_wnd_2m_temp mslp_10m_wind shear_850_200 steering_850_200
+GEOS-FP,Value,Heights,,,,3,1,200 mb 250 mb 300 mb,200_wnd_ht 250_wnd_ht 300_wnd_ht
+GEOS-FP,Value,,,yes,,2,2,200 mb 850 mb,200_stream_div 850_stream_vort
 GEOS-FP,Change,Pressure,,,,1,1,,mslp_trend
 GEOS-FP,Change,Heights,,,,1,1,500 mb,z500_trend
 GEOS-FP,Value,Pressure,,,,1,1,,mslp_pwat
-GEOS-FP,Value,,,yes,,1,1,850 mb,850_stream_vort
-GEOS-FP,Value,Heights,,,,1,1,250 mb,250_wnd_ht
 GEPS,Value,Heights,yes,,,15,6,10 mb 100 mb 200 mb 50 mb 500 mb 850 mb 925 mb,200_div_wnd 850_thetae_ht 100_temp_ht 100_wnd_ht
 GEPS,Value,"Pressure, Thickness",,,,10,1,1000-500 mb 1000-850 mb 850-700 mb,1000_500_thick 1000_850_thick 850_700_thick precip_p03
 GEPS,Chance of a limit,,,,,8,3,2 m,prob_total_0.01in prob_total_0.1in prob_total_0.25in prob_total_0.5in
@@ -141,8 +141,8 @@ GEPS,Value,"Pressure, Temperature",,,,1,1,850 mb,850_temp_mslp_precip
 GEPS,Value,,,yes,,1,1,200 mb,200_stream_div
 GEPS,Value,,,,,1,1,850-700 mb,850_700_rh
 GFS,Value,Heights,yes,,,37,10,10 mb 100 mb 20 mb 200 mb 30 mb 50 mb 500 mb 70 mb 700-300 mb 850 mb 925 mb,200_div_wnd 500_vort_ht 850_thetae_ht 850vor_500ht_200wd
+GFS,Value,Pressure,yes,,,14,10,10 m 700 mb 850-200 mb,10m_wnd_precip sbcape_wind 10m_wnd_2m_temp 2m_dewpoint
 GFS,Value,"Pressure, Thickness",,,,11,1,1000-500 mb 1000-850 mb 850-700 mb,1000_500_thick 1000_850_thick 850_700_thick precip_p01
-GFS,Value,Pressure,yes,,,9,9,10 m 700 mb 850-200 mb,10m_wnd_precip sbcape_wind 10m_wnd_2m_temp 2m_dewpoint
 GFS,Value,"Pressure, Thickness",,,yes,4,2,1000-500 mb 1000-850 mb 850-700 mb,1000_850_thick_type 850_700_thick_type precip_rate_type precip_type
 GFS,Value,Heights,,,,3,1,200 mb 250 mb 300 mb,200_wnd_ht 250_wnd_ht 300_wnd_ht
 GFS,Anomaly,Heights,yes,,,2,1,500 mb 700 mb,500_hgt_anom 700_hgt_anom
