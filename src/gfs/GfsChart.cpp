@@ -2777,6 +2777,16 @@ void drawTracksMarkerAndTicks(Frame& f, const Label& drawLabel, const Halo& halo
 }
 
 // The contour lines of every set, their numbers and the highs and lows; the numbers on the lines are returned, to be drawn after the barbs.
+// The grid a set's lines are drawn from: the field smoothed over a radius (smoothKm), or reduced to about 8 km when it is finer, or as it is
+GfsGrid::Grid linesGrid(const ContourSet& set, const Grids& grids) {
+    if (set.smoothKm > 0.0) {   // a 3 x 3 average n times spreads as sqrt(2n/3) cells: the passes that reach the radius (at most 60)
+        const double cells = set.smoothKm / (std::max(grids.at(set.key).step, 0.001) * 111.0);
+        return GfsGrid::smoothed(grids.at(set.key), std::clamp(static_cast<int>(std::lround(1.5 * cells * cells)), 1, 60));
+    }
+    auto fine = GfsGrid::reducedForLines(grids.at(set.key));   // a 3 km grid is averaged to about 8 km for its lines
+    return fine.empty() ? grids.at(set.key) : fine;
+}
+
 // What the contour stage puts on the picture that is drawn later: the numbers on the lines (after the barbs, so that no barb is over one), and the boxes of everything it placed (the numbers, the highs
 // and lows), for what is placed after it
 struct ContourText {
@@ -2786,6 +2796,7 @@ struct ContourText {
 
 template <class Halo>
 ContourText drawContours(Frame& f, const Halo& halo, const QImage& map) {
+    const QFontMetricsF& metrics = f.metrics;
     const Product& product = f.product;
     const Grids& grids = f.grids;
     const Options& options = f.options;
@@ -2807,28 +2818,30 @@ ContourText drawContours(Frame& f, const Halo& halo, const QImage& map) {
         const auto node = view.toPixel(lo, la);
         return std::hypot(node.x() - at.x(), node.y() - at.y()) < barbLook.length * 1.1;
     };
-    for (const auto& set : product.contours) {
-        const double interval = set.interval * (span > 150.0 ? 2.0 : 1.0);
-        GfsGrid::Grid smooth;
-        if (set.smoothKm > 0.0) {   // a 3 x 3 average n times spreads as sqrt(2n/3) cells: the passes that reach the radius (at most 60)
-            const double cells = set.smoothKm / (std::max(grids.at(set.key).step, 0.001) * 111.0);
-            smooth = GfsGrid::smoothed(grids.at(set.key), std::clamp(static_cast<int>(std::lround(1.5 * cells * cells)), 1, 60));
+    // the highs and lows of every set first: their places are kept clear of the numbers on all the lines, whichever set they are of (drawn with the lines of their set, below)
+    std::vector<std::vector<GfsGrid::Extreme>> extremesOf(product.contours.size());
+    for (size_t index = 0; index < product.contours.size(); index++) {
+        const auto& set = product.contours[index];
+        if (!set.highsAndLows) {
+            continue;
         }
-        const GfsGrid::Grid fine = set.smoothKm > 0.0 ? GfsGrid::Grid{} : GfsGrid::reducedForLines(grids.at(set.key));   // a 3 km grid is averaged to about 8 km for its lines
-        const auto& grid = set.smoothKm > 0.0 ? smooth : (fine.empty() ? grids.at(set.key) : fine);
-        std::vector<GfsGrid::Extreme> extremesHere;   // the highs and lows: their places are kept clear of the numbers on the lines (drawn with the lines of the set, below)
-        if (set.highsAndLows) {
-            extremesHere = GfsGrid::extremes(grid, extremeRadius, sector.west, sector.south, sector.east, sector.north);
-            for (const auto& e : extremesHere) {
-                const auto at = view.toPixel(e.lon, e.lat);
-                if (area.adjusted(20, 20, -20, -20).contains(at)) {
-                    placed.push_back(QRectF{at.x() - 14.0, at.y() - 10.0, 28.0, 32.0});   // the letter and the value under it
-                    if (options.placedOut != nullptr) {
-                        options.placedOut->push_back({placed.back(), "extreme"});
-                    }
+        const auto grid = linesGrid(set, grids);
+        extremesOf[index] = GfsGrid::extremes(grid, extremeRadius, sector.west, sector.south, sector.east, sector.north);
+        for (const auto& e : extremesOf[index]) {
+            const auto at = view.toPixel(e.lon, e.lat);
+            if (area.adjusted(20, 20, -20, -20).contains(at)) {
+                placed.push_back(QRectF{at.x() - 14.0, at.y() - 10.0, 28.0, 32.0});   // the letter and the value under it
+                if (options.placedOut != nullptr) {
+                    options.placedOut->push_back({placed.back(), "extreme"});
                 }
             }
         }
+    }
+    for (size_t setIndex = 0; setIndex < product.contours.size(); setIndex++) {
+        const auto& set = product.contours[setIndex];
+        const double interval = set.interval * (span > 150.0 ? 2.0 : 1.0);
+        const auto grid = linesGrid(set, grids);
+        const auto& extremesHere = extremesOf[setIndex];
         double lo = 1e18, hi = -1e18;
         for (int y = 0; y < map.height(); y += 6) {
             for (int x = 0; x < map.width(); x += 6) {
@@ -2875,7 +2888,7 @@ ContourText drawContours(Frame& f, const Halo& halo, const QImage& map) {
                 if (set.labelled && path.length() > 150.0) {
                     QPointF mid = path.pointAtPercent(0.5);
                     const QString text = interval < 1.0 ? QString::number(level, 'f', interval < 0.1 ? 2 : 1) : QString::number(static_cast<int>(std::lround(level)));
-                    const auto boxAt = [&text] (const QPointF& at) { return QRectF{at.x() - text.size() * 4.0 - 4.0, at.y() - 9.0, text.size() * 8.0 + 8.0, 18.0}; };
+                    const auto boxAt = [&text, &metrics] (const QPointF& at) { const double width = metrics.horizontalAdvance(text) + 8.0; return QRectF{at.x() - width / 2.0, at.y() - 9.0, width, 18.0}; };   // (the width of the text as it is drawn)
                     const auto free = [&] (const QPointF& at) {
                         const auto b = boxAt(at);
                         return area.adjusted(24, 14, -24, -14).contains(at) && !std::any_of(placed.begin(), placed.end(), [&b] (const QRectF& other) { return other.intersects(b); });
