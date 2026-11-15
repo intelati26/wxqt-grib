@@ -6,6 +6,7 @@
 #ifndef GFSCHARTINTERNAL_H
 #define GFSCHARTINTERNAL_H
 
+#include <functional>
 #include <string>
 #include <vector>
 #include "gfs/GfsChart.h"
@@ -27,6 +28,38 @@ inline GfsGrid::Grid pick(const Grids& g, const std::string& key) {
 // a record to fetch, by the key it is kept under
 inline GfsData::Want want(const std::string& key, const std::string& variable, const std::string& level) {
     return {key, variable, level, ""};
+}
+
+// the speed of two components (m/s), in knots, as a chart's fill
+inline std::function<GfsGrid::Grid(const Grids&)> speedOf(const char * u, const char * v) {
+    return [u, v] (const Grids& g) { return GfsGrid::scaled(GfsGrid::speed(pick(g, u), pick(g, v)), msToKnots); };
+}
+
+// the 500 mb style height contours in decameters (grid "z"), dark or a little lighter
+inline ContourSet heights(double interval, bool dark = true) {
+    ContourSet c;
+    c.key = "z";
+    c.scale = 0.1;
+    c.interval = interval;
+    c.title = "Height (dam)";
+    c.color = dark ? QColor{30, 30, 30} : QColor{60, 60, 60};
+    return c;
+}
+
+// the sea level pressure contours in millibars (grid "p"), with the highs and lows
+inline ContourSet pressure() {
+    ContourSet c;
+    c.key = "p";
+    c.scale = 0.01;
+    c.interval = 4;
+    c.title = "Sea level pressure (mb)";
+    c.highsAndLows = true;
+    return c;
+}
+
+// the relative vorticity of the wind (grids "u" and "v") in 1e-5 per second
+inline GfsGrid::Grid vorticityOf(const Grids& g) {
+    return GfsGrid::scaled(GfsGrid::vorticity(GfsGrid::smoothed(pick(g, "u"), 1), GfsGrid::smoothed(pick(g, "v"), 1)), 1e5);
 }
 
 // the color scales of the charts (GfsChartRamps.cpp)
@@ -79,6 +112,16 @@ Ramp snowfall();   // centimeters of new snow, the steps at whole and simple inc
 void geosProducts(std::vector<Product>& p);
 
 void sstProducts(std::vector<Product>& p, const char * model);
+
+void camsProducts(std::vector<Product>& p, const char * model);
+
+void mfWaveProducts(std::vector<Product>& p, const char * model);
+
+void currentProducts(std::vector<Product>& p, const char * model);
+
+void waveProducts(std::vector<Product>& p, const char * model);
+
+void hafsProducts(std::vector<Product>& p, const char * model);
 
 }  // namespace detail
 }  // namespace GfsChart

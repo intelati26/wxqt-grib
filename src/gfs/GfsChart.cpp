@@ -584,28 +584,6 @@ const Sector * sector(const std::string& id) {
 const std::vector<Product>& products() {
     static const std::vector<Product> list = [] {
         std::vector<Product> p;
-        const auto speedOf = [] (const char * u, const char * v) {
-            return [u, v] (const Grids& g) { return GfsGrid::scaled(GfsGrid::speed(pick(g, u), pick(g, v)), msToKnots); };
-        };
-        const auto heights = [] (double interval, bool dark = true) {
-            ContourSet c;
-            c.key = "z";
-            c.scale = 0.1;
-            c.interval = interval;
-            c.title = "Height (dam)";
-            c.color = dark ? QColor{30, 30, 30} : QColor{60, 60, 60};
-            return c;
-        };
-        const auto pressure = [] {
-            ContourSet c;
-            c.key = "p";
-            c.scale = 0.01;
-            c.interval = 4;
-            c.title = "Sea level pressure (mb)";
-            c.highsAndLows = true;
-            return c;
-        };
-        const auto vorticityOf = [] (const Grids& g) { return GfsGrid::scaled(GfsGrid::vorticity(GfsGrid::smoothed(pick(g, "u"), 1), GfsGrid::smoothed(pick(g, "v"), 1)), 1e5); };
 
         // the upper-air charts: wind speed filled, heights contoured, barbs
         const auto upper = [&] (const char * id, const char * label, const char * level, double interval) {
@@ -2410,7 +2388,7 @@ const std::vector<Product>& products() {
         // and the spread (the standard deviation of the 30 members) of the fields that matter, filled under the mean's lines
         const auto gefsRecipes = [&] {
             const auto spr = [] (const char * key, const char * variable, const char * level) { return GfsData::Want{key, variable, level, "", "", "spr"}; };
-            const auto meanHeights = [&heights] (double interval) { auto c = heights(interval); c.title = "Mean height (dam)"; return c; };
+            const auto meanHeights = [] (double interval) { auto c = heights(interval); c.title = "Mean height (dam)"; return c; };
             const auto spread = [&] (const char * id, const char * label, std::vector<GfsData::Want> wants, std::function<GfsGrid::Grid(const Grids&)> fill, const char * title, double top, double step) {
                 Product x;
                 x.source = "GEFS";
@@ -4935,7 +4913,7 @@ const std::vector<Product>& products() {
                 p.push_back(x);
             }
             // the mean of the upper-air fields at a level (height, wind, temperature, humidity): filled with what the map is about, heights as lines
-            const auto meanUpper = [make, ens, atHour, heights, speedOf] (const char * id, const char * label, const char * level, double interval, bool temperatureToo, bool humidityToo) {
+            const auto meanUpper = [make, ens, atHour] (const char * id, const char * label, const char * level, double interval, bool temperatureToo, bool humidityToo) {
                 auto x = make(id, label);
                 const std::string where = level;
                 x.needs = [ens, atHour, where, temperatureToo, humidityToo] (int hour) {
@@ -5015,201 +4993,10 @@ const std::vector<Product>& products() {
         // ---- the wave models (GFS-Wave and the GEFS-Wave ensemble mean): each wave component (all of the sea, the wind sea, the three swells) as a height map with the wind, and as the period
         // with the direction the waves come from drawn as streamlines
         const auto sstRecipes = [&] (const char * model) { sstProducts(p, model); };
-        const auto camsRecipes = [&] (const char * model) {   // the air quality and UV charts of the Copernicus atmosphere service: one fill each, the surface amounts in micrograms per cubic metre
-            struct Chart {
-                const char * id;
-                const char * label;
-                const char * variable;
-                const char * unit;
-                Ramp ramp;
-                double step;
-            };
-            for (const auto& c : {Chart{"pm25", "PM2.5 fine particles", "PM25", "ug/m3", airQuality({9, 35.4, 55.4, 125.4, 225.4}), 0},
-                                  Chart{"pm10_aq", "PM10 particles", "PM10", "ug/m3", airQuality({54, 154, 254, 354, 424}), 0},
-                                  Chart{"dust", "Dust", "DUST", "ug/m3", airQuality({10, 50, 100, 250, 500}), 0},
-                                  Chart{"seasalt_aq", "Sea salt", "SALT", "ug/m3", airQuality({10, 25, 50, 100, 200}), 0},
-                                  Chart{"ozone_aq", "Ozone (surface)", "O3", "ug/m3", airQuality({100, 120, 150, 190, 240}), 0},
-                                  Chart{"no2_aq", "Nitrogen dioxide", "NO2", "ug/m3", airQuality({40, 100, 200, 400, 800}), 0},
-                                  Chart{"no_aq", "Nitrogen monoxide", "NO", "ug/m3", airQuality({10, 30, 60, 120, 250}), 0},
-                                  Chart{"so2_aq", "Sulphur dioxide", "SO2", "ug/m3", airQuality({20, 80, 250, 350, 500}), 0},
-                                  Chart{"co_aq", "Carbon monoxide", "CO", "ug/m3", airQuality({300, 1000, 2000, 5000, 10000}), 0},
-                                  Chart{"hcho_aq", "Formaldehyde", "HCHO", "ug/m3", airQuality({2, 5, 10, 20, 40}), 0},
-                                  Chart{"glyoxal_aq", "Glyoxal", "GLYX", "ug/m3", airQuality({0.05, 0.1, 0.2, 0.4, 0.8}), 0},
-                                  Chart{"pan_aq", "Peroxyacyl nitrates", "PAN", "ug/m3", airQuality({0.5, 1, 2, 4, 8}), 0},
-                                  Chart{"aod", "Aerosol optical depth (550 nm)", "AOD", "", airQuality({0.1, 0.2, 0.4, 0.8, 1.5}), 0},
-                                  Chart{"uv_index", "UV index", "UVI", "", uvIndex(), 1},
-                                  Chart{"uv_index_clear", "UV index, clear sky", "UVIC", "", uvIndex(), 1}}) {
-                Product x;
-                x.source = model;
-                x.id = c.id;
-                x.label = c.label;
-                x.wants = {want("a", c.variable, "surface")};
-                x.fill = [] (const Grids& g) { return pick(g, "a"); };
-                x.ramp = c.ramp;
-                x.fillTitle = std::string{c.label} + (*c.unit ? std::string{" ("} + c.unit + ")" : std::string{});
-                x.legendStep = c.step;
-                p.push_back(x);
-            }
-        };
-        const auto mfWaveRecipes = [&] (const char * model) {   // the waves of Meteo-France's model: for each of the sea, the wind sea, the main swell and the second swell, the height and the period with the direction
-            struct Component {
-                const char * name;
-                const char * heightId;
-                const char * directionId;
-                const char * height;
-                const char * period;
-                const char * direction;
-                const char * level;
-            };
-            for (const auto& c : {Component{"Significant Wave Height", "sig_wv_ht", "peak_dir_per", "HTSGW", "PERPW", "DIRPW", "surface"},
-                                  Component{"Wind Sea", "wsea_wv_ht", "wsea_dir_per", "WVHGT", "WVPER", "WVDIR", "surface"},
-                                  Component{"Primary Swell", "swell1_wv_ht", "swell1_dir_per", "SWELL", "SWPER", "SWDIR", "1 in sequence"},
-                                  Component{"Secondary Swell", "swell2_wv_ht", "swell2_dir_per", "SWELL", "SWPER", "SWDIR", "2 in sequence"}}) {
-                {
-                    Product x;
-                    x.source = model;
-                    x.id = c.heightId;
-                    x.label = std::string{c.name};
-                    x.wants = {want("h", c.height, c.level)};
-                    x.fill = [] (const Grids& g) { return pick(g, "h"); };
-                    x.ramp = waveHeight();
-                    x.quantity = Quantity::Meters;
-                    x.fillTitle = std::string{c.name} + (std::string{c.heightId} == "sig_wv_ht" ? "" : " height");
-                    x.legendStep = 0;
-                    p.push_back(x);
-                }
-                {
-                    Product x;
-                    x.source = model;
-                    x.id = c.directionId;
-                    x.label = std::string{c.name} + " Direction and Period (sec)";
-                    x.wants = {want("t", c.period, c.level), want("d", c.direction, c.level)};
-                    x.derive = [] (Grids& g, const Context&) {   // the direction the waves come from, as a flow toward where they go
-                        auto u = g["d"], v = g["d"];
-                        for (size_t i = 0; i < u.values.size(); i++) {
-                            const double from = g["d"].values[i] * pi / 180.0;
-                            u.values[i] = std::isnan(g["d"].values[i]) ? std::nanf("") : static_cast<float>(-std::sin(from));
-                            v.values[i] = std::isnan(g["d"].values[i]) ? std::nanf("") : static_cast<float>(-std::cos(from));
-                        }
-                        g["su"] = u;
-                        g["sv"] = v;
-                    };
-                    x.fill = [] (const Grids& g) { return pick(g, "t"); };
-                    x.ramp = wavePeriod();
-                    x.fillTitle = std::string{c.name} + " period (s); lines: direction the waves travel";
-                    x.legendStep = 2;
-                    x.streamU = "su";
-                    x.streamV = "sv";
-                    p.push_back(x);
-                }
-            }
-        };
-        const auto currentRecipes = [&] (const char * model) {   // Meteo-France's ocean: the surface current (speed and streamlines), the sea surface height and the part of it the air pressure makes
-            {
-                Product x;
-                x.source = model;
-                x.id = "ocean_current";
-                x.label = "Surface Current";
-                x.wants = {want("u", "UOGRD", "surface"), want("v", "VOGRD", "surface")};
-                x.derive = [] (Grids& g, const Context&) {
-                    auto s = g["u"];
-                    for (size_t i = 0; i < s.values.size(); i++) {
-                        s.values[i] = static_cast<float>(std::hypot(g["u"].values[i], g["v"].values[i]));
-                    }
-                    g["s"] = s;
-                };
-                x.fill = [] (const Grids& g) { return pick(g, "s"); };
-                x.ramp = currentSpeed();
-                x.fillTitle = "Surface current speed (m/s); lines: where it flows";
-                x.legendStep = 0;
-                x.streamU = "u";
-                x.streamV = "v";
-                p.push_back(x);
-            }
-            {
-                Product x;
-                x.source = model;
-                x.id = "sea_level_height";
-                x.label = "Sea Surface Height";
-                x.wants = {want("h", "SSHG", "surface")};
-                x.fill = [] (const Grids& g) { return pick(g, "h"); };
-                x.ramp = seaLevelHeight();
-                x.quantity = Quantity::Meters;
-                x.fillTitle = "Sea surface height above the mean";
-                x.legendStep = 0;
-                p.push_back(x);
-            }
-            {
-                Product x;
-                x.source = model;
-                x.id = "inverse_barometer";
-                x.label = "Sea Level Lift from Air Pressure";
-                x.wants = {want("h", "IBHG", "surface")};
-                x.fill = [] (const Grids& g) { return pick(g, "h"); };
-                x.ramp = seaLevelHeight();
-                x.quantity = Quantity::Meters;
-                x.fillTitle = "Sea surface height the air pressure makes (a low pressure of 10 mb lifts the sea by 10 cm)";
-                x.legendStep = 0;
-                p.push_back(x);
-            }
-        };
-        const auto waveRecipes = [&] (const char * model) {
-            struct Component {
-                const char * name;
-                const char * label;
-                const char * heightId;
-                const char * directionId;
-                const char * height;
-                const char * period;
-                const char * direction;
-                const char * level;
-            };
-            for (const auto& c : {Component{"Significant Wave Height", "Significant Wave Height and Wind", "sig_wv_ht", "peak_dir_per", "HTSGW", "PERPW", "DIRPW", "surface"},
-                                  Component{"Wind Sea", "Wind Sea Wave Height and Wind", "wsea_wv_ht", "wsea_dir_per", "WVHGT", "WVPER", "WVDIR", "surface"},
-                                  Component{"Primary Swell", "Primary Swell Wave Height and Wind", "swell1_wv_ht", "swell1_dir_per", "SWELL", "SWPER", "SWDIR", "1 in sequence"},
-                                  Component{"Secondary Swell", "Secondary Swell Wave Height and Wind", "swell2_wv_ht", "swell2_dir_per", "SWELL", "SWPER", "SWDIR", "2 in sequence"},
-                                  Component{"Tertiary Swell", "Tertiary Swell Wave Height and Wind", "swell3_wv_ht", "swell3_dir_per", "SWELL", "SWPER", "SWDIR", "3 in sequence"}}) {
-                {
-                    Product x;
-                    x.source = model;
-                    x.id = c.heightId;
-                    x.label = c.label;
-                    x.wants = {want("h", c.height, c.level), want("u", "UGRD", "surface"), want("v", "VGRD", "surface")};
-                    x.fill = [] (const Grids& g) { return pick(g, "h"); };
-                    x.ramp = waveHeight();
-                    x.quantity = Quantity::Meters;
-                    x.fillTitle = std::string{c.name} + (std::string{c.heightId} == "sig_wv_ht" ? "" : " height");
-                    x.legendStep = 0;
-                    x.barbU = "u";
-                    x.barbV = "v";
-                    p.push_back(x);
-                }
-                {
-                    Product x;
-                    x.source = model;
-                    x.id = c.directionId;
-                    x.label = std::string{c.name} + " Direction and Period (sec)";
-                    x.wants = {want("t", c.period, c.level), want("d", c.direction, c.level)};
-                    x.derive = [] (Grids& g, const Context&) {   // the direction the waves come from, as a flow toward where they go
-                        auto u = g["d"], v = g["d"];
-                        for (size_t i = 0; i < u.values.size(); i++) {
-                            const double from = g["d"].values[i] * pi / 180.0;
-                            u.values[i] = std::isnan(g["d"].values[i]) ? std::nanf("") : static_cast<float>(-std::sin(from));
-                            v.values[i] = std::isnan(g["d"].values[i]) ? std::nanf("") : static_cast<float>(-std::cos(from));
-                        }
-                        g["su"] = u;
-                        g["sv"] = v;
-                    };
-                    x.fill = [] (const Grids& g) { return pick(g, "t"); };
-                    x.ramp = wavePeriod();
-                    x.fillTitle = std::string{c.name} + " period (s); lines: direction the waves travel";
-                    x.legendStep = 2;
-                    x.streamU = "su";
-                    x.streamV = "sv";
-                    p.push_back(x);
-                }
-            }
-        };
+        const auto camsRecipes = [&] (const char * model) { camsProducts(p, model); };
+        const auto mfWaveRecipes = [&] (const char * model) { mfWaveProducts(p, model); };
+        const auto currentRecipes = [&] (const char * model) { currentProducts(p, model); };
+        const auto waveRecipes = [&] (const char * model) { waveProducts(p, model); };
 
         // ---- HREF: the 10 member ensemble's own ready-made files (the mean, the probability-matched mean, the localized one, the blend, the probabilities and the agreement-scale probabilities).
         // Every one of the model guidance site's 71 HREF maps is a row below: which file, which field, over what time, which threshold, and how it is colored.
@@ -5400,124 +5187,7 @@ const std::vector<Product>& products() {
         };
 
         // ---- HAFS: the hurricane model for one storm (the screen picks the storm): wind, simulated radar and satellite, rain, sea surface temperature, shear, waves
-        const auto hafsRecipes = [&] (const char * model) {
-            const auto hurricaneLines = [&pressure] {
-                auto c = pressure();
-                c.highsAndLows = false;
-                return c;
-            };
-            const auto make = [model] (const char * id, const char * label) {
-                Product x;
-                x.source = model;
-                x.id = id;
-                x.label = label;
-                return x;
-            };
-            {
-                auto x = make("wind_mslp", "10m Wind, MSLP and Barbs");
-                x.wants = {want("u", "UGRD", "10 m above ground"), want("v", "VGRD", "10 m above ground"), want("p", "PRMSL", "mean sea level")};
-                x.fill = speedOf("u", "v");
-                x.ramp = tropicalWind();
-                x.fillTitle = "10 m wind speed (kt)";
-                x.legendStep = 0;
-                x.contours = {hurricaneLines()};
-                x.barbU = "u";
-                x.barbV = "v";
-                p.push_back(x);
-            }
-            {
-                auto x = make("reflectivity", "Simulated Radar (Composite Reflectivity) and MSLP");
-                x.wants = {want("r", "REFC", "entire atmosphere (considered as a single layer)"), want("p", "PRMSL", "mean sea level")};
-                x.fill = [] (const Grids& g) { return pick(g, "r"); };
-                x.ramp = reflectivity();
-                x.fillTitle = "Composite reflectivity (dBZ)";
-                x.legendStep = 10;
-                x.contours = {hurricaneLines()};
-                p.push_back(x);
-            }
-            // the simulated satellite channels (the file names them only by number): 65 is a window channel (the surface shows through; the cold cloud tops in color), 53 / 54 / 55 are
-            // water vapor channels from the upper level down
-            for (const auto& [band, id, label, vapor] : {std::tuple{65, "sat_ir", "Simulated Satellite: Infrared (window)", false}, {53, "sat_wv_upper", "Simulated Satellite: Water Vapor, upper level", true},
-                                                         {54, "sat_wv_mid", "Simulated Satellite: Water Vapor, middle level", true}, {55, "sat_wv_low", "Simulated Satellite: Water Vapor, lower level", true}}) {
-                auto x = make(id, label);
-                x.wants = {want("s", ("var discipline=3 center=7 local_table=1 parmcat=192 parm=" + std::to_string(band)).c_str(), "top of atmosphere")};
-                x.fill = [] (const Grids& g) { return pick(g, "s"); };
-                x.ramp = vapor ? waterVapor() : satelliteIr();
-                x.fillTitle = "Brightness temperature (K)";
-                x.legendStep = 10;
-                p.push_back(x);
-            }
-            {
-                auto x = make("rain_total", "Rainfall since the start of the run and MSLP");
-                x.wants = {GfsData::Want{"a", "APCP", "surface", "0-*", ""}, want("p", "PRMSL", "mean sea level")};
-                x.fill = [] (const Grids& g) { return pick(g, "a"); };
-                x.ramp = precipitation();
-            x.palette = "precip";
-                x.quantity = Quantity::Millimeters;
-                x.fillTitle = "Rainfall since the start of the run";
-                x.legendStep = 0;
-                x.contours = {hurricaneLines()};
-                p.push_back(x);
-            }
-            {
-                auto x = make("sst", "Sea Surface Temperature and MSLP");
-                x.wants = {want("t", "WTMP", "surface"), want("p", "PRMSL", "mean sea level")};
-                x.fill = [] (const Grids& g) { return pick(g, "t"); };
-                x.ramp = seaSurfaceTemperature();
-                x.quantity = Quantity::Temperature;
-                x.fillTitle = "Sea surface temperature";
-                x.legendStep = 2;
-                x.contours = {hurricaneLines()};
-                p.push_back(x);
-            }
-            for (const char * id : {"shear_850_200", "850_vort_ht"}) {
-                for (const auto& candidate : p) {
-                    if (candidate.id == id && candidate.source == "GFS") {
-                        auto x = candidate;
-                        x.source = model;
-                        p.push_back(std::move(x));
-                        break;
-                    }
-                }
-            }
-            {   // the swaths: the strongest wind (and gust) of the run so far, and the strongest rotation in each 3 hours (from the file of the whole parent domain)
-                const auto window = [] (int hour) { return hour % 24 == 0 ? "0-" + std::to_string(hour / 24) + " day max fcst" : "0-" + std::to_string(hour) + " hour max fcst"; };
-                const auto swath = [&] (const char * id, const char * label, const char * variable, const char * title) {
-                    auto x = make(id, label);
-                    x.needs = [window, variable] (int hour) {
-                        return std::vector<GfsData::Need>{{hour, {"w", variable, "10-10 m above ground", window(hour), "", "swath"}}};
-                    };
-                    x.fill = [] (const Grids& g) { return GfsGrid::scaled(pick(g, "w"), msToKnots); };
-                    x.ramp = tropicalWind();
-                    x.fillTitle = title;
-                    x.legendStep = 0;
-                    return x;
-                };
-                p.push_back(swath("swath_wind", "Swath: Strongest 10m Wind so far", "WIND", "Strongest 10 m wind since the start of the run (kt)"));
-                p.push_back(swath("swath_gust", "Swath: Strongest 10m Gust so far", "GUST", "Strongest 10 m gust since the start of the run (kt)"));
-            }
-            {   // the wave file holds every hour: the record says which ("anl", then "3 hour fcst" ...)
-                auto x = make("waves", "Significant Wave Height, Peak Period and Wind");
-                x.needs = [] (int hour) {
-                    const std::string when = hour == 0 ? "anl" : std::to_string(hour) + " hour fcst";
-                    return std::vector<GfsData::Need>{{hour, {"h", "HTSGW", "surface", when, "", "ww3"}}, {hour, {"t", "PERPW", "surface", when, "", "ww3"}}, {hour, {"u", "UGRD", "surface", when, "", "ww3"}},
-                                                      {hour, {"v", "VGRD", "surface", when, "", "ww3"}}};
-                };
-                x.fill = [] (const Grids& g) { return pick(g, "h"); };
-                x.ramp = waveHeight();
-                x.fillTitle = "Significant wave height (m)";
-                x.legendStep = 0;
-                ContourSet period;
-                period.key = "t";
-                period.interval = 2;
-                period.title = "Peak period (s)";
-                period.color = QColor{255, 255, 255};
-                x.contours = {period};
-                x.barbU = "u";
-                x.barbV = "v";
-                p.push_back(x);
-            }
-        };
+        const auto hafsRecipes = [&] (const char * model) { hafsProducts(p, model); };
 
         // ---- GEPS (Canada): the clone of the GFS charts is the 21 members' mean; its own are the spread of the members and the chance of a temperature either side of a limit
         const auto gepsRecipes = [&] {
