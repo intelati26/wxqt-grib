@@ -4,6 +4,7 @@
 // *****************************************************************************
 
 #include "mapkit/MasterMapViewer.h"
+#include <atomic>
 #include <cstdio>
 #include <QToolTip>
 #include <QMouseEvent>
@@ -57,6 +58,7 @@
 #include <QGridLayout>
 #include <QScrollArea>
 #include "mapkit/WorldRender.h"
+#include "mapkit/VortexSection.h"
 #include "settings/RadarPreferences.h"
 #include "models/ChartPickers.h"
 #include "models/ProductPicker.h"
@@ -1982,6 +1984,96 @@ void MasterMapViewer::saveInitialStates() {
     UtilityAnimationExport::saveWithDialog(this, frames.size() >= 2 ? frames : std::vector<QByteArray>{}, interval, frames.front(), name, QByteArray{}, false, name);
 }
 
+// The polar vortex through the season as one picture: the zonal-mean wind on the circle of 60 degrees, a row for each level the model has wind charts for, a column for each time.
+void MasterMapViewer::saveVortexSection() {
+    auto * chart = modelLayer();
+    if (chart == nullptr) {
+        return;
+    }
+    QDialog dialog{this};
+    dialog.setWindowTitle("Save the vortex section");
+    auto * column = new QVBoxLayout{&dialog};
+    auto * about = new QLabel{"The zonal-mean wind on the circle of 60 degrees from the model's initial states (the first hour of each run), a row for each level that has a wind chart and a column for each time. "
+                              "Blue is wind from the east: a sudden warming shows as the blue going down from the top. It reads every level of every run (a season of two a day takes several minutes).", &dialog};
+    about->setWordWrap(true);
+    column->addWidget(about);
+    const auto now = QDateTime::currentDateTimeUtc();
+    const int seasonYear = now.date().month() >= 10 ? now.date().year() : now.date().year() - 1;
+    auto * from = new QDateTimeEdit{QDateTime{QDate{seasonYear, 10, 1}, QTime{0, 0}, QTimeZone::utc()}, &dialog};
+    auto * to = new QDateTimeEdit{QDateTime{now.date(), QTime{now.time().hour() / 6 * 6, 0}, QTimeZone::utc()}.addSecs(-6 * 3600), &dialog};
+    for (auto * edit : {from, to}) {
+        edit->setDisplayFormat("yyyy-MM-dd HH:mm 'Z'");
+        edit->setTimeSpec(Qt::UTC);
+    }
+    auto * step = UiStandards::combo(&dialog);
+    for (const int hours : {6, 12, 24}) {
+        step->addItem(QString{"Every %1 hours"}.arg(hours), hours);
+    }
+    step->setCurrentIndex(1);
+    auto * hemisphere = UiStandards::combo(&dialog);
+    hemisphere->addItem("North (60 N)", false);
+    hemisphere->addItem("South (60 S)", true);
+    auto * form = new QFormLayout;
+    form->addRow("From", from);
+    form->addRow("To", to);
+    form->addRow("Step", step);
+    form->addRow("Hemisphere", hemisphere);
+    column->addLayout(form);
+    auto * buttons = new QDialogButtonBox{QDialogButtonBox::Ok | QDialogButtonBox::Cancel, &dialog};
+    QObject::connect(buttons, &QDialogButtonBox::accepted, &dialog, &QDialog::accept);
+    QObject::connect(buttons, &QDialogButtonBox::rejected, &dialog, &QDialog::reject);
+    column->addWidget(buttons);
+    if (dialog.exec() != QDialog::Accepted) {
+        return;
+    }
+    std::vector<QDateTime> when;
+    for (auto t = from->dateTime().toUTC(); t <= to->dateTime().toUTC(); t = t.addSecs(3600LL * step->currentData().toInt())) {
+        when.push_back(t);
+    }
+    if (when.size() < 2) {
+        QMessageBox::warning(this, "Save the vortex section", "Two times at least are needed: the end is before the start.");
+        return;
+    }
+    const std::string model = chart->modelName();
+    const bool south = hemisphere->currentData().toBool();
+    const std::vector<int> levels{1, 2, 5, 10, 20, 30, 50, 70, 100, 200, 300, 500, 850};   // (the levels with no wind chart are left out)
+    QProgressDialog progress{"Reading the winds...", "Cancel", 0, static_cast<int>(when.size()), this};
+    progress.setWindowModality(Qt::WindowModal);
+    progress.setMinimumDuration(0);
+    std::atomic<size_t> reached{0};
+    std::atomic<bool> stop{false};
+    VortexSection::Series series;
+    bool ok = false;
+    QEventLoop loop;
+    QTimer ticker;
+    QObject::connect(&ticker, &QTimer::timeout, &progress, [&] {
+        progress.setValue(static_cast<int>(reached.load()));
+        progress.setLabelText(QString{"Reading %1 (%2 of %3)..."}.arg(when[std::min(reached.load(), when.size() - 1)].toString("yyyy-MM-dd HH") + "Z").arg(reached.load() + 1).arg(when.size()));
+        if (progress.wasCanceled()) {
+            stop = true;
+        }
+    });
+    ticker.start(250);
+    new FutureVoid{this, [&] {
+        ok = VortexSection::collect(model, when, levels, south, series, [&] (size_t i, size_t) { reached = i; return !stop.load(); });
+    }, [&loop] { loop.quit(); }};
+    loop.exec();
+    ticker.stop();
+    progress.close();
+    if (stop.load()) {
+        return;
+    }
+    const auto image = ok ? VortexSection::draw(series, 1400, QString::fromStdString(model) + " initial states, " + when.front().toString("yyyy-MM-dd") + " to " + when.back().toString("yyyy-MM-dd")) : QImage{};
+    if (image.isNull()) {
+        QMessageBox::warning(this, "Save the vortex section", "No wind could be read: the model has no wind charts in the runs of those times.");
+        return;
+    }
+    const auto path = QFileDialog::getSaveFileName(this, "Save the vortex section", ChartExport::startFolder() + "/" + ChartExport::fileName("vortex section", "png"), "PNG image (*.png)");
+    if (!path.isEmpty() && !image.save(path, "PNG")) {
+        QMessageBox::warning(this, "Save the vortex section", "The file could not be written: " + path);
+    }
+}
+
 bool MasterMapViewer::saveModelChart(const QString& path, string& problem) {
     for (const auto& layer : layers) {
         if (layer->id() == "model/chart" && layer->enabled()) {
@@ -2548,6 +2640,7 @@ void MasterMapViewer::exportView() {
         ask.addKind("titled", "The model chart, titled (the Model Viewer's picture)", "With its title, run and valid times, the legend and the credit");
         ask.addKind("loop", "The model chart as a loop of hours, titled", "Every hour of the run drawn so far, as a loop");
         ask.addKind("history", "The model chart's initial states from a date, as a loop (the polar vortex)", "The first hour of each run, from one date to another, on a polar or world map");
+        ask.addKind("section", "The polar vortex through the season: the wind by level and time (a picture)", "The zonal-mean wind at 60 degrees, a row for each level, a column for each time: a reversal shows as the colors going down");
         ask.selectKind("titled");
     }
     {   // the areas of the NWS: the one outlined on the map is the first choice
@@ -2583,6 +2676,10 @@ void MasterMapViewer::exportView() {
     }
     if (kind == "history") {
         saveInitialStates();
+        return;
+    }
+    if (kind == "section") {
+        saveVortexSection();
         return;
     }
     setExportOffice(ask.value("area").toStdString());

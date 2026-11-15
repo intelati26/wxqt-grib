@@ -191,6 +191,7 @@ private:
     std::vector<WorldRender::Source> changeBase;    // the fields of that initial state, read once for the history
     QDateTime changeBaseWhen;
     QComboBox * barbDensityBox{nullptr};   // the side panel's choice of the wind barbs' density (the setting BARB_SPACING)
+    void saveVortexSection();                        // the zonal-mean wind at 60 degrees by level and time, as one picture (the polar vortex through the season)
     void saveInitialStates();                        // the model chart's initial state (the f000 of each run) from a date to another, on a world projection, as a GIF / video: the polar vortex through the season
     void saveModelLoop();                            // the hours of the model chart as a GIF / video of titled pictures
     // views kept by name: the layers on, the region and the model chart's settings
