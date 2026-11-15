@@ -21,6 +21,7 @@ namespace VortexSection {
         std::vector<int> levels;                    // mb, the top of the atmosphere first
         std::vector<std::vector<double>> wind;      // [level][time], m/s, NaN where there is none
         bool south{false};
+        bool perRow{false};                         // each row's colors scaled by its own largest wind (the stratosphere's winds reach 60 m/s, the troposphere's 15: one scale washes the lower rows out), its scale at the right
         bool byLatitude{false};                     // the rows are latitudes (degrees, the pole first) of one level, not levels: the time-latitude section
         int level{0};                               // mb, for the time-latitude section
     };

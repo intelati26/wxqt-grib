@@ -875,6 +875,9 @@ int main(int argc, char * argv[]) {
                     VortexSection::Series series;
                     const auto progress = [] (size_t i, size_t n) { qWarning("section: time %zu of %zu", i + 1, n); return true; };
                     const bool ok = latitudesOf > 0 ? VortexSection::collectLatitudes(model, when, latitudesOf, south, series, progress) : VortexSection::collect(model, when, levels, south, series, progress);
+                    if (qEnvironmentVariable("WXQT_SECTION_SCALE") == "global") {   // WXQT_SECTION_SCALE=global: one scale for every row (the default is each row by its own)
+                        series.perRow = false;
+                    }
                     const auto image = ok ? VortexSection::draw(series, 1400, QString::fromStdString(model) + " initial states, " + when.front().toString("yyyy-MM-dd") + " to " + when.back().toString("yyyy-MM-dd")) : QImage{};
                     qWarning("section: %s (%zu levels)", image.isNull() ? "no picture" : "saved", series.levels.size());
                     if (!image.isNull()) {

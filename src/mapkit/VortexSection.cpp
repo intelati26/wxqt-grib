@@ -31,6 +31,7 @@ bool VortexSection::collect(const std::string& model, const std::vector<QDateTim
     out.when = when;
     out.south = south;
     out.levels = levels;
+    out.perRow = true;   // (the rows of different levels: each by its own largest wind)
     std::sort(out.levels.begin(), out.levels.end());   // (the top, the smallest pressure, first)
     out.wind.assign(out.levels.size(), std::vector<double>(when.size(), std::nan("")));
     const double latitude = south ? -60.0 : 60.0;
@@ -118,7 +119,7 @@ QImage VortexSection::draw(const Series& series, int width, const QString& title
         return {};
     }
     const double unit = width / 1200.0;
-    const int left = static_cast<int>(80 * unit), right = static_cast<int>(30 * unit), top = static_cast<int>(70 * unit), bottom = static_cast<int>(100 * unit);
+    const int left = static_cast<int>(80 * unit), right = static_cast<int>((series.perRow ? 80 : 30) * unit), top = static_cast<int>(70 * unit), bottom = static_cast<int>(100 * unit);
     const int rowHeight = static_cast<int>(70 * unit);
     const int height = top + rowHeight * static_cast<int>(series.levels.size()) + bottom;
     QImage image{width, height, QImage::Format_ARGB32};
@@ -149,10 +150,27 @@ QImage VortexSection::draw(const Series& series, int width, const QString& title
     const double plotWidth = width - left - right;
     const size_t n = series.when.size();
     const double cell = plotWidth / static_cast<double>(n);
+    std::vector<double> rowReach(series.levels.size(), reach);
+    if (series.perRow) {   // each row by its own largest wind: in fives under 30 m/s, in tens above
+        for (size_t l = 0; l < series.levels.size(); l++) {
+            double most = 0.0;
+            for (const double v : series.wind[l]) {
+                if (!std::isnan(v)) {
+                    most = std::max(most, std::abs(v));
+                }
+            }
+            const double stepOf = most < 30.0 ? 5.0 : 10.0;
+            rowReach[l] = std::max(5.0, std::ceil(most / stepOf) * stepOf);
+        }
+    }
     for (size_t l = 0; l < series.levels.size(); l++) {
         const double y = top + static_cast<double>(l) * rowHeight;
         for (size_t i = 0; i < n; i++) {
-            p.fillRect(QRectF{left + cell * static_cast<double>(i), y, cell + 0.6, static_cast<double>(rowHeight)}, windColor(series.wind[l][i], reach));
+            p.fillRect(QRectF{left + cell * static_cast<double>(i), y, cell + 0.6, static_cast<double>(rowHeight)}, windColor(series.wind[l][i], rowReach[l]));
+        }
+        if (series.perRow) {   // the row's own scale
+            p.setPen(QColor{90, 90, 90});
+            p.drawText(QRectF{left + plotWidth + 6 * unit, y, right - 8 * unit, static_cast<double>(rowHeight)}, Qt::AlignLeft | Qt::AlignVCenter, QString{"\u00b1%1"}.arg(rowReach[l], 0, 'f', 0));
         }
         p.setPen(QColor{40, 40, 40});
         p.drawText(QRectF{4 * unit, y, left - 10 * unit, static_cast<double>(rowHeight)}, Qt::AlignRight | Qt::AlignVCenter, series.byLatitude ? QString{"%1\u00b0%2"}.arg(series.levels[l]).arg(series.south ? "S" : "N") : QString::number(series.levels[l]) + " mb");
@@ -181,9 +199,17 @@ QImage VortexSection::draw(const Series& series, int width, const QString& title
         p.fillRect(QRectF{barLeft + barWidth * k / 200.0, barTop, barWidth / 200.0 + 0.6, barHeight}, windColor(v, reach));
     }
     p.setPen(QColor{60, 60, 60});
-    for (const double v : {-reach, -reach / 2.0, 0.0, reach / 2.0, reach}) {
-        const double x = barLeft + barWidth * (v + reach) / (2.0 * reach);
-        p.drawText(QRectF{x - 30 * unit, barTop + barHeight + 2 * unit, 60 * unit, 16 * unit}, Qt::AlignHCenter | Qt::AlignTop, QString::number(v, 'f', 0));
+    if (series.perRow) {   // the bar is the same for every row: its ends are each row's own largest wind (at the right of the row)
+        for (const auto& [v, text] : {std::pair{-reach, QString{"most easterly"}}, {0.0, QString{"0"}}, {reach, QString{"most westerly"}}}) {
+            const double x = barLeft + barWidth * (v + reach) / (2.0 * reach);
+            p.drawText(QRectF{x - 60 * unit, barTop + barHeight + 2 * unit, 120 * unit, 16 * unit}, Qt::AlignHCenter | Qt::AlignTop, text);
+        }
+        p.drawText(QRectF{barLeft + barWidth + 80 * unit, barTop, plotWidth - barWidth - 80 * unit, barHeight + 18 * unit}, Qt::AlignLeft | Qt::AlignVCenter, "each row on its own scale (m/s at its right)");
+    } else {
+        for (const double v : {-reach, -reach / 2.0, 0.0, reach / 2.0, reach}) {
+            const double x = barLeft + barWidth * (v + reach) / (2.0 * reach);
+            p.drawText(QRectF{x - 30 * unit, barTop + barHeight + 2 * unit, 60 * unit, 16 * unit}, Qt::AlignHCenter | Qt::AlignTop, QString::number(v, 'f', 0));
+        }
     }
     p.end();
     return image;

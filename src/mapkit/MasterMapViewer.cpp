@@ -2025,6 +2025,9 @@ void MasterMapViewer::saveVortexSection() {
     form->addRow("To", to);
     form->addRow("Step", step);
     form->addRow("Hemisphere", hemisphere);
+    auto * scalePerRow = new QCheckBox{"Scale each level's row by its own largest wind", &dialog};
+    scalePerRow->setToolTip("On: the 1 mb winds (60 m/s) do not wash out the 500 mb ones (15): each row has its own scale, written at its right. Off: one scale for every row.");
+    scalePerRow->setChecked(true);
     auto * picture = UiStandards::combo(&dialog);
     picture->addItem("The wind by level and time (a row for each level)", 0);
     picture->addItem("The waves of one level: wave 1 and 2 of the height, with the wind (a graph)", 1);
@@ -2039,6 +2042,7 @@ void MasterMapViewer::saveVortexSection() {
     form->insertRow(0, "Picture", picture);
     form->addRow("Level (waves, latitudes)", waveLevel);
     column->addLayout(form);
+    column->addWidget(scalePerRow);
     auto * buttons = new QDialogButtonBox{QDialogButtonBox::Ok | QDialogButtonBox::Cancel, &dialog};
     QObject::connect(buttons, &QDialogButtonBox::accepted, &dialog, &QDialog::accept);
     QObject::connect(buttons, &QDialogButtonBox::rejected, &dialog, &QDialog::reject);
@@ -2064,6 +2068,7 @@ void MasterMapViewer::saveVortexSection() {
     std::atomic<bool> stop{false};
     VortexSection::Series series;
     VortexSection::Waves waves;
+    const bool rowScale = scalePerRow->isChecked();
     const bool wavesWanted = picture->currentData().toInt() == 1, latitudesWanted = picture->currentData().toInt() == 2;
     const int wavesAt = waveLevel->currentData().toInt();
     bool ok = false;
@@ -2088,6 +2093,9 @@ void MasterMapViewer::saveVortexSection() {
         return;
     }
     const auto title = QString::fromStdString(model) + " initial states, " + when.front().toString("yyyy-MM-dd") + " to " + when.back().toString("yyyy-MM-dd");
+    if (series.perRow && !rowScale) {
+        series.perRow = false;
+    }
     const auto image = !ok ? QImage{} : wavesWanted ? VortexSection::drawWaves(waves, 1400, title) : VortexSection::draw(series, 1400, title);
     if (image.isNull()) {
         QMessageBox::warning(this, "Save the vortex section", "No wind could be read: the model has no wind charts in the runs of those times.");
