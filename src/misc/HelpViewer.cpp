@@ -115,7 +115,7 @@ namespace {
                "<p>A <b>PROBLEM</b> there means the server did not answer, or the files are no longer where the program looks. The model's page here has the people who run it, "
                "which is where a notice of a change is usually found.</p>"
                "<p>The <b>Servers</b> table above the models lists the places the models read from, by name, and which list each came from (the program's, the project's, yours): a server that has moved is "
-               "fixed there by typing the new address, or in a <code>servers.json</code> of your own, with no new version. <i>Editing the program's data</i> in this Help has the rules.</p>"
+               "fixed there by typing the new address, or in a <code>servers.json</code> of your own, without waiting for a new version of the program. <i>Editing the program's data</i> in this Help has the rules.</p>"
                "<p>To see whether a model's files still have what its charts ask for, run <code>WXQT_OPEN=catalogcheck:&lt;model&gt;:&lt;out.json&gt;</code> (see <i>The rules</i>): it lists fields that are gone, "
                "never found, or in the files but not charted.</p>";
     }
@@ -154,13 +154,21 @@ HelpViewer::HelpViewer(QWidget * parent, const std::string& topic)
         item->setData(0, Qt::UserRole, QString::fromStdString("model:" + d.id));
         item->setToolTip(0, QString::fromStdString(d.label));
     }
-    auto * editing = new QTreeWidgetItem{tree, {"Editing the program's data"}};   // the files a person can edit with no code and no release: one page for the rules they share, one for each kind
+    auto * editing = new QTreeWidgetItem{tree, {"Editing the program's data"}};   // the files a person can change without a new version of the program: one page for the rules they share, one for each kind
     for (const auto& [title, id] : std::vector<std::pair<const char *, const char *>>{{"The rules, and which file for which job", "guide:editing-rules"}, {"Servers (servers.json)", "guide:server-file"},
                                                                                      {"Chart files (your own maps)", "guide:chart-files"}, {"Model files (.model)", "guide:model-files"}}) {
         auto * item = new QTreeWidgetItem{editing, {title}};
         item->setData(0, Qt::UserRole, id);
     }
     tree->expandItem(editing);
+    auto * customizing = new QTreeWidgetItem{tree, {"Settings and customizing"}};   // the other things a person can change, one page each (docs/help-*.md)
+    for (const auto& [title, id] : std::vector<std::pair<const char *, const char *>>{{"Colors (map colors and chart color scales)", "guide:help-colors"}, {"Checks, presets, favorites, saved views", "guide:help-presets-views"},
+                                                                                     {"Home screen order and the toolbar", "guide:help-home-toolbar"}, {"Saved locations", "guide:help-locations"},
+                                                                                     {"Local model runs", "guide:help-local-runs"}, {"GDAL and NetCDF files", "guide:help-gdal"}, {"Accounts and keys", "guide:help-accounts"}}) {
+        auto * item = new QTreeWidgetItem{customizing, {title}};
+        item->setData(0, Qt::UserRole, id);
+    }
+    tree->expandItem(customizing);
     auto * howTo = new QTreeWidgetItem{tree, {"Adding a model"}};
     howTo->setData(0, Qt::UserRole, "add");
     auto * check = new QTreeWidgetItem{tree, {"Model sources"}};
@@ -175,7 +183,7 @@ HelpViewer::HelpViewer(QWidget * parent, const std::string& topic)
     box.getAndShow(this);
     setSize(1000, 640);
     page->setHtml("<h2>Help and further reading</h2><p>Pick a model on the left to see why it matters, what the app shows of it and where its data and its documentation are. "
-                  "<i>Adding a model</i> says how to add one of your own, and <i>Editing the program's data</i> says how to change a server, a model's layout or a map with no code and no new version.</p>");
+                  "<i>Adding a model</i> says how to add one of your own, and <i>Editing the program's data</i> says how to change a server, a model's layout or a map yourself, without waiting for a new version of the program.</p>");
     if (!topic.empty()) {
         showTopic(topic);
     }

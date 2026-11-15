@@ -4,6 +4,13 @@
     <file alias="guides/server-file.md">../docs/server-file.md</file>
     <file alias="guides/chart-files.md">../docs/chart-files.md</file>
     <file alias="guides/model-files.md">../docs/model-files.md</file>
+    <file alias="guides/help-colors.md">../docs/help-colors.md</file>
+    <file alias="guides/help-presets-views.md">../docs/help-presets-views.md</file>
+    <file alias="guides/help-home-toolbar.md">../docs/help-home-toolbar.md</file>
+    <file alias="guides/help-locations.md">../docs/help-locations.md</file>
+    <file alias="guides/help-local-runs.md">../docs/help-local-runs.md</file>
+    <file alias="guides/help-gdal.md">../docs/help-gdal.md</file>
+    <file alias="guides/help-accounts.md">../docs/help-accounts.md</file>
     <file alias="models/AIFS.md">models/AIFS.md</file>
     <file alias="models/AIGFS.md">models/AIGFS.md</file>
     <file alias="models/AROME.md">models/AROME.md</file>

@@ -120,7 +120,7 @@ SettingsSourcesBox::SettingsSourcesBox(QWidget * parent)
             QDesktopServices::openUrl(QUrl::fromLocalFile(folder));
         });
         auto * helpButton = UiStandards::button(this, "Help...");
-        helpButton->setToolTip("How servers, model files and chart files are edited with no new version: the rules, and the format of each.");
+        helpButton->setToolTip("How to change a server, a model's layout or a map yourself, without waiting for a new version: the rules, and the format of each.");
         QObject::connect(helpButton, &QPushButton::clicked, this, [this] { new HelpViewer{this->window(), "guide:server-file"}; });
         serversStatus = new QLabel{this};
         serversRow->addWidget(helpButton);
