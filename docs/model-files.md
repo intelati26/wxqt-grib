@@ -1,5 +1,7 @@
 # Model definition files
 
+(The rules every editable file shares, and which file to edit for which job: [editing-rules.md](editing-rules.md).)
+
 A model the Model Viewer draws can be a text file instead of code. Built-in models that fit are written this way
 (`src/gfs/GfsBuiltInModels.cpp` is the readable set of examples); your own go in the folder
 
