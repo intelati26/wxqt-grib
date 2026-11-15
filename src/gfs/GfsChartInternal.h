@@ -7,6 +7,7 @@
 #define GFSCHARTINTERNAL_H
 
 #include <functional>
+#include <map>
 #include <string>
 #include <vector>
 #include "gfs/GfsChart.h"
@@ -61,6 +62,25 @@ inline ContourSet pressure() {
 inline GfsGrid::Grid vorticityOf(const Grids& g) {
     return GfsGrid::scaled(GfsGrid::vorticity(GfsGrid::smoothed(pick(g, "u"), 1), GfsGrid::smoothed(pick(g, "v"), 1)), 1e5);
 }
+
+// the number without trailing zeros: 2, 0.25
+std::string trimmed(double value);
+
+// template id -> a function making the product for the chosen values (filled when the registry is built)
+std::map<std::string, std::function<Product(const std::vector<double>&)>>& generators();
+
+// the id of a chart made for chosen values: "gen~<template>~<value>~..."
+std::string generatedId(const std::string& templateId, const std::vector<double>& values);
+
+// the chance of an amount of precipitation: the ensemble whose members each have a running total since the start of the run, the scale of the chances, and the charts made from them
+struct CumulativeEnsemble {
+    std::string source;
+    std::vector<std::string> members;
+    std::function<std::string(int hour)> forecast;
+};
+const Ramp& exceedRamp();
+Product exceedProduct(const CumulativeEnsemble& ensemble, const std::string& id, const std::string& label, double inches, int period);
+Product exceedPooledProduct(const std::string& id, const std::string& label, double inches, int period);
 
 // the color scales of the charts (GfsChartRamps.cpp)
 Ramp temperature();
@@ -122,6 +142,18 @@ void currentProducts(std::vector<Product>& p, const char * model);
 void waveProducts(std::vector<Product>& p, const char * model);
 
 void hafsProducts(std::vector<Product>& p, const char * model);
+
+void gepsProducts(std::vector<Product>& p);
+
+void spcProducts(std::vector<Product>& p, const char * source, bool gefs);
+
+void mesoProducts(std::vector<Product>& p, const char * source);
+
+void openMeteoProducts(std::vector<Product>& p, const std::string& source);
+
+void pppProducts(std::vector<Product>& p);
+
+void cfs30Products(std::vector<Product>& p);
 
 }  // namespace detail
 }  // namespace GfsChart
