@@ -9453,16 +9453,14 @@ void paintOverlays(MapFrame& f, QImage& map) {
     }
 }
 
-QImage render(const Product& drawn, const Sector& sector, const Grids& fetched, const GfsData::Run& run, int forecastHour, const Options& options) {
-    const bool timing = std::getenv("WXQT_TIMING") != nullptr;   // WXQT_TIMING=1: the seconds each stage of the drawing takes, to stderr
-    auto lapAt = std::chrono::steady_clock::now();
-    const auto lap = [&] (const char * what) {
-        if (timing) {
-            const auto now = std::chrono::steady_clock::now();
-            std::fprintf(stderr, "render %-14s %.2f s\n", what, std::chrono::duration<double>(now - lapAt).count());
-            lapAt = now;
-        }
-    };
+// The chart as it is to be drawn: the user's scales put in, the grids closed round the date line and the chart's own fields derived, and the fill (the override of a maximum or a change replacing the chart's).
+struct Prepared {
+    Product product;
+    Grids grids;
+    GfsGrid::Grid fill;
+};
+
+Prepared prepare(const Product& drawn, const Grids& fetched, const GfsData::Run& run, int forecastHour, const Options& options) {
     Product product = drawn;
     product.ramp = defaultRamp(drawn, options.magColors);
     if (const auto found = options.palettes.find(rampKey(product.ramp)); found != options.palettes.end()) {   // the user's own scale for this kind of chart
@@ -9519,6 +9517,23 @@ QImage render(const Product& drawn, const Sector& sector, const Grids& fetched, 
             }
         }
     }
+    return {std::move(product), std::move(grids), std::move(fill)};
+}
+
+QImage render(const Product& drawn, const Sector& sector, const Grids& fetched, const GfsData::Run& run, int forecastHour, const Options& options) {
+    const bool timing = std::getenv("WXQT_TIMING") != nullptr;   // WXQT_TIMING=1: the seconds each stage of the drawing takes, to stderr
+    auto lapAt = std::chrono::steady_clock::now();
+    const auto lap = [&] (const char * what) {
+        if (timing) {
+            const auto now = std::chrono::steady_clock::now();
+            std::fprintf(stderr, "render %-14s %.2f s\n", what, std::chrono::duration<double>(now - lapAt).count());
+            lapAt = now;
+        }
+    };
+    auto prepared = prepare(drawn, fetched, run, forecastHour, options);
+    Product& product = prepared.product;
+    Grids& grids = prepared.grids;
+    auto& fill = prepared.fill;
     if (fill.empty()) {
         return {};
     }
