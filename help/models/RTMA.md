@@ -10,3 +10,7 @@ The Real-Time Mesoscale Analysis: NOAA's hourly map of the surface weather, 2.5 
 
 - [Numerical weather prediction](https://en.wikipedia.org/wiki/Numerical_weather_prediction) (background, Wikipedia)
 - [NOAA: the Real-Time Mesoscale Analysis](https://www.nco.ncep.noaa.gov/pmb/products/rtma/) (From the people who run it)
+
+## Where the data is read from
+
+- [NOAA open data on AWS (noaa-rtma-pds)](https://noaa-rtma-pds.s3.amazonaws.com/)

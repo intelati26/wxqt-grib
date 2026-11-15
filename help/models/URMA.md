@@ -10,3 +10,7 @@ The UnRestricted Mesoscale Analysis: the RTMA made again a little later, with ob
 
 - [Numerical weather prediction](https://en.wikipedia.org/wiki/Numerical_weather_prediction) (background, Wikipedia)
 - [NOAA: the Real-Time Mesoscale Analysis](https://www.nco.ncep.noaa.gov/pmb/products/rtma/) (From the people who run it)
+
+## Where the data is read from
+
+- [NOAA open data on AWS (noaa-urma-pds)](https://noaa-urma-pds.s3.amazonaws.com/)
