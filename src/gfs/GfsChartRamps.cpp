@@ -196,5 +196,10 @@ Ramp stratosphereTemperature() {   // degrees C at 100 to 10 mb: the polar winte
              {-40, QColor{"#f8d97e"}}, {-30, QColor{"#e57741"}}, {-20, QColor{"#c54331"}}}};
 }
 
+Ramp upperStratosphereTemperature() {   // degrees C at 5 to 1 mb: the same colors over a warmer span (the stratopause is near 0 C in the winter polar night's rim), -80 to +10
+    return {{{-80, QColor{"#4b2d7f"}}, {-70, QColor{"#5b55a8"}}, {-60, QColor{"#3f74b8"}}, {-50, QColor{"#4aa0d4"}}, {-40, QColor{"#9ad6e6"}}, {-30, QColor{"#dcefb4"}},
+             {-20, QColor{"#f8d97e"}}, {-10, QColor{"#e57741"}}, {0, QColor{"#c54331"}}, {10, QColor{"#8e1f2c"}}}};
+}
+
 }  // namespace detail
 }  // namespace GfsChart

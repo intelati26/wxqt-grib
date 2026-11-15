@@ -81,7 +81,7 @@ for (const auto& [level, interval] : {std::pair{"100 mb", 6.0}, {"70 mb", 8.0}, 
     auto temp = upper((number + "_temp_ht").c_str(), (number + "mb Temperature, Wind and Height").c_str(), level, interval);
     temp.wants.push_back(want("t", "TMP", level));
     temp.fill = [] (const Grids& g) { return pick(g, "t"); };
-    temp.ramp = stratosphereTemperature();
+    temp.ramp = number == "5" || number == "2" || number == "1" ? upperStratosphereTemperature() : stratosphereTemperature();
     temp.fillTitle = "Temperature";
     temp.legendStep = 10;
     temp.quantity = Quantity::Temperature;
