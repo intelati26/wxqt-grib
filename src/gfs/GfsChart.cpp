@@ -2792,9 +2792,7 @@ std::vector<std::tuple<QPointF, QString, QColor>> drawContours(Frame& f, const H
     const bool barbsShown = !options.noBarbs && ((!product.barbU.empty() && grids.count(product.barbU) && grids.count(product.barbV)) || std::any_of(product.barbSets.begin(), product.barbSets.end(), [&grids] (const auto& set) { return grids.count(set.u) && grids.count(set.v); }));
     const auto barbLook = BarbGrid::look(span, area.width() / std::max(0.1, span));
     const auto nearBarb = [&] (const QPointF& at) {
-        const double la = std::round(view.latAt(at.y()) / barbLook.step) * barbLook.step;
-        const double lonStep = BarbGrid::lonStep(barbLook.step, la);
-        const double lo = std::round(view.lonAt(at.x()) / lonStep) * lonStep;
+        const auto [la, lo] = BarbGrid::nearestNode(barbLook.step, view.latAt(at.y()), view.lonAt(at.x()));
         const auto node = view.toPixel(lo, la);
         return std::hypot(node.x() - at.x(), node.y() - at.y()) < barbLook.length * 1.1;
     };

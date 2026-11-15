@@ -9,6 +9,7 @@
 #include <algorithm>
 #include <chrono>
 #include <cmath>
+#include <utility>
 #include "util/Utility.h"
 
 // Where the wind barbs of every map and chart go, one rule for all of them: points of whole degrees of latitude and longitude (the world grid), the step chosen from the zoom so that the barbs stay
@@ -52,6 +53,13 @@ namespace BarbGrid {
     inline double lonStep(double step, double lat) {
         const int every = std::clamp(static_cast<int>(std::floor(1.0 / std::max(0.05, std::cos(lat * 3.14159265358979 / 180.0)) + 0.5)), 1, 8);
         return step * every;
+    }
+
+    // the grid point nearest to a place (the barb that is drawn closest to it): latitude and longitude in degrees, at the step of the look
+    inline std::pair<double, double> nearestNode(double step, double lat, double lon) {
+        const double la = std::round(lat / step) * step;
+        const double ls = lonStep(step, la);
+        return {la, std::round(lon / ls) * ls};
     }
 }
 
