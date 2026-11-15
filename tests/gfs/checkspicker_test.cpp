@@ -58,6 +58,12 @@ int main(int argc, char ** argv) {
         }
         CHECK(seen.size() == entries.size());
         kindsTotal += static_cast<int>(kinds.size());
+        for (const auto& k : kinds) {   // no name keeps the number's place and its unit ("#mb Wind and Height": the Value row has those)
+            if (k.name.find("#mb") != std::string::npos || k.name.find("#hPa") != std::string::npos) {
+                std::printf("  kind name with a number's place: %s %s\n", def.id.c_str(), k.name.c_str());
+                failures++;
+            }
+        }
         if (def.id == "GFS") {
             for (const auto& k : kinds) {
                 std::printf("  %-28s %-52s", k.group.substr(0, 27).c_str(), k.name.substr(0, 51).c_str());

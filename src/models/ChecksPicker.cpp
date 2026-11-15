@@ -257,9 +257,10 @@ std::vector<ChecksPicker::Kind> ChecksPicker::kinds(const std::vector<ProductPic
                 name.replace(place, digits, "#");
             }
         }
-        if (name.compare(0, 2, "# ") == 0) {   // ("#mb Wind and Height": the number is the Value row's)
+        if (name.compare(0, 2, "# ") == 0) {   // ("# Wind and Height": the number is the Value row's)
             name.erase(0, 2);
         }
+        name = std::regex_replace(name, std::regex{R"(#(mb|hPa|m|km|K) ?)"}, "");   // ("Mean #mb Wind and Height": the number and its unit are the Value row's, wherever they stand in the name)
         k.name = name;
     }
     for (auto& k : out) {   // charts whose labels do not differ (the blend's periods are all "Total Precipitation"): the numbers of their ids, and the ids when those do not differ either
@@ -577,8 +578,8 @@ void ChecksPicker::fillValues(size_t kind, const std::string& select) {
         }
     }
     valueBox->setCurrentIndex(at);
-    valueBox->setEnabled(k.charts.size() > 1);
-    valueLabel->setEnabled(k.charts.size() > 1);
+    valueBox->setVisible(k.charts.size() > 1);   // (a kind of one chart has nothing to choose: no row that only repeats the name)
+    valueLabel->setVisible(k.charts.size() > 1);
     quiet = false;
 }
 
