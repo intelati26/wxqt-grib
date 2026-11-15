@@ -1843,31 +1843,31 @@ void drawBarbs(BarbsState& state) {
         }
         const double pixelsPerDegree = area.width() / std::max(0.1, span);
         const auto look = BarbGrid::look(span, pixelsPerDegree);
-        for (double lat = std::ceil(std::max(-85.0, sector.south) / look.step) * look.step; !sets.empty() && lat <= std::min(85.0, sector.north); lat += look.step) {
-            const double lonStep = BarbGrid::lonStep(look.step, lat);
-            for (double lon = std::ceil(sector.west / lonStep) * lonStep; lon <= sector.east; lon += lonStep) {
-                const QPointF at = view.toPixel(lon, lat);
-                if (!area.contains(at)) {
+        if (sets.empty()) {
+            return;
+        }
+        BarbGrid::forEachNode(look.step, sector.south, sector.north, sector.west, sector.east, [&] (double lat, double lon) {
+            const QPointF at = view.toPixel(lon, lat);
+            if (!area.contains(at)) {
+                return;
+            }
+            // every set from the same origin: the first the longest, each next a little shorter and drawn over it
+            for (size_t i = 0; i < sets.size(); i++) {
+                float uu = sets[i].u->sample(lon, lat), vv = sets[i].v->sample(lon, lat);
+                if (std::isnan(uu) || std::isnan(vv)) {
+                    uu = sets[i].u->sample(lon + 360.0, lat);
+                    vv = sets[i].v->sample(lon + 360.0, lat);
+                }
+                if (std::isnan(uu) || std::isnan(vv)) {
                     continue;
                 }
-                // every set from the same origin: the first the longest, each next a little shorter and drawn over it
-                for (size_t i = 0; i < sets.size(); i++) {
-                    float uu = sets[i].u->sample(lon, lat), vv = sets[i].v->sample(lon, lat);
-                    if (std::isnan(uu) || std::isnan(vv)) {
-                        uu = sets[i].u->sample(lon + 360.0, lat);
-                        vv = sets[i].v->sample(lon + 360.0, lat);
-                    }
-                    if (std::isnan(uu) || std::isnan(vv)) {
-                        continue;
-                    }
-                    QColor ink = sets[i].color;
-                    p.setPen(QPen{QColor{ink.red(), ink.green(), ink.blue(), 230}, sets.size() > 1 ? 1.3 : 1.0});
-                    p.setBrush(ink);
-                    const double from = std::fmod(std::atan2(-uu, -vv) * 180.0 / pi + 360.0, 360.0);
-                    WindBarb::draw(p, at, from, std::hypot(uu, vv) * msToKnots, look.length * (1.0 - 0.12 * static_cast<double>(i)), lat < 0.0);
-                }
+                QColor ink = sets[i].color;
+                p.setPen(QPen{QColor{ink.red(), ink.green(), ink.blue(), 230}, sets.size() > 1 ? 1.3 : 1.0});
+                p.setBrush(ink);
+                const double from = std::fmod(std::atan2(-uu, -vv) * 180.0 / pi + 360.0, 360.0);
+                WindBarb::draw(p, at, from, std::hypot(uu, vv) * msToKnots, look.length * (1.0 - 0.12 * static_cast<double>(i)), lat < 0.0);
             }
-        }
+        });
     }
 }
 

@@ -55,6 +55,24 @@ namespace BarbGrid {
         return step * every;
     }
 
+    // Every point of the grid inside a box (south to north, west to east, in degrees; the rows stop at 85 degrees), row by row from the south, west to east, calling f(lat, lon): the one walk that a
+    // picture, a map layer and the globe make to place their barbs
+    template <class F>
+    void forEachNode(double step, double south, double north, double west, double east, F&& f) {
+        for (double lat = std::ceil(std::max(-85.0, south) / step) * step; lat <= std::min(85.0, north); lat += step) {
+            const double ls = lonStep(step, lat);
+            for (double lon = std::ceil(west / ls) * ls; lon <= east; lon += ls) {
+                f(lat, lon);
+            }
+        }
+    }
+
+    // the same over the whole earth (longitudes -180 up to, not including, 180)
+    template <class F>
+    void forEachWorldNode(double step, F&& f) {
+        forEachNode(step, -85.0, 85.0, -180.0, 180.0 - 1e-6, std::forward<F>(f));
+    }
+
     // the grid point nearest to a place (the barb that is drawn closest to it): latitude and longitude in degrees, at the step of the look
     inline std::pair<double, double> nearestNode(double step, double lat, double lon) {
         const double la = std::round(lat / step) * step;

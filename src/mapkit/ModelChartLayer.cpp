@@ -760,39 +760,36 @@ void ModelChartLayer::paintStackedBarbs(QPainter& painter, MapHost& host, const 
     const double length = look.length * upp;
     const QRectF window = QRectF{painter.window()}.adjusted(-length, -length, length, length);
     painter.save();
-    for (double lat = std::ceil(-85.0 / step) * step; lat <= 85.0; lat += step) {
-        const double lonStep = BarbGrid::lonStep(step, lat);
-        for (double lon = std::ceil(-180.0 / lonStep) * lonStep; lon < 180.0 - 1e-6; lon += lonStep) {
-            const QPointF at = t(lat, lon);
-            if (!window.contains(at)) {
+    BarbGrid::forEachWorldNode(step, [&] (double lat, double lon) {
+        const QPointF at = t(lat, lon);
+        if (!window.contains(at)) {
+            return;
+        }
+        for (const auto& set : shown.vectors.windSets) {
+            float u = set.u.sample(lon, lat), v = set.v.sample(lon, lat);
+            if (std::isnan(u) || std::isnan(v)) {
                 continue;
             }
-            for (const auto& set : shown.vectors.windSets) {
-                float u = set.u.sample(lon, lat), v = set.v.sample(lon, lat);
-                if (std::isnan(u) || std::isnan(v)) {
-                    continue;
-                }
-                const double from = std::fmod(std::atan2(-u, -v) * 180.0 / 3.14159265358979 + 360.0, 360.0);
-                const double speed = std::hypot(u, v) * 1.943844;
-                if (host.deferMarks()) {   // a projected world picture (the globe): upright there, the staff turned to the local north
-                    const double nominal = look.length / scale * (marksScale > 1.0 ? 1300.0 / 2800.0 : 1.0) * set.length, south = lat < 0.0;
-                    const QColor ink = set.color;
-                    host.deferMark(lat, lon, [from, speed, nominal, south, ink] (QPainter& p, double unit, double north) {
-                        p.save();
-                        p.rotate(north);
-                        p.setPen(QPen{QColor{ink.red(), ink.green(), ink.blue(), 230}, std::max(1.0, unit * 0.7)});
-                        p.setBrush(ink);
-                        WindBarb::draw(p, QPointF{0.0, 0.0}, from, speed, nominal * unit, south);
-                        p.restore();
-                    });
-                    continue;
-                }
-                painter.setPen(QPen{QColor{set.color.red(), set.color.green(), set.color.blue(), 230}, std::max(upp, 1.3 * scale * upp)});
-                painter.setBrush(set.color);
-                WindBarb::draw(painter, at, from, speed, length * set.length, lat < 0.0);
+            const double from = std::fmod(std::atan2(-u, -v) * 180.0 / 3.14159265358979 + 360.0, 360.0);
+            const double speed = std::hypot(u, v) * 1.943844;
+            if (host.deferMarks()) {   // a projected world picture (the globe): upright there, the staff turned to the local north
+                const double nominal = look.length / scale * (marksScale > 1.0 ? 1300.0 / 2800.0 : 1.0) * set.length, south = lat < 0.0;
+                const QColor ink = set.color;
+                host.deferMark(lat, lon, [from, speed, nominal, south, ink] (QPainter& p, double unit, double north) {
+                    p.save();
+                    p.rotate(north);
+                    p.setPen(QPen{QColor{ink.red(), ink.green(), ink.blue(), 230}, std::max(1.0, unit * 0.7)});
+                    p.setBrush(ink);
+                    WindBarb::draw(p, QPointF{0.0, 0.0}, from, speed, nominal * unit, south);
+                    p.restore();
+                });
+                continue;
             }
+            painter.setPen(QPen{QColor{set.color.red(), set.color.green(), set.color.blue(), 230}, std::max(upp, 1.3 * scale * upp)});
+            painter.setBrush(set.color);
+            WindBarb::draw(painter, at, from, speed, length * set.length, lat < 0.0);
         }
-    }
+    });
     painter.restore();
 }
 
@@ -839,35 +836,32 @@ void ModelChartLayer::paintBarbs(QPainter& painter, MapHost& host, const std::ve
     painter.save();
     painter.setPen(QPen{QColor{20, 20, 20, 230}, std::max(upp, 1.0 * scale * upp)});
     painter.setBrush(QColor{20, 20, 20});
-    for (double lat = std::ceil(-85.0 / step) * step; lat <= 85.0; lat += step) {
-        const double lonStep = BarbGrid::lonStep(step, lat);
-        for (double lon = std::ceil(-180.0 / lonStep) * lonStep; lon < 180.0 - 1e-6; lon += lonStep) {
-            const QPointF at = t(lat, lon);
-            if (!window.contains(at)) {
-                continue;
-            }
-            for (const auto * chart : finestFirst) {
-                double u, v;
-                if (chart->windAt(lon, lat, u, v)) {
-                    const double from = std::fmod(std::atan2(-u, -v) * 180.0 / 3.14159265358979 + 360.0, 360.0);
-                    if (host.deferMarks()) {   // a projected world picture: upright there, the staff turned to the local north
-                        const double speed = std::hypot(u, v) * 1.943844, nominal = look.length / scale * (marksScale > 1.0 ? 1300.0 / 2800.0 : 1.0), south = lat < 0.0;
-                        host.deferMark(lat, lon, [from, speed, nominal, south] (QPainter& p, double unit, double north) {
-                            p.save();
-                            p.rotate(north);
-                            p.setPen(QPen{QColor{20, 20, 20, 230}, std::max(1.0, unit * 0.6)});
-                            p.setBrush(QColor{20, 20, 20});
-                            WindBarb::draw(p, QPointF{0.0, 0.0}, from, speed, nominal * unit, south);
-                            p.restore();
-                        });
-                        break;
-                    }
-                    WindBarb::draw(painter, at, from, std::hypot(u, v) * 1.943844, length, lat < 0.0);
+    BarbGrid::forEachWorldNode(step, [&] (double lat, double lon) {
+        const QPointF at = t(lat, lon);
+        if (!window.contains(at)) {
+            return;
+        }
+        for (const auto * chart : finestFirst) {
+            double u, v;
+            if (chart->windAt(lon, lat, u, v)) {
+                const double from = std::fmod(std::atan2(-u, -v) * 180.0 / 3.14159265358979 + 360.0, 360.0);
+                if (host.deferMarks()) {   // a projected world picture: upright there, the staff turned to the local north
+                    const double speed = std::hypot(u, v) * 1.943844, nominal = look.length / scale * (marksScale > 1.0 ? 1300.0 / 2800.0 : 1.0), south = lat < 0.0;
+                    host.deferMark(lat, lon, [from, speed, nominal, south] (QPainter& p, double unit, double north) {
+                        p.save();
+                        p.rotate(north);
+                        p.setPen(QPen{QColor{20, 20, 20, 230}, std::max(1.0, unit * 0.6)});
+                        p.setBrush(QColor{20, 20, 20});
+                        WindBarb::draw(p, QPointF{0.0, 0.0}, from, speed, nominal * unit, south);
+                        p.restore();
+                    });
                     break;
                 }
+                WindBarb::draw(painter, at, from, std::hypot(u, v) * 1.943844, length, lat < 0.0);
+                break;
             }
         }
-    }
+    });
     painter.restore();
 }
 

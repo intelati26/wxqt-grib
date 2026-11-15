@@ -3,6 +3,7 @@
 #include "util/MyApplication.h"
 #include <cmath>
 #include <cstdio>
+#include <vector>
 #include "gfs/BarbGrid.h"
 
 static int failures = 0;
@@ -38,6 +39,32 @@ int main() {
                 const auto again = BarbGrid::nearestNode(step, la, lo);
                 CHECK(again.first == la && again.second == lo);
             }
+        }
+    }
+    // the walk: the same points, in the same order, as the loops it replaced (the picture's over its box, the map layer's and the globe's over the world)
+    for (const double step : {0.5, 1.0, 2.5, 5.0, 10.0, 30.0}) {
+        std::vector<std::pair<double, double>> old, now;
+        for (double lat = std::ceil(-85.0 / step) * step; lat <= 85.0; lat += step) {
+            const double ls = BarbGrid::lonStep(step, lat);
+            for (double lon = std::ceil(-180.0 / ls) * ls; lon < 180.0 - 1e-6; lon += ls) {
+                old.emplace_back(lat, lon);
+            }
+        }
+        BarbGrid::forEachWorldNode(step, [&now] (double lat, double lon) { now.emplace_back(lat, lon); });
+        CHECK(!old.empty() && old == now);
+        old.clear();
+        now.clear();
+        const double south = -12.3, north = 63.9, west = -141.7, east = -47.2;   // a picture's box
+        for (double lat = std::ceil(std::max(-85.0, south) / step) * step; lat <= std::min(85.0, north); lat += step) {
+            const double ls = BarbGrid::lonStep(step, lat);
+            for (double lon = std::ceil(west / ls) * ls; lon <= east; lon += ls) {
+                old.emplace_back(lat, lon);
+            }
+        }
+        BarbGrid::forEachNode(step, south, north, west, east, [&now] (double lat, double lon) { now.emplace_back(lat, lon); });
+        CHECK(!old.empty() && old == now);
+        for (const auto& [lat, lon] : now) {
+            CHECK(lat >= south - 1e-9 - step && lat <= north + 1e-9 && lon >= west - 1e-9 && lon <= east + 1e-9);
         }
     }
     CHECK(BarbGrid::nearestNode(5.0, 31.0, 11.0) == std::make_pair(30.0, 10.0));

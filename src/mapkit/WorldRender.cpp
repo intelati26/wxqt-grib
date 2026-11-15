@@ -285,30 +285,27 @@ QImage WorldRender::renderWorld(const std::vector<Source>& sources, int projecti
         const double step = look.step;
         p.setPen(QPen{QColor{20, 20, 20, 230}, std::max(1.0, marks)});
         p.setBrush(QColor{20, 20, 20});
-        for (double lat = std::ceil(-85.0 / step) * step; lat <= 85.0; lat += step) {
-            const double lonStep = BarbGrid::lonStep(step, lat);
-            for (double lon = std::ceil(-180.0 / lonStep) * lonStep; lon < 180.0 - 1e-6; lon += lonStep) {
-                double x, y;
-                if (!GlobeMapView::forward(projection, lat, lon - centerLon > 180.0 ? lon - centerLon - 360.0 : (lon - centerLon < -180.0 ? lon - centerLon + 360.0 : lon - centerLon), x, y)) {
+        BarbGrid::forEachWorldNode(step, [&] (double lat, double lon) {
+            double x, y;
+            if (!GlobeMapView::forward(projection, lat, lon - centerLon > 180.0 ? lon - centerLon - 360.0 : (lon - centerLon < -180.0 ? lon - centerLon + 360.0 : lon - centerLon), x, y)) {
+                return;
+            }
+            for (size_t i = sources.size(); i > 0; i--) {   // the finest first
+                const auto& s = sources[i - 1];
+                if (s.windU.empty() || s.windV.empty()) {
                     continue;
                 }
-                for (size_t i = sources.size(); i > 0; i--) {   // the finest first
-                    const auto& s = sources[i - 1];
-                    if (s.windU.empty() || s.windV.empty()) {
-                        continue;
-                    }
-                    const float u = sampleAt(s.windU, lon, lat), v = sampleAt(s.windV, lon, lat);
-                    if (!std::isnan(u) && !std::isnan(v)) {
-                        const double from = std::fmod(std::atan2(-u, -v) * 180.0 / 3.14159265358979 + 360.0, 360.0);
-                        double nx = x, ny = y;   // where north points on this map (up on the world maps, along the meridian on the polar ones)
-                        GlobeMapView::forward(projection, std::min(89.9, lat + 0.5), lon - centerLon > 180.0 ? lon - centerLon - 360.0 : (lon - centerLon < -180.0 ? lon - centerLon + 360.0 : lon - centerLon), nx, ny);
-                        const double tilt = std::atan2((nx - x), (ny - y)) * 180.0 / 3.14159265358979;
-                        WindBarb::draw(p, QPointF{width / 2.0 + x * scale, height / 2.0 - y * scale}, std::fmod(from + tilt + 720.0, 360.0), std::hypot(u, v) * 1.943844, look.length, lat < 0.0);
-                        break;
-                    }
+                const float u = sampleAt(s.windU, lon, lat), v = sampleAt(s.windV, lon, lat);
+                if (!std::isnan(u) && !std::isnan(v)) {
+                    const double from = std::fmod(std::atan2(-u, -v) * 180.0 / 3.14159265358979 + 360.0, 360.0);
+                    double nx = x, ny = y;   // where north points on this map (up on the world maps, along the meridian on the polar ones)
+                    GlobeMapView::forward(projection, std::min(89.9, lat + 0.5), lon - centerLon > 180.0 ? lon - centerLon - 360.0 : (lon - centerLon < -180.0 ? lon - centerLon + 360.0 : lon - centerLon), nx, ny);
+                    const double tilt = std::atan2((nx - x), (ny - y)) * 180.0 / 3.14159265358979;
+                    WindBarb::draw(p, QPointF{width / 2.0 + x * scale, height / 2.0 - y * scale}, std::fmod(from + tilt + 720.0, 360.0), std::hypot(u, v) * 1.943844, look.length, lat < 0.0);
+                    break;
                 }
             }
-        }
+        });
     }
     return image;
 }
