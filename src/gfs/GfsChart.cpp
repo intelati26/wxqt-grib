@@ -9275,6 +9275,184 @@ std::vector<std::tuple<QPointF, QString, QColor>> drawContours(Frame& f, const H
     return numbersToDraw;
 }
 
+// What the stages that make the map need: the chart, where it is drawn and the view.
+struct MapFrame {
+    const Product& product;
+    const Grids& grids;
+    const Options& options;
+    const Sector& sector;
+    const GfsData::Run& run;
+    int forecastHour;
+    const View& view;
+    const QRectF& area;
+    double S;
+    QImage& image;
+    bool us;
+};
+
+// The fields of the chart (and the winds, and the lines for a vector export) kept in Options::probe for the hover read-out.
+void fillProbe(MapFrame& f, const GfsGrid::Grid& fill, const std::string& windU, const std::string& windV) {
+    const Product& product = f.product;
+    const Grids& grids = f.grids;
+    const Options& options = f.options;
+    const Sector& sector = f.sector;
+    const GfsData::Run& run = f.run;
+    const int forecastHour = f.forecastHour;
+    const QRectF& area = f.area;
+    const double S = f.S;
+    QImage& image = f.image;
+    const bool us = f.us;
+    if (options.probe) {   // the fields of this chart, kept for the hover read-out
+        auto& probe = *options.probe;
+        probe = {};
+        probe.west = sector.west;
+        probe.east = sector.east;
+        probe.south = sector.south;
+        probe.north = sector.north;
+        probe.areaLeft = area.left() * S;
+        probe.areaTop = area.top() * S;
+        probe.areaWidth = area.width() * S;
+        probe.areaHeight = area.height() * S;
+        probe.imageWidth = image.width();
+        probe.imageHeight = image.height();
+        probe.us = us;
+        probe.validUtc = QDateTime::fromString(QString::fromStdString(run.id()), "yyyyMMddHH").addSecs(static_cast<qint64>(forecastHour) * 3600);
+        probe.validUtc.setTimeZone(QTimeZone::utc());
+        if (!product.linesOnly) {
+            QString title = QString::fromStdString(product.fillTitleFor ? product.fillTitleFor(forecastHour) : product.fillTitle);
+            if (const auto unit = unitText(product.quantity, us); !unit.isEmpty()) {
+                title += " (" + unit + ")";
+            }
+            probe.fields.push_back({title.toStdString(), GfsGrid::reducedTo(GfsGrid::cropped(fill, sector.west, sector.south, sector.east, sector.north), 120000), 1.0, product.quantity, true});
+        }
+        for (const auto& [key, overlayRamp] : product.overlays) {   // the fills ticked onto the chart (each its own read-out line)
+            const auto found = grids.find(key);
+            const auto bar = key.find("fill|");
+            if (found == grids.end() || bar == std::string::npos) {   // (the key may carry the prefix of the model it is of)
+                continue;
+            }
+            std::string name = key.substr(bar + 5);
+            auto quantity = Quantity::Other;
+            if (const auto c = name.rfind(" (C)"); c != std::string::npos && c + 4 == name.size()) {   // a temperature: shown in the user's units like the chart's own
+                name.erase(c);
+                quantity = Quantity::Temperature;
+                if (const auto unit = unitText(quantity, us); !unit.isEmpty()) {
+                    name += " (" + unit.toStdString() + ")";
+                }
+            }
+            probe.fields.push_back({name, GfsGrid::reducedTo(GfsGrid::cropped(found->second, sector.west, sector.south, sector.east, sector.north), 120000), 1.0, quantity, quantity != Quantity::Other});
+        }
+        for (const auto& set : product.contours) {
+            probe.fields.push_back({set.title.empty() ? set.key : set.title, GfsGrid::reducedTo(GfsGrid::cropped(grids.at(set.key), sector.west, sector.south, sector.east, sector.north), 120000), set.scale, Quantity::Other, false});
+        }
+        for (const auto& value : product.pointValues) {
+            if (grids.count(value.key)) {
+                probe.fields.push_back({value.title.empty() ? value.key : value.title, GfsGrid::reducedTo(GfsGrid::cropped(grids.at(value.key), sector.west, sector.south, sector.east, sector.north), 120000), 1.0, product.quantity, true});
+            }
+        }
+        for (const auto& value : product.hoverValues) {
+            if (grids.count(value.key)) {
+                probe.fields.push_back({value.title, GfsGrid::reducedTo(GfsGrid::cropped(grids.at(value.key), sector.west, sector.south, sector.east, sector.north), 120000), 1.0, Quantity::Other, false, value.names});
+            }
+        }
+        if (options.vectorOut != nullptr) {   // the ticked winds, for a layer that draws the barbs itself
+            options.vectorOut->ownBarbs = !product.barbU.empty() && grids.count(product.barbU) && grids.count(product.barbV);
+            size_t index = options.vectorOut->ownBarbs ? 1 : 0;
+            for (const auto& set : product.barbSets) {
+                if (grids.count(set.u) && grids.count(set.v)) {
+                    options.vectorOut->windSets.push_back({GfsGrid::reducedTo(GfsGrid::cropped(grids.at(set.u), sector.west, sector.south, sector.east, sector.north), 120000),
+                                                           GfsGrid::reducedTo(GfsGrid::cropped(grids.at(set.v), sector.west, sector.south, sector.east, sector.north), 120000), set.color,
+                                                           1.0 - 0.12 * static_cast<double>(index)});
+                    index++;
+                }
+            }
+        }
+        if (!windU.empty() && grids.count(windU) && grids.count(windV)) {
+            probe.windU = GfsGrid::reducedTo(GfsGrid::cropped(grids.at(windU), sector.west, sector.south, sector.east, sector.north), 120000);
+            probe.windV = GfsGrid::reducedTo(GfsGrid::cropped(grids.at(windV), sector.west, sector.south, sector.east, sector.north), 120000);
+        }
+    }
+}
+
+// What the fill makes: the map in color and the largest and smallest values on view (those the picture shows, and any).
+struct FillResult {
+    QImage map;
+    float fillMax, fillMin, anyMax, anyMin;
+};
+
+// The fill, a pixel at a time (the ramp is in the grid's units; fully clear parts show the pale ground).
+FillResult paintFill(MapFrame& f, const GfsGrid::Grid& fill, const Ramp * ramp) {
+    const View& view = f.view;
+    const QRectF& area = f.area;
+    const double S = f.S;
+    QImage map(static_cast<int>(std::lround(area.width() * S)), static_cast<int>(std::lround(area.height() * S)), QImage::Format_ARGB32_Premultiplied);
+    map.fill(QColor{244, 244, 244});
+    float fillMax = std::nanf(""), fillMin = std::nanf(""), anyMax = std::nanf(""), anyMin = std::nanf("");   // the largest and smallest value on view: marked on the legend
+    for (int y = 0; y < map.height(); y++) {
+        auto * row = reinterpret_cast<QRgb *>(map.scanLine(y));
+        const double lat = view.latAt(area.top() + (y + 0.5) / S);
+        for (int x = 0; x < map.width(); x++) {
+            const float value = fill.sample(view.lonAt(area.left() + (x + 0.5) / S), lat);
+            if (!std::isnan(value)) {
+                if (std::isnan(anyMax) || value > anyMax) {
+                    anyMax = value;
+                }
+                if (std::isnan(anyMin) || value < anyMin) {
+                    anyMin = value;
+                }
+                const QRgb c = ramp->at(value);
+                if (qAlpha(c) >= 128) {   // (what the picture shows: the clear part of a scale, a reflectivity under 5 dBZ, is not in the range)
+                    if (std::isnan(fillMax) || value > fillMax) {
+                        fillMax = value;
+                    }
+                    if (std::isnan(fillMin) || value < fillMin) {
+                        fillMin = value;
+                    }
+                }
+                const int a = qAlpha(c);
+                if (a == 255) {
+                    row[x] = qPremultiply(c);
+                } else if (a > 0) {   // a ramp that fades in over the ground
+                    const QRgb under = row[x];
+                    row[x] = qRgb((qRed(c) * a + qRed(under) * (255 - a)) / 255, (qGreen(c) * a + qGreen(under) * (255 - a)) / 255, (qBlue(c) * a + qBlue(under) * (255 - a)) / 255);
+                }
+            }
+        }
+    }
+    return {std::move(map), fillMax, fillMin, anyMax, anyMin};
+}
+
+// The fills painted over the first where they have a value (the snow and the mixed precipitation over the rain; the ticked fills).
+void paintOverlays(MapFrame& f, QImage& map) {
+    const Product& product = f.product;
+    const Grids& grids = f.grids;
+    const View& view = f.view;
+    const QRectF& area = f.area;
+    const double S = f.S;
+    for (const auto& [key, overlayRamp] : product.overlays) {
+        const auto found = grids.find(key);
+        if (found == grids.end()) {
+            continue;
+        }
+        for (int y = 0; y < map.height(); y++) {
+            auto * row = reinterpret_cast<QRgb *>(map.scanLine(y));
+            const double lat = view.latAt(area.top() + (y + 0.5) / S);
+            for (int x = 0; x < map.width(); x++) {
+                const float value = found->second.sample(view.lonAt(area.left() + (x + 0.5) / S), lat);
+                if (std::isnan(value)) {
+                    continue;
+                }
+                const QRgb c = overlayRamp.at(value);
+                const int a = qAlpha(c);
+                if (a > 0) {
+                    const QRgb under = qUnpremultiply(row[x]);
+                    row[x] = qRgb((qRed(c) * a + qRed(under) * (255 - a)) / 255, (qGreen(c) * a + qGreen(under) * (255 - a)) / 255, (qBlue(c) * a + qBlue(under) * (255 - a)) / 255);
+                }
+            }
+        }
+    }
+}
+
 QImage render(const Product& drawn, const Sector& sector, const Grids& fetched, const GfsData::Run& run, int forecastHour, const Options& options) {
     const bool timing = std::getenv("WXQT_TIMING") != nullptr;   // WXQT_TIMING=1: the seconds each stage of the drawing takes, to stderr
     auto lapAt = std::chrono::steady_clock::now();
@@ -9394,135 +9572,14 @@ QImage render(const Product& drawn, const Sector& sector, const Grids& fetched, 
     QImage image(static_cast<int>(std::lround(options.width * S)), static_cast<int>(std::lround((headerHeight + mapHeight + legendHeight) * S)), QImage::Format_ARGB32_Premultiplied);
     image.fill(QColor{250, 250, 250});
 
-    if (options.probe) {   // the fields of this chart, kept for the hover read-out
-        auto& probe = *options.probe;
-        probe = {};
-        probe.west = sector.west;
-        probe.east = sector.east;
-        probe.south = sector.south;
-        probe.north = sector.north;
-        probe.areaLeft = area.left() * S;
-        probe.areaTop = area.top() * S;
-        probe.areaWidth = area.width() * S;
-        probe.areaHeight = area.height() * S;
-        probe.imageWidth = image.width();
-        probe.imageHeight = image.height();
-        probe.us = us;
-        probe.validUtc = QDateTime::fromString(QString::fromStdString(run.id()), "yyyyMMddHH").addSecs(static_cast<qint64>(forecastHour) * 3600);
-        probe.validUtc.setTimeZone(QTimeZone::utc());
-        if (!product.linesOnly) {
-            QString title = QString::fromStdString(product.fillTitleFor ? product.fillTitleFor(forecastHour) : product.fillTitle);
-            if (const auto unit = unitText(product.quantity, us); !unit.isEmpty()) {
-                title += " (" + unit + ")";
-            }
-            probe.fields.push_back({title.toStdString(), GfsGrid::reducedTo(GfsGrid::cropped(fill, sector.west, sector.south, sector.east, sector.north), 120000), 1.0, product.quantity, true});
-        }
-        for (const auto& [key, overlayRamp] : product.overlays) {   // the fills ticked onto the chart (each its own read-out line)
-            const auto found = grids.find(key);
-            const auto bar = key.find("fill|");
-            if (found == grids.end() || bar == std::string::npos) {   // (the key may carry the prefix of the model it is of)
-                continue;
-            }
-            std::string name = key.substr(bar + 5);
-            auto quantity = Quantity::Other;
-            if (const auto c = name.rfind(" (C)"); c != std::string::npos && c + 4 == name.size()) {   // a temperature: shown in the user's units like the chart's own
-                name.erase(c);
-                quantity = Quantity::Temperature;
-                if (const auto unit = unitText(quantity, us); !unit.isEmpty()) {
-                    name += " (" + unit.toStdString() + ")";
-                }
-            }
-            probe.fields.push_back({name, GfsGrid::reducedTo(GfsGrid::cropped(found->second, sector.west, sector.south, sector.east, sector.north), 120000), 1.0, quantity, quantity != Quantity::Other});
-        }
-        for (const auto& set : product.contours) {
-            probe.fields.push_back({set.title.empty() ? set.key : set.title, GfsGrid::reducedTo(GfsGrid::cropped(grids.at(set.key), sector.west, sector.south, sector.east, sector.north), 120000), set.scale, Quantity::Other, false});
-        }
-        for (const auto& value : product.pointValues) {
-            if (grids.count(value.key)) {
-                probe.fields.push_back({value.title.empty() ? value.key : value.title, GfsGrid::reducedTo(GfsGrid::cropped(grids.at(value.key), sector.west, sector.south, sector.east, sector.north), 120000), 1.0, product.quantity, true});
-            }
-        }
-        for (const auto& value : product.hoverValues) {
-            if (grids.count(value.key)) {
-                probe.fields.push_back({value.title, GfsGrid::reducedTo(GfsGrid::cropped(grids.at(value.key), sector.west, sector.south, sector.east, sector.north), 120000), 1.0, Quantity::Other, false, value.names});
-            }
-        }
-        if (options.vectorOut != nullptr) {   // the ticked winds, for a layer that draws the barbs itself
-            options.vectorOut->ownBarbs = !product.barbU.empty() && grids.count(product.barbU) && grids.count(product.barbV);
-            size_t index = options.vectorOut->ownBarbs ? 1 : 0;
-            for (const auto& set : product.barbSets) {
-                if (grids.count(set.u) && grids.count(set.v)) {
-                    options.vectorOut->windSets.push_back({GfsGrid::reducedTo(GfsGrid::cropped(grids.at(set.u), sector.west, sector.south, sector.east, sector.north), 120000),
-                                                           GfsGrid::reducedTo(GfsGrid::cropped(grids.at(set.v), sector.west, sector.south, sector.east, sector.north), 120000), set.color,
-                                                           1.0 - 0.12 * static_cast<double>(index)});
-                    index++;
-                }
-            }
-        }
-        if (!windU.empty() && grids.count(windU) && grids.count(windV)) {
-            probe.windU = GfsGrid::reducedTo(GfsGrid::cropped(grids.at(windU), sector.west, sector.south, sector.east, sector.north), 120000);
-            probe.windV = GfsGrid::reducedTo(GfsGrid::cropped(grids.at(windV), sector.west, sector.south, sector.east, sector.north), 120000);
-        }
-    }
-    // the fill, a pixel at a time (the ramp is in the grid's units; fully clear parts show the pale ground)
+    MapFrame mapFrame{product, grids, options, sector, run, forecastHour, view, area, S, image, us};
+    fillProbe(mapFrame, fill, windU, windV);
     const Ramp * ramp = &product.ramp;
-    QImage map(static_cast<int>(std::lround(area.width() * S)), static_cast<int>(std::lround(area.height() * S)), QImage::Format_ARGB32_Premultiplied);
-    map.fill(QColor{244, 244, 244});
-    float fillMax = std::nanf(""), fillMin = std::nanf(""), anyMax = std::nanf(""), anyMin = std::nanf("");   // the largest and smallest value on view: marked on the legend
-    for (int y = 0; y < map.height(); y++) {
-        auto * row = reinterpret_cast<QRgb *>(map.scanLine(y));
-        const double lat = view.latAt(area.top() + (y + 0.5) / S);
-        for (int x = 0; x < map.width(); x++) {
-            const float value = fill.sample(view.lonAt(area.left() + (x + 0.5) / S), lat);
-            if (!std::isnan(value)) {
-                if (std::isnan(anyMax) || value > anyMax) {
-                    anyMax = value;
-                }
-                if (std::isnan(anyMin) || value < anyMin) {
-                    anyMin = value;
-                }
-                const QRgb c = ramp->at(value);
-                if (qAlpha(c) >= 128) {   // (what the picture shows: the clear part of a scale, a reflectivity under 5 dBZ, is not in the range)
-                    if (std::isnan(fillMax) || value > fillMax) {
-                        fillMax = value;
-                    }
-                    if (std::isnan(fillMin) || value < fillMin) {
-                        fillMin = value;
-                    }
-                }
-                const int a = qAlpha(c);
-                if (a == 255) {
-                    row[x] = qPremultiply(c);
-                } else if (a > 0) {   // a ramp that fades in over the ground
-                    const QRgb under = row[x];
-                    row[x] = qRgb((qRed(c) * a + qRed(under) * (255 - a)) / 255, (qGreen(c) * a + qGreen(under) * (255 - a)) / 255, (qBlue(c) * a + qBlue(under) * (255 - a)) / 255);
-                }
-            }
-        }
-    }
+    auto made = paintFill(mapFrame, fill, ramp);
+    QImage map = std::move(made.map);
+    float fillMax = made.fillMax, fillMin = made.fillMin, anyMax = made.anyMax, anyMin = made.anyMin;
     lap("fill");
-    for (const auto& [key, overlayRamp] : product.overlays) {
-        const auto found = grids.find(key);
-        if (found == grids.end()) {
-            continue;
-        }
-        for (int y = 0; y < map.height(); y++) {
-            auto * row = reinterpret_cast<QRgb *>(map.scanLine(y));
-            const double lat = view.latAt(area.top() + (y + 0.5) / S);
-            for (int x = 0; x < map.width(); x++) {
-                const float value = found->second.sample(view.lonAt(area.left() + (x + 0.5) / S), lat);
-                if (std::isnan(value)) {
-                    continue;
-                }
-                const QRgb c = overlayRamp.at(value);
-                const int a = qAlpha(c);
-                if (a > 0) {
-                    const QRgb under = qUnpremultiply(row[x]);
-                    row[x] = qRgb((qRed(c) * a + qRed(under) * (255 - a)) / 255, (qGreen(c) * a + qGreen(under) * (255 - a)) / 255, (qBlue(c) * a + qBlue(under) * (255 - a)) / 255);
-                }
-            }
-        }
-    }
+    paintOverlays(mapFrame, map);
     QPainter p{&image};
     p.setRenderHint(QPainter::Antialiasing);
     p.scale(S, S);
