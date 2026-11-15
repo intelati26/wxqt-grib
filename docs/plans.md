@@ -1943,3 +1943,16 @@ day (more when changed), text only.
 - **Tab use:** a "Pending missions" panel parsed from the newest file, mission rows (aircraft, storm, times, target point, altitude,
   purpose), a marker on the map at the target point, and remarks shown as text; the parsing is small (line-based). History of
   plans from the archive listing.
+
+## 19. The polar vortex: the initial state of the global models since a date (idea, 2026-11-14; nothing written)
+
+**The wish:** watch the stratospheric polar vortex through the season: the f000 (the initial state) of the global models, as a history from a chosen date to now.
+
+**What is already there.** (1) Initial states: `GFS-ANL` (the GFS f000), `GFS1-ANL`, `CFS-ANL`, and ERA5 at NCAR (hourly, 37 levels, back to 1940, read through the `pl:` files: any "N mb" level of HGT, TMP, UGRD, VGRD works). (2) A chart for a valid time ("by the clock", `Variant::validTime`): the screen already asks for a model's run by the time it is valid. (3) A `POLAR` sector (55 to 82 N, as a Mercator rectangle) and, on the master map, the polar projections. **Checked on the NOAA archive (2026-11-14):** the GFS f000 file carries HGT, TMP, UGRD and VGRD at 1, 2, 3, 5, 7, 10, 20, 30, 50, 70 and 100 mb, and the archive on S3 reaches back at least to April 2021 (`gfs.20210401/00` answers). The ECMWF open data has 50 mb as its highest level.
+
+**What is missing.** (1) No chart above 200 mb in the catalogue (nothing at 100, 70, 50, 30, 10 mb). (2) No loop over dates: the loop is over forecast hours of one run; a history is one frame per valid time (every 6 hours), each its own f000. (3) No numbers of the vortex: the winds at 10 mb and 60 N (the zonal mean: a sudden warming is when it turns to easterly), the temperature of the polar cap (60 to 90 N), the height at 10 mb of the pole.
+
+**In steps, each useful alone:** (1) the stratosphere charts: 100, 50, 30, 10 mb height, wind and temperature (the temperature filled, the heights as lines, the wind as barbs or streamlines), for the GFS and so for the models cloned from it, ERA5 and the analyses; on the polar projection of the master map, since a Mercator rectangle cuts a vortex across the pole into stripes. (2) A history player: a model that has an initial state, a start date and a step (6, 12, 24 hours): frames by valid time, looped and saved as an animation; `validTime` is the way in, the fetch is a box of the grid (a few levels' bytes), so a season is hundreds of small reads, not downloads of whole files. (3) A strip of numbers under the loop: the zonal mean wind at 60 N and 10 mb and the polar cap temperature, one point for each frame, with the line and its dates. (4) Perhaps: the vortex edge (the 10 mb heights' lines, or the potential vorticity), and the forecast on the same strip (the f000 history, then the model's forecast continuing it).
+
+**Open questions:** the start date to default to (1 October?) and whether the history is of the GFS only or compared with ERA5 for the same dates (the reanalysis is the better truth, a few days behind); the levels (10 and 50 mb first, then the rest); whether the history player is its own screen or a mode of the Model Viewer's loop.
+
