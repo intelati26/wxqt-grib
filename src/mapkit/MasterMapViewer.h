@@ -6,6 +6,7 @@
 #ifndef MASTERMAPVIEWER_H
 #define MASTERMAPVIEWER_H
 
+#include <cmath>
 #include <ctime>
 #include <memory>
 #include <map>
@@ -118,7 +119,7 @@ public:
     void globeHoverProbe();   // (a development aid: a mouse move to the middle of the globe, and what the hover says there, to stderr)
     void previewArea(const string& id, bool goThere);   // the area as a rectangle on the globe, which turns to it (goThere: and zooms to fit, and the flat map follows)
     void exportWorldTo(const QString& path, GlobeMapView::Projection projection, double centerLongitude, int width, bool highResolution = false, bool graticule = false, bool quiet = false);   // quiet: no note of the file in the export history (the frames of a loop)
-    bool initialStateFrames(const std::vector<QDateTime>& when, GlobeMapView::Projection projection, int width, std::vector<QByteArray>& frames, std::vector<QString>& skipped, const std::function<bool(size_t)>& progress);   // (public for the dev route: the pictures of a history, read back)
+    bool initialStateFrames(const std::vector<QDateTime>& when, GlobeMapView::Projection projection, int width, std::vector<QByteArray>& frames, std::vector<QString>& skipped, const std::function<bool(size_t)>& progress, bool strip = false);   // (public for the dev route: the pictures of a history, read back)
 
 private:
     void exportTo(const QString& path);          // PNG, or PDF by the ending of the name
@@ -179,6 +180,11 @@ private:
     Button buttonSounding;
     Button buttonPhase;
     Button buttonMembers;
+    // the numbers of the vortex in the fields of the last world picture: the zonal-mean wind on the circle of 60 degrees and the mean temperature of the cap beyond it (NaN: the chart has none)
+    struct VortexNumbers {
+        double wind{std::nan("")}, capTemperature{std::nan("")};
+    };
+    VortexNumbers vortexNumbers;
     void saveInitialStates();                        // the model chart's initial state (the f000 of each run) from a date to another, on a world projection, as a GIF / video: the polar vortex through the season
     void saveModelLoop();                            // the hours of the model chart as a GIF / video of titled pictures
     // views kept by name: the layers on, the region and the model chart's settings

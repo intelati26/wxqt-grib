@@ -1689,26 +1689,155 @@ void MasterMapViewer::saveModelLoop() {
 
 // The frames of a history of initial states: for each time the layer is put at it (the run at that time, its first hour) and the whole world exported as it is, quietly, to a picture that is read
 // back. `progress(i)` is asked before each one and says false to stop. The times that gave no picture are named in `skipped`. False when stopped.
-bool MasterMapViewer::initialStateFrames(const std::vector<QDateTime>& when, GlobeMapView::Projection projection, int width, std::vector<QByteArray>& frames, std::vector<QString>& skipped, const std::function<bool(size_t)>& progress) {
+// A strip under a picture of the history: the vortex's numbers through the season (the zonal-mean wind on the circle of 60 degrees, and the cap's mean temperature when the chart has it), one value
+// per picture, the line to the picture drawn bold with a ring at it. `level` names the chart's level ("10 mb"), `south` the southern winter.
+static QByteArray withStrip(const QByteArray& png, size_t at, const std::vector<QDateTime>& when, const std::vector<double>& wind, const std::vector<double>& temperature, const QString& level, bool south) {
+    QImage picture;
+    if (!picture.loadFromData(png, "PNG")) {
+        return png;
+    }
+    const bool hasTemperature = std::any_of(temperature.begin(), temperature.end(), [] (double t) { return !std::isnan(t); });
+    const int w = picture.width();
+    const int band = std::max(150, w * 22 / 100);
+    QImage out{w, picture.height() + band, QImage::Format_ARGB32};
+    out.fill(Qt::white);
+    QPainter painter{&out};
+    painter.setRenderHint(QPainter::Antialiasing);
+    painter.drawImage(0, 0, picture);
+    const double unit = w / 1200.0;   // (sizes as for a picture 1200 pixels wide)
+    QFont font = painter.font();
+    font.setPixelSize(std::max(10, static_cast<int>(std::lround(13 * unit))));
+    painter.setFont(font);
+    const QRectF plot{70 * unit, picture.height() + 34 * unit, w - 140 * unit, band - 34 * unit - 28 * unit};
+    const auto range = [] (const std::vector<double>& v, bool includeZero) {
+        double low = includeZero ? 0.0 : 1e9, high = includeZero ? 0.0 : -1e9;
+        for (const double x : v) {
+            if (!std::isnan(x)) {
+                low = std::min(low, x);
+                high = std::max(high, x);
+            }
+        }
+        const double pad = std::max(1.0, (high - low) * 0.08);
+        return std::pair{low - pad, high + pad};
+    };
+    const auto [windLow, windHigh] = range(wind, true);
+    const auto [tempLow, tempHigh] = range(temperature, false);
+    const size_t n = when.size();
+    const auto x = [&] (size_t i) { return plot.left() + (n > 1 ? plot.width() * static_cast<double>(i) / static_cast<double>(n - 1) : 0.0); };
+    const auto yWind = [&] (double v) { return plot.bottom() - plot.height() * (v - windLow) / (windHigh - windLow); };
+    const auto yTemp = [&] (double v) { return plot.bottom() - plot.height() * (v - tempLow) / (tempHigh - tempLow); };
+    painter.setPen(QPen{QColor{190, 190, 190}, std::max(1.0, unit)});
+    painter.drawRect(plot);
+    painter.setPen(QPen{QColor{110, 110, 110}, std::max(1.0, unit), Qt::DashLine});   // the zero line: the winds reverse where the wind crosses it
+    painter.drawLine(QPointF{plot.left(), yWind(0.0)}, QPointF{plot.right(), yWind(0.0)});
+    const auto line = [&] (const std::vector<double>& v, const std::function<double(double)>& y, const QColor& color, size_t upTo) {
+        for (const bool bold : {false, true}) {
+            QPainterPath path;
+            bool started = false;
+            for (size_t i = 0; i < v.size(); i++) {
+                if (std::isnan(v[i]) || (bold && i > upTo)) {
+                    started = false;
+                    continue;
+                }
+                const QPointF p{x(i), y(v[i])};
+                if (!started) {
+                    path.moveTo(p);
+                    started = true;
+                } else {
+                    path.lineTo(p);
+                }
+            }
+            QColor c = color;
+            c.setAlpha(bold ? 255 : 70);
+            painter.setPen(QPen{c, (bold ? 2.4 : 1.2) * unit});
+            painter.setBrush(Qt::NoBrush);
+            painter.drawPath(path);
+        }
+        if (at < v.size() && !std::isnan(v[at])) {
+            painter.setPen(QPen{Qt::white, 1.5 * unit});
+            painter.setBrush(color);
+            painter.drawEllipse(QPointF{x(at), y(v[at])}, 4.5 * unit, 4.5 * unit);
+        }
+    };
+    const QColor windColor{30, 90, 190}, tempColor{200, 70, 40};
+    line(wind, yWind, windColor, at);
+    if (hasTemperature) {
+        line(temperature, yTemp, tempColor, at);
+    }
+    // the scales: the wind at the left, the temperature at the right; the dates under
+    painter.setPen(windColor);
+    painter.drawText(QRectF{2 * unit, plot.top() - 8 * unit, plot.left() - 8 * unit, 16 * unit}, Qt::AlignRight | Qt::AlignVCenter, QString::number(windHigh, 'f', 0));
+    painter.drawText(QRectF{2 * unit, plot.bottom() - 8 * unit, plot.left() - 8 * unit, 16 * unit}, Qt::AlignRight | Qt::AlignVCenter, QString::number(windLow, 'f', 0));
+    painter.drawText(QRectF{2 * unit, yWind(0.0) - 8 * unit, plot.left() - 8 * unit, 16 * unit}, Qt::AlignRight | Qt::AlignVCenter, "0");
+    if (hasTemperature) {
+        painter.setPen(tempColor);
+        painter.drawText(QRectF{plot.right() + 6 * unit, plot.top() - 8 * unit, 64 * unit, 16 * unit}, Qt::AlignLeft | Qt::AlignVCenter, QString::number(tempHigh, 'f', 0));
+        painter.drawText(QRectF{plot.right() + 6 * unit, plot.bottom() - 8 * unit, 64 * unit, 16 * unit}, Qt::AlignLeft | Qt::AlignVCenter, QString::number(tempLow, 'f', 0));
+    }
+    painter.setPen(QColor{60, 60, 60});
+    painter.drawText(QRectF{plot.left(), plot.bottom() + 4 * unit, 200 * unit, 18 * unit}, Qt::AlignLeft | Qt::AlignTop, when.front().toString("MMM d"));
+    painter.drawText(QRectF{plot.right() - 200 * unit, plot.bottom() + 4 * unit, 200 * unit, 18 * unit}, Qt::AlignRight | Qt::AlignTop, when.back().toString("MMM d"));
+    painter.drawText(QRectF{plot.center().x() - 100 * unit, plot.bottom() + 4 * unit, 200 * unit, 18 * unit}, Qt::AlignHCenter | Qt::AlignTop, when[at].toString("yyyy-MM-dd HH") + "Z");
+    // the words: what is plotted and the value at this picture
+    QString words = QString{"%1 zonal-mean wind at %2 (m/s)"}.arg(level.isEmpty() ? "The" : level).arg(south ? "60\u00b0S" : "60\u00b0N");
+    if (!std::isnan(wind[at])) {
+        words += QString{": %1"}.arg(wind[at], 0, 'f', 1);
+    }
+    painter.setPen(windColor);
+    painter.drawText(QRectF{plot.left(), picture.height() + 6 * unit, plot.width() * 0.55, 22 * unit}, Qt::AlignLeft | Qt::AlignVCenter, words);
+    if (hasTemperature) {
+        QString tempWords = QString{"Mean temperature beyond 60\u00b0%1 (\u00b0C)"}.arg(south ? "S" : "N");
+        if (!std::isnan(temperature[at])) {
+            tempWords += QString{": %1"}.arg(temperature[at], 0, 'f', 1);
+        }
+        painter.setPen(tempColor);
+        painter.drawText(QRectF{plot.left() + plot.width() * 0.5, picture.height() + 6 * unit, plot.width() * 0.5, 22 * unit}, Qt::AlignRight | Qt::AlignVCenter, tempWords);
+    }
+    painter.end();
+    QByteArray bytes;
+    QBuffer buffer{&bytes};
+    buffer.open(QIODevice::WriteOnly);
+    out.save(&buffer, "PNG");
+    return bytes;
+}
+
+// The frames of a history of initial states: for each time the layer is put at it (the run at that time, its first hour) and the whole world exported as it is, quietly, to a picture that is read
+// back. `progress(i)` is asked before each one and says false to stop. The times that gave no picture are named in `skipped`. False when stopped. `strip`: each picture has the vortex's numbers
+// through the whole history drawn under it (when the chart gives none, there is no strip).
+bool MasterMapViewer::initialStateFrames(const std::vector<QDateTime>& when, GlobeMapView::Projection projection, int width, std::vector<QByteArray>& frames, std::vector<QString>& skipped, const std::function<bool(size_t)>& progress, bool strip) {
     auto * chart = modelLayer();
     if (chart == nullptr) {
         return false;
     }
     QTemporaryDir folder;
+    std::vector<QDateTime> made;   // the times that gave a picture, and their numbers
+    std::vector<double> wind, temperature;
     for (size_t i = 0; i < when.size(); i++) {
         if (!progress(i)) {
             return false;
         }
         chart->setAsOf(when[i], *this);   // the run at that time, its first hour
         const QString file = folder.filePath(QString{"frame%1.png"}.arg(i, 5, 10, QChar{'0'}));
+        vortexNumbers = {};
         exportWorldTo(file, projection, 0.0, width, true, true, true);
         QFile written{file};
         if (written.open(QIODevice::ReadOnly)) {
             frames.push_back(written.readAll());
             written.close();
             QFile::remove(file);
+            made.push_back(when[i]);
+            wind.push_back(vortexNumbers.wind);
+            temperature.push_back(vortexNumbers.capTemperature);
         } else {
             skipped.push_back(when[i].toString("MM-dd HH") + "Z");
+        }
+    }
+    if (strip && !frames.empty() && std::any_of(wind.begin(), wind.end(), [] (double v) { return !std::isnan(v); })) {
+        // the level of the chart ("10_wnd_ht": 10 mb)
+        const auto id = QString::fromStdString(chart->chartId());
+        const QString level = id.section('_', 0, 0).toInt() > 0 ? id.section('_', 0, 0) + " mb" : QString{};
+        for (size_t i = 0; i < frames.size(); i++) {
+            frames[i] = withStrip(frames[i], i, made, wind, temperature, level, projection == GlobeMapView::Projection::PolarSouth);
         }
     }
     return true;
@@ -1757,6 +1886,9 @@ void MasterMapViewer::saveInitialStates() {
     form->addRow("Map", projection);
     form->addRow("Size", width);
     column->addLayout(form);
+    auto * stripBox = new QCheckBox{"Add the vortex strip under each picture: the zonal-mean wind at 60\u00b0 (and the polar cap's temperature on a temperature chart) through the dates", &dialog};
+    stripBox->setToolTip("One value per picture, the line drawn up to the picture shown. The wind's change of sign (to below zero) is a sudden warming. Needs a chart with the wind (barbs): the strip is left out when it has none");
+    column->addWidget(stripBox);
     auto * count = new QLabel{&dialog};
     const auto showCount = [from, to, step, count] {
         const long seconds = from->dateTime().secsTo(to->dateTime());
@@ -1796,7 +1928,7 @@ void MasterMapViewer::saveInitialStates() {
         progress.setLabelText(QString{"Drawing %1 (%2 of %3)..."}.arg(when[i].toString("yyyy-MM-dd HH") + "Z").arg(i + 1).arg(when.size()));
         QCoreApplication::processEvents();
         return !progress.wasCanceled();
-    });
+    }, stripBox->isChecked());
     if (!finished) {
         return;
     }
@@ -2069,6 +2201,47 @@ void MasterMapViewer::exportWorldTo(const QString& path, GlobeMapView::Projectio
         if (sources.empty()) {
             QMessageBox::warning(this, "Export the whole world", "No model has this chart for that time.");
             return;
+        }
+        vortexNumbers = {};
+        {   // the numbers of the vortex (the first source is the coarse global model: the whole circle of latitude is in it)
+            const double sign = projection == GlobeMapView::Projection::PolarSouth ? -1.0 : 1.0;
+            const auto & global = sources.front();
+            if (!global.windU.empty()) {
+                double sum = 0.0;
+                int n = 0;
+                for (double lon = -180.0; lon < 180.0; lon += 2.5) {
+                    float u = global.windU.sample(lon, 60.0 * sign);
+                    if (std::isnan(u)) {
+                        u = global.windU.sample(lon + 360.0, 60.0 * sign);
+                    }
+                    if (!std::isnan(u)) {
+                        sum += u;
+                        n++;
+                    }
+                }
+                if (n > 0) {
+                    vortexNumbers.wind = sum / n;
+                }
+            }
+            if (chart.find("_temp_") != string::npos && !global.grid.empty()) {   // (a temperature chart: the fill is the temperature in degrees C) the cap, each latitude weighted by the width of its circle
+                double sum = 0.0, weights = 0.0;
+                for (double lat = 60.0; lat <= 90.0; lat += 2.5) {
+                    const double w = std::cos(lat * M_PI / 180.0);
+                    for (double lon = -180.0; lon < 180.0; lon += 5.0) {
+                        float t = global.grid.sample(lon, lat * sign);
+                        if (std::isnan(t)) {
+                            t = global.grid.sample(lon + 360.0, lat * sign);
+                        }
+                        if (!std::isnan(t)) {
+                            sum += t * w;
+                            weights += w;
+                        }
+                    }
+                }
+                if (weights > 0.0) {
+                    vortexNumbers.capTemperature = sum / weights;
+                }
+            }
         }
         std::atomic<int> rows{0};
         double halfW, halfH;

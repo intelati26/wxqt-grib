@@ -820,7 +820,7 @@ int main(int argc, char * argv[]) {
                     }
                 }
                 QTimer::singleShot(100, &a, &QCoreApplication::quit);
-            } else if (route.startsWith("history:")) {   // WXQT_OPEN=history:<model>:<chart>:<yyyyMMddHH from>:<yyyyMMddHH to>:<step hours>:<out folder>[:north|south|equal]: the master map's history of initial states, each picture to a file (WXQT_WORLD_WIDTH), then quits
+            } else if (route.startsWith("history:")) {   // WXQT_OPEN=history:<model>:<chart>:<yyyyMMddHH from>:<yyyyMMddHH to>:<step hours>:<out folder>[:north|south|equal]: the master map's history of initial states, each picture to a file (WXQT_WORLD_WIDTH; WXQT_HISTORY_STRIP=1 adds the vortex strip), then quits
                 const auto parts = route.split(':');
                 auto first = QDateTime::fromString(parts.value(3), "yyyyMMddHH");
                 first.setTimeZone(QTimeZone::utc());
@@ -842,7 +842,7 @@ int main(int argc, char * argv[]) {
                     std::vector<QByteArray> frames;
                     std::vector<QString> skipped;
                     QDir{}.mkpath(folder);
-                    map->initialStateFrames(when, projection, qEnvironmentVariableIntValue("WXQT_WORLD_WIDTH") > 0 ? qEnvironmentVariableIntValue("WXQT_WORLD_WIDTH") : 800, frames, skipped, [&when] (size_t i) { qWarning("history: frame %zu of %zu (%s)", i + 1, when.size(), when[i].toString("yyyy-MM-dd HH").toUtf8().constData()); return true; });
+                    map->initialStateFrames(when, projection, qEnvironmentVariableIntValue("WXQT_WORLD_WIDTH") > 0 ? qEnvironmentVariableIntValue("WXQT_WORLD_WIDTH") : 800, frames, skipped, [&when] (size_t i) { qWarning("history: frame %zu of %zu (%s)", i + 1, when.size(), when[i].toString("yyyy-MM-dd HH").toUtf8().constData()); return true; }, qEnvironmentVariableIsSet("WXQT_HISTORY_STRIP"));
                     for (size_t i = 0; i < frames.size(); i++) {
                         QFile out{folder + QString{"/frame%1.png"}.arg(i, 3, 10, QChar{'0'})};
                         if (out.open(QIODevice::WriteOnly)) {
