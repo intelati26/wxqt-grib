@@ -879,6 +879,32 @@ int main(int argc, char * argv[]) {
                     }
                     QTimer::singleShot(200, &a, &QCoreApplication::quit);
                 });
+            } else if (route.startsWith("waves:")) {   // WXQT_OPEN=waves:<model>:<yyyyMMddHH from>:<yyyyMMddHH to>:<step hours>:<out.png>[:north|south][:level, 10]: wave 1 and 2 of the height at 60 degrees, and the zonal-mean wind, through the dates, then quits
+                const auto parts = route.split(':');
+                auto from = QDateTime::fromString(parts.value(2), "yyyyMMddHH"), to = QDateTime::fromString(parts.value(3), "yyyyMMddHH");
+                from.setTimeZone(QTimeZone::utc());
+                to.setTimeZone(QTimeZone::utc());
+                std::vector<QDateTime> when;
+                for (auto t = from; t <= to; t = t.addSecs(3600LL * std::max(1, parts.value(4).toInt()))) {
+                    when.push_back(t);
+                }
+                const int level = parts.value(7).isEmpty() ? 10 : parts.value(7).toInt();
+                const bool south = parts.value(6) == "south";
+                const auto model = parts.value(1).toStdString();
+                const QString out = parts.value(5);
+                QTimer::singleShot(500, &a, [when, level, south, model, out, &a] {
+                    VortexSection::Waves waves;
+                    const bool ok = VortexSection::collectWaves(model, when, level, south, waves, [] (size_t i, size_t n) { qWarning("waves: time %zu of %zu", i + 1, n); return true; });
+                    const auto image = ok ? VortexSection::drawWaves(waves, 1400, QString::fromStdString(model) + " initial states, " + when.front().toString("yyyy-MM-dd") + " to " + when.back().toString("yyyy-MM-dd")) : QImage{};
+                    qWarning("waves: %s", image.isNull() ? "no picture" : "saved");
+                    for (size_t i = 0; i < waves.when.size(); i += std::max<size_t>(1, waves.when.size() / 8)) {
+                        qWarning("waves: %s wave1 %.1f wave2 %.1f wind %.1f", waves.when[i].toString("MM-dd HH").toUtf8().constData(), waves.wave1[i], waves.wave2[i], waves.wind[i]);
+                    }
+                    if (!image.isNull()) {
+                        image.save(out, "PNG");
+                    }
+                    QTimer::singleShot(200, &a, &QCoreApplication::quit);
+                });
             } else if (route.startsWith("looprange:")) {   // WXQT_OPEN=looprange:<yyyyMMddHHmm from>:<yyyyMMddHHmm to>:<layer id>: the master map looping between the two times
                 const auto parts = route.split(':');
                 auto * map = new MasterMapViewer{&w};

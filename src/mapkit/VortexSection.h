@@ -27,6 +27,18 @@ namespace VortexSection {
     // it from a thread. `progress(i, n)` is asked before each time and says false to stop. False when stopped or when nothing was read.
     bool collect(const std::string& model, const std::vector<QDateTime>& when, const std::vector<int>& levels, bool south, Series& out, const std::function<bool(size_t, size_t)>& progress);
 
+    // The planetary waves of one level: the amplitude of wave 1 and of wave 2 of the height on the circle of 60 degrees (a Fourier series of the heights every 2.5 degrees of longitude), and
+    // the zonal-mean wind there, at each time. A vortex displaced toward a continent is wave 1; a split one is wave 2: the zonal mean wind can stay positive through both.
+    struct Waves {
+        std::vector<QDateTime> when;
+        int level{0};                 // mb
+        bool south{false};
+        std::vector<double> wave1, wave2, wind;   // heights in metres, wind m/s; NaN where there is none
+    };
+    bool collectWaves(const std::string& model, const std::vector<QDateTime>& when, int level, bool south, Waves& out, const std::function<bool(size_t, size_t)>& progress);
+    // The two amplitudes as lines, the wind as a thin gray one (its own scale at the right).
+    QImage drawWaves(const Waves& waves, int width, const QString& title);
+
     // The picture: the rows at the left labelled with the level, the colors by the wind (negative, the reversed winds, in blues; positive in reds), the dates under, a color bar. `width` in pixels.
     QImage draw(const Series& series, int width, const QString& title);
 }
