@@ -986,6 +986,7 @@ int main(int argc, char * argv[]) {
                 if (const auto cross = qEnvironmentVariable("WXQT_CROSS"); cross.contains(':')) {   // WXQT_CROSS=<model>:<chart id>: another model's chart laid over this one as a translucent fill (section 10 of the plan)
                     variant.crossModel = cross.section(':', 0, 0).toStdString();
                     variant.crossChart = cross.section(':', 1).toStdString();
+                    variant.fadeFill = qEnvironmentVariableIsSet("WXQT_CROSS_FADE");   // WXQT_CROSS_FADE=1: the chart's own fill pale
                 }
                 GfsChart::Probe probe;
                 const auto bytes = GfsRender::png(session, parts.value(1).toStdString(), parts.value(2).toStdString(), parts.value(4).toStdString(), parts.value(6).toStdString(), parts.value(3).toInt(), ticked, error, &probe, variant);
@@ -1322,7 +1323,8 @@ int main(int argc, char * argv[]) {
                     QTimer::singleShot(300, qApp, &QCoreApplication::quit);
                 });
                 std::string crossFill = start.isEmpty() ? std::string{} : start.toStdString() + ":";
-                ChartPickers::chooseCrossFill(&w, "GFS", crossFill);
+                bool fade = true;
+                ChartPickers::chooseCrossFill(&w, "GFS", crossFill, fade);
             } else if (route.startsWith("modelpicker:")) {   // WXQT_OPEN=modelpicker:<GFS|RRFS|GEFS ...>: the model screen on that model with its chart picker open
                 Utility::writePref("NCEP", route.section(':', 1, 1).toStdString());
                 Utility::writePref("MODELNCEPPARAMLASTUSED", qEnvironmentVariable("WXQT_PARAM", "500_wnd_ht").toStdString());   // WXQT_PARAM=<chart id>: open on that chart

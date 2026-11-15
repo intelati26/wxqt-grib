@@ -50,11 +50,14 @@ namespace {
             ChartSelection again;
             CHECK(ChartSelection::fromLine(c.line(), again) && again.crossFill == "SPCREFS:cref_max" && again.line() == c.line());
             const auto asked = c.variant({0, 6, 12}, 6);
-            CHECK(asked.crossModel == "SPCREFS" && asked.crossChart == "cref_max");
+            CHECK(asked.crossModel == "SPCREFS" && asked.crossChart == "cref_max" && !asked.fadeFill);
+            c.fadeFill = true;
+            ChartSelection faded;
+            CHECK(ChartSelection::fromLine(c.line(), faded) && faded.fadeFill && c.variant({0, 6, 12}, 6).fadeFill);
             c.changeBack = 12;
             CHECK(c.variant({0, 6, 12}, 6).crossModel.empty());   // (a change has no second fill)
             ChartSelection old;
-            CHECK(ChartSelection::fromLine("GFS|500_wnd_ht||||0|0|0", old) && old.crossFill.empty());
+            CHECK(ChartSelection::fromLine("GFS|500_wnd_ht||||0|0|0", old) && old.crossFill.empty() && !old.fadeFill);
         }
         ChartSelection untouched{"KEEP", "KEEP"};
         CHECK(!ChartSelection::fromLine("not a line", untouched) && untouched.model == "KEEP");   // (a line that is not one leaves the selection as it was)

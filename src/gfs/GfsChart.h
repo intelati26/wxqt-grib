@@ -359,6 +359,7 @@ namespace GfsChart {
         bool noBarbs{false};                   // the picture has no barbs (the map layer draws them itself, as vectors on a world grid; the probe still holds the wind)
         int width{1100};
         // an export's color bar: only the values the picture (legendFit) or the loop (legendRange: legendLow to legendHigh, grid units) holds, the smallest at the left and the largest at the right
+        double fillFade{1.0};                  // the chart's own fill drawn this strong (0.35: pale, so a fill laid over it reads; 1: as it is)
         bool legendFit{false};
         bool legendRange{false};
         double legendLow{0}, legendHigh{0};

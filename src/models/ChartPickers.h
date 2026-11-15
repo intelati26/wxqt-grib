@@ -43,7 +43,7 @@ namespace ChartPickers {
 
     // the dialog of another model's field laid over a chart as a translucent fill ("Another model's field..."; section 10 of the plan): a model, then one of its charts that has a fill, found by a
     // search. `crossFill` is "model:chart id" going in and coming out ("" for none). false when cancelled (nothing changed).
-    bool chooseCrossFill(QWidget * parent, const std::string& model, std::string& crossFill);
+    bool chooseCrossFill(QWidget * parent, const std::string& model, std::string& crossFill, bool& fade);
     // what the choice is called on a button: "SPCREFS Composite Reflectivity (ensemble maximum)"
     std::string crossFillName(const std::string& crossFill);
 }

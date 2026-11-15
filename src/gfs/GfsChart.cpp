@@ -3171,6 +3171,11 @@ Prepared prepare(const Product& drawn, const Grids& fetched, const GfsData::Run&
             overlayRamp = asFillOverlay(found->second, overlayRamp);
         }
     }
+    if (options.fillFade < 0.999) {   // a fill laid over this one (section 10 of the plan): the chart's own fill pale
+        for (auto& stop : product.ramp.stops) {
+            stop.second.setAlpha(static_cast<int>(stop.second.alpha() * std::max(0.0, options.fillFade)));
+        }
+    }
     if (product.ramp.stops.empty()) {   // a chart of lines only has no scale: a clear one so nothing reads an empty list
         product.ramp.stops = {{0.0, QColor{0, 0, 0, 0}}, {1.0, QColor{0, 0, 0, 0}}};
     }

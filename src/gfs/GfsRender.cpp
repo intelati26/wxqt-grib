@@ -1101,6 +1101,7 @@ GfsRender::OptionPrefs GfsRender::OptionPrefs::read() {
 GfsChart::Options GfsRender::chartOptions(const OptionPrefs& prefs, const std::string& sectorId, double localLat, double localLon, const std::string& localName, const Variant& variant, GfsChart::Probe * probe, GfsChart::Probe * bareProbe) {
     GfsChart::Options options;
     options.markMax = prefs.maxMark;
+    options.fillFade = variant.fadeFill && !variant.crossModel.empty() ? 0.3 : 1.0;
     {   // latitude / longitude marks: always on an area round a saved location, and on every chart when the settings pref says "all"
         const bool isLocal = sectorId.compare(0, 6, "LOCAL:") == 0;
         options.ticks = prefs.ticks == "all" || (isLocal && prefs.ticks != "off");

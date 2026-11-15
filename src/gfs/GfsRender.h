@@ -82,6 +82,7 @@ namespace GfsRender {
         std::string member;   // one ensemble member instead of the mean (GfsChart::withMember); "" the chart as it is
         // other models whose lines are drawn over this one's, each in a color of its own, for the same valid time: every set of lines of the chart (heights, pressure ...) of each, and no fill unless overlayKeepFill
         std::vector<std::string> overlayModels;
+        bool fadeFill{false};                  // with a cross fill: this chart's own fill pale so the other reads (section 10)
         std::string crossModel, crossChart;   // another model's chart whose fill is laid over this one's, translucent, for the same valid time (section 10 of the plan); a time it has no field for leaves the chart as it is, the title saying so
         bool overlayKeepFill{false};   // with them: the first model's fill, barbs and streamlines stay under the lines
         // the chart as a layer for the scrollable map: only the map part of the picture (no header, legend or frame, no coastlines or places), the ground left clear, `width` pixels wide (0: the default);

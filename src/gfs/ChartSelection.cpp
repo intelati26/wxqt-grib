@@ -33,7 +33,7 @@ bool ChartSelection::usable() const {
 }
 
 std::string ChartSelection::line() const {
-    return model + "|" + param + "|" + joinList(overlays) + "|" + joinList(overlayModels) + "|" + member + "|" + (sigma ? "1" : "0") + "|" + std::to_string(changeBack) + "|" + (maxDay ? "1" : "0") + "|" + crossFill;
+    return model + "|" + param + "|" + joinList(overlays) + "|" + joinList(overlayModels) + "|" + member + "|" + (sigma ? "1" : "0") + "|" + std::to_string(changeBack) + "|" + (maxDay ? "1" : "0") + "|" + crossFill + "|" + (fadeFill ? "1" : "0");
 }
 
 bool ChartSelection::fromLine(const std::string& line, ChartSelection& out) {
@@ -56,6 +56,7 @@ bool ChartSelection::fromLine(const std::string& line, ChartSelection& out) {
     out.changeBack = std::atoi(p[6].c_str());
     out.maxDay = p[7] == "1";
     out.crossFill = p.size() > 8 ? p[8] : std::string{};
+    out.fadeFill = p.size() > 9 && p[9] == "1";
     return true;
 }
 
@@ -83,6 +84,7 @@ GfsRender::Variant ChartSelection::variant(const std::vector<int>& hours, int ho
         if (const auto colon = crossFill.find(':'); colon != std::string::npos) {
             v.crossModel = crossFill.substr(0, colon);
             v.crossChart = crossFill.substr(colon + 1);
+            v.fadeFill = fadeFill;
         }
     }
     return v;

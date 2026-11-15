@@ -177,7 +177,7 @@ std::string ChartPickers::crossFillName(const std::string& crossFill) {
     return crossFill.substr(0, colon) + " " + (product != nullptr && !product->label.empty() ? product->label : crossFill.substr(colon + 1));
 }
 
-bool ChartPickers::chooseCrossFill(QWidget * parent, const std::string& model, std::string& crossFill) {
+bool ChartPickers::chooseCrossFill(QWidget * parent, const std::string& model, std::string& crossFill, bool& fade) {
     QDialog dialog{parent};
     dialog.setWindowTitle("Another model's field");
     dialog.resize(480, 520);
@@ -264,6 +264,10 @@ bool ChartPickers::chooseCrossFill(QWidget * parent, const std::string& model, s
     if (colon == std::string::npos && common->count() > 1) {   // nothing chosen yet: the first common choice is the one in the list
         choose(common->itemData(1).toString().toStdString());
     }
+    auto * fadeBox = new QCheckBox{"Fade " + QString::fromStdString(model) + "'s own fill so this one reads", &dialog};
+    fadeBox->setToolTip("The chart's fill is drawn pale under the other field (its lines and barbs stay as they are). Off: both at full strength.");
+    fadeBox->setChecked(fade);
+    layout->addWidget(fadeBox);
     auto * buttons = new QDialogButtonBox{QDialogButtonBox::Ok | QDialogButtonBox::Cancel, &dialog};
     auto * none = buttons->addButton("No field", QDialogButtonBox::DestructiveRole);
     QObject::connect(buttons, &QDialogButtonBox::accepted, &dialog, &QDialog::accept);
@@ -280,5 +284,6 @@ bool ChartPickers::chooseCrossFill(QWidget * parent, const std::string& model, s
         return false;
     }
     crossFill = models->currentData().toString().toStdString() + ":" + list->currentItem()->data(Qt::UserRole).toString().toStdString();
+    fade = fadeBox->isChecked();
     return true;
 }

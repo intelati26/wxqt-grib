@@ -832,7 +832,7 @@ string ModelViewer::frameKey(int hour) const {
     for (const auto& layer : hiddenLayers) {
         key += "|hide=" + layer;
     }
-    return key + ChartResolution::keyPart() + variantKey + (picked.member.empty() ? string{} : "|member=" + picked.member) + (picked.sigma ? "|sd" : "") + (picked.crossFill.empty() ? string{} : "|cross=" + picked.crossFill) + overlay + (overlayKeepFill && !overlay.empty() ? "|keepfill" : "");
+    return key + ChartResolution::keyPart() + variantKey + (picked.member.empty() ? string{} : "|member=" + picked.member) + (picked.sigma ? "|sd" : "") + (picked.crossFill.empty() ? string{} : "|cross=" + picked.crossFill + (picked.fadeFill ? "|fade" : "")) + overlay + (overlayKeepFill && !overlay.empty() ? "|keepfill" : "");
 }
 
 void ModelViewer::setVariant(GfsRender::Variant v) {
@@ -2667,6 +2667,7 @@ void ModelViewer::applyVariants(const ChartSelection& chosen) {
     picked.overlays = chosen.overlays;
     picked.overlayModels = chosen.overlayModels;
     picked.crossFill = chosen.crossFill;
+    picked.fadeFill = chosen.fadeFill;
     refreshOverlays();
     pendingMember = chosen.member;
     if (const auto found = std::find(memberValues.begin(), memberValues.end(), chosen.member); !chosen.member.empty() && found != memberValues.end()) {
@@ -3925,10 +3926,12 @@ void ModelViewer::refreshOverlays() {
 
 void ModelViewer::chooseCrossFill() {
     auto chosen = picked.crossFill;
-    if (!ChartPickers::chooseCrossFill(this, objectModel.model, chosen) || chosen == picked.crossFill) {
+    bool fade = picked.crossFill.empty() ? true : picked.fadeFill;   // (the first time: faded, which is how the thunder probability reads)
+    if (!ChartPickers::chooseCrossFill(this, objectModel.model, chosen, fade) || (chosen == picked.crossFill && fade == picked.fadeFill)) {
         return;
     }
     picked.crossFill = chosen;
+    picked.fadeFill = fade;
     refreshOverlays();
     startPlaying(false);
     strip->stop();
