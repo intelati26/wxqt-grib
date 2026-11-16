@@ -33,6 +33,9 @@ namespace GfsChart {
     // The view of a storm-following grid: the box that holds its valid values (the grid is filled only in a tilted footprint), a little outside
     Sector gridSector(const std::string& id, const GfsGrid::Grid& grid);
     const Sector * sector(const std::string& id);
+    // The area a screen last used, as an area of this model: a saved area ("LOCAL:...") or one of the model's own (the NWS regions of the analyses: "C-PLAINS") stays; anything else is the contiguous
+    // United States. (The RTMA and URMA cover the United States only: Europe or the poles cannot be drawn from them.)
+    std::string areaFor(const std::string& model, const std::string& sector);
     // A square of a number of kilometers a side round a place ("LOCAL:35.47,-97.52,600,Oklahoma City": latitude, longitude, kilometers, the name). The square is moved, not shrunk, to stay inside
     // the box a model covers (a city near the edge of the regional grid is as near its center as the grid lets it be); too big for the grid, it is the grid.
     std::string localId(double lat, double lon, double km, const std::string& name);

@@ -84,10 +84,8 @@ AnalysisLoop::AnalysisLoop(Window * parent, const std::string& area0, const std:
 }
 
 AnalysisLoop * AnalysisLoop::openLatest(Window * parent, const std::string& chart) {
-    auto sector = Utility::readPref("MODELNCEPSECTORLASTUSED", "CONUS");
-    if (sector.compare(0, 6, "LOCAL:") != 0) {
-        sector = "CONUS";
-    }
+    // the area the Model Viewer was last on: a saved area or one of the NWS areas the analyses have (Central Plains ...); the contiguous US when it is neither
+    const auto sector = GfsChart::areaFor("RTMA", Utility::readPref("MODELNCEPSECTORLASTUSED", "CONUS"));
     const auto last = QDateTime::currentDateTimeUtc().addSecs(-3600);
     const auto to = QDateTime{last.date(), QTime{last.time().hour(), 0}, QTimeZone::utc()};
     auto * loop = new AnalysisLoop{parent, sector, {chart}, to.addDays(-1), to, ""};

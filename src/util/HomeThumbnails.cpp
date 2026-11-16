@@ -15,6 +15,7 @@
 #include "misc/UtilityOpcImages.h"
 #include "mrms/UtilityMrms.h"
 #include "gfs/GfsModels.h"
+#include "gfs/GfsChart.h"
 #include "gfs/GfsRender.h"
 #include "gfs/WpcPppLoader.h"
 #include "spc/UtilitySpcCompmap.h"
@@ -286,20 +287,14 @@ QByteArray HomeThumbnails::fetch(const string& token) {
         return day ? day->png : QByteArray{};
     }
     if (token == "RTMA_AREA") {
-        // the model screen's last area (RTMA covers the United States only: another area than a saved place is drawn as CONUS), from the newest analysis
-        auto sector = Utility::readPref("MODELNCEPSECTORLASTUSED", "CONUS");
-        if (sector.compare(0, 6, "LOCAL:") != 0) {
-            sector = "CONUS";
-        }
+        // the model screen's last area (RTMA covers the United States only: an area it cannot draw is drawn as CONUS, the NWS areas and saved places as they are), from the newest analysis
+        const auto sector = GfsChart::areaFor("RTMA", Utility::readPref("MODELNCEPSECTORLASTUSED", "CONUS"));
         GfsRender::Session session;
         string error;
         return GfsRender::png(session, "RTMA", "2m_temp_10m_wnd", sector, "", 0, {}, error);
     }
     if (token == "RTMA_SECOND") {
-        auto sector = Utility::readPref("MODELNCEPSECTORLASTUSED", "CONUS");
-        if (sector.compare(0, 6, "LOCAL:") != 0) {
-            sector = "CONUS";
-        }
+        const auto sector = GfsChart::areaFor("RTMA", Utility::readPref("MODELNCEPSECTORLASTUSED", "CONUS"));
         GfsRender::Session session;
         string error;
         return GfsRender::png(session, "RTMA", rtmaSecondChart(), sector, "", 0, {}, error);

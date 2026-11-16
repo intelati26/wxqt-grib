@@ -690,6 +690,14 @@ std::string sourceLabel(const std::string& source, const std::string& runId) {
     return def ? def->label : "NOAA/NCEP GFS 0.25 degree";
 }
 
+std::string areaFor(const std::string& model, const std::string& sector) {
+    if (sector.compare(0, 6, "LOCAL:") == 0) {
+        return sector;
+    }
+    const auto ids = sectorIds(model);
+    return std::find(ids.begin(), ids.end(), sector) != ids.end() ? sector : std::string{"CONUS"};
+}
+
 std::vector<std::string> sectorIds(const std::string& source) {
     const auto * def = GfsModels::find(source);
     if (def && def->sectors == GfsModels::Sectors::Conus) {   // the contiguous United States and its regions

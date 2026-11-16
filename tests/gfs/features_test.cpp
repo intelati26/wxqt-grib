@@ -247,6 +247,10 @@ namespace {
 int main(int argc, char ** argv) {
     QCoreApplication app{argc, argv};
     MyApplication::preferences = new QSettings{"/tmp/wxqt_features_test_prefs.ini", QSettings::IniFormat};
+    // the area a screen last used, as an area of the analyses (the RTMA covers the United States: its own NWS areas and saved places stay, the rest is the contiguous US)
+    CHECK(GfsChart::areaFor("RTMA", "C-PLAINS") == "C-PLAINS" && GfsChart::areaFor("RTMA", "ROCKIES") == "ROCKIES" && GfsChart::areaFor("RTMA", "CONUS") == "CONUS");
+    CHECK(GfsChart::areaFor("RTMA", "LOCAL:my place") == "LOCAL:my place" && GfsChart::areaFor("RTMA", "EUROPE") == "CONUS" && GfsChart::areaFor("RTMA", "NORTH-ATL") == "CONUS" && GfsChart::areaFor("RTMA", "") == "CONUS");
+    CHECK(GfsChart::areaFor("GFS", "EUROPE") == "EUROPE");   // (a global model keeps its world areas)
     chartSelection();
     poleVorticity();
     modelBar();
