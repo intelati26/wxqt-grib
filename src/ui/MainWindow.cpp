@@ -544,6 +544,9 @@ void MainWindow::launchImageScreen(const string& token) {
         chosen.param = "ppp_" + token.substr(8) + "h_median";
         chosen.sector = "CONUS";
         toolbar.launchModelViewer()->applySelection(chosen);   // the Model Viewer on the portal's median chart of that period
+    } else if (token == "VORTEX_10MB" || token == "VORTEX_THETA") {
+        // the master map with the same chart of the GFS, over the pole (the polar area); its Export has the history and the section of the vortex
+        MasterMapViewer::openModels(this, "GFS", token == "VORTEX_10MB" ? "10_wnd_ht" : "850K_pv", "POLAR");
     } else if (token == "RTMA_SECOND" || token == "RTMA_AREA") {
         // the NWS analysis window (the RTMA / URMA loop) on the chart of the picture, in the area last used, the last 24 hours up to the newest analysis
         AnalysisLoop::openLatest(this, token == "RTMA_AREA" ? string{"2m_temp_10m_wnd"} : HomeThumbnails::rtmaSecondChart());

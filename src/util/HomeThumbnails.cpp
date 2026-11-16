@@ -18,6 +18,10 @@
 #include "gfs/GfsChart.h"
 #include "gfs/GfsRender.h"
 #include "gfs/WpcPppLoader.h"
+#include "mapkit/GlobeMapView.h"
+#include "mapkit/WorldRender.h"
+#include <QBuffer>
+#include <QPainter>
 #include "spc/UtilitySpcCompmap.h"
 #include "spc/UtilitySpcFireOutlook.h"
 #include "spc/UtilitySpcSwo.h"
@@ -76,6 +80,8 @@ const vector<HomeThumbnails::Entry>& HomeThumbnails::all() {
         {"WPC_PPP_72", "WPC median rain, snow and ice - next 72 hours", "baseline_show_chart_black_48dp.png#2", false, false},
         {"NICE_DAY1", "Nice weather outlook, day 1 (from the National Blend of Models: a work in progress)", "grib.png", true, false},
         {"GRIB_LATEST", "Model viewer - your last model, chart and area, newest run", "grib.png", true, false},
+        {"VORTEX_10MB", "Polar vortex - 10 mb wind and height, north pole (GFS)", "", true, false},
+        {"VORTEX_THETA", "Polar vortex - isentropic potential vorticity, 850 K, north pole (GFS)", "", true, false},
     };
     return entries;
 }
@@ -122,6 +128,8 @@ namespace {
         {"WPC_PPP_72", {"WPC 72 hr", "The Weather Prediction Center's probabilistic precipitation portal: the median (50th percentile) amount of rain, snow and ice in the 72 hour period of the newest run. Click for the Model Viewer on this chart."}},
         {"NICE_DAY1", {"Nice weather: day 1", "Where the daytime weather is best for being outside today or tomorrow in five levels (Decent, Fair, Nice, Beautiful, Perfect), made from the National Blend of Models' temperature, dewpoint, cloud, gusts and rain chance. A work in progress. Click for the days 1 to 7."}},
         {"GRIB_LATEST", {"Model chart", "The model, chart and area you last looked at in the Model Viewer, from the newest run."}},
+        {"VORTEX_10MB", {"Polar vortex, 10 mb", "The stratospheric polar vortex as the GFS has it now: the wind speed and height at 10 mb (about 30 km) from the pole to 30 N on a polar map, the newest analysis. A click opens the master map with the same chart; its Export has the history of the vortex through the season."}},
+        {"VORTEX_THETA", {"Polar vortex, 850 K", "The polar vortex on the 850 K isentropic surface (near 10 mb): potential vorticity, wind and pressure as the GFS has it now, from the pole to 30 N on a polar map. The air does not cross an isentropic surface, so the vortex is its edge. A click opens the master map with the same chart."}},
         };
         return table;
     }
@@ -185,7 +193,51 @@ namespace {
     }
 }
 
+namespace {
+    // The north polar view of a chart of the GFS, from the pole to 30 N, painted from the grids themselves (the master map's polar export, WorldRender), the newest analysis (the first hour of the newest
+    // run at a six hourly time), with a line of title above it. Empty when the chart could not be read.
+    QByteArray polarPicture(const std::string& chart, const QString& title) {
+        auto when = QDateTime::currentDateTimeUtc().addSecs(-6 * 3600);   // (a time the newest run has an initial state for)
+        when.setTime(QTime{when.time().hour() / 6 * 6, 0});
+        const auto sources = WorldRender::loadSources(chart, {"GFS"}, when);
+        if (sources.empty()) {
+            return {};
+        }
+        const auto world = WorldRender::renderWorld(sources, static_cast<int>(GlobeMapView::Projection::PolarNorth), 0.0, 640, nullptr, true);
+        if (world.isNull()) {
+            return {};
+        }
+        QImage out{world.width(), world.height() + 38, QImage::Format_ARGB32};
+        out.fill(Qt::white);
+        QPainter p{&out};
+        p.setRenderHint(QPainter::Antialiasing, true);
+        QFont bold = p.font();
+        bold.setBold(true);
+        bold.setPixelSize(15);
+        p.setFont(bold);
+        p.drawText(QRect{6, 3, out.width() - 12, 18}, Qt::AlignLeft | Qt::AlignVCenter, title);
+        QFont plain = p.font();
+        plain.setBold(false);
+        plain.setPixelSize(12);
+        p.setFont(plain);
+        p.drawText(QRect{6, 21, out.width() - 12, 15}, Qt::AlignLeft | Qt::AlignVCenter, QString::fromStdString("GFS run " + sources.front().run + ", f" + std::to_string(sources.front().hour)) + "   valid " + when.toString("ddd d MMM HH") + "Z   (pole to 30 N)");
+        p.drawImage(0, 38, world);
+        p.end();
+        QByteArray bytes;
+        QBuffer buffer{&bytes};
+        buffer.open(QIODevice::WriteOnly);
+        out.save(&buffer, "PNG");
+        return bytes;
+    }
+}
+
 QByteArray HomeThumbnails::fetch(const string& token) {
+    if (token == "VORTEX_10MB") {
+        return polarPicture("10_wnd_ht", "Polar vortex: 10 mb wind and height");
+    }
+    if (token == "VORTEX_THETA") {
+        return polarPicture("850K_pv", "Polar vortex: 850 K isentropic potential vorticity");
+    }
     if (token == "MRMS_LATEST" || token == "MRMS_RADAR") {
         // the product last looked at in the MRMS viewer (else composite reflectivity), the newest scan, drawn around the
         // current location - or over all of CONUS when the preference MRMS_THUMB_EXTENT is "conus"
