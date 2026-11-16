@@ -51,6 +51,7 @@
 #include "history/EventsViewer.h"
 #include "cfs/CfsPlumeViewer.h"
 #include "cfs/EnsemblePercentileViewer.h"
+#include "cfs/ModelBiasViewer.h"
 #include "cfs/ModelCompareViewer.h"
 #include "settings/CacheSummaryViewer.h"
 #include "settings/SettingsMain.h"
@@ -92,6 +93,7 @@ Toolbar::Toolbar(Window * parent, const function<void()>& reloadFn)
     routeItems.emplace_back("baseline_show_chart_black_48dp.png", "Forecast plumes at a place (GEFS, GFS, CFSv2, and the ECMWF's EC46 and SEAS5)", [parent] { new CfsPlumeViewer{parent}; });
     routeItems.emplace_back("baseline_show_chart_black_48dp.png", "Ensemble percentiles at a place (temperature and precipitation: the bands, the median, the chance of rain)", [parent] { new EnsemblePercentileViewer{parent}; });
     routeItems.emplace_back("baseline_show_chart_black_48dp.png", "Two ensembles compared at a place (the Euro and the GEFS: the difference in time, and why on the maps)", [parent] { new ModelCompareViewer{parent}; });
+    routeItems.emplace_back("baseline_show_chart_black_48dp.png", "How wrong two models have been at a place (bias by lead time, and the drift)", [parent] { new ModelBiasViewer{parent}; });
     routeItems.emplace_back("baseline_show_chart_black_48dp.png", "Network: what is downloading and what the program is working on in the background, Ctrl-Shift-N", [parent] { NetStatus::show(parent); });   // (after the plumes, which keep the first use of this icon: an id is the icon name, a second use is #2)
     routeItems.emplace_back("baseline_history_black_48dp.png", "History: events (outbreaks, storms, your own dates and places)", [parent] { new EventsViewer{parent}; });
 

@@ -16,6 +16,7 @@
 #include "cfs/CfsArchiveIndex.h"
 #include "cfs/CfsPlumeViewer.h"
 #include "cfs/EnsemblePercentileViewer.h"
+#include "cfs/ModelBiasViewer.h"
 #include "cfs/ModelCompareViewer.h"
 #include "cfs/UtilityCfs.h"
 #include "gfs/GfsClimate.h"
@@ -1312,6 +1313,26 @@ int main(int argc, char * argv[]) {
                 auto * plume = new CfsPlumeViewer{&w, 39.1, -94.6, parts.value(1, "gefs")};
                 if (parts.size() > 2) {
                     plume->choose(parts.value(1), parts.value(2, "4").toInt(), parts.value(3, "6").toInt(), parts.value(4, "0").toInt());
+                }
+            } else if (route.startsWith("modelbias")) {   // WXQT_OPEN=modelbias[:<lat>:<lon>:<model A>:<model B>:<variable id>:<days>:<lead>:<out.png>]: how wrong two models have been at a place, saved as a picture when it is read, then quits
+                const auto parts = route.split(':');
+                auto * viewer = new ModelBiasViewer{&w, parts.value(1, "39.1").toDouble(), parts.value(2, "-94.6").toDouble(), parts.value(3, "ecmwf_ifs025").toStdString(), parts.value(4, "gfs_global").toStdString(),
+                                                    parts.value(5, "temperature_2m").toStdString(), parts.value(6, "30").toInt(), parts.value(7, "3").toInt()};
+                const auto out = parts.value(8);
+                if (!out.isEmpty()) {
+                    auto * timer = new QTimer{viewer};
+                    timer->setInterval(500);
+                    int waited = 0;
+                    QObject::connect(timer, &QTimer::timeout, viewer, [viewer, out, timer, waited]() mutable {
+                        const auto text = viewer->statusText();
+                        if ((!text.isEmpty() && !text.startsWith("reading")) || ++waited > 80) {
+                            viewer->picture().save(out);
+                            fprintf(stderr, "modelbias: %s\n", qPrintable(text));
+                            timer->stop();
+                            QTimer::singleShot(200, qApp, &QCoreApplication::quit);
+                        }
+                    });
+                    timer->start();
                 }
             } else if (route.startsWith("modelcompare")) {   // WXQT_OPEN=modelcompare[:<lat>:<lon>:<model A>:<model B>:<variable id, e.g. temperature_2m, precipitation, wind_gusts_10m>:<out.png>[:why]]: two ensembles compared at a place, saved as a picture a few seconds after it opens (`why` also opens the maps), then quits
                 const auto parts = route.split(':');
