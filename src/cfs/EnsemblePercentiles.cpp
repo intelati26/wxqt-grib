@@ -13,6 +13,9 @@
 #include <QJsonObject>
 #include <QString>
 #include "util/DisplayUnits.h"
+#include <QDir>
+#include <QFile>
+#include <QStandardPaths>
 #include "util/UtilityIO.h"
 
 float EnsemblePercentiles::percentile(std::vector<float> values, double q) {
@@ -185,20 +188,6 @@ std::string EnsemblePercentiles::url(double lat, double lon, const std::string& 
            "&hourly=" + list + "&models=" + model + "&forecast_days=" + std::to_string(days) + "&timeformat=unixtime&wind_speed_unit=ms&timezone=auto";
 }
 
-const std::vector<EnsemblePercentiles::Model>& EnsemblePercentiles::models() {
-    static const std::vector<Model> list{
-        {"gfs025", "GEFS (31 members, 16 days)"},
-        {"ecmwf_ifs025", "ECMWF IFS ensemble (51 members, 15 days)"},
-        {"ecmwf_aifs025", "ECMWF AIFS ensemble (51 members, 15 days)"},
-        {"gem_global", "Canadian GEPS (21 members, 16 days)"},
-        {"icon_seamless", "DWD ICON ensemble (40 members, 7 days)"},
-        {"ukmo_global_ensemble_20km", "UK Met Office ensemble (18 members, 7 days)"},
-        {"ncep_aigefs025", "NOAA AIGEFS, the AI ensemble (31 members, 16 days)"},
-        {"icon_eu", "DWD ICON-EU ensemble (Europe only, 5 days)"},
-    };
-    return list;
-}
-
 bool EnsemblePercentiles::fetch(double lat, double lon, const std::string& model, Series& temperature, Series& precipitation, std::string& why) {
     static std::mutex lock;
     static std::map<std::string, std::pair<std::chrono::steady_clock::time_point, QByteArray>> kept;
@@ -319,21 +308,6 @@ std::vector<std::vector<float>> EnsemblePercentiles::onTimes(const Series& serie
     return out;
 }
 
-const std::vector<EnsemblePercentiles::Variable>& EnsemblePercentiles::variables() {
-    static const std::vector<Variable> list{
-        {"temperature_2m", "2 m temperature", "2 m temperature", Quantity::Temperature, false, false, 1},
-        {"precipitation", "Precipitation added up", "Precipitation added up since the first hour", Quantity::Precipitation, true, true, 2},
-        {"dew_point_2m", "2 m dewpoint", "2 m dewpoint", Quantity::Temperature, false, false, 1},
-        {"wind_speed_10m", "10 m wind speed", "10 m wind speed", Quantity::Wind, false, true, 1},
-        {"wind_gusts_10m", "10 m wind gusts", "10 m wind gusts (not every model has them)", Quantity::Wind, false, true, 1},
-        {"snowfall", "Snowfall added up", "Snowfall added up since the first hour", Quantity::Snow, true, true, 2},
-        {"pressure_msl", "Sea level pressure", "Sea level pressure", Quantity::Pressure, false, false, 1},
-        {"cloud_cover", "Cloud cover", "Cloud cover", Quantity::Percent, false, true, 0},
-        {"relative_humidity_2m", "2 m relative humidity", "2 m relative humidity", Quantity::Percent, false, true, 0},
-    };
-    return list;
-}
-
 const EnsemblePercentiles::Variable * EnsemblePercentiles::findVariable(const std::string& id) {
     for (const auto& v : variables()) {
         if (v.id == id) {
@@ -360,6 +334,7 @@ std::string EnsemblePercentiles::unitLabel(const Variable& variable) {
         case Quantity::Wind: return DisplayUnits::us() ? "mph" : "m/s";
         case Quantity::Snow: return DisplayUnits::us() ? "in" : "cm";
         case Quantity::Pressure: return "hPa";
+        case Quantity::Plain: return variable.unit;
         default: return "%";
     }
 }
@@ -392,5 +367,195 @@ bool EnsemblePercentiles::fetchOne(double lat, double lon, const std::string& mo
         kept[address] = {std::chrono::steady_clock::now(), bytes};
     }
     out = variable.accumulate ? accumulated(series) : std::move(series);
+    return true;
+}
+
+namespace {
+    using namespace EnsemblePercentiles;
+    std::mutex tableLock;
+    bool tablesRead{false};
+    std::vector<Model> modelTable;
+    std::vector<Variable> variableTable;
+    std::string fileProblem;
+
+    std::vector<Model> builtInModels() {
+        return {
+            {"gfs025", "GEFS (31 members, 16 days)", "GEFS"},
+            {"ecmwf_ifs025", "ECMWF IFS ensemble (51 members, 15 days)", "IFS-ENS"},
+            {"ecmwf_aifs025", "ECMWF AIFS ensemble (51 members, 15 days)", "AIFS"},
+            {"gem_global", "Canadian GEPS (21 members, 16 days)", "GEPS"},
+            {"icon_seamless", "DWD ICON ensemble (40 members, 7 days)", "ICON"},
+            {"ukmo_global_ensemble_20km", "UK Met Office ensemble (18 members, 7 days)", "UKMO"},
+            {"ncep_aigefs025", "NOAA AIGEFS, the AI ensemble (31 members, 16 days)", "AIGFS"},
+            {"icon_eu", "DWD ICON-EU ensemble (Europe only, 5 days)", "ICON-EU"},
+        };
+    }
+    std::vector<Variable> builtInVariables() {
+        return {
+            {"temperature_2m", "2 m temperature", "2 m temperature", Quantity::Temperature, false, false, 1, "", "built in"},
+            {"precipitation", "Precipitation added up", "Precipitation added up since the first hour", Quantity::Precipitation, true, true, 2, "", "built in"},
+            {"dew_point_2m", "2 m dewpoint", "2 m dewpoint", Quantity::Temperature, false, false, 1, "", "built in"},
+            {"wind_speed_10m", "10 m wind speed", "10 m wind speed", Quantity::Wind, false, true, 1, "", "built in"},
+            {"wind_gusts_10m", "10 m wind gusts", "10 m wind gusts (not every model has them)", Quantity::Wind, false, true, 1, "", "built in"},
+            {"snowfall", "Snowfall added up", "Snowfall added up since the first hour", Quantity::Snow, true, true, 2, "", "built in"},
+            {"pressure_msl", "Sea level pressure", "Sea level pressure", Quantity::Pressure, false, false, 1, "", "built in"},
+            {"cloud_cover", "Cloud cover", "Cloud cover", Quantity::Percent, false, true, 0, "", "built in"},
+            {"relative_humidity_2m", "2 m relative humidity", "2 m relative humidity", Quantity::Percent, false, true, 0, "", "built in"},
+        };
+    }
+    bool plainName(const std::string& s) {
+        return !s.empty() && s.size() <= 60 && std::all_of(s.begin(), s.end(), [] (unsigned char c) { return std::islower(c) || std::isdigit(c) || c == '_'; });
+    }
+    void readTables() {   // (the lock is held)
+        tablesRead = true;
+        modelTable = builtInModels();
+        variableTable = builtInVariables();
+        fileProblem.clear();
+        QFile f{QString::fromStdString(EnsemblePercentiles::userFile())};
+        if (!f.open(QIODevice::ReadOnly)) {
+            return;   // (no file: the built-in tables)
+        }
+        std::vector<Model> ms;
+        std::vector<Variable> vs;
+        std::string why;
+        if (!EnsemblePercentiles::parseFile(f.readAll(), ms, vs, why)) {
+            fileProblem = why;
+            return;
+        }
+        for (auto& m : ms) {   // a row of the file with an id the built-in table has replaces it, in its place; a new one goes at the end
+            const auto at = std::find_if(modelTable.begin(), modelTable.end(), [&m] (const Model& x) { return x.id == m.id; });
+            at == modelTable.end() ? modelTable.push_back(m) : (void) (*at = m);
+        }
+        for (auto& v : vs) {
+            const auto at = std::find_if(variableTable.begin(), variableTable.end(), [&v] (const Variable& x) { return x.id == v.id; });
+            at == variableTable.end() ? variableTable.push_back(v) : (void) (*at = v);
+        }
+    }
+}
+
+const std::vector<EnsemblePercentiles::Model>& EnsemblePercentiles::models() {
+    const std::lock_guard<std::mutex> guard{tableLock};
+    if (!tablesRead) {
+        readTables();
+    }
+    return modelTable;
+}
+
+const std::vector<EnsemblePercentiles::Variable>& EnsemblePercentiles::variables() {
+    const std::lock_guard<std::mutex> guard{tableLock};
+    if (!tablesRead) {
+        readTables();
+    }
+    return variableTable;
+}
+
+void EnsemblePercentiles::reload() {
+    const std::lock_guard<std::mutex> guard{tableLock};
+    readTables();
+}
+
+std::string EnsemblePercentiles::problem() {
+    models();
+    const std::lock_guard<std::mutex> guard{tableLock};
+    return fileProblem;
+}
+
+std::string EnsemblePercentiles::userFile() {
+    return (QStandardPaths::writableLocation(QStandardPaths::AppDataLocation) + "/models/ensembles.json").toStdString();
+}
+
+bool EnsemblePercentiles::parseFile(const QByteArray& json, std::vector<Model>& models, std::vector<Variable>& variables, std::string& why) {
+    if (json.size() > 64 * 1024) {
+        why = "the file is longer than 64 KB";
+        return false;
+    }
+    QJsonParseError error;
+    const auto doc = QJsonDocument::fromJson(json, &error);
+    if (!doc.isObject()) {
+        why = "not valid JSON: " + error.errorString().toStdString();
+        return false;
+    }
+    const auto root = doc.object();
+    if (root.value("version").toInt() != 1) {
+        why = "\"version\" must be 1";
+        return false;
+    }
+    std::vector<Model> ms;
+    std::vector<Variable> vs;
+    const auto modelObject = root.value("models").toObject();
+    if (modelObject.size() > 60) {
+        why = "more than 60 models";
+        return false;
+    }
+    for (auto it = modelObject.begin(); it != modelObject.end(); ++it) {
+        const auto id = it.key().toStdString();
+        const auto o = it.value().toObject();
+        if (!plainName(id)) {
+            why = "model \"" + id + "\": the id is the service's name (a to z, 0 to 9, _, at most 60 characters)";
+            return false;
+        }
+        Model m;
+        m.id = id;
+        m.label = o.value("label").toString().toStdString();
+        m.map = o.value("map").toString().toStdString();
+        m.origin = "yours";
+        if (m.label.empty() || m.label.size() > 100) {
+            why = "model \"" + id + "\": a \"label\" of 1 to 100 characters is needed";
+            return false;
+        }
+        if (m.map.size() > 40 || !std::all_of(m.map.begin(), m.map.end(), [] (unsigned char c) { return std::isalnum(c) || c == '-' || c == '_'; })) {
+            why = "model \"" + id + "\": \"map\" is the id of one of the program's models (like GEFS), or empty";
+            return false;
+        }
+        ms.push_back(m);
+    }
+    const auto variableObject = root.value("variables").toObject();
+    if (variableObject.size() > 60) {
+        why = "more than 60 variables";
+        return false;
+    }
+    static const std::map<std::string, Quantity> quantities{{"temperature", Quantity::Temperature}, {"precipitation", Quantity::Precipitation}, {"wind", Quantity::Wind}, {"snow", Quantity::Snow},
+                                                            {"pressure", Quantity::Pressure}, {"percent", Quantity::Percent}, {"plain", Quantity::Plain}};
+    for (auto it = variableObject.begin(); it != variableObject.end(); ++it) {
+        const auto id = it.key().toStdString();
+        const auto o = it.value().toObject();
+        if (!plainName(id)) {
+            why = "variable \"" + id + "\": the id is the service's name (a to z, 0 to 9, _, at most 60 characters)";
+            return false;
+        }
+        Variable v;
+        v.id = id;
+        v.label = o.value("label").toString().toStdString();
+        v.title = o.value("title").toString().toStdString();
+        if (v.title.empty()) {
+            v.title = v.label;
+        }
+        const auto q = quantities.find(o.value("quantity").toString("plain").toStdString());
+        if (q == quantities.end()) {
+            why = "variable \"" + id + "\": \"quantity\" is temperature, precipitation, wind, snow, pressure, percent or plain";
+            return false;
+        }
+        v.quantity = q->second;
+        v.accumulate = o.value("accumulate").toBool(false);
+        v.zeroBased = o.value("zero_based").toBool(false);
+        v.digits = o.value("digits").toInt(1);
+        v.unit = o.value("unit").toString().toStdString();
+        v.origin = "yours";
+        if (v.label.empty() || v.label.size() > 100 || v.title.size() > 140) {
+            why = "variable \"" + id + "\": a \"label\" of 1 to 100 characters is needed";
+            return false;
+        }
+        if (v.digits < 0 || v.digits > 4) {
+            why = "variable \"" + id + "\": \"digits\" is 0 to 4";
+            return false;
+        }
+        if (v.quantity == Quantity::Plain && (v.unit.empty() || v.unit.size() > 16)) {
+            why = "variable \"" + id + "\": a \"plain\" variable needs a \"unit\" of 1 to 16 characters";
+            return false;
+        }
+        vs.push_back(v);
+    }
+    models = std::move(ms);
+    variables = std::move(vs);
     return true;
 }

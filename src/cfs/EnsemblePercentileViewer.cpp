@@ -18,6 +18,7 @@
 #include <QPointer>
 #include <QTimeZone>
 #include <QVBoxLayout>
+#include "misc/HelpViewer.h"
 #include "settings/Location.h"
 #include "ui/ChartExport.h"
 #include "ui/FlowBox.h"
@@ -620,6 +621,9 @@ EnsemblePercentileViewer::EnsemblePercentileViewer(Window * parent, double lat, 
     }
     model->setCurrentIndex(std::max(0, model->findData(QString::fromStdString(modelId))));
     go = UiStandards::button(body, "Load");
+    auto * helpButton = UiStandards::button(body, "Help...");
+    helpButton->setToolTip("The list of models is a table you can add to: ensembles.json (the format, and where it goes)");
+    QObject::connect(helpButton, &QPushButton::clicked, this, [this] { new HelpViewer{this, "guide:ensemble-file"}; });
     status = new QLabel{"", body};
     top->addWidget(place);
     top->addWidget(new QLabel{"lat", body});
@@ -628,6 +632,7 @@ EnsemblePercentileViewer::EnsemblePercentileViewer(Window * parent, double lat, 
     top->addWidget(lonBox);
     top->addWidget(model);
     top->addWidget(go);
+    top->addWidget(helpButton);
     column->addLayout(top);
     column->addWidget(status);
     chart = new PercentileChart{body};

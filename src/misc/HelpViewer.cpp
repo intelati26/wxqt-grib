@@ -159,7 +159,7 @@ HelpViewer::HelpViewer(QWidget * parent, const std::string& topic)
     }
     auto * editing = new QTreeWidgetItem{tree, {"Editing the program's data"}};   // the files a person can change without a new version of the program: one page for the rules they share, one for each kind
     for (const auto& [title, id] : std::vector<std::pair<const char *, const char *>>{{"The rules, and which file for which job", "guide:editing-rules"}, {"Servers (servers.json)", "guide:server-file"},
-                                                                                     {"Chart files (your own maps)", "guide:chart-files"}, {"Model files (.model)", "guide:model-files"}}) {
+                                                                                     {"Chart files (your own maps)", "guide:chart-files"}, {"Ensembles and variables (ensembles.json)", "guide:ensemble-file"}, {"Model files (.model)", "guide:model-files"}}) {
         auto * item = new QTreeWidgetItem{editing, {title}};
         item->setData(0, Qt::UserRole, id);
     }

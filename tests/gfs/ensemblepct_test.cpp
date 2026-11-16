@@ -106,6 +106,34 @@ int main() {
     CHECK(block.columns[0].get("TXNP1") == 33 && block.columns[1].get("TXNP9") == 61 && block.columns[17].get("TXNMN") == 51 && block.columns[16].get("TXNP5") == 35);
     CHECK(!block.columns[0].has("Q24P1") && !block.columns[1].has("Q24P1") && block.columns[2].get("Q24P1") == 0 && block.columns[6].get("Q24P9") == 16 && block.columns[12].get("Q24P9") == 128 && block.columns[16].get("Q24P9") == 40);   // (the 24 hour precipitation ends at 12 UTC: its values are under the 12 UTC columns, hundredths of an inch)
     CHECK(block.columns[0].get("SLPP1") == 32 && block.columns[1].get("SLPP1") == 29);
+    // the person's file: valid entries, and each way a file is refused as a whole
+    {
+        std::vector<E::Model> ms;
+        std::vector<E::Variable> vs;
+        std::string why;
+        const QByteArray ok = R"({"version":1,"models":{"bom_access_global_ensemble":{"label":"BoM ACCESS-GE","map":""},"gfs025":{"label":"GEFS mine","map":"GEFS"}},
+            "variables":{"cape":{"label":"CAPE","quantity":"plain","unit":"J/kg","zero_based":true,"digits":0},"rain":{"label":"Rain","title":"Rain","quantity":"precipitation","accumulate":true}}})";
+        CHECK(E::parseFile(ok, ms, vs, why) && ms.size() == 2 && vs.size() == 2 && ms[0].origin == "yours");
+        bool sawCape = false;
+        for (const auto& v : vs) {
+            sawCape = sawCape || (v.id == "cape" && v.quantity == E::Quantity::Plain && v.unit == "J/kg" && v.zeroBased && v.digits == 0 && v.title == "CAPE");
+        }
+        CHECK(sawCape);
+        E::Variable plain;
+        plain.quantity = E::Quantity::Plain;
+        plain.unit = "J/kg";
+        CHECK(E::unitLabel(plain) == "J/kg" && near(static_cast<float>(E::display(plain, 123.0)), 123.0));
+        std::vector<E::Model> m2;
+        std::vector<E::Variable> v2;
+        CHECK(!E::parseFile(R"({"version":2})", m2, v2, why) && why.find("version") != std::string::npos && m2.empty());
+        CHECK(!E::parseFile("nonsense", m2, v2, why) && !E::parseFile(R"({"version":1,"models":{"Bad Name":{"label":"x"}}})", m2, v2, why) && why.find("Bad Name") != std::string::npos);
+        CHECK(!E::parseFile(R"({"version":1,"models":{"ok":{"label":""}}})", m2, v2, why) && why.find("label") != std::string::npos);
+        CHECK(!E::parseFile(R"({"version":1,"variables":{"v":{"label":"V","quantity":"furlongs"}}})", m2, v2, why) && why.find("quantity") != std::string::npos);
+        CHECK(!E::parseFile(R"({"version":1,"variables":{"v":{"label":"V","quantity":"plain"}}})", m2, v2, why) && why.find("unit") != std::string::npos);
+        CHECK(!E::parseFile(R"({"version":1,"variables":{"v":{"label":"V","quantity":"percent","digits":9}}})", m2, v2, why) && why.find("digits") != std::string::npos);
+        CHECK(!E::parseFile(QByteArray(70000, ' '), m2, v2, why) && why.find("64 KB") != std::string::npos);   // (one bad entry: nothing of the file is taken)
+        CHECK(!E::parseFile(R"({"version":1,"models":{"good":{"label":"G"},"bad":{"label":"B","map":"x y"}}})", m2, v2, why) && m2.empty());
+    }
     // the variable table and the person's units
     CHECK(E::findVariable("wind_gusts_10m") != nullptr && E::findVariable("nonsense") == nullptr && E::variables().size() >= 9);
     CHECK(E::findVariable("precipitation")->accumulate && E::findVariable("snowfall")->accumulate && !E::findVariable("temperature_2m")->accumulate);

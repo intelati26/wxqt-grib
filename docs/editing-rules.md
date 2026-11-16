@@ -1,6 +1,6 @@
 # Editing the program's data yourself: the rules
 
-Three things the program reads are plain text files you can change yourself, without waiting for a new version of the program: **where the data comes from**
+Four things the program reads are plain text files you can change yourself, without waiting for a new version of the program: **where the data comes from**
 (servers), **what a model's files are** (model files) and **which maps there are** (chart files). This page is the rules they
 share and which to touch for which job. The details of each format are in its own file:
 
@@ -9,6 +9,7 @@ share and which to touch for which job. The details of each format are in its ow
 | a server's address | `servers.json` | [server-file.md](server-file.md) |
 | a model's layout (names, hours, files) | `<name>.model` | [model-files.md](model-files.md) |
 | a map (fill, lines, barbs) | `<name>.chart.json` | [chart-files.md](chart-files.md) |
+| an ensemble or a variable of the place windows (percentiles, two models compared) | `ensembles.json` | [ensemble-file.md](ensemble-file.md) |
 
 ## Which file for which job
 

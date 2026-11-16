@@ -14,9 +14,11 @@
 #include <QPainter>
 #include <QPainterPath>
 #include <QPointer>
+#include <QRegularExpression>
 #include <QTimeZone>
 #include <QVBoxLayout>
 #include "gfs/ChartSelection.h"
+#include "misc/HelpViewer.h"
 #include "models/ModelViewer.h"
 #include "settings/Location.h"
 #include "ui/ChartExport.h"
@@ -147,10 +149,9 @@ private:
 };
 
 std::string ModelCompareViewer::mapModel(const std::string& id) {
-    static const std::vector<std::pair<std::string, std::string>> map{{"gfs025", "GEFS"}, {"ecmwf_ifs025", "IFS-ENS"}, {"ecmwf_aifs025", "AIFS"}, {"gem_global", "GEPS"}, {"icon_seamless", "ICON"}, {"ukmo_global_ensemble_20km", "UKMO"}, {"ncep_aigefs025", "AIGFS"}, {"icon_eu", "ICON-EU"}};
-    for (const auto& [openMeteo, program] : map) {
-        if (openMeteo == id) {
-            return program;
+    for (const auto& m : EnsemblePercentiles::models()) {   // (the table of models: the `map` of a row)
+        if (m.id == id) {
+            return m.map;
         }
     }
     return {};
@@ -391,7 +392,13 @@ protected:
         for (const double days : {3.0, 5.0, 10.0}) {
             const auto m = EnsemblePercentiles::meanDifference(data, days);
             if (!std::isnan(m) && (days == 3.0 || data.times.back() - data.times.front() >= days * 86400.0 - 3600)) {
-                words << QString{"%1 days: %2%3"}.arg(static_cast<int>(days)).arg(delta(m) >= 0 ? "+" : "").arg(delta(m), 0, 'f', var.digits);
+                {
+                    auto text = QString::number(delta(m), 'f', var.digits);
+                    if (text.startsWith("-") && text.trimmed().remove(QRegularExpression{"[-.0]"}).isEmpty()) {   // (not "-0")
+                        text.remove(0, 1);
+                    }
+                    words << QString{"%1 days: %2%3"}.arg(static_cast<int>(days)).arg(text.startsWith("-") ? "" : "+").arg(text);
+                }
             }
         }
         p.setPen(Qt::black);
@@ -602,6 +609,9 @@ ModelCompareViewer::ModelCompareViewer(Window * parent, double lat, double lon, 
     mapChoice->addItem("250 mb jet stream", "250_wnd_ht");
     mapChoice->setToolTip("What Why? shows on the map: this model's chart with the other model's height lines over it");
     go = UiStandards::button(body, "Load");
+    auto * helpButton = UiStandards::button(body, "Help...");
+    helpButton->setToolTip("The lists of models and variables are tables you can add to: ensembles.json (the format, and where it goes)");
+    QObject::connect(helpButton, &QPushButton::clicked, this, [this] { new HelpViewer{this, "guide:ensemble-file"}; });
     allButton = UiStandards::button(body, "All models at this time");
     allButton->setToolTip("The members of every ensemble of the list at the time picked (or the day with the largest difference), side by side");
     whyButton = UiStandards::button(body, "Why? Show the maps");
@@ -621,6 +631,7 @@ ModelCompareViewer::ModelCompareViewer(Window * parent, double lat, double lon, 
     top->addWidget(mapChoice);
     top->addWidget(whyButton);
     top->addWidget(allButton);
+    top->addWidget(helpButton);
     column->addLayout(top);
     column->addWidget(status);
     chart = new CompareChart{body};
@@ -644,6 +655,11 @@ ModelCompareViewer::ModelCompareViewer(Window * parent, double lat, double lon, 
     setSize(1100, 800);
     QWidget::show();
     load();
+    if (const auto bad = EnsemblePercentiles::problem(); !bad.empty()) {   // (the status line is the next load's: this one stays in the tooltip too)
+        field->setToolTip(QString::fromStdString("Your ensembles.json was not used: " + bad));
+        modelA->setToolTip(field->toolTip());
+        status->setText(QString::fromStdString("Your ensembles.json was not used: " + bad));
+    }
 }
 
 void ModelCompareViewer::load() {

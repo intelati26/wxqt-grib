@@ -3,6 +3,7 @@
     <file alias="guides/editing-rules.md">../docs/editing-rules.md</file>
     <file alias="guides/server-file.md">../docs/server-file.md</file>
     <file alias="guides/chart-files.md">../docs/chart-files.md</file>
+    <file alias="guides/ensemble-file.md">../docs/ensemble-file.md</file>
     <file alias="guides/model-files.md">../docs/model-files.md</file>
     <file alias="guides/help-colors.md">../docs/help-colors.md</file>
     <file alias="guides/help-presets-views.md">../docs/help-presets-views.md</file>

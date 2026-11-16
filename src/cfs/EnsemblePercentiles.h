@@ -61,13 +61,15 @@ namespace EnsemblePercentiles {
     // The mean of the difference over the first `days` days from the first time (NaN when fewer than half of the hours have a value).
     float meanDifference(const Compare& c, double days);
     // The variables the comparison windows can show: one row each (id as the service names it, what it is, how its numbers become the person's units). A new variable is a row here.
-    enum class Quantity { Temperature, Precipitation, Wind, Snow, Pressure, Percent };
+    enum class Quantity { Temperature, Precipitation, Wind, Snow, Pressure, Percent, Plain };   // Plain: no conversion, the unit is `unit`
     struct Variable {
         std::string id, label, title;   // "dew_point_2m", "2 m dewpoint", "Dewpoint (2 m)"
         Quantity quantity{Quantity::Temperature};
         bool accumulate{false};         // shown added up since the first hour (rain, snow)
         bool zeroBased{false};          // the axis starts at zero
         int digits{1};
+        std::string unit;               // Plain only: what the service's number is in ("J/kg")
+        std::string origin{"built in"}; // "built in" or "yours"
     };
     const std::vector<Variable>& variables();
     const Variable * findVariable(const std::string& id);
@@ -80,8 +82,14 @@ namespace EnsemblePercentiles {
     bool parse(const QByteArray& json, const std::string& variable, Series& out, std::string& why);
     std::string url(double lat, double lon, const std::string& model, const std::vector<std::string>& variables, int days = 16);
     // The models offered: id, what it is.
-    struct Model { std::string id, label; };
+    struct Model { std::string id, label, map, origin{"built in"}; };   // map: the program's model for the Why? maps ("GEFS"), "" when it has none
     const std::vector<Model>& models();
+    // The person's own list (`ensembles.json` in the folder of their model files: more models, more variables, or a changed label; docs/ensemble-file.md) is read over the built-in tables, once and again
+    // on `reload`. A file that is not valid is not used at all (the reason is kept). A model is looked at for what the service has: an id it does not know shows its message in the window.
+    void reload();
+    std::string problem();          // why the person's file was not used, "" when it was (or is not there)
+    std::string userFile();
+    bool parseFile(const QByteArray& json, std::vector<Model>& models, std::vector<Variable>& variables, std::string& why);   // the entries of a file (not merged): false with the reason when it is not valid
     // Both variables of one model for a place: one request, blocking (call it from a thread). Kept in memory for 20 minutes.
     bool fetch(double lat, double lon, const std::string& model, Series& temperature, Series& precipitation, std::string& why);
 }
