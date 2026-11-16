@@ -5,6 +5,7 @@
 
 #include "settings/SettingsCatalogueBox.h"
 #include <thread>
+#include <QCoreApplication>
 #include <QDesktopServices>
 #include <QDir>
 #include <QHeaderView>
