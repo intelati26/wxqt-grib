@@ -21,7 +21,10 @@
 #include <QTableWidget>
 #include <QVBoxLayout>
 #include <QTimer>
+#include "cfs/EnsemblePercentiles.h"
+#include "gfs/GfsChart.h"
 #include "gfs/GfsClimate.h"
+#include "gfs/UserCharts.h"
 #include "gfs/GfsModels.h"
 #include "gfs/Servers.h"
 #include "gfs/ServerStatus.h"
@@ -121,10 +124,30 @@ SettingsSourcesBox::SettingsSourcesBox(QWidget * parent)
             QDir{}.mkpath(folder);
             QDesktopServices::openUrl(QUrl::fromLocalFile(folder));
         });
+        auto * reloadButton = UiStandards::button(this, "Reload your files");
+        reloadButton->setToolTip("Reads your own files again without a restart: servers.json, your chart files (*.chart.json) and ensembles.json. The models' own files (.model) are read when the program starts.");
+        QObject::connect(reloadButton, &QPushButton::clicked, this, [this] {
+            Servers::reload();
+            EnsemblePercentiles::reload();
+            const bool charts = GfsChart::refreshUserCharts(true);
+            refreshServers();
+            QStringList notes;
+            for (const auto& problem : UserCharts::problems()) {
+                notes << QString::fromStdString(problem);
+            }
+            if (const auto bad = Servers::lastFetch(); false && bad.ok) {
+                notes << "";
+            }
+            if (const auto why = EnsemblePercentiles::problem(); !why.empty()) {
+                notes << QString::fromStdString("ensembles.json was not used: " + why);
+            }
+            serversStatus->setText(QString{"Your files were read again%1. %2"}.arg(charts ? " (charts too)" : "").arg(notes.isEmpty() ? QString{"No problem in them."} : notes.join("  |  ")));
+        });
         auto * helpButton = UiStandards::button(this, "Help...");
         helpButton->setToolTip("How to change a server, a model's layout or a map yourself, without waiting for a new version: the rules, and the format of each.");
         QObject::connect(helpButton, &QPushButton::clicked, this, [this] { new HelpViewer{this->window(), "guide:server-file"}; });
         serversStatus = new QLabel{this};
+        serversRow->addWidget(reloadButton);
         serversRow->addWidget(helpButton);
         serversRow->addWidget(fetchBox);
         serversRow->addWidget(anyBox);

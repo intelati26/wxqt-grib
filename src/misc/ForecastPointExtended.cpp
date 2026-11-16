@@ -13,6 +13,7 @@
 #include <QScrollBar>
 #include <QVBoxLayout>
 #include "objects/FutureVoid.h"
+#include "util/DisplayUnits.h"
 #include "ui/Window.h"
 
 namespace {
@@ -38,6 +39,7 @@ namespace {
         std::vector<Row> rows;
         Scale temp, wind, rain;
         int height{0};
+        QString tempUnit{"F"}, windUnit{"kt"};   // what the numbers are in (the bulletins are in F and knots; the page shows the Settings' units)
         bool some(const std::function<bool(const NbmText::Column&)>& test) const { return std::any_of(columns.begin(), columns.end(), test); }
     };
 
@@ -53,19 +55,42 @@ namespace {
         return c.has("T12") ? c.get("T12") : c.get("T06");
     }
 
-    Model build(const std::vector<NbmText::Column>& columns) {
+    // The bulletins' numbers in the person's units (Settings): F and knots become F and mph (the US setting) or C and m/s. The spread (TSD) is a difference, so it has no offset. Rounded to whole
+    // numbers like the bulletins' own.
+    std::vector<NbmText::Column> inDisplayUnits(std::vector<NbmText::Column> columns, bool us) {
+        for (auto& c : columns) {
+            for (auto& [code, v] : c.value) {
+                if (us) {
+                    if (code == "WSP" || code == "GST") {
+                        v = static_cast<int>(std::lround(v * 1.15078));
+                    }
+                } else if (code == "TMP" || code == "DPT" || code == "TXN") {
+                    v = static_cast<int>(std::lround((v - 32) / 1.8));
+                } else if (code == "TSD" || code == "XND") {
+                    v = static_cast<int>(std::lround(v / 1.8));
+                } else if (code == "WSP" || code == "GST") {
+                    v = static_cast<int>(std::lround(v * 0.514444));
+                }
+            }
+        }
+        return columns;
+    }
+
+    Model build(const std::vector<NbmText::Column>& columns, bool us = true) {
         Model m;
         m.columns = columns;
+        m.tempUnit = us ? "F" : "C";
+        m.windUnit = us ? "mph" : "m/s";
         const auto any = [&m] (const char * code, int above) { return m.some([&] (const NbmText::Column& c) { return c.get(code, 0) > above; }); };
-        m.rows = {{Kind::Day, "", 18, ""}, {Kind::Hour, "UTC", 18, ""}, {Kind::Title, "Temp, dew", 20, ""}, {Kind::TempGraph, "", 140, ""}, {Kind::Line, "Temp F", 18, "TMP"}, {Kind::Line, "+/- spread", 18, "TSD"}, {Kind::Line, "Dewpt F", 18, "DPT"}};
+        m.rows = {{Kind::Day, "", 18, ""}, {Kind::Hour, "UTC", 18, ""}, {Kind::Title, "Temp, dew", 20, ""}, {Kind::TempGraph, "", 140, ""}, {Kind::Line, "Temp " + m.tempUnit, 18, "TMP"}, {Kind::Line, "+/- spread", 18, "TSD"}, {Kind::Line, "Dewpt " + m.tempUnit, 18, "DPT"}};
         if (m.some([] (const NbmText::Column& c) { return c.has("TXN"); })) {
             m.rows.push_back({Kind::Line, "Hi / Lo", 18, "TXN"});
         }
         m.rows.push_back({Kind::Line, "Sky %", 18, "SKY"});
         m.rows.push_back({Kind::Title, "Wind, gust", 20, ""});
         m.rows.push_back({Kind::WindGraph, "", 110, ""});
-        m.rows.push_back({Kind::Line, "Speed kt", 18, "WSP"});
-        m.rows.push_back({Kind::Line, "Gust kt", 18, "GST"});
+        m.rows.push_back({Kind::Line, "Speed " + m.windUnit, 18, "WSP"});
+        m.rows.push_back({Kind::Line, "Gust " + m.windUnit, 18, "GST"});
         m.rows.push_back({Kind::Title, "Precip %", 20, ""});
         m.rows.push_back({Kind::PrecipGraph, "", 90, ""});
         m.rows.push_back({Kind::Line, "Chance %", 18, "CHANCE"});
@@ -154,7 +179,7 @@ public:
         setMouseTracking(true);
     }
     void setColumns(const std::vector<NbmText::Column>& columns) {
-        model = build(columns);
+        model = build(inDisplayUnits(columns, DisplayUnits::us()), DisplayUnits::us());
         selected = -1;
         setFixedSize(static_cast<int>(model.columns.size()) * columnWidth, model.height);
         update();
@@ -377,11 +402,11 @@ protected:
                 p.drawText(QRect{4, row.top, width() - 8, row.height}, Qt::AlignLeft | Qt::AlignVCenter, row.label);
             } else if (row.kind == Kind::TempGraph) {
                 for (double g = m.temp.lo; g <= m.temp.hi; g += 10) {
-                    p.drawText(QRect{0, static_cast<int>(m.temp.y(g, row.top, row.height)) - 8, width() - 6, 16}, Qt::AlignRight | Qt::AlignVCenter, QString::number(static_cast<int>(g)) + (g == m.temp.lo ? " F" : ""));
+                    p.drawText(QRect{0, static_cast<int>(m.temp.y(g, row.top, row.height)) - 8, width() - 6, 16}, Qt::AlignRight | Qt::AlignVCenter, QString::number(static_cast<int>(g)) + (g == m.temp.lo ? " " + m.tempUnit : QString{}));
                 }
             } else if (row.kind == Kind::WindGraph) {
                 for (double g = 0; g <= m.wind.hi; g += 10) {
-                    p.drawText(QRect{0, static_cast<int>(m.wind.y(g, row.top, row.height - 16)) - 8, width() - 6, 16}, Qt::AlignRight | Qt::AlignVCenter, QString::number(static_cast<int>(g)) + (g == 0 ? " kt" : ""));
+                    p.drawText(QRect{0, static_cast<int>(m.wind.y(g, row.top, row.height - 16)) - 8, width() - 6, 16}, Qt::AlignRight | Qt::AlignVCenter, QString::number(static_cast<int>(g)) + (g == 0 ? " " + m.windUnit : QString{}));
                 }
             } else if (row.kind == Kind::PrecipGraph) {
                 for (double g = 0; g <= 100; g += 25) {

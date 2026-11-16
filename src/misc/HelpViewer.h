@@ -10,6 +10,7 @@
 #include "ui/Window.h"
 
 class QTextBrowser;
+class QPushButton;
 class QTreeWidget;
 
 // Help and further reading: for each model the Model Viewer draws, why it matters, what the app shows of it and where its data and its documentation are (a Wikipedia article
@@ -19,6 +20,8 @@ class HelpViewer : public Window {
 public:
     // `topic` opens a page at once: "guide:editing-rules", "guide:server-file", "guide:chart-files", "guide:model-files", "add", "sources" or "model:<id>"
     explicit HelpViewer(QWidget *, const std::string& topic = {});
+    // A "Help..." button for an editor: it opens this page of the Help window (the rule of docs/help-coverage.md: where a thing is edited, the page about it is one click away).
+    static QPushButton * button(QWidget * parent, const std::string& topic, const QString& tip = {});
 
 private:
     void showTopic(const std::string& topic);

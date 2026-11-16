@@ -14,6 +14,7 @@
 #include "gfs/GfsChart.h"
 #include "gfs/GfsModels.h"
 #include "gfs/UserCharts.h"
+#include <QThread>
 #include "util/MyApplication.h"
 
 static int failures = 0;
@@ -104,6 +105,40 @@ int main(int argc, char ** argv) {
     out.clear();
     CHECK(!UserCharts::parse(doc("{\"id\": \"good\", \"model\": \"GFS\", \"fill\": {\"field\": \"TMP@2 m\"}}, {\"id\": \"bad\", \"model\": \"GFS\"}"), out, why) && out.empty());
     CHECK(!UserCharts::rampNames().empty());
+
+    // the registry reads the folder again when its files change, without a restart; a pointer from the generation before stays good
+    {
+        const QString folder = "/tmp/wxqt_userchart_reload_test";
+        QDir{folder}.removeRecursively();
+        QDir{}.mkpath(folder);
+        GfsModels::setUserFolder(folder.toStdString());
+        CHECK(GfsChart::product("reload1", "GFS") == nullptr);
+        const auto first = GfsChart::products().size();
+        const auto write = [&] (const QString& label) {
+            QFile f{folder + "/mine.chart.json"};
+            CHECK(f.open(QIODevice::WriteOnly | QIODevice::Truncate));
+            f.write(QByteArray{"{\"version\": 1, \"charts\": [{\"id\": \"reload1\", \"model\": \"GFS\", \"label\": \""} + label.toUtf8() + "\", \"fill\": {\"field\": \"TMP@2 m above ground\"}}]}");
+        };
+        CHECK(!GfsChart::refreshUserCharts());   // (nothing changed since it was read: not read again)
+        write("first label");
+        CHECK(GfsChart::refreshUserCharts() && GfsChart::products().size() == first + 1);
+        const auto * old = GfsChart::product("reload1", "GFS");
+        CHECK(old != nullptr && old->label == "first label");
+        CHECK(!GfsChart::refreshUserCharts());   // (read, and not changed since)
+        QThread::msleep(20);
+        write("second label, longer");
+        CHECK(GfsChart::refreshUserCharts() && GfsChart::product("reload1", "GFS")->label == "second label, longer");
+        CHECK(old->label == "first label");   // (the old generation is kept: a screen holding the pointer is not left with nothing)
+        QFile::remove(folder + "/mine.chart.json");
+        CHECK(GfsChart::refreshUserCharts() && GfsChart::product("reload1", "GFS") == nullptr && GfsChart::products().size() == first);
+        // a file that is not valid: its charts are left out and the problem is kept
+        QFile bad{folder + "/bad.chart.json"};
+        CHECK(bad.open(QIODevice::WriteOnly));
+        bad.write("not json");
+        bad.close();
+        CHECK(GfsChart::refreshUserCharts() && GfsChart::products().size() == first && !UserCharts::problems().empty());
+        QDir{folder}.removeRecursively();
+    }
     std::printf(failures == 0 ? "all chart file tests passed\n" : "%d failures\n", failures);
     return failures == 0 ? 0 : 1;
 }

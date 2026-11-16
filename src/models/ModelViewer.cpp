@@ -98,7 +98,7 @@ namespace {
 }
 
 ModelViewer::ModelViewer(Window * parent, const string& modelType)
-    : Window{parent}
+    : Window{(GfsChart::refreshUserCharts(), parent)}   // (the person's own chart files read again first when they changed: a new one is in the lists below without a restart)
     , mainPane{new CompareTile{this}}
     , image{*mainPane->image}
     , objectModel{modelType}

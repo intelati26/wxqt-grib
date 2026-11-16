@@ -7,6 +7,9 @@
 #include "settings/SettingsMain.h"
 #include "common/GlobalVariables.h"
 #include "util/Utility.h"
+#include <QPushButton>
+#include <QTabWidget>
+#include "misc/HelpViewer.h"
 
 using std::make_unique;
 
@@ -56,6 +59,31 @@ SettingsMain::SettingsMain(Window * parent, const function<void()>& reloadFn, bo
     tabWidget.addTab(settingsGdalBox.get(), "GDAL");
     tabWidget.addTab(settingsAccountsBox.get(), "Accounts");
     tabWidget.addTab(settingsAboutBox.get(), "About");
+    {   // one "Help..." in the corner of the tabs: the page about the tab on show (the rule of docs/help-coverage.md)
+        auto * help = new QPushButton{"Help...", tabWidget.getView()};
+        help->setToolTip("The Help page about this tab");
+        tabWidget.getView()->setCornerWidget(help, Qt::TopRightCorner);
+        QObject::connect(help, &QPushButton::clicked, this, [this] {
+            const auto * now = tabWidget.getView()->currentWidget();
+            std::string topic;   // (General, Map and About have no page of their own: the Help window opens at its first page)
+            if (now == settingsColorsBox.get()) {
+                topic = "guide:help-colors";
+            } else if (now == settingsLocationsBox.get() || now == locationEditBox.get()) {
+                topic = "guide:help-locations";
+            } else if (now == settingsToolbarOrderBox.get() || now == settingsHomeScreenOrderBox.get()) {
+                topic = "guide:help-home-toolbar";
+            } else if (now == settingsSourcesBox.get()) {
+                topic = "guide:server-file";
+            } else if (now == settingsLocalRunsBox.get()) {
+                topic = "guide:help-local-runs";
+            } else if (now == settingsGdalBox.get()) {
+                topic = "guide:help-gdal";
+            } else if (now == settingsAccountsBox.get()) {
+                topic = "guide:help-accounts";
+            }
+            new HelpViewer{this, topic};
+        });
+    }
     if (showRadarFirst) {
         tabWidget.setIndex(1);
     }

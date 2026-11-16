@@ -9,6 +9,11 @@
 #include <limits>
 #include <QDate>
 #include <algorithm>
+#include <memory>
+#include <mutex>
+#include <QDir>
+#include <QFileInfo>
+#include <QDateTime>
 #include <regex>
 #include <chrono>
 #include <cstdio>
@@ -357,7 +362,8 @@ const Sector * sector(const std::string& id) {
     return nullptr;
 }
 
-const std::vector<Product>& products() {
+namespace {
+const std::vector<Product>& builtInProducts() {   // the program's own charts, made once
     static const std::vector<Product> list = [] {
         std::vector<Product> p;
 
@@ -485,22 +491,59 @@ const std::vector<Product>& products() {
                 }
             }
         }
-        {   // the person's own charts (section 21 of the plan): *.chart.json in the models folder, after every built-in one; an id a model already has is left out
-            std::vector<Product> mine;
-            std::vector<std::string> problems;
-            UserCharts::load(UserCharts::folder(), mine, problems);
-            for (auto& chart : mine) {
-                if (std::any_of(p.begin(), p.end(), [&chart] (const Product& other) { return other.source == chart.source && other.id == chart.id; })) {
-                    problems.push_back("the chart " + chart.id + " of " + chart.source + " is left out: the model has a chart of that id");
-                    continue;
-                }
-                p.push_back(std::move(chart));
-            }
-            userChartsRecordProblems(problems);
-        }
         return p;
     }();
     return list;
+}
+
+// The generations of the registry: the built-in charts and the person's own (section 21 of the plan: *.chart.json in the models folder, after every built-in one; an id a model already has is left
+// out). A reload makes a new generation and the old ones are kept (a few megabytes each, and a reload is rare): a pointer into the registry that a screen holds stays good.
+std::mutex generationLock;
+std::vector<std::unique_ptr<std::vector<Product>>> generations;
+std::string signatureOfFolder;
+
+std::string folderSignature() {   // the *.chart.json of the folder with their sizes and times: what a change shows in
+    std::string out;
+    QDir dir{QString::fromStdString(UserCharts::folder()), "*.chart.json", QDir::Name, QDir::Files};
+    for (const auto& info : dir.entryInfoList()) {
+        out += info.fileName().toStdString() + "|" + std::to_string(info.size()) + "|" + std::to_string(info.lastModified().toMSecsSinceEpoch()) + "\n";
+    }
+    return out;
+}
+
+void makeGeneration() {   // (the lock is held)
+    auto next = std::make_unique<std::vector<Product>>(builtInProducts());
+    std::vector<Product> mine;
+    std::vector<std::string> problems;
+    UserCharts::load(UserCharts::folder(), mine, problems);
+    for (auto& chart : mine) {
+        if (std::any_of(next->begin(), next->end(), [&chart] (const Product& other) { return other.source == chart.source && other.id == chart.id; })) {
+            problems.push_back("the chart " + chart.id + " of " + chart.source + " is left out: the model has a chart of that id");
+            continue;
+        }
+        next->push_back(std::move(chart));
+    }
+    userChartsRecordProblems(problems);
+    signatureOfFolder = folderSignature();
+    generations.push_back(std::move(next));
+}
+}  // namespace
+
+const std::vector<Product>& products() {
+    const std::lock_guard<std::mutex> guard{generationLock};
+    if (generations.empty()) {
+        makeGeneration();
+    }
+    return *generations.back();
+}
+
+bool refreshUserCharts(bool force) {
+    const std::lock_guard<std::mutex> guard{generationLock};
+    if (!generations.empty() && !force && folderSignature() == signatureOfFolder) {
+        return false;
+    }
+    makeGeneration();
+    return true;
 }
 
 const std::vector<PoolMember>& poolMembers() {

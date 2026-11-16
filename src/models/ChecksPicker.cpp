@@ -17,6 +17,7 @@
 #include <QInputDialog>
 #include <QColorDialog>
 #include <QDialogButtonBox>
+#include "misc/HelpViewer.h"
 #include <QDoubleSpinBox>
 #include <QFormLayout>
 #include <QIcon>
@@ -323,6 +324,7 @@ ChecksPicker::ChecksPicker(QWidget * parent, const std::string& model, const std
     star->setToolTip("Add this chart to the favorites, or take it out");
     star->setMaximumWidth(40);
     chartLine->addWidget(star);
+    chartLine->addWidget(HelpViewer::button(chartRow, "guide:help-presets-views", "Checks, presets, favorites and saved views: what each control does"));
     row("Chart", chartRow);
     valueBox = new QComboBox{this};
     valueLabel = row("Value", valueBox);

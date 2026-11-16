@@ -31,7 +31,7 @@ namespace {
         std::string station;
     };
     std::vector<Header> headers(const std::string& piece) {
-        static const std::regex pattern{"(^|\n) ([A-Za-z0-9]+) +NBM +NB[HSEXP] +GUIDANCE"};
+        static const std::regex pattern{"(^|\n) ([~A-Za-z0-9]+) +NBM +NB[HSEXP] +GUIDANCE"};   // (the "~END~" the file is given at its end is a header too: the last station has its end)
         std::vector<Header> out;
         for (std::sregex_iterator it{piece.begin(), piece.end(), pattern}, end; it != end; ++it) {
             out.push_back({static_cast<size_t>(it->position(0)) + static_cast<size_t>(it->length(1)), (*it)[2].str()});

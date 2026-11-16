@@ -31,6 +31,8 @@ checks that every page the tree names is bundled and that the links between page
 When a new thing becomes editable (a new file kind, a new Settings table, a new editor), **add its row here and its page in
 the same change**.
 
-**Still to do:** a "Help..." button where each is edited (only the Servers table has one; the others are reached from the
-Help window), and the pages were written from the program's own on-screen text and code: where a page says what a control does,
+**Help buttons (2026-11-16):** every Settings tab has a "Help..." in the corner of the tabs that opens the page about the tab on show
+(`SettingsMain`: Colors, Locations, Toolbar and Home Screen Order, Model Sources, Local Runs, GDAL, Accounts; General, Map and About have no page of
+their own), the Colors editor (`PaletteEditor`) and the Checks picker have one of their own (`HelpViewer::button`), the Servers table already had.
+**Still to do:** the pages were written from the program's own on-screen text and code: where a page says what a control does,
 check it against the screen when that screen next changes.

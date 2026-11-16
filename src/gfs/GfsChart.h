@@ -215,6 +215,9 @@ namespace GfsChart {
     };
     const std::vector<PoolMember>& poolMembers();
     const std::vector<Product>& products();
+    // The person's own charts (`*.chart.json` in the models folder) read again when the folder's files changed since they were last read (or always, with `force`): the registry gets a new generation (the old ones
+    // stay, so a pointer a screen holds stays good) and the problems of the files are made again. True when it was read again. A screen asks the registry again to see the change.
+    bool refreshUserCharts(bool force = false);
     // the group a product is listed under in the picker ("Upper air", "Surface", "Precipitation and moisture", "Storms and severe", ...)
     std::string category(const Product& product);
     const Product * product(const std::string& id, const std::string& source = "GFS");

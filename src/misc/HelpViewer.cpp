@@ -4,6 +4,7 @@
 // *****************************************************************************
 
 #include "misc/HelpViewer.h"
+#include <QPushButton>
 #include <map>
 #include <QDesktopServices>
 #include <QFile>
@@ -217,4 +218,11 @@ void HelpViewer::showTopic(const std::string& topic) {
         page->setHtml(sourcesPage());
         return;
     }
+}
+
+QPushButton * HelpViewer::button(QWidget * parent, const std::string& topic, const QString& tip) {
+    auto * b = new QPushButton{"Help...", parent};
+    b->setToolTip(tip.isEmpty() ? QString{"The page about this in the Help window"} : tip);
+    QObject::connect(b, &QPushButton::clicked, b, [b, topic] { new HelpViewer{b->window(), topic}; });
+    return b;
 }

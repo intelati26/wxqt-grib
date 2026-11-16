@@ -13,6 +13,7 @@
 #include <QFileDialog>
 #include <QHeaderView>
 #include <QHBoxLayout>
+#include "misc/HelpViewer.h"
 #include <QLabel>
 #include <QPainter>
 #include <QPushButton>
@@ -113,6 +114,7 @@ PaletteEditor::PaletteEditor(QWidget * parent, const std::string& title, const G
     QObject::connect(applyButton, &QPushButton::clicked, this, [this] { apply(); });
     auto * closeButton = UiStandards::button(this, "Close");
     QObject::connect(closeButton, &QPushButton::clicked, this, [this] { close(); });
+    row2->addWidget(HelpViewer::button(this, "guide:help-colors", "How the color scales work: stops, banded, import and export"));
     row2->addWidget(applyButton);
     row2->addWidget(closeButton);
     layout->addLayout(row2);
