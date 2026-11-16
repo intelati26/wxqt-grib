@@ -3362,6 +3362,8 @@ MasterMapViewer * MasterMapViewer::openModels(Window * parent, const string& mod
     const bool whole = chosen.model == model && chosen.param == param && chosen.usable();
     Utility::writePref("MM_MODELCHART_OVERLAYS", whole ? ChartSelection::joinList(chosen.overlays) : string{});
     Utility::writePref("MM_MODELCHART_OVERLAYMODELS", whole ? ChartSelection::joinList(chosen.overlayModels) : string{});
+    Utility::writePref("MM_MODELCHART_CROSS", whole ? chosen.crossFill : string{});
+    Utility::writePref("MM_MODELCHART_CROSSFADE", whole && chosen.fadeFill ? "1" : "");
     auto * map = new MasterMapViewer{parent};
     map->onlyLayer("model/chart");
     if (auto * chart = map->modelLayer(); whole && chart != nullptr) {

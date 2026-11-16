@@ -334,7 +334,7 @@ int main(int argc, char * argv[]) {
                 for (int i = 6; i < parts.size(); i++) {   // further parts: "PREF=value" of the chart layer (MM_MODELCHART_MODEL, _PARAM, _OVERLAYS)
                     const auto pair = parts[i].split('=');
                     if (pair.size() == 2) {
-                        Utility::writePref(pair[0].toStdString(), pair[1].toStdString());
+                        Utility::writePref(pair[0].toStdString(), QString{pair[1]}.replace('|', ':').toStdString());   // (a '|' stands for a ':' in a value: MM_MODELCHART_CROSS=SPCPOST|thunder_4hr)
                     }
                 }
                 auto * map = new MasterMapViewer{&w};

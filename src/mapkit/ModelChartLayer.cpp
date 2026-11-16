@@ -58,6 +58,8 @@ ModelChartLayer::ModelChartLayer() {
     opacity = std::clamp(Utility::readPrefInt("MM_MODELCHART_OPACITY", 90), 20, 100);
     overlays = splitList(Utility::readPref("MM_MODELCHART_OVERLAYS", ""));
     overlayModels = splitList(Utility::readPref("MM_MODELCHART_OVERLAYMODELS", ""));
+    crossFill = Utility::readPref("MM_MODELCHART_CROSS", "");
+    fadeFill = Utility::readPref("MM_MODELCHART_CROSSFADE", "") == "1";
     pinnedRun = Utility::readPref("MM_MODELCHART_RUN", "");   // (for the dev routes: the panel does not keep a run)
     maxDay = Utility::readPref("MM_MODELCHART_MAX", "") == "1";
 }
@@ -126,6 +128,8 @@ ChartSelection ModelChartLayer::selection() const {
     s.param = param;
     s.overlays = overlays;
     s.overlayModels = overlayModels;
+    s.crossFill = crossFill;
+    s.fadeFill = fadeFill;
     s.member = member;
     s.sigma = sigma;
     s.changeBack = changeBack;
@@ -142,6 +146,8 @@ void ModelChartLayer::apply(const ChartSelection& chosen, MapHost& host) {
     param = chosen.param;
     overlays = chosen.overlays;
     overlayModels = chosen.overlayModels;
+    crossFill = chosen.crossFill;
+    fadeFill = chosen.fadeFill;
     member = chosen.member;
     sigma = chosen.sigma;
     changeBack = chosen.changeBack;
@@ -150,6 +156,8 @@ void ModelChartLayer::apply(const ChartSelection& chosen, MapHost& host) {
     Utility::writePref("MM_MODELCHART_PARAM", param);
     Utility::writePref("MM_MODELCHART_OVERLAYS", joinList(overlays));
     Utility::writePref("MM_MODELCHART_OVERLAYMODELS", joinList(overlayModels));
+    Utility::writePref("MM_MODELCHART_CROSS", crossFill);
+    Utility::writePref("MM_MODELCHART_CROSSFADE", fadeFill ? "1" : "");
     pinnedRun.clear();
     optionChanged(host);
 }
@@ -530,6 +538,9 @@ string ModelChartLayer::variantKey() const {
     for (const auto& other : overlayModels) {
         key += (key.find("|om=") == string::npos ? "|om=" : ",") + other;
     }
+    if (!crossFill.empty()) {   // (another model's field over this chart: its own picture)
+        key += "|cross=" + crossFill + (fadeFill ? "|fade" : "");
+    }
     return key;
 }
 
@@ -888,7 +899,7 @@ MapHit ModelChartLayer::pick(const QPointF& pixels, MapHost& host) const {
 
 vector<MapLegendRow> ModelChartLayer::legend() const {
     const auto * product = GfsChart::product(param, model);
-    if (product == nullptr || product->linesOnly || changeBack > 0 || sigma || !overlayModels.empty()) {
+    if (product == nullptr || product->linesOnly || changeBack > 0 || sigma || !overlayModels.empty() || !crossFill.empty()) {   // (the legend of the chart's own fill: not when another model's field is over it)
         return {};
     }
     const bool us = UIPreferences::unitsF;
@@ -1002,6 +1013,9 @@ QWidget * ModelChartLayer::controls(QWidget * parent, const std::function<void()
     auto * overlayButton = new QPushButton{widget};
     overlayButton->setToolTip("Lines (heights, pressure) of other models drawn over this chart, for the same valid time, each in its own color (at most four); the fill is left out so the lines can be read");
     layout->addWidget(overlayButton);
+    auto * crossButton = new QPushButton{widget};
+    crossButton->setToolTip("Another model's field (a probability, an ensemble maximum ...) laid over this chart as a translucent fill, for the same valid time");
+    layout->addWidget(crossButton);
     auto * aheadBox = UiStandards::combo(widget);
     aheadBox->addItem("Draw ahead: automatic", "auto");
     aheadBox->addItem("Draw ahead: 12 hours", "12");
@@ -1032,7 +1046,7 @@ QWidget * ModelChartLayer::controls(QWidget * parent, const std::function<void()
     ownWidget(slider);
 
     // what the buttons say and which of the extra boxes the chart has
-    const auto refresh = [this, modelButton, chartButton, overlayButton, changeBox, runBox, memberBox, sigmaBox] {
+    const auto refresh = [this, modelButton, chartButton, overlayButton, crossButton, changeBox, runBox, memberBox, sigmaBox] {
         const auto * product = GfsChart::product(param, model);
         modelButton->setText(QString::fromStdString("Model: " + model + "  \xE2\x96\xBE"));
         chartButton->setText(QString::fromStdString("Chart: " + (product ? product->label : param) + (overlays.empty() ? "" : "  + " + std::to_string(overlays.size()) + " more") + "  \xE2\x96\xBE"));
@@ -1046,6 +1060,8 @@ QWidget * ModelChartLayer::controls(QWidget * parent, const std::function<void()
             }
             overlayModels = kept;
             overlayButton->setVisible(lines);
+            crossButton->setVisible(product != nullptr && !product->linesOnly);
+            crossButton->setText(crossFill.empty() ? "Another model's field..." : QString::fromStdString("Field: " + ChartPickers::crossFillName(crossFill)) + "...");
             overlayButton->setText(overlayModels.empty() ? "Overlay models..." : QString::fromStdString("Overlay: " + std::to_string(overlayModels.size()) + " model" + (overlayModels.size() == 1 ? "" : "s") + "..."));
         }
         changeBox->blockSignals(true);
@@ -1105,6 +1121,8 @@ QWidget * ModelChartLayer::controls(QWidget * parent, const std::function<void()
         }
     });
     const auto save = [this] {
+        Utility::writePref("MM_MODELCHART_CROSS", crossFill);
+        Utility::writePref("MM_MODELCHART_CROSSFADE", fadeFill ? "1" : "");
         Utility::writePref("MM_MODELCHART_MODEL", model);
         Utility::writePref("MM_MODELCHART_PARAM", param);
         Utility::writePref("MM_MODELCHART_OVERLAYS", joinList(overlays));
@@ -1129,6 +1147,8 @@ QWidget * ModelChartLayer::controls(QWidget * parent, const std::function<void()
             model = id;
             overlays.clear();
             overlayModels.clear();
+            crossFill.clear();
+            fadeFill = false;
             member.clear();
             sigma = false;
             changeBack = 0;
@@ -1204,6 +1224,18 @@ QWidget * ModelChartLayer::controls(QWidget * parent, const std::function<void()
             changed();
         };
         builder->show();
+    });
+    QObject::connect(crossButton, &QPushButton::clicked, [this, widget, refresh, save, changed] {
+        auto chosen = crossFill;
+        bool fade = crossFill.empty() ? true : fadeFill;   // (the first time: faded, which is how a probability reads over a heavy fill)
+        if (!ChartPickers::chooseCrossFill(widget->window(), model, chosen, fade) || (chosen == crossFill && fade == fadeFill)) {
+            return;
+        }
+        crossFill = chosen;
+        fadeFill = fade;
+        save();
+        refresh();
+        changed();
     });
     QObject::connect(overlayButton, &QPushButton::clicked, [this, widget, refresh, changed] {
         auto chosen = overlayModels;

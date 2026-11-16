@@ -112,6 +112,8 @@ private:
     GfsRender::Variant variantNow(int hour) const;
     string model{"GFS"};
     string param{"500_wnd_ht"};
+    string crossFill;                          // another model's chart laid over this one as a translucent fill, "model:chart id" (section 10 of the plan); "" none
+    bool fadeFill{false};                      // with a cross fill: this chart's own fill pale so the other reads
     std::vector<string> overlayModels;         // other models whose lines (heights, pressure) are drawn over this one's, for the same valid time
     std::vector<string> overlays;              // lines and barbs ticked onto the chart (ProductPicker)
     string member;                             // one ensemble member instead of the mean
