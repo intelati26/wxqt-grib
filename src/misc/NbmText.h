@@ -59,6 +59,10 @@ namespace NbmText {
         std::map<std::string, qint64> cycles;   // "NBS" -> the run of the file read
         qint64 gridUpdated{0};
     };
+    // The probabilistic bulletin (NBP) of a place's nearest station that has one: 12 hourly columns, 24 to 264 hours. Codes are five characters: TXNMN (the mean of the highs, at 00 UTC, and the lows, at 12 UTC),
+    // TXNSD (their standard deviation), TXNP1 P2 P5 P7 P9 (the 10th, 25th, 50th, 75th and 90th percentiles, deg F), WSPP1.. (the wind speed, knots), W24P1.. and G24P1.. (the 24 hour highest wind and gust,
+    // knots) and Q24P1.. (the 24 hour precipitation, hundredths of an inch), SLPP1.. (the pressure). Blocking; `error` says why when the block is empty.
+    Block fetchProbabilistic(double lat, double lon, std::string& station, std::string& name, std::string& error);
     std::vector<Column> merge(const std::vector<Column>& api, const std::vector<Column>& nbs, const std::vector<Column>& nbe, const std::vector<Column>& nbx, qint64 fromEpoch);
     std::vector<Column> gapColumns(const UtilityForecastPoint::Data& grid, qint64 from, qint64 to);   // the NWS grid every 3 hours (UTC multiples of 3) in the bulletin's codes and units
     Table fetch(const UtilityForecastPoint::Data& grid);   // (blocking: from a worker thread)

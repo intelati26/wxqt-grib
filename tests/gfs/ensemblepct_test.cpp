@@ -7,6 +7,7 @@
 #include <cmath>
 #include <cstdio>
 #include "cfs/EnsemblePercentiles.h"
+#include "misc/NbmText.h"
 
 namespace E = EnsemblePercentiles;
 static int failures = 0;
@@ -63,6 +64,27 @@ int main() {
     CHECK(!E::parse("not json", "temperature_2m", t, why) && !E::parse(R"({"hourly":{"time":[]}})", "temperature_2m", t, why));
     CHECK(E::url(39.1, -94.6, "gfs025", {"temperature_2m", "precipitation"}) == "https://ensemble-api.open-meteo.com/v1/ensemble?latitude=39.100&longitude=-94.600&hourly=temperature_2m,precipitation&models=gfs025&forecast_days=16&timeformat=unixtime");
     CHECK(E::models().size() >= 4 && E::models().front().id == "gfs025");
+    // the NWS blend's probabilistic bulletin (NBP): five character codes, 12 hourly columns split by bars, values by position under the FHR line
+    const std::string nbp =
+        " KMCI    NBM  NBP GUIDANCE    11/15/2026  1200 UTC\n"
+        "    MON 16| TUE 17| WED 18| THU 19| FRI 20| SAT 21| SUN 22| MON 23| TUE 24| \n"
+        " UTC    12| 00  12| 00  12| 00  12| 00  12| 00  12| 00  12| 00  12| 00  12| 00 \n"
+        " FHR    24| 36  48| 60  72| 84  96|108 120|132 144|156 168|180 192|204 216|228\n"
+        " TXNMN  36| 58  40| 60  46| 64  51| 65  53| 69  55| 65  42| 54  36| 51  36| 51\n"
+        " TXNP1  33| 56  37| 58  43| 61  48| 61  48| 65  52| 61  34| 45  25| 40  25| 40\n"
+        " TXNP5  36| 58  39| 61  45| 64  52| 66  54| 69  56| 65  41| 54  35| 50  35| 50\n"
+        " TXNP9  38| 61  42| 63  48| 66  55| 70  56| 73  60| 70  52| 62  47| 62  47| 62\n"
+        " Q24P1    |      0|      0|      0|      0|      0|      0|      0|      0|   \n"
+        " Q24P9    |      0|      0|     16|      7|     63|    128|      4|     40|   \n"
+        " SLPP1 032|029 029|024 022|018 020|021 019|013 008|007 012|015 017|017 019|018\n"
+        "                                                                          \n"
+        " KMCJ    NBM  NBP GUIDANCE    11/15/2026  1200 UTC\n";
+    const auto block = NbmText::parse(nbp);
+    CHECK(block.kind == "NBP" && block.station == "KMCI" && block.columns.size() == 18);
+    CHECK(block.columns[0].time == block.cycle + 24 * 3600 && block.columns[1].time == block.cycle + 36 * 3600 && block.columns[17].time == block.cycle + 228 * 3600);
+    CHECK(block.columns[0].get("TXNP1") == 33 && block.columns[1].get("TXNP9") == 61 && block.columns[17].get("TXNMN") == 51 && block.columns[16].get("TXNP5") == 35);
+    CHECK(!block.columns[0].has("Q24P1") && !block.columns[1].has("Q24P1") && block.columns[2].get("Q24P1") == 0 && block.columns[6].get("Q24P9") == 16 && block.columns[12].get("Q24P9") == 128 && block.columns[16].get("Q24P9") == 40);   // (the 24 hour precipitation ends at 12 UTC: its values are under the 12 UTC columns, hundredths of an inch)
+    CHECK(block.columns[0].get("SLPP1") == 32 && block.columns[1].get("SLPP1") == 29);
     std::printf(failures == 0 ? "all ensemble percentile tests passed\n" : "%d failures\n", failures);
     return failures == 0 ? 0 : 1;
 }

@@ -197,8 +197,9 @@ namespace NbmText {
             if (line.size() < 5) {
                 continue;
             }
-            const auto code = trim(line.substr(0, 4));
-            if (code.size() != 3 || !std::all_of(code.begin(), code.end(), [] (unsigned char ch) { return std::isupper(ch) || std::isdigit(ch); })) {
+            const bool percentiles = block.kind == "NBP";   // its codes are five characters (TXNP5, Q24P9): the name field is wider
+            const auto code = trim(line.substr(0, percentiles ? 6 : 4));
+            if (code.size() != (percentiles ? 5u : 3u) || !std::all_of(code.begin(), code.end(), [] (unsigned char ch) { return std::isupper(ch) || std::isdigit(ch); })) {
                 continue;
             }
             for (size_t c = 0; c < where.size(); c++) {
@@ -347,6 +348,40 @@ namespace NbmText {
         std::string truncated(double v) {
             return QString::number(std::trunc(v * 10000.0) / 10000.0, 'f', 4).toStdString();
         }
+    }
+
+    Block fetchProbabilistic(double lat, double lon, std::string& station, std::string& name, std::string& error) {
+        const qint64 now = QDateTime::currentSecsSinceEpoch();
+        const auto point = QJsonDocument::fromJson(QByteArray::fromStdString(UtilityIO::getHtml("https://api.weather.gov/points/" + truncated(lat) + "," + truncated(lon)))).object().value("properties").toObject();
+        const auto stationsUrl = point.value("observationStations").toString().toStdString();
+        if (stationsUrl.empty()) {
+            error = "The NWS has no observing stations for this point (the blend's bulletins are for places in the United States).";
+            return {};
+        }
+        File file;
+        if (!newestFile("nbptx", now, file)) {
+            error = "No National Blend of Models probabilistic bulletin was found in the last 12 hours.";
+            return {};
+        }
+        const auto range = [] (const std::string& url, long long a, long long b) { return URL::getBytesRangeManaged(url, a, b); };
+        int tried = 0;
+        for (const auto& f : QJsonDocument::fromJson(QByteArray::fromStdString(UtilityIO::getHtml(stationsUrl))).object().value("features").toArray()) {
+            const auto p = f.toObject().value("properties").toObject();
+            const auto id = p.value("stationIdentifier").toString().toStdString();
+            if (++tried > 6) {
+                break;
+            }
+            if (const auto text = findBlock(file, id, range); !text.empty()) {
+                auto block = parse(text);
+                if (!block.columns.empty()) {
+                    station = id;
+                    name = p.value("name").toString().toStdString();
+                    return block;
+                }
+            }
+        }
+        error = "None of the nearest observing stations is in the National Blend of Models probabilistic bulletin.";
+        return {};
     }
 
     Table fetch(const UtilityForecastPoint::Data& grid) {

@@ -1319,7 +1319,7 @@ int main(int argc, char * argv[]) {
                     int waited = 0;
                     QObject::connect(timer, &QTimer::timeout, viewer, [viewer, out, timer, waited]() mutable {
                         const auto text = viewer->statusText();
-                        if ((text.contains("members, hours") || text.contains("could not")) || ++waited > 60) {
+                        if ((!text.isEmpty() && !text.startsWith("reading")) || ++waited > 60) {
                             viewer->picture().save(out);
                             fprintf(stderr, "ensemblepct: %s\n", qPrintable(text));
                             timer->stop();

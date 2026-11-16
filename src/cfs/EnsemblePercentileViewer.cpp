@@ -19,6 +19,7 @@
 #include "ui/FlowBox.h"
 #include "ui/UiStandards.h"
 #include "util/DisplayUnits.h"
+#include "misc/NbmText.h"
 
 namespace {
     using E = EnsemblePercentiles::Fan;
@@ -34,12 +35,23 @@ public:
         setMouseTracking(true);
         ChartExport::install(this, "Ensemble percentiles");
     }
+    // The National Blend of Models' own percentiles for the nearest station (its probabilistic text bulletin): boxes at the 12 hourly times, not members
+    void setBlend(const QString& title, const NbmText::Block& block) {
+        blendMode = true;
+        blend = block;
+        titleText = title;
+        have = !block.columns.empty();
+        hover = -1;
+        update();
+    }
     void clear(const QString& text) {
+        blendMode = false;
         have = false;
         message = text;
         update();
     }
     void set(const QString& title, const EnsemblePercentiles::Series& temperature, const EnsemblePercentiles::Series& precipitation) {
+        blendMode = false;
         titleText = title;
         members = static_cast<int>(temperature.members.size());
         tempFan = EnsemblePercentiles::fan(temperature);
@@ -53,6 +65,21 @@ public:
 
 protected:
     void mouseMoveEvent(QMouseEvent * event) override {
+        if (have && blendMode && plotWidth > 0 && !blend.columns.empty()) {
+            const double t = t0 + (event->position().x() - left) / plotWidth * (t1 - t0);
+            int best = -1;
+            double nearest = 1e18;
+            for (size_t i = 0; i < blend.columns.size(); i++) {
+                const double d = std::fabs(static_cast<double>(blend.columns[i].time) - t);
+                if (d < nearest) {
+                    nearest = d;
+                    best = static_cast<int>(i);
+                }
+            }
+            hover = event->position().x() >= left && event->position().x() <= left + plotWidth ? best : -1;
+            update();
+            return;
+        }
         if (have && plotWidth > 0 && !tempFan.times.empty()) {
             const double t = t0 + (event->position().x() - left) / plotWidth * (t1 - t0);
             int best = -1;
@@ -81,6 +108,10 @@ protected:
         const QFont base = p.font();
         if (!have) {
             p.drawText(rect(), Qt::AlignCenter, message.isEmpty() ? "Choose a place and a model, then Load." : message);
+            return;
+        }
+        if (blendMode) {
+            paintBlend(p);
             return;
         }
         QFont bold = base;
@@ -116,6 +147,175 @@ protected:
     }
 
 private:
+    // Boxes: for each time with the code's values, the 10 to 90 percent whisker, the 25 to 75 percent box, the median. `scale` turns the bulletin's number into the displayed one.
+    struct BoxRow {
+        std::string p10, p25, p50, p75, p90, mean;
+        QColor color;
+        int onlyHour{-1};   // -1 every column, else the UTC hour of the columns that count (00: the highs, 12: the lows)
+    };
+    template <typename Scale>
+    void boxPanel(QPainter& p, const QRectF& box, const QString& title, const std::vector<BoxRow>& rows, const Scale& scale, double lowest, bool fromZero) {
+        double lo = 1e18, hi = -1e18;
+        for (const auto& row : rows) {
+            for (const auto& c : blend.columns) {
+                if (row.onlyHour >= 0 && QDateTime::fromSecsSinceEpoch(c.time, QTimeZone::utc()).time().hour() != row.onlyHour) {
+                    continue;
+                }
+                for (const auto& code : {row.p10, row.p90}) {
+                    if (c.has(code)) {
+                        lo = std::min(lo, scale(c.get(code)));
+                        hi = std::max(hi, scale(c.get(code)));
+                    }
+                }
+            }
+        }
+        p.setPen(QPen{QColor{150, 150, 150}, 1.0});
+        p.drawRect(box);
+        p.setPen(Qt::black);
+        p.drawText(QRectF{box.left(), box.top() - 18, box.width(), 16}, Qt::AlignLeft | Qt::AlignVCenter, title);
+        if (lo > hi) {
+            p.drawText(box, Qt::AlignCenter, "no values");
+            return;
+        }
+        if (fromZero) {
+            lo = 0.0;
+        } else {
+            lo = std::min(lo, lowest);
+        }
+        const double rough = std::max(hi - lo, 1e-6) / 5.0, mag = std::pow(10.0, std::floor(std::log10(rough)));
+        double step = mag;
+        for (const double m : {1.0, 2.0, 2.5, 5.0, 10.0}) {
+            if (mag * m >= rough) {
+                step = mag * m;
+                break;
+            }
+        }
+        const double axisLow = fromZero ? 0.0 : std::floor(lo / step) * step, axisHigh = std::max(std::ceil(hi / step) * step, axisLow + step);
+        const auto yOf = [&] (double v) { return box.bottom() - (v - axisLow) / (axisHigh - axisLow) * box.height(); };
+        p.save();
+        p.setClipRect(box);
+        dayLines(p, box, false);
+        p.restore();
+        for (double v = axisLow; v <= axisHigh + step * 0.01; v += step) {
+            const double y = yOf(v);
+            p.setPen(QPen{QColor{230, 230, 230}, 1.0});
+            p.drawLine(QPointF{box.left(), y}, QPointF{box.right(), y});
+            p.setPen(Qt::black);
+            p.drawText(QRectF{box.left() - 58, y - 8, 52, 16}, Qt::AlignRight | Qt::AlignVCenter, QString::number(v, 'f', step < 1.0 ? 2 : (std::fabs(step - std::round(step)) > 1e-6 ? 1 : 0)));
+        }
+        const double halfBox = std::max(2.0, (xOf(t0 + 12 * 3600) - xOf(t0)) * 0.22);
+        for (const auto& row : rows) {
+            for (const auto& c : blend.columns) {
+                if (row.onlyHour >= 0 && QDateTime::fromSecsSinceEpoch(c.time, QTimeZone::utc()).time().hour() != row.onlyHour) {
+                    continue;
+                }
+                if (!c.has(row.p10) || !c.has(row.p90)) {
+                    continue;
+                }
+                const double x = xOf(static_cast<double>(c.time));
+                p.setPen(QPen{row.color, 1.4});
+                p.drawLine(QPointF{x, yOf(scale(c.get(row.p10)))}, QPointF{x, yOf(scale(c.get(row.p90)))});
+                p.drawLine(QPointF{x - halfBox * 0.5, yOf(scale(c.get(row.p10)))}, QPointF{x + halfBox * 0.5, yOf(scale(c.get(row.p10)))});
+                p.drawLine(QPointF{x - halfBox * 0.5, yOf(scale(c.get(row.p90)))}, QPointF{x + halfBox * 0.5, yOf(scale(c.get(row.p90)))});
+                if (c.has(row.p25) && c.has(row.p75)) {
+                    QColor fill = row.color;
+                    fill.setAlpha(120);
+                    p.setBrush(fill);
+                    p.setPen(QPen{row.color, 1.0});
+                    const double y1 = yOf(scale(c.get(row.p75))), y2 = yOf(scale(c.get(row.p25)));
+                    p.drawRect(QRectF{x - halfBox, y1, 2 * halfBox, std::max(1.0, y2 - y1)});
+                }
+                if (c.has(row.p50)) {
+                    p.setPen(QPen{row.color.darker(160), 2.6});
+                    const double y = yOf(scale(c.get(row.p50)));
+                    p.drawLine(QPointF{x - halfBox, y}, QPointF{x + halfBox, y});
+                }
+                p.setBrush(Qt::NoBrush);
+            }
+        }
+    }
+
+    void paintBlend(QPainter& p) {
+        const QFont base = p.font();
+        QFont bold = base;
+        bold.setBold(true);
+        p.setFont(bold);
+        p.drawText(QRectF{10, 4, width() - 20.0, 22}, Qt::AlignLeft | Qt::AlignVCenter, titleText);
+        p.setFont(base);
+        left = 62;
+        const double right = 34, top = 72, gap = 40, bottom = 44;
+        plotWidth = width() - left - right;
+        const double room = height() - top - bottom - 2 * gap;
+        const QRectF tempBox{left, top, plotWidth, room * 0.42}, rainBox{left, tempBox.bottom() + gap, plotWidth, room * 0.30}, gustBox{left, rainBox.bottom() + gap, plotWidth, room * 0.28};
+        t0 = static_cast<double>(blend.columns.front().time) - 6 * 3600;
+        t1 = static_cast<double>(blend.columns.back().time) + 6 * 3600;
+        const QColor high{200, 70, 40}, lowColor{40, 100, 200}, plain{60, 60, 60};
+        const auto degrees = [] (int v) { return static_cast<double>(DisplayUnits::value(static_cast<double>(v), "deg F")); };
+        boxPanel(p, tempBox, QString::fromStdString("Highest (00 UTC) and lowest (12 UTC) temperature (" + DisplayUnits::label("deg F") + ")"),
+                 {{"TXNP1", "TXNP2", "TXNP5", "TXNP7", "TXNP9", "TXNMN", high, 0}, {"TXNP1", "TXNP2", "TXNP5", "TXNP7", "TXNP9", "TXNMN", lowColor, 12}}, degrees, 1e18, false);
+        const auto inches = [] (int v) { return static_cast<double>(DisplayUnits::value(static_cast<double>(v) / 100.0 * 25.4, "mm")); };
+        boxPanel(p, rainBox, QString::fromStdString("Precipitation in the 24 hours ending at 12 UTC (" + DisplayUnits::label("mm") + ")"),
+                 {{"Q24P1", "Q24P2", "Q24P5", "Q24P7", "Q24P9", "", plain, -1}}, inches, 0.0, true);
+        const auto knots = [] (int v) { return static_cast<double>(v); };
+        boxPanel(p, gustBox, "Highest gust in the 24 hours ending at 00 UTC (knots)", {{"G24P1", "G24P2", "G24P5", "G24P7", "G24P9", "", plain, -1}}, knots, 0.0, true);
+        p.setPen(Qt::black);
+        const QStringList names{"10 to 90 percent", "25 to 75 percent", "median"};
+        // the key, on a line of its own under the title
+        double x = 14;
+        p.drawText(QPointF{x, 42}, "whisker: 10 to 90 percent, box: 25 to 75 percent, bar: median, red: highs, blue: lows");
+        // the day names under the last panel
+        QDateTime day = QDateTime::fromSecsSinceEpoch(static_cast<qint64>(t0), QTimeZone::utc());
+        day.setTime(QTime{0, 0});
+        if (day.toSecsSinceEpoch() < static_cast<qint64>(t0)) {
+            day = day.addDays(1);
+        }
+        p.setPen(Qt::black);
+        for (int n = 0; day.toSecsSinceEpoch() <= static_cast<qint64>(t1); day = day.addDays(1), n++) {
+            p.drawText(QRectF{xOf(static_cast<double>(day.toSecsSinceEpoch())) - 30, gustBox.bottom() + 2, 60, 14}, Qt::AlignCenter, day.toString("ddd d"));
+        }
+        p.drawText(QRectF{left, gustBox.bottom() + 20, plotWidth, 16}, Qt::AlignRight | Qt::AlignVCenter, "times are UTC (day lines at 00 UTC)");
+        if (hover >= 0 && hover < static_cast<int>(blend.columns.size())) {
+            const auto& c = blend.columns[static_cast<size_t>(hover)];
+            const double hx = xOf(static_cast<double>(c.time));
+            p.setPen(QPen{QColor{90, 90, 90}, 1.0});
+            p.drawLine(QPointF{hx, tempBox.top()}, QPointF{hx, gustBox.bottom()});
+            QStringList lines;
+            lines << QDateTime::fromSecsSinceEpoch(c.time, QTimeZone::utc()).toString("ddd d MMM HH:mm 'UTC'");
+            const auto row = [&] (const QString& name, const char * a, const char * b, const char * mid, const char * d, const char * e, const auto& scale, int digits) {
+                if (!c.has(mid)) {
+                    return;
+                }
+                lines << QString{"%1: %2 | %3 | %4 | %5 | %6  (10, 25, 50, 75, 90 percent)"}.arg(name).arg(scale(c.get(a)), 0, 'f', digits).arg(scale(c.get(b)), 0, 'f', digits)
+                             .arg(scale(c.get(mid)), 0, 'f', digits).arg(scale(c.get(d)), 0, 'f', digits).arg(scale(c.get(e)), 0, 'f', digits);
+            };
+            row("Temperature", "TXNP1", "TXNP2", "TXNP5", "TXNP7", "TXNP9", degrees, 0);
+            row("24 h precipitation (to 12 UTC)", "Q24P1", "Q24P2", "Q24P5", "Q24P7", "Q24P9", inches, 2);
+            row("24 h highest gust (knots)", "G24P1", "G24P2", "G24P5", "G24P7", "G24P9", knots, 0);
+            if (c.has("TXNSD")) {
+                lines << QString{"standard deviation of the temperature: %1"}.arg(c.get("TXNSD"));
+            }
+            QFontMetricsF fm{p.font()};
+            double w = 0;
+            for (const auto& l : lines) {
+                w = std::max(w, fm.horizontalAdvance(l));
+            }
+            double bx = hx + 10;
+            if (bx + w + 12 > width()) {
+                bx = hx - w - 22;
+            }
+            const QRectF bubble{bx, rainBox.top() - 6, w + 12, lines.size() * (fm.height() + 1) + 8};
+            p.setBrush(QColor{255, 255, 235, 235});
+            p.setPen(QPen{QColor{120, 120, 120}, 1.0});
+            p.drawRect(bubble);
+            p.setPen(Qt::black);
+            double y = bubble.top() + 4 + fm.ascent();
+            for (const auto& l : lines) {
+                p.drawText(QPointF{bubble.left() + 6, y}, l);
+                y += fm.height() + 1;
+            }
+        }
+    }
+
     double xOf(double t) const { return left + (t - t0) / std::max(1.0, t1 - t0) * plotWidth; }
 
     void dayLines(QPainter& p, const QRectF& box, bool labels) const {
@@ -354,7 +554,8 @@ private:
         }
     }
 
-    bool have{false};
+    bool have{false}, blendMode{false};
+    NbmText::Block blend;
     QString message, titleText;
     int members{0};
     E tempFan, rainFan;
@@ -385,6 +586,7 @@ EnsemblePercentileViewer::EnsemblePercentileViewer(Window * parent, double lat, 
     lonBox->setDecimals(2);
     lonBox->setValue(lon);
     model = UiStandards::combo(body);
+    model->addItem("NWS National Blend of Models (text bulletin, US stations)", "nbm");
     for (const auto& m : EnsemblePercentiles::models()) {
         model->addItem(QString::fromStdString(m.label), QString::fromStdString(m.id));
     }
@@ -427,6 +629,28 @@ void EnsemblePercentileViewer::load() {
     go->setEnabled(false);
     status->setText("reading the members...");
     QPointer<EnsemblePercentileViewer> self{this};
+    if (id == "nbm") {   // the NWS's own percentiles, from its text bulletin of the nearest station: no member of an ensemble, the blend's distribution
+        std::thread{[self, mine, lat, lon, label] {
+            std::string station, name, error;
+            const auto block = NbmText::fetchProbabilistic(lat, lon, station, name, error);
+            QMetaObject::invokeMethod(QCoreApplication::instance(), [self, mine, block, station, name, error, label] {
+                if (!self || self->generation != mine) {
+                    return;
+                }
+                self->loading = false;
+                self->go->setEnabled(true);
+                if (block.columns.empty()) {
+                    self->status->setText("could not read the blend: " + QString::fromStdString(error));
+                    self->chart->clear("No blend: " + QString::fromStdString(error));
+                    return;
+                }
+                const auto cycle = QDateTime::fromSecsSinceEpoch(block.cycle, QTimeZone::utc());
+                self->status->setText(QString{"%1 (%2), probabilistic bulletin of %3 UTC (NWS National Blend of Models)"}.arg(QString::fromStdString(station), QString::fromStdString(name), cycle.toString("ddd d MMM HH:mm")));
+                self->chart->setBlend(QString{"NBM percentiles at %1, %2"}.arg(QString::fromStdString(station), QString::fromStdString(name)), block);
+            }, Qt::QueuedConnection);
+        }}.detach();
+        return;
+    }
     std::thread{[self, mine, lat, lon, id, label] {
         EnsemblePercentiles::Series t, r;
         std::string why;
