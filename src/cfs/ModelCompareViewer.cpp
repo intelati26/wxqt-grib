@@ -9,6 +9,7 @@
 #include <future>
 #include <thread>
 #include <QApplication>
+#include <QCoreApplication>
 #include <QDateTime>
 #include <QMouseEvent>
 #include <QPainter>
@@ -447,7 +448,7 @@ private:
         double low{0}, high{1};
     };
     double xOf(double t) const { return left + (t - t0) / std::max(1.0, t1 - t0) * plotWidth; }
-    QTimeZone zone() const { return QTimeZone::fromSecondsAheadOfUtc(data.utcOffset); }
+    QTimeZone zone() const { return QTimeZone(data.utcOffset); }
 
     void choose(double x, bool click) {
         if (!have || plotWidth <= 0 || data.times.empty() || (!click && !(QApplication::mouseButtons() & Qt::LeftButton))) {
@@ -709,7 +710,7 @@ void ModelCompareViewer::load() {
                 self->chart->clear("No comparison: " + why);
                 return;
             }
-            const auto first = QDateTime::fromSecsSinceEpoch(static_cast<qint64>(compared.times.front()), QTimeZone::fromSecondsAheadOfUtc(compared.utcOffset));
+            const auto first = QDateTime::fromSecsSinceEpoch(static_cast<qint64>(compared.times.front()), QTimeZone(compared.utcOffset));
             self->status->setText(QString{"%1 hours in common, from %2 local time (members by Open-Meteo)"}.arg(compared.times.size()).arg(first.toString("ddd d MMM HH:mm")));
             self->placeOffset = compared.utcOffset;
             self->chart->setMembers(linesA, linesB);
@@ -844,7 +845,7 @@ void ModelCompareViewer::allModels() {
                 self->status->setText("no ensemble has this time");
                 return;
             }
-            const auto when = QDateTime::fromSecsSinceEpoch(static_cast<qint64>(t), QTimeZone::fromSecondsAheadOfUtc(offset)).toString("ddd d MMM HH:mm") + " local";
+            const auto when = QDateTime::fromSecsSinceEpoch(static_cast<qint64>(t), QTimeZone(offset)).toString("ddd d MMM HH:mm") + " local";
             auto * window = new Window{self.data()};
             window->setAttribute(Qt::WA_DeleteOnClose);
             window->setTitle("Ensembles at one time");

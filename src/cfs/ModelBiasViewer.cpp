@@ -7,6 +7,7 @@
 #include <algorithm>
 #include <cmath>
 #include <thread>
+#include <QCoreApplication>
 #include <QDateTime>
 #include <QMouseEvent>
 #include <QPainter>
@@ -194,7 +195,7 @@ protected:
         const auto x2 = [&] (double t) { return lower.left() + (t - t0) / std::max(1.0, t1 - t0) * lower.width(); };
         p.setPen(QPen{QColor{90, 90, 90}, 1.0});
         p.drawLine(QPointF{lower.left(), y2(0)}, QPointF{lower.right(), y2(0)});
-        const auto zone = QTimeZone::fromSecondsAheadOfUtc(result.utcOffset);
+        const auto zone = QTimeZone(result.utcOffset);
         const int every = std::max(1, static_cast<int>(std::ceil((t1 - t0) / 86400.0 / 10.0)));
         int n = 0;
         for (double t = t0; t < t1; t += 86400.0, n++) {
@@ -288,7 +289,7 @@ private:
         const auto y2 = [&] (double v) { return lower.bottom() - (v - a2.low) / (a2.high - a2.low) * lower.height(); };
         const auto x2 = [&] (double t) { return lower.left() + (t - t0) / std::max(1.0, t1 - t0) * lower.width(); };
         const double dayWidth = x2(t0 + 86400.0) - x2(t0), half = std::max(2.0, dayWidth * 0.18);
-        const auto zone = QTimeZone::fromSecondsAheadOfUtc(result.utcOffset);
+        const auto zone = QTimeZone(result.utcOffset);
         const int every = std::max(1, static_cast<int>(std::ceil((t1 - t0) / 86400.0 / 10.0)));
         int n = 0;
         for (double t = t0; t < t1; t += 86400.0, n++) {
@@ -543,7 +544,7 @@ void ModelBiasViewer::load() {
                 result.happened = ModelBias::dailyOf(truth.times, truth.utcOffset, truth.values, aggregate);
             } else {
                 for (const auto& [date, value] : stationDays) {   // the station's days, put at the place's midnight of that date
-                    const auto midnight = QDateTime{QDate::fromString(QString::fromStdString(date), "yyyy-MM-dd"), QTime{0, 0}, QTimeZone::fromSecondsAheadOfUtc(forecasts.utcOffset)};
+                    const auto midnight = QDateTime{QDate::fromString(QString::fromStdString(date), "yyyy-MM-dd"), QTime{0, 0}, QTimeZone(forecasts.utcOffset)};
                     result.happened[static_cast<double>(midnight.toSecsSinceEpoch())] = value;
                 }
             }

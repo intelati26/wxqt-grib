@@ -7,6 +7,7 @@
 #include <algorithm>
 #include <cmath>
 #include <thread>
+#include <QCoreApplication>
 #include <QDateTime>
 #include <QImage>
 #include <QJsonArray>
@@ -340,11 +341,11 @@ private:
         }
     }
 
-    QTimeZone zoneOf() const { return QTimeZone::fromSecondsAheadOfUtc(blendMode ? 0 : tempFan.utcOffset); }
+    QTimeZone zoneOf() const { return QTimeZone(blendMode ? 0 : tempFan.utcOffset); }
     double xOf(double t) const { return left + (t - t0) / std::max(1.0, t1 - t0) * plotWidth; }
 
     void dayLines(QPainter& p, const QRectF& box, bool labels) const {
-        QDateTime day = QDateTime::fromSecsSinceEpoch(static_cast<qint64>(t0), QTimeZone::fromSecondsAheadOfUtc(blendMode ? 0 : tempFan.utcOffset));
+        QDateTime day = QDateTime::fromSecsSinceEpoch(static_cast<qint64>(t0), QTimeZone(blendMode ? 0 : tempFan.utcOffset));
         day.setTime(QTime{0, 0});
         if (day.toSecsSinceEpoch() < static_cast<qint64>(t0)) {
             day = day.addDays(1);

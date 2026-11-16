@@ -303,7 +303,7 @@ ModelBias::Stat ModelBias::evaluateDaily(const std::vector<double>& times, int u
         d.sum += static_cast<double>(forecast[i]);
         d.hours++;
     }
-    const auto zone = QTimeZone::fromSecondsAheadOfUtc(utcOffset);
+    const auto zone = QTimeZone(utcOffset);
     double errSum = 0.0, absSum = 0.0;
     for (const auto& [day, d] : days) {
         if (judge == Judge::StationRain ? d.hours != 24 : d.hours < 20) {
