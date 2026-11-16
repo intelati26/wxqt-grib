@@ -16,6 +16,7 @@
 #include "cfs/CfsArchiveIndex.h"
 #include "cfs/CfsPlumeViewer.h"
 #include "cfs/EnsemblePercentileViewer.h"
+#include "cfs/ModelCompareViewer.h"
 #include "cfs/UtilityCfs.h"
 #include "gfs/GfsClimate.h"
 #include "hurricane/ReconViewer.h"
@@ -1004,6 +1005,9 @@ int main(int argc, char * argv[]) {
                     variant.crossChart = cross.section(':', 1).toStdString();
                     variant.fadeFill = qEnvironmentVariableIsSet("WXQT_CROSS_FADE");   // WXQT_CROSS_FADE=1: the chart's own fill pale
                 }
+                for (const auto& id : qEnvironmentVariable("WXQT_VERSUS").split(',', Qt::SkipEmptyParts)) {   // WXQT_VERSUS=<model,model>: those models' lines drawn over this one's (the Overlay models... of the screen)
+                    variant.overlayModels.push_back(id.toStdString());
+                }
                 GfsChart::Probe probe;
                 const auto bytes = GfsRender::png(session, parts.value(1).toStdString(), parts.value(2).toStdString(), parts.value(4).toStdString(), parts.value(6).toStdString(), parts.value(3).toInt(), ticked, error, &probe, variant);
                 if (parts.value(2) == "nice_weather" && probe.valid()) {   // the area at each level, as the nice weather page counts it
@@ -1308,6 +1312,37 @@ int main(int argc, char * argv[]) {
                 auto * plume = new CfsPlumeViewer{&w, 39.1, -94.6, parts.value(1, "gefs")};
                 if (parts.size() > 2) {
                     plume->choose(parts.value(1), parts.value(2, "4").toInt(), parts.value(3, "6").toInt(), parts.value(4, "0").toInt());
+                }
+            } else if (route.startsWith("modelcompare")) {   // WXQT_OPEN=modelcompare[:<lat>:<lon>:<model A>:<model B>:<temperature|precipitation>:<out.png>[:why]]: two ensembles compared at a place, saved as a picture a few seconds after it opens (`why` also opens the maps), then quits
+                const auto parts = route.split(':');
+                auto * viewer = new ModelCompareViewer{&w, parts.value(1, "39.1").toDouble(), parts.value(2, "-94.6").toDouble(), parts.value(3, "ecmwf_ifs025").toStdString(), parts.value(4, "gfs025").toStdString(), parts.value(5, "temperature").toStdString()};
+                const auto out = parts.value(6);
+                if (!out.isEmpty()) {
+                    auto * timer = new QTimer{viewer};
+                    timer->setInterval(500);
+                    int waited = 0;
+                    const bool opensMaps = parts.value(7) == "why";
+                    QObject::connect(timer, &QTimer::timeout, viewer, [viewer, out, timer, waited, opensMaps]() mutable {
+                        const auto text = viewer->statusText();
+                        if ((!text.isEmpty() && !text.startsWith("reading")) || ++waited > 60) {
+                            viewer->picture().save(out);
+                            fprintf(stderr, "modelcompare: %s\n", qPrintable(text));
+                            timer->stop();
+                            if (opensMaps) {
+                                auto * maps = viewer->why();
+                                fprintf(stderr, "modelcompare: %s\n", qPrintable(viewer->statusText()));
+                                QTimer::singleShot(70000, qApp, [maps, out] {
+                                    if (maps != nullptr) {
+                                        maps->grab().save(out + ".map.png");
+                                    }
+                                    QCoreApplication::quit();
+                                });
+                            } else {
+                                QTimer::singleShot(200, qApp, &QCoreApplication::quit);
+                            }
+                        }
+                    });
+                    timer->start();
                 }
             } else if (route.startsWith("ensemblepct")) {   // WXQT_OPEN=ensemblepct[:<lat>:<lon>:<model id>:<out.png>]: the ensemble percentiles window (saved as a picture a few seconds after it opens, then quits)
                 const auto parts = route.split(':');

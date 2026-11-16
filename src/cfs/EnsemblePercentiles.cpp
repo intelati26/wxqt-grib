@@ -228,3 +228,63 @@ bool EnsemblePercentiles::fetch(double lat, double lon, const std::string& model
     precipitation = std::move(p);
     return true;
 }
+
+EnsemblePercentiles::Compare EnsemblePercentiles::compare(const Fan& a, const Fan& b) {
+    Compare out;
+    std::map<double, size_t> atB;
+    for (size_t i = 0; i < b.times.size(); i++) {
+        atB[b.times[i]] = i;
+    }
+    const auto get = [] (const Fan& f, int level, size_t i) { const auto found = f.value.find(level); return found == f.value.end() || i >= found->second.size() ? std::nanf("") : found->second[i]; };
+    for (size_t i = 0; i < a.times.size(); i++) {
+        const auto found = atB.find(a.times[i]);
+        if (found == atB.end()) {
+            continue;
+        }
+        const auto j = found->second;
+        out.times.push_back(a.times[i]);
+        out.aMedian.push_back(get(a, 50, i));
+        out.aLow.push_back(get(a, 25, i));
+        out.aHigh.push_back(get(a, 75, i));
+        out.bMedian.push_back(get(b, 50, j));
+        out.bLow.push_back(get(b, 25, j));
+        out.bHigh.push_back(get(b, 75, j));
+        out.difference.push_back(out.aMedian.back() - out.bMedian.back());   // (NaN when either is)
+        out.meanDifference.push_back(i < a.mean.size() && j < b.mean.size() ? a.mean[i] - b.mean[j] : std::nanf(""));
+    }
+    // the days that have all 24 hours
+    std::map<long long, std::pair<double, int>> sums;   // day -> (sum, hours with a value)
+    std::map<long long, int> hours;
+    for (size_t i = 0; i < out.times.size(); i++) {
+        const auto day = static_cast<long long>(std::floor(out.times[i] / 86400.0)) * 86400;
+        hours[day]++;
+        if (!std::isnan(out.difference[i])) {
+            sums[day].first += static_cast<double>(out.difference[i]);
+            sums[day].second++;
+        }
+    }
+    for (const auto& [day, h] : hours) {
+        if (h == 24 && sums[day].second == 24) {
+            out.dayStart.push_back(static_cast<double>(day));
+            out.daily.push_back(static_cast<float>(sums[day].first / 24.0));
+        }
+    }
+    return out;
+}
+
+float EnsemblePercentiles::meanDifference(const Compare& c, double days) {
+    if (c.times.empty()) {
+        return std::nanf("");
+    }
+    const double end = c.times.front() + days * 86400.0;
+    double sum = 0.0;
+    int n = 0, all = 0;
+    for (size_t i = 0; i < c.times.size() && c.times[i] < end; i++) {
+        all++;
+        if (!std::isnan(c.difference[i])) {
+            sum += static_cast<double>(c.difference[i]);
+            n++;
+        }
+    }
+    return n * 2 < all || n == 0 ? std::nanf("") : static_cast<float>(sum / n);
+}

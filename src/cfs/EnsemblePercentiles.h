@@ -42,6 +42,17 @@ namespace EnsemblePercentiles {
         std::vector<float> median, high;   // the median and the 90th percentile of the members' block totals
     };
     Chance chanceOfAtLeast(const Series& hourly, int hours, double threshold);
+    // Two models at the same hours (the times both have), each as its median and its 25 to 75 percent band, and the difference A minus B of the medians and of the means: "Euro is cooler than GEFS" as a number
+    // for every hour. `daily` is the difference averaged over each UTC day that has all 24 hours (the day's start, unix seconds).
+    struct Compare {
+        std::vector<double> times;
+        std::vector<float> aMedian, aLow, aHigh, bMedian, bLow, bHigh, difference, meanDifference;
+        std::vector<double> dayStart;
+        std::vector<float> daily;
+    };
+    Compare compare(const Fan& a, const Fan& b);
+    // The mean of the difference over the first `days` days from the first time (NaN when fewer than half of the hours have a value).
+    float meanDifference(const Compare& c, double days);
     // The service: `variable` ("temperature_2m", "precipitation"), `model` ("gfs025", "ecmwf_ifs025", ...). The members' columns are `<variable>` (the control) and `<variable>_memberNN`.
     bool parse(const QByteArray& json, const std::string& variable, Series& out, std::string& why);
     std::string url(double lat, double lon, const std::string& model, const std::vector<std::string>& variables, int days = 16);

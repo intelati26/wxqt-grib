@@ -64,6 +64,19 @@ int main() {
     CHECK(!E::parse("not json", "temperature_2m", t, why) && !E::parse(R"({"hourly":{"time":[]}})", "temperature_2m", t, why));
     CHECK(E::url(39.1, -94.6, "gfs025", {"temperature_2m", "precipitation"}) == "https://ensemble-api.open-meteo.com/v1/ensemble?latitude=39.100&longitude=-94.600&hourly=temperature_2m,precipitation&models=gfs025&forecast_days=16&timeformat=unixtime");
     CHECK(E::models().size() >= 4 && E::models().front().id == "gfs025");
+    // two models at the same hours: the difference of the medians and the daily mean
+    E::Series ma, mb;
+    for (int i = 0; i < 48; i++) {
+        ma.times.push_back(86400.0 * 10 + i * 3600.0);
+        mb.times.push_back(86400.0 * 10 + i * 3600.0);
+    }
+    mb.times.erase(mb.times.begin());   // B has not the first hour
+    ma.members = {std::vector<float>(48, 10.0f), std::vector<float>(48, 14.0f), std::vector<float>(48, 12.0f)};   // median 12
+    mb.members = {std::vector<float>(47, 8.0f), std::vector<float>(47, 10.0f), std::vector<float>(47, 9.0f)};      // median 9
+    const auto cmp = E::compare(E::fan(ma), E::fan(mb));
+    CHECK(cmp.times.size() == 47 && near(cmp.times.front(), 86400.0 * 10 + 3600) && near(cmp.difference[0], 3) && near(cmp.aMedian[5], 12) && near(cmp.bMedian[5], 9) && near(cmp.meanDifference[0], 3));
+    CHECK(cmp.daily.size() == 1 && near(cmp.dayStart[0], 86400.0 * 11) && near(cmp.daily[0], 3));   // (the first day has 23 hours: left out)
+    CHECK(near(E::meanDifference(cmp, 1.0), 3) && std::isnan(E::meanDifference(E::Compare{}, 1.0)));
     // the NWS blend's probabilistic bulletin (NBP): five character codes, 12 hourly columns split by bars, values by position under the FHR line
     const std::string nbp =
         " KMCI    NBM  NBP GUIDANCE    11/15/2026  1200 UTC\n"
