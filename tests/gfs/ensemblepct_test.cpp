@@ -77,6 +77,9 @@ int main() {
     CHECK(cmp.times.size() == 47 && near(cmp.times.front(), 86400.0 * 10 + 3600) && near(cmp.difference[0], 3) && near(cmp.aMedian[5], 12) && near(cmp.bMedian[5], 9) && near(cmp.meanDifference[0], 3));
     CHECK(cmp.daily.size() == 1 && near(cmp.dayStart[0], 86400.0 * 11) && near(cmp.daily[0], 3));   // (the first day has 23 hours: left out)
     CHECK(near(E::meanDifference(cmp, 1.0), 3) && std::isnan(E::meanDifference(E::Compare{}, 1.0)));
+    const auto lines = E::onTimes(mb, cmp.times);   // B's members on the common hours
+    CHECK(lines.size() == 3 && lines[0].size() == cmp.times.size() && near(lines[1][0], 10) && near(lines[0][46], 8));
+    CHECK(E::onTimes(mb, {86400.0 * 10}).front().front() != E::onTimes(mb, {86400.0 * 10}).front().front());   // (B has not that hour: NaN)
     // the NWS blend's probabilistic bulletin (NBP): five character codes, 12 hourly columns split by bars, values by position under the FHR line
     const std::string nbp =
         " KMCI    NBM  NBP GUIDANCE    11/15/2026  1200 UTC\n"

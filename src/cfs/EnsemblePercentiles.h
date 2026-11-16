@@ -51,6 +51,8 @@ namespace EnsemblePercentiles {
         std::vector<float> daily;
     };
     Compare compare(const Fan& a, const Fan& b);
+    // The members of a series at the given times (every member, the hours the series does not have as NaN): what a spaghetti plot draws over the common hours of `compare`.
+    std::vector<std::vector<float>> onTimes(const Series& series, const std::vector<double>& times);
     // The mean of the difference over the first `days` days from the first time (NaN when fewer than half of the hours have a value).
     float meanDifference(const Compare& c, double days);
     // The service: `variable` ("temperature_2m", "precipitation"), `model` ("gfs025", "ecmwf_ifs025", ...). The members' columns are `<variable>` (the control) and `<variable>_memberNN`.

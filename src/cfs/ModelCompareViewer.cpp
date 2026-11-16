@@ -51,6 +51,17 @@ public:
         picked = -1;
         update();
     }
+    // every member of each model on the common hours (the spaghetti)
+    void setMembers(const std::vector<std::vector<float>>& ofA, const std::vector<std::vector<float>>& ofB) {
+        membersA = ofA;
+        membersB = ofB;
+        update();
+    }
+    void showMembers(bool bands, bool members) {
+        drawBands = bands;
+        drawMembers = members;
+        update();
+    }
     void set(const QString& title, const QString& nameOfA, const QString& nameOfB, bool temperature, const EnsemblePercentiles::Compare& c) {
         titleText = title;
         a = nameOfA;
@@ -128,9 +139,9 @@ protected:
             kx += 22 + QFontMetricsF{p.font()}.horizontalAdvance(text) + 18;
         };
         key(colorA, a + " median", false);
-        key(colorA, a + " 25 to 75 percent", true);
+        key(colorA, drawBands ? a + " 25 to 75 percent" : a + " members", drawBands);
         key(colorB, b + " median", false);
-        key(colorB, b + " 25 to 75 percent", true);
+        key(colorB, drawBands ? b + " 25 to 75 percent" : b + " members", drawBands);
         // upper panel: both
         double lo = 1e18, hi = -1e18;
         for (size_t i = 0; i < data.times.size(); i++) {
@@ -138,6 +149,18 @@ protected:
                 if (!std::isnan((*v)[i])) {
                     lo = std::min(lo, show((*v)[i]));
                     hi = std::max(hi, show((*v)[i]));
+                }
+            }
+        }
+        if (drawMembers) {
+            for (const auto* list : {&membersA, &membersB}) {
+                for (const auto& member : *list) {
+                    for (const float v : member) {
+                        if (!std::isnan(v)) {
+                            lo = std::min(lo, show(v));
+                            hi = std::max(hi, show(v));
+                        }
+                    }
                 }
             }
         }
@@ -149,8 +172,21 @@ protected:
         const auto yOfTop = [&] (double v) { return upper.bottom() - (v - yTop.low) / (yTop.high - yTop.low) * upper.height(); };
         p.save();
         p.setClipRect(upper);
-        band(p, data.aLow, data.aHigh, show, yOfTop, colorA);
-        band(p, data.bLow, data.bHigh, show, yOfTop, colorB);
+        if (drawBands) {
+            band(p, data.aLow, data.aHigh, show, yOfTop, colorA);
+            band(p, data.bLow, data.bHigh, show, yOfTop, colorB);
+        }
+        if (drawMembers) {   // the spaghetti: every member, thin and see-through, the models in their own colours
+            for (const auto& [list, color] : {std::pair{&membersA, colorA}, std::pair{&membersB, colorB}}) {
+                QColor thin = color;
+                thin.setAlpha(drawBands ? 70 : 95);
+                for (const auto& member : *list) {
+                    if (member.size() == data.times.size()) {
+                        curve(p, member, show, yOfTop, QPen{thin, 0.9});
+                    }
+                }
+            }
+        }
         curve(p, data.aMedian, show, yOfTop, QPen{colorA, 2.4});
         curve(p, data.bMedian, show, yOfTop, QPen{colorB, 2.4});
         p.restore();
@@ -352,6 +388,8 @@ private:
         p.drawPath(path);
     }
 
+    std::vector<std::vector<float>> membersA, membersB;
+    bool drawBands{true}, drawMembers{false};
     bool have{false}, isTemperature{true};
     QString message, titleText, a, b;
     EnsemblePercentiles::Compare data;
@@ -393,6 +431,11 @@ ModelCompareViewer::ModelCompareViewer(Window * parent, double lat, double lon, 
     field->addItem("2 m temperature", "temperature");
     field->addItem("Precipitation added up", "precipitation");
     field->setCurrentIndex(std::max(0, field->findData(QString::fromStdString(fieldId))));
+    spread = UiStandards::combo(body);
+    spread->addItem("Spread: 25 to 75 percent bands", 0);
+    spread->addItem("Spread: every member (spaghetti)", 1);
+    spread->addItem("Spread: bands and every member", 2);
+    spread->setToolTip("How each model's members are drawn on the upper chart");
     mapChoice = UiStandards::combo(body);
     mapChoice->addItem("500 mb heights and winds", "500_wnd_ht");
     mapChoice->addItem("250 mb jet stream", "250_wnd_ht");
@@ -410,6 +453,7 @@ ModelCompareViewer::ModelCompareViewer(Window * parent, double lat, double lon, 
     top->addWidget(new QLabel{"minus", body});
     top->addWidget(modelB);
     top->addWidget(field);
+    top->addWidget(spread);
     top->addWidget(go);
     top->addWidget(mapChoice);
     top->addWidget(whyButton);
@@ -429,6 +473,7 @@ ModelCompareViewer::ModelCompareViewer(Window * parent, double lat, double lon, 
     QObject::connect(modelA, &QComboBox::currentIndexChanged, this, [this] (int) { load(); });
     QObject::connect(modelB, &QComboBox::currentIndexChanged, this, [this] (int) { load(); });
     QObject::connect(field, &QComboBox::currentIndexChanged, this, [this] (int) { load(); });
+    QObject::connect(spread, &QComboBox::currentIndexChanged, this, [this] (int index) { chart->showMembers(index != 1, index != 0); });
     QObject::connect(go, &QPushButton::clicked, this, [this] { load(); });
     QObject::connect(whyButton, &QPushButton::clicked, this, [this] { why(); });
     setSize(1100, 800);
@@ -446,24 +491,31 @@ void ModelCompareViewer::load() {
     status->setText("reading the members of both models...");
     QPointer<ModelCompareViewer> self{this};
     std::thread{[self, mine, lat, lon, idA, idB, nameA, nameB, temperature] {
-        const auto read = [&] (const std::string& id, EnsemblePercentiles::Fan& fan, std::string& why) {
+        const auto read = [&] (const std::string& id, EnsemblePercentiles::Fan& fan, EnsemblePercentiles::Series& members, std::string& why) {
             EnsemblePercentiles::Series t, r;
             if (!EnsemblePercentiles::fetch(lat, lon, id, t, r, why)) {
                 return false;
             }
-            fan = EnsemblePercentiles::fan(temperature ? t : EnsemblePercentiles::accumulated(r));
+            members = temperature ? t : EnsemblePercentiles::accumulated(r);
+            fan = EnsemblePercentiles::fan(members);
             return true;
         };
         EnsemblePercentiles::Fan fa, fb;
+        EnsemblePercentiles::Series sa, sb;
         std::string whyA, whyB;
-        auto second = std::async(std::launch::async, [&] { return read(idB, fb, whyB); });
-        const bool okA = read(idA, fa, whyA);
+        auto second = std::async(std::launch::async, [&] { return read(idB, fb, sb, whyB); });
+        const bool okA = read(idA, fa, sa, whyA);
         const bool okB = second.get();
         EnsemblePercentiles::Compare compared;
         if (okA && okB) {
             compared = EnsemblePercentiles::compare(fa, fb);
         }
-        QMetaObject::invokeMethod(QCoreApplication::instance(), [self, mine, okA, okB, whyA, whyB, compared, lat, lon, nameA, nameB, temperature] {
+        std::vector<std::vector<float>> linesA, linesB;
+        if (!compared.times.empty()) {
+            linesA = EnsemblePercentiles::onTimes(sa, compared.times);
+            linesB = EnsemblePercentiles::onTimes(sb, compared.times);
+        }
+        QMetaObject::invokeMethod(QCoreApplication::instance(), [self, mine, okA, okB, whyA, whyB, compared, linesA, linesB, lat, lon, nameA, nameB, temperature] {
             if (!self || self->generation != mine) {
                 return;
             }
@@ -476,6 +528,8 @@ void ModelCompareViewer::load() {
             }
             const auto first = QDateTime::fromSecsSinceEpoch(static_cast<qint64>(compared.times.front()), QTimeZone::utc());
             self->status->setText(QString{"%1 hours in common, from %2 UTC (members by Open-Meteo)"}.arg(compared.times.size()).arg(first.toString("ddd d MMM HH:mm")));
+            self->chart->setMembers(linesA, linesB);
+            self->chart->showMembers(self->spread->currentData().toInt() != 1, self->spread->currentData().toInt() != 0);
             self->chart->set(QString{"%1 minus %2 at %3, %4"}.arg(nameA, nameB).arg(lat, 0, 'f', 2).arg(lon, 0, 'f', 2), nameA, nameB, temperature, compared);
         }, Qt::QueuedConnection);
     }}.detach();

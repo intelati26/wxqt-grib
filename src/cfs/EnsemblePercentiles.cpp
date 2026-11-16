@@ -288,3 +288,23 @@ float EnsemblePercentiles::meanDifference(const Compare& c, double days) {
     }
     return n * 2 < all || n == 0 ? std::nanf("") : static_cast<float>(sum / n);
 }
+
+std::vector<std::vector<float>> EnsemblePercentiles::onTimes(const Series& series, const std::vector<double>& times) {
+    std::map<double, size_t> at;
+    for (size_t i = 0; i < series.times.size(); i++) {
+        at[series.times[i]] = i;
+    }
+    std::vector<std::vector<float>> out(series.members.size(), std::vector<float>(times.size(), std::nanf("")));
+    for (size_t t = 0; t < times.size(); t++) {
+        const auto found = at.find(times[t]);
+        if (found == at.end()) {
+            continue;
+        }
+        for (size_t m = 0; m < series.members.size(); m++) {
+            if (found->second < series.members[m].size()) {
+                out[m][t] = series.members[m][found->second];
+            }
+        }
+    }
+    return out;
+}
