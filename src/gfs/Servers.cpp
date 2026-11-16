@@ -25,6 +25,46 @@ namespace {
     std::mutex lock;
     std::map<std::string, std::string> promoted;   // name -> the base that answered when the first did not (this run of the program), put first in what table() gives
     std::map<std::string, std::string> demoted;    // name -> the base it was put before
+    std::map<std::string, QDateTime> promotedAt;   // name -> when (kept in promoted.json: a fallback is used for a day across restarts, then the first place is tried again)
+    bool promotedLoaded{false};
+
+    QString promotedPath() {
+        return QStandardPaths::writableLocation(QStandardPaths::AppDataLocation) + "/servers/promoted.json";
+    }
+    void loadPromoted() {   // (the lock is held)
+        promotedLoaded = true;
+        QFile f{promotedPath()};
+        if (!f.open(QIODevice::ReadOnly)) {
+            return;
+        }
+        const auto root = QJsonDocument::fromJson(f.readAll()).object();
+        const auto now = QDateTime::currentDateTimeUtc();
+        for (auto it = root.begin(); it != root.end(); ++it) {
+            const auto o = it.value().toObject();
+            const auto at = QDateTime::fromString(o.value("at").toString(), Qt::ISODate);
+            if (at.isValid() && at.secsTo(now) < 24 * 3600 && at <= now.addSecs(60)) {   // older than a day: the first place gets its chance again
+                promoted[it.key().toStdString()] = o.value("base").toString().toStdString();
+                demoted[it.key().toStdString()] = o.value("first").toString().toStdString();
+                promotedAt[it.key().toStdString()] = at;
+            }
+        }
+    }
+    void savePromoted() {   // (the lock is held)
+        QJsonObject root;
+        for (const auto& [name, base] : promoted) {
+            QJsonObject o;
+            o["base"] = QString::fromStdString(base);
+            o["first"] = QString::fromStdString(demoted[name]);
+            o["at"] = promotedAt[name].toString(Qt::ISODate);
+            root[QString::fromStdString(name)] = o;
+        }
+        QDir{}.mkpath(promotedPath().section('/', 0, -2));
+        QSaveFile out{promotedPath()};
+        if (out.open(QIODevice::WriteOnly)) {
+            out.write(QJsonDocument{root}.toJson(QJsonDocument::Compact));
+            out.commit();
+        }
+    }
     bool loaded{false};
     Servers::Table cached;
     Servers::FetchStatus status;
@@ -156,6 +196,9 @@ Servers::Table Servers::table() {
     if (!loaded) {
         loadLayers();
     }
+    if (!promotedLoaded) {
+        loadPromoted();
+    }
     auto out = cached;
     for (const auto& [name, base] : promoted) {   // a fallback that answered while the first did not stays first until the program restarts (or the table is read again: reload)
         const auto found = out.find(name);
@@ -185,6 +228,8 @@ bool Servers::promote(const std::string& url) {
                 demoted[name] = bases.front();
             }
             promoted[name] = bases[i];
+            promotedAt[name] = QDateTime::currentDateTimeUtc();
+            savePromoted();
             return true;
         }
     }
@@ -193,14 +238,19 @@ bool Servers::promote(const std::string& url) {
 
 std::string Servers::demotedBase(const std::string& name) {
     const std::lock_guard<std::mutex> guard{lock};
+    if (!promotedLoaded) {
+        loadPromoted();
+    }
     const auto found = demoted.find(name);
     return found == demoted.end() ? std::string{} : found->second;
 }
 
 void Servers::reload() {
     const std::lock_guard<std::mutex> guard{lock};
-    promoted.clear();   // (a table read again starts from what the files say)
+    promoted.clear();   // (a table read again starts from what the files say, and what promoted.json keeps)
     demoted.clear();
+    promotedAt.clear();
+    promotedLoaded = false;
     loadLayers();
 }
 

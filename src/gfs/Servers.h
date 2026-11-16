@@ -45,7 +45,7 @@ namespace Servers {
 
     // The places for a pattern that begins with `{@name}`: one pattern for each base (the first first), the token replaced. A pattern without the token is its own only place. An unknown name gives none.
     std::vector<std::string> places(const std::string& pattern);
-    // A fallback that answered while the first place did not: its base goes first for the rest of the run of the program (what places() and table() give), so every reader of the server goes to the
+    // A fallback that answered while the first place did not: its base goes first for a day, across restarts (kept in `promoted.json` beside the status; after a day the first place is tried again), in what places() and table() give, so every reader of the server goes to the
     // place that works. `url` is an address that begins with one of the server's bases; false when it is the first one already or belongs to no server. `demotedBase` is the base it was put before ("" if none).
     bool promote(const std::string& url);
     std::string demotedBase(const std::string& name);

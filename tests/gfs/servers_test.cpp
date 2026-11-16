@@ -116,6 +116,23 @@ int main(int argc, char ** argv) {
         CHECK(source.fileUrl(run, 3, "rrfs/prslev").rfind("https://mirror.example.org/rrfs/", 0) == 0);
         CHECK(source.candidates(run, 3, "rrfs/prslev").size() == 3);
     }
+    // a fallback that answered goes first, and stays first across a restart (promoted.json) for a day
+    Utility::writePref("SERVER_rrfs-ops", "");
+    QFile::remove(QString::fromStdString(Servers::projectFile()));
+    Servers::reload();
+    const auto before = Servers::table()["rrfs-ops"].bases;
+    CHECK(before.size() == 2 && Servers::demotedBase("rrfs-ops").empty() && !Servers::promote(before[0] + "/x"));
+    CHECK(Servers::promote(before[1] + "/rrfs.20261115/00/file") && Servers::table()["rrfs-ops"].bases[0] == before[1] && Servers::places("{@rrfs-ops}/x")[0] == before[1] + "/x");
+    CHECK(Servers::demotedBase("rrfs-ops") == before[0]);
+    Servers::reload();   // (what a restart does: read the layers and promoted.json again)
+    CHECK(Servers::table()["rrfs-ops"].bases[0] == before[1] && Servers::demotedBase("rrfs-ops") == before[0]);
+    {   // a day later the first place gets its chance again
+        QFile f{QString::fromStdString(Servers::projectFile()).section('/', 0, -2) + "/promoted.json"};
+        CHECK(f.open(QIODevice::WriteOnly));
+        f.write("{\"rrfs-ops\": {\"base\": \"" + QByteArray::fromStdString(before[1]) + "\", \"first\": \"" + QByteArray::fromStdString(before[0]) + "\", \"at\": \"2020-01-01T00:00:00Z\"}}");
+    }
+    Servers::reload();
+    CHECK(Servers::table()["rrfs-ops"].bases[0] == before[0] && Servers::demotedBase("rrfs-ops").empty());
     // a model file may name a server and a path, not a host of its own after {@
     std::printf(failures == 0 ? "all server table tests passed\n" : "%d failures\n", failures);
     return failures == 0 ? 0 : 1;
