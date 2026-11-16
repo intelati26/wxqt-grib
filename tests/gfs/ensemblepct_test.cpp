@@ -75,6 +75,7 @@ int main() {
     mb.members = {std::vector<float>(47, 8.0f), std::vector<float>(47, 10.0f), std::vector<float>(47, 9.0f)};      // median 9
     const auto cmp = E::compare(E::fan(ma), E::fan(mb));
     CHECK(cmp.times.size() == 47 && near(cmp.times.front(), 86400.0 * 10 + 3600) && near(cmp.difference[0], 3) && near(cmp.aMedian[5], 12) && near(cmp.bMedian[5], 9) && near(cmp.meanDifference[0], 3));
+    CHECK(cmp.aP10.size() == cmp.times.size() && near(cmp.aP10[0], 10.4) && near(cmp.aP90[0], 13.6) && near(cmp.bP10[0], 8.2) && near(cmp.bP90[0], 9.8));   // (members 10, 12, 14: the 10th is 10 + 0.2 * 2)
     CHECK(cmp.daily.size() == 1 && near(cmp.dayStart[0], 86400.0 * 11) && near(cmp.daily[0], 3));   // (the first day has 23 hours: left out)
     CHECK(near(E::meanDifference(cmp, 1.0), 3) && std::isnan(E::meanDifference(E::Compare{}, 1.0)));
     const auto lines = E::onTimes(mb, cmp.times);   // B's members on the common hours

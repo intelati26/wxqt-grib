@@ -24,7 +24,7 @@ class ModelCompareViewer : public Window {
 public:
     ModelCompareViewer(Window * parent, double lat = 39.1, double lon = -94.6, const std::string& modelA = "ecmwf_ifs025", const std::string& modelB = "gfs025", const std::string& field = "temperature");
     void load();
-    void setSpread(int how) { spread->setCurrentIndex(how); }   // 0 bands, 1 every member, 2 both
+    void setSpread(int how) { spread->setCurrentIndex(how); }   // 0 bands, 1 every member, 2 both, 3 box and whisker
     QPixmap picture() const;
     QString statusText() const;
     // the maps of the time picked (or the first hour with a difference when none is picked): the Model Viewer, as "Why?" does

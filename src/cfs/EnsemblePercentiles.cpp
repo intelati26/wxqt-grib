@@ -249,6 +249,10 @@ EnsemblePercentiles::Compare EnsemblePercentiles::compare(const Fan& a, const Fa
         out.bMedian.push_back(get(b, 50, j));
         out.bLow.push_back(get(b, 25, j));
         out.bHigh.push_back(get(b, 75, j));
+        out.aP10.push_back(get(a, 10, i));
+        out.aP90.push_back(get(a, 90, i));
+        out.bP10.push_back(get(b, 10, j));
+        out.bP90.push_back(get(b, 90, j));
         out.difference.push_back(out.aMedian.back() - out.bMedian.back());   // (NaN when either is)
         out.meanDifference.push_back(i < a.mean.size() && j < b.mean.size() ? a.mean[i] - b.mean[j] : std::nanf(""));
     }

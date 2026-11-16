@@ -47,6 +47,7 @@ namespace EnsemblePercentiles {
     struct Compare {
         std::vector<double> times;
         std::vector<float> aMedian, aLow, aHigh, bMedian, bLow, bHigh, difference, meanDifference;
+        std::vector<float> aP10, aP90, bP10, bP90;   // the 10th and 90th percentiles (the whiskers of a box)
         std::vector<double> dayStart;
         std::vector<float> daily;
     };

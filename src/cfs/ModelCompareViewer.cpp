@@ -57,9 +57,10 @@ public:
         membersB = ofB;
         update();
     }
-    void showMembers(bool bands, bool members) {
+    void showMembers(bool bands, bool members, bool boxes = false) {
         drawBands = bands;
         drawMembers = members;
+        drawBoxes = boxes;
         update();
     }
     void set(const QString& title, const QString& nameOfA, const QString& nameOfB, bool temperature, const EnsemblePercentiles::Compare& c) {
@@ -138,14 +139,19 @@ protected:
             p.drawText(QPointF{kx + 22, 43}, text);
             kx += 22 + QFontMetricsF{p.font()}.horizontalAdvance(text) + 18;
         };
-        key(colorA, a + " median", false);
-        key(colorA, drawBands ? a + " 25 to 75 percent" : a + " members", drawBands);
-        key(colorB, b + " median", false);
-        key(colorB, drawBands ? b + " 25 to 75 percent" : b + " members", drawBands);
+        if (drawBoxes) {
+            key(colorA, a + " (box 25 to 75, whisker 10 to 90 percent, bar the median)", true);
+            key(colorB, b, true);
+        } else {
+            key(colorA, a + " median", false);
+            key(colorA, drawBands ? a + " 25 to 75 percent" : a + " members", drawBands);
+            key(colorB, b + " median", false);
+            key(colorB, drawBands ? b + " 25 to 75 percent" : b + " members", drawBands);
+        }
         // upper panel: both
         double lo = 1e18, hi = -1e18;
         for (size_t i = 0; i < data.times.size(); i++) {
-            for (const auto* v : {&data.aLow, &data.aHigh, &data.bLow, &data.bHigh}) {
+            for (const auto* v : {&data.aLow, &data.aHigh, &data.bLow, &data.bHigh, &data.aP10, &data.aP90, &data.bP10, &data.bP90}) {
                 if (!std::isnan((*v)[i])) {
                     lo = std::min(lo, show((*v)[i]));
                     hi = std::max(hi, show((*v)[i]));
@@ -172,6 +178,38 @@ protected:
         const auto yOfTop = [&] (double v) { return upper.bottom() - (v - yTop.low) / (yTop.high - yTop.low) * upper.height(); };
         p.save();
         p.setClipRect(upper);
+        if (drawBoxes) {   // box and whisker every 12 hours: the models side by side (whiskers 10 to 90 percent, box 25 to 75, bar the median)
+            const double half = std::max(2.0, (xOf(t0 + 12 * 3600) - xOf(t0)) * 0.19);
+            for (size_t i = 0; i < data.times.size(); i++) {
+                const auto hour = QDateTime::fromSecsSinceEpoch(static_cast<qint64>(data.times[i]), QTimeZone::utc()).time().hour();
+                if (hour % 12 != 0) {
+                    continue;
+                }
+                for (const bool second : {false, true}) {
+                    const auto& lo10 = second ? data.bP10 : data.aP10;
+                    const auto& hi90 = second ? data.bP90 : data.aP90;
+                    const auto& q1 = second ? data.bLow : data.aLow;
+                    const auto& q3 = second ? data.bHigh : data.aHigh;
+                    const auto& mid = second ? data.bMedian : data.aMedian;
+                    if (std::isnan(lo10[i]) || std::isnan(hi90[i]) || std::isnan(q1[i]) || std::isnan(q3[i]) || std::isnan(mid[i])) {
+                        continue;
+                    }
+                    const QColor color = second ? colorB : colorA;
+                    const double x = xOf(data.times[i]) + (second ? half + 1 : -half - 1);
+                    p.setPen(QPen{color, 1.3});
+                    p.drawLine(QPointF{x, yOfTop(show(lo10[i]))}, QPointF{x, yOfTop(show(hi90[i]))});
+                    p.drawLine(QPointF{x - half * 0.5, yOfTop(show(lo10[i]))}, QPointF{x + half * 0.5, yOfTop(show(lo10[i]))});
+                    p.drawLine(QPointF{x - half * 0.5, yOfTop(show(hi90[i]))}, QPointF{x + half * 0.5, yOfTop(show(hi90[i]))});
+                    QColor fill = color;
+                    fill.setAlpha(110);
+                    p.setBrush(fill);
+                    p.drawRect(QRectF{x - half, yOfTop(show(q3[i])), 2 * half, std::max(1.0, yOfTop(show(q1[i])) - yOfTop(show(q3[i])))});
+                    p.setBrush(Qt::NoBrush);
+                    p.setPen(QPen{color.darker(160), 2.4});
+                    p.drawLine(QPointF{x - half, yOfTop(show(mid[i]))}, QPointF{x + half, yOfTop(show(mid[i]))});
+                }
+            }
+        }
         if (drawBands) {
             band(p, data.aLow, data.aHigh, show, yOfTop, colorA);
             band(p, data.bLow, data.bHigh, show, yOfTop, colorB);
@@ -187,8 +225,10 @@ protected:
                 }
             }
         }
-        curve(p, data.aMedian, show, yOfTop, QPen{colorA, 2.4});
-        curve(p, data.bMedian, show, yOfTop, QPen{colorB, 2.4});
+        if (!drawBoxes) {
+            curve(p, data.aMedian, show, yOfTop, QPen{colorA, 2.4});
+            curve(p, data.bMedian, show, yOfTop, QPen{colorB, 2.4});
+        }
         p.restore();
         // lower panel: the difference
         double dmax = 0.5;
@@ -389,7 +429,7 @@ private:
     }
 
     std::vector<std::vector<float>> membersA, membersB;
-    bool drawBands{true}, drawMembers{false};
+    bool drawBands{true}, drawMembers{false}, drawBoxes{false};
     bool have{false}, isTemperature{true};
     QString message, titleText, a, b;
     EnsemblePercentiles::Compare data;
@@ -435,6 +475,7 @@ ModelCompareViewer::ModelCompareViewer(Window * parent, double lat, double lon, 
     spread->addItem("Spread: 25 to 75 percent bands", 0);
     spread->addItem("Spread: every member (spaghetti)", 1);
     spread->addItem("Spread: bands and every member", 2);
+    spread->addItem("Box and whisker every 12 hours", 3);
     spread->setToolTip("How each model's members are drawn on the upper chart");
     mapChoice = UiStandards::combo(body);
     mapChoice->addItem("500 mb heights and winds", "500_wnd_ht");
@@ -473,7 +514,7 @@ ModelCompareViewer::ModelCompareViewer(Window * parent, double lat, double lon, 
     QObject::connect(modelA, &QComboBox::currentIndexChanged, this, [this] (int) { load(); });
     QObject::connect(modelB, &QComboBox::currentIndexChanged, this, [this] (int) { load(); });
     QObject::connect(field, &QComboBox::currentIndexChanged, this, [this] (int) { load(); });
-    QObject::connect(spread, &QComboBox::currentIndexChanged, this, [this] (int index) { chart->showMembers(index != 1, index != 0); });
+    QObject::connect(spread, &QComboBox::currentIndexChanged, this, [this] (int index) { chart->showMembers(index == 0 || index == 2, index == 1 || index == 2, index == 3); });
     QObject::connect(go, &QPushButton::clicked, this, [this] { load(); });
     QObject::connect(whyButton, &QPushButton::clicked, this, [this] { why(); });
     setSize(1100, 800);
@@ -529,7 +570,8 @@ void ModelCompareViewer::load() {
             const auto first = QDateTime::fromSecsSinceEpoch(static_cast<qint64>(compared.times.front()), QTimeZone::utc());
             self->status->setText(QString{"%1 hours in common, from %2 UTC (members by Open-Meteo)"}.arg(compared.times.size()).arg(first.toString("ddd d MMM HH:mm")));
             self->chart->setMembers(linesA, linesB);
-            self->chart->showMembers(self->spread->currentData().toInt() != 1, self->spread->currentData().toInt() != 0);
+            const int how = self->spread->currentData().toInt();
+            self->chart->showMembers(how == 0 || how == 2, how == 1 || how == 2, how == 3);
             self->chart->set(QString{"%1 minus %2 at %3, %4"}.arg(nameA, nameB).arg(lat, 0, 'f', 2).arg(lon, 0, 'f', 2), nameA, nameB, temperature, compared);
         }, Qt::QueuedConnection);
     }}.detach();
