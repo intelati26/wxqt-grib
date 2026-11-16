@@ -1,0 +1,230 @@
+// *****************************************************************************
+// * This file is part of wxqt.  Licensed under the GNU General Public License v3.
+// * See the COPYING file for the full license text.
+// *****************************************************************************
+
+#include "cfs/EnsemblePercentiles.h"
+#include <algorithm>
+#include <chrono>
+#include <cmath>
+#include <mutex>
+#include <QJsonArray>
+#include <QJsonDocument>
+#include <QJsonObject>
+#include <QString>
+#include "util/UtilityIO.h"
+
+float EnsemblePercentiles::percentile(std::vector<float> values, double q) {
+    values.erase(std::remove_if(values.begin(), values.end(), [] (float v) { return std::isnan(v); }), values.end());
+    if (values.empty()) {
+        return std::nanf("");
+    }
+    std::sort(values.begin(), values.end());
+    const double at = std::clamp(q, 0.0, 100.0) / 100.0 * static_cast<double>(values.size() - 1);
+    const auto below = static_cast<size_t>(std::floor(at));
+    const auto above = std::min(below + 1, values.size() - 1);
+    return static_cast<float>(values[below] + (values[above] - values[below]) * (at - static_cast<double>(below)));
+}
+
+EnsemblePercentiles::Fan EnsemblePercentiles::fan(const Series& series, const std::vector<int>& levels) {
+    Fan out;
+    out.times = series.times;
+    out.levels = levels;
+    for (const int level : levels) {
+        out.value[level].assign(series.times.size(), std::nanf(""));
+    }
+    out.mean.assign(series.times.size(), std::nanf(""));
+    out.count.assign(series.times.size(), 0);
+    std::vector<float> at;
+    for (size_t t = 0; t < series.times.size(); t++) {
+        at.clear();
+        for (const auto& member : series.members) {
+            if (t < member.size() && !std::isnan(member[t])) {
+                at.push_back(member[t]);
+            }
+        }
+        out.count[t] = static_cast<int>(at.size());
+        if (at.size() < 2) {
+            continue;
+        }
+        double sum = 0.0;
+        for (const float v : at) {
+            sum += v;
+        }
+        out.mean[t] = static_cast<float>(sum / static_cast<double>(at.size()));
+        for (const int level : levels) {
+            out.value[level][t] = percentile(at, level);
+        }
+    }
+    return out;
+}
+
+EnsemblePercentiles::Series EnsemblePercentiles::accumulated(const Series& hourly) {
+    Series out = hourly;
+    for (auto& member : out.members) {
+        double total = 0.0;
+        bool gone = false;
+        for (auto& v : member) {
+            if (gone || std::isnan(v)) {
+                gone = true;
+                v = std::nanf("");
+            } else {
+                total += static_cast<double>(v);
+                v = static_cast<float>(total);
+            }
+        }
+    }
+    return out;
+}
+
+EnsemblePercentiles::Chance EnsemblePercentiles::chanceOfAtLeast(const Series& hourly, int hours, double threshold) {
+    Chance out;
+    if (hours < 1 || hourly.times.empty()) {
+        return out;
+    }
+    const long long step = static_cast<long long>(hours) * 3600;
+    const auto first = static_cast<long long>(hourly.times.front());
+    const auto last = static_cast<long long>(hourly.times.back());
+    // blocks [b, b + step) with b a multiple of `step` in UTC; the hourly value at time t is the hour ending at t, so the block holds the values at b + 3600 ... b + step
+    for (long long b = (first / step) * step; b + step <= last + 3600; b += step) {
+        std::vector<size_t> idx;
+        for (size_t t = 0; t < hourly.times.size(); t++) {
+            const auto time = static_cast<long long>(hourly.times[t]);
+            if (time > b && time <= b + step) {
+                idx.push_back(t);
+            }
+        }
+        if (static_cast<int>(idx.size()) != hours) {
+            continue;
+        }
+        std::vector<float> totals;
+        for (const auto& member : hourly.members) {
+            double sum = 0.0;
+            bool missing = false;
+            for (const auto t : idx) {
+                if (t >= member.size() || std::isnan(member[t])) {
+                    missing = true;
+                    break;
+                }
+                sum += static_cast<double>(member[t]);
+            }
+            if (!missing) {
+                totals.push_back(static_cast<float>(sum));
+            }
+        }
+        if (totals.size() < 2) {
+            continue;
+        }
+        const auto atLeast = std::count_if(totals.begin(), totals.end(), [threshold] (float v) { return static_cast<double>(v) >= threshold; });
+        out.times.push_back(static_cast<double>(b + step));
+        out.share.push_back(static_cast<float>(atLeast) / static_cast<float>(totals.size()));
+        out.median.push_back(percentile(totals, 50.0));
+        out.high.push_back(percentile(totals, 90.0));
+    }
+    return out;
+}
+
+bool EnsemblePercentiles::parse(const QByteArray& json, const std::string& variable, Series& out, std::string& why) {
+    const auto doc = QJsonDocument::fromJson(json);
+    if (!doc.isObject()) {
+        why = "the service did not answer with data";
+        return false;
+    }
+    const auto root = doc.object();
+    if (root.value("error").toBool()) {
+        why = root.value("reason").toString().toStdString();
+        return false;
+    }
+    const auto hourly = root.value("hourly").toObject();
+    const auto times = hourly.value("time").toArray();
+    if (times.isEmpty()) {
+        why = "no hours in the answer";
+        return false;
+    }
+    Series result;
+    for (const auto& t : times) {
+        result.times.push_back(t.toDouble());
+    }
+    const auto prefix = QString::fromStdString(variable);
+    // the control run (the plain name) and the numbered members: every one is a member of the ensemble
+    std::vector<std::pair<QString, std::vector<float>>> columns;
+    for (auto it = hourly.begin(); it != hourly.end(); ++it) {
+        const auto key = it.key();
+        if (key != prefix && !(key.startsWith(prefix + "_member"))) {
+            continue;
+        }
+        std::vector<float> values;
+        for (const auto& v : it.value().toArray()) {
+            values.push_back(v.isNull() ? std::nanf("") : static_cast<float>(v.toDouble()));
+        }
+        values.resize(result.times.size(), std::nanf(""));
+        columns.emplace_back(key, std::move(values));
+    }
+    if (columns.size() < 2) {
+        why = "the model has fewer than two members for " + variable;
+        return false;
+    }
+    std::sort(columns.begin(), columns.end(), [] (const auto& a, const auto& b) { return a.first < b.first; });
+    for (auto& c : columns) {
+        result.members.push_back(std::move(c.second));
+    }
+    result.units = root.value("hourly_units").toObject().value(prefix).toString().toStdString();
+    out = std::move(result);
+    return true;
+}
+
+std::string EnsemblePercentiles::url(double lat, double lon, const std::string& model, const std::vector<std::string>& variables, int days) {
+    std::string list;
+    for (const auto& v : variables) {
+        list += (list.empty() ? "" : ",") + v;
+    }
+    return "https://ensemble-api.open-meteo.com/v1/ensemble?latitude=" + QString::number(lat, 'f', 3).toStdString() + "&longitude=" + QString::number(lon, 'f', 3).toStdString() +
+           "&hourly=" + list + "&models=" + model + "&forecast_days=" + std::to_string(days) + "&timeformat=unixtime";
+}
+
+const std::vector<EnsemblePercentiles::Model>& EnsemblePercentiles::models() {
+    static const std::vector<Model> list{
+        {"gfs025", "GEFS (31 members, 16 days)"},
+        {"ecmwf_ifs025", "ECMWF IFS ensemble (51 members, 15 days)"},
+        {"ecmwf_aifs025", "ECMWF AIFS ensemble (51 members, 15 days)"},
+        {"gem_global", "Canadian GEPS (21 members, 16 days)"},
+        {"icon_seamless", "DWD ICON ensemble (40 members, 7 days)"},
+        {"ukmo_global_ensemble_20km", "UK Met Office ensemble (18 members, 7 days)"},
+    };
+    return list;
+}
+
+bool EnsemblePercentiles::fetch(double lat, double lon, const std::string& model, Series& temperature, Series& precipitation, std::string& why) {
+    static std::mutex lock;
+    static std::map<std::string, std::pair<std::chrono::steady_clock::time_point, QByteArray>> kept;
+    const auto address = url(lat, lon, model, {"temperature_2m", "precipitation"});
+    QByteArray bytes;
+    {
+        const std::lock_guard<std::mutex> guard{lock};
+        const auto found = kept.find(address);
+        if (found != kept.end() && std::chrono::steady_clock::now() - found->second.first < std::chrono::minutes{20}) {
+            bytes = found->second.second;
+        }
+    }
+    if (bytes.isEmpty()) {
+        bytes = UtilityIO::downloadAsByteArray(address);
+        if (bytes.contains("Minutely API request limit exceeded")) {
+            why = "the service's limit for a minute was reached: try again in a minute";
+            return false;
+        }
+    }
+    Series t, p;
+    if (!parse(bytes, "temperature_2m", t, why)) {
+        return false;
+    }
+    if (!parse(bytes, "precipitation", p, why)) {
+        return false;
+    }
+    {
+        const std::lock_guard<std::mutex> guard{lock};
+        kept[address] = {std::chrono::steady_clock::now(), bytes};
+    }
+    temperature = std::move(t);
+    precipitation = std::move(p);
+    return true;
+}

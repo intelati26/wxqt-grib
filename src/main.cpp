@@ -15,6 +15,7 @@
 #include <QWheelEvent>
 #include "cfs/CfsArchiveIndex.h"
 #include "cfs/CfsPlumeViewer.h"
+#include "cfs/EnsemblePercentileViewer.h"
 #include "cfs/UtilityCfs.h"
 #include "gfs/GfsClimate.h"
 #include "hurricane/ReconViewer.h"
@@ -1307,6 +1308,25 @@ int main(int argc, char * argv[]) {
                 auto * plume = new CfsPlumeViewer{&w, 39.1, -94.6, parts.value(1, "gefs")};
                 if (parts.size() > 2) {
                     plume->choose(parts.value(1), parts.value(2, "4").toInt(), parts.value(3, "6").toInt(), parts.value(4, "0").toInt());
+                }
+            } else if (route.startsWith("ensemblepct")) {   // WXQT_OPEN=ensemblepct[:<lat>:<lon>:<model id>:<out.png>]: the ensemble percentiles window (saved as a picture a few seconds after it opens, then quits)
+                const auto parts = route.split(':');
+                auto * viewer = new EnsemblePercentileViewer{&w, parts.value(1, "39.1").toDouble(), parts.value(2, "-94.6").toDouble(), parts.value(3, "gfs025").toStdString()};
+                const auto out = parts.value(4);
+                if (!out.isEmpty()) {
+                    auto * timer = new QTimer{viewer};
+                    timer->setInterval(500);
+                    int waited = 0;
+                    QObject::connect(timer, &QTimer::timeout, viewer, [viewer, out, timer, waited]() mutable {
+                        const auto text = viewer->statusText();
+                        if ((text.contains("members, hours") || text.contains("could not")) || ++waited > 60) {
+                            viewer->picture().save(out);
+                            fprintf(stderr, "ensemblepct: %s\n", qPrintable(text));
+                            timer->stop();
+                            QTimer::singleShot(200, qApp, &QCoreApplication::quit);
+                        }
+                    });
+                    timer->start();
                 }
             } else if (route.startsWith("storm:")) {   // WXQT_OPEN=storm:<basin>:<NHC id>: the track map on that storm
                 new HurricaneViewer{&w, route.section(':', 1, 1).toStdString(), route.section(':', 2, 2).toStdString()};
