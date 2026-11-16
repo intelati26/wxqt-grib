@@ -61,6 +61,20 @@ and:
   `centimeters`, `meters`; leave it out for a number with no unit conversion.
 - `title`, `legend_step` (a tick every so many displayed units).
 
+## Making one from a field you found
+
+`tools/make_chart.py` writes a starter chart file for a field, choosing the ramp and the units from the variable where it
+knows them (CAPE, temperature, dewpoint, humidity, precipitation, cloud cover, reflectivity, wind, pressure, helicity, vorticity,
+snow, soil, waves, visibility):
+
+    python3 tools/make_chart.py GFS "CAPE@surface" --contour "HGT@500 mb" > cape.chart.json
+    python3 tools/make_chart.py GEOS-FP "speed:UGRD@10 mb,VGRD@10 mb" --barbs "UGRD@10 mb" "VGRD@10 mb" --id geos_10mb_wind > wind.chart.json
+    python3 tools/make_chart.py IFS "TMP@2 m above ground" --catalog catalog.json
+
+`--catalog` takes the catalogue check's `catalog.json` and warns when the model's newest file does not list a field you named
+(and shows the levels it does list). It prints a `note:` for anything it had to guess (a variable with no known ramp, a contour
+with no known units): look at those, and at the title, before you use the file. Put the result in your models folder and restart.
+
 ## Problems
 
 A file that is not valid is not used at all (one bad chart rejects the file) and the reason, with the chart it is in, is in the
