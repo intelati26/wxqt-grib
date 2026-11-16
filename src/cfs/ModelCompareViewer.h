@@ -23,7 +23,7 @@ class ModelViewer;
 // stream that makes the difference can be seen. The members come from Open-Meteo's ensemble service (as in the percentile window); the maps are the program's own models.
 class ModelCompareViewer : public Window {
 public:
-    ModelCompareViewer(Window * parent, double lat = 39.1, double lon = -94.6, const std::string& modelA = "ecmwf_ifs025", const std::string& modelB = "gfs025", const std::string& field = "temperature");
+    ModelCompareViewer(Window * parent, double lat = 39.1, double lon = -94.6, const std::string& modelA = "ecmwf_ifs025", const std::string& modelB = "gfs025", const std::string& field = "temperature_2m");
     void load();
     void setSpread(int how) { spread->setCurrentIndex(how); }   // 0 bands, 1 every member, 2 both, 3 box and whisker
     QPixmap picture() const;

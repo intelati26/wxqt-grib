@@ -62,8 +62,8 @@ int main() {
     CHECK(!E::parse(good, "precipitation", t, why) && why.find("fewer than two") != std::string::npos);   // a single column is not an ensemble
     CHECK(!E::parse(R"({"error":true,"reason":"Latitude must be in range of -90 to 90"})", "temperature_2m", t, why) && why.find("Latitude") != std::string::npos);
     CHECK(!E::parse("not json", "temperature_2m", t, why) && !E::parse(R"({"hourly":{"time":[]}})", "temperature_2m", t, why));
-    CHECK(E::url(39.1, -94.6, "gfs025", {"temperature_2m", "precipitation"}) == "https://ensemble-api.open-meteo.com/v1/ensemble?latitude=39.100&longitude=-94.600&hourly=temperature_2m,precipitation&models=gfs025&forecast_days=16&timeformat=unixtime");
-    CHECK(E::models().size() >= 4 && E::models().front().id == "gfs025");
+    CHECK(E::url(39.1, -94.6, "gfs025", {"temperature_2m", "precipitation"}) == "https://ensemble-api.open-meteo.com/v1/ensemble?latitude=39.100&longitude=-94.600&hourly=temperature_2m,precipitation&models=gfs025&forecast_days=16&timeformat=unixtime&wind_speed_unit=ms");
+    CHECK(E::models().size() >= 8 && E::models().front().id == "gfs025");
     // two models at the same hours: the difference of the medians and the daily mean
     E::Series ma, mb;
     for (int i = 0; i < 48; i++) {
@@ -102,6 +102,12 @@ int main() {
     CHECK(block.columns[0].get("TXNP1") == 33 && block.columns[1].get("TXNP9") == 61 && block.columns[17].get("TXNMN") == 51 && block.columns[16].get("TXNP5") == 35);
     CHECK(!block.columns[0].has("Q24P1") && !block.columns[1].has("Q24P1") && block.columns[2].get("Q24P1") == 0 && block.columns[6].get("Q24P9") == 16 && block.columns[12].get("Q24P9") == 128 && block.columns[16].get("Q24P9") == 40);   // (the 24 hour precipitation ends at 12 UTC: its values are under the 12 UTC columns, hundredths of an inch)
     CHECK(block.columns[0].get("SLPP1") == 32 && block.columns[1].get("SLPP1") == 29);
+    // the variable table and the person's units
+    CHECK(E::findVariable("wind_gusts_10m") != nullptr && E::findVariable("nonsense") == nullptr && E::variables().size() >= 9);
+    CHECK(E::findVariable("precipitation")->accumulate && E::findVariable("snowfall")->accumulate && !E::findVariable("temperature_2m")->accumulate);
+    for (const auto& v : E::variables()) {
+        CHECK(!E::unitLabel(v).empty() && std::isfinite(E::display(v, 10.0)) && std::isfinite(E::display(v, 10.0, true)));
+    }
     std::printf(failures == 0 ? "all ensemble percentile tests passed\n" : "%d failures\n", failures);
     return failures == 0 ? 0 : 1;
 }

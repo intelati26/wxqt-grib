@@ -56,6 +56,22 @@ namespace EnsemblePercentiles {
     std::vector<std::vector<float>> onTimes(const Series& series, const std::vector<double>& times);
     // The mean of the difference over the first `days` days from the first time (NaN when fewer than half of the hours have a value).
     float meanDifference(const Compare& c, double days);
+    // The variables the comparison windows can show: one row each (id as the service names it, what it is, how its numbers become the person's units). A new variable is a row here.
+    enum class Quantity { Temperature, Precipitation, Wind, Snow, Pressure, Percent };
+    struct Variable {
+        std::string id, label, title;   // "dew_point_2m", "2 m dewpoint", "Dewpoint (2 m)"
+        Quantity quantity{Quantity::Temperature};
+        bool accumulate{false};         // shown added up since the first hour (rain, snow)
+        bool zeroBased{false};          // the axis starts at zero
+        int digits{1};
+    };
+    const std::vector<Variable>& variables();
+    const Variable * findVariable(const std::string& id);
+    // A value of the service in the person's units (Settings: deg F, in, mph ... or deg C, mm, m/s ...); `difference` for a difference of two values (a temperature difference has no offset).
+    double display(const Variable& variable, double value, bool difference = false);
+    std::string unitLabel(const Variable& variable);
+    // One variable of one model for a place (a request each, kept 20 minutes), added up from the first hour when the variable accumulates. Blocking.
+    bool fetchOne(double lat, double lon, const std::string& model, const Variable& variable, Series& out, std::string& why);
     // The service: `variable` ("temperature_2m", "precipitation"), `model` ("gfs025", "ecmwf_ifs025", ...). The members' columns are `<variable>` (the control) and `<variable>_memberNN`.
     bool parse(const QByteArray& json, const std::string& variable, Series& out, std::string& why);
     std::string url(double lat, double lon, const std::string& model, const std::vector<std::string>& variables, int days = 16);

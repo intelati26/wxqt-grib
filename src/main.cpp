@@ -1313,9 +1313,9 @@ int main(int argc, char * argv[]) {
                 if (parts.size() > 2) {
                     plume->choose(parts.value(1), parts.value(2, "4").toInt(), parts.value(3, "6").toInt(), parts.value(4, "0").toInt());
                 }
-            } else if (route.startsWith("modelcompare")) {   // WXQT_OPEN=modelcompare[:<lat>:<lon>:<model A>:<model B>:<temperature|precipitation>:<out.png>[:why]]: two ensembles compared at a place, saved as a picture a few seconds after it opens (`why` also opens the maps), then quits
+            } else if (route.startsWith("modelcompare")) {   // WXQT_OPEN=modelcompare[:<lat>:<lon>:<model A>:<model B>:<variable id, e.g. temperature_2m, precipitation, wind_gusts_10m>:<out.png>[:why]]: two ensembles compared at a place, saved as a picture a few seconds after it opens (`why` also opens the maps), then quits
                 const auto parts = route.split(':');
-                auto * viewer = new ModelCompareViewer{&w, parts.value(1, "39.1").toDouble(), parts.value(2, "-94.6").toDouble(), parts.value(3, "ecmwf_ifs025").toStdString(), parts.value(4, "gfs025").toStdString(), parts.value(5, "temperature").toStdString()};
+                auto * viewer = new ModelCompareViewer{&w, parts.value(1, "39.1").toDouble(), parts.value(2, "-94.6").toDouble(), parts.value(3, "ecmwf_ifs025").toStdString(), parts.value(4, "gfs025").toStdString(), parts.value(5, "temperature_2m").toStdString()};
                 viewer->setSpread(qEnvironmentVariableIntValue("WXQT_SPREAD"));   // WXQT_SPREAD=1: every member drawn (2: with the bands; 3: box and whisker every 12 hours)
                 const auto out = parts.value(6);
                 if (!out.isEmpty()) {

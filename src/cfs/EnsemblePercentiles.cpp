@@ -12,6 +12,7 @@
 #include <QJsonDocument>
 #include <QJsonObject>
 #include <QString>
+#include "util/DisplayUnits.h"
 #include "util/UtilityIO.h"
 
 float EnsemblePercentiles::percentile(std::vector<float> values, double q) {
@@ -179,7 +180,7 @@ std::string EnsemblePercentiles::url(double lat, double lon, const std::string& 
         list += (list.empty() ? "" : ",") + v;
     }
     return "https://ensemble-api.open-meteo.com/v1/ensemble?latitude=" + QString::number(lat, 'f', 3).toStdString() + "&longitude=" + QString::number(lon, 'f', 3).toStdString() +
-           "&hourly=" + list + "&models=" + model + "&forecast_days=" + std::to_string(days) + "&timeformat=unixtime";
+           "&hourly=" + list + "&models=" + model + "&forecast_days=" + std::to_string(days) + "&timeformat=unixtime&wind_speed_unit=ms";
 }
 
 const std::vector<EnsemblePercentiles::Model>& EnsemblePercentiles::models() {
@@ -190,6 +191,8 @@ const std::vector<EnsemblePercentiles::Model>& EnsemblePercentiles::models() {
         {"gem_global", "Canadian GEPS (21 members, 16 days)"},
         {"icon_seamless", "DWD ICON ensemble (40 members, 7 days)"},
         {"ukmo_global_ensemble_20km", "UK Met Office ensemble (18 members, 7 days)"},
+        {"ncep_aigefs025", "NOAA AIGEFS, the AI ensemble (31 members, 16 days)"},
+        {"icon_eu", "DWD ICON-EU ensemble (Europe only, 5 days)"},
     };
     return list;
 }
@@ -311,4 +314,80 @@ std::vector<std::vector<float>> EnsemblePercentiles::onTimes(const Series& serie
         }
     }
     return out;
+}
+
+const std::vector<EnsemblePercentiles::Variable>& EnsemblePercentiles::variables() {
+    static const std::vector<Variable> list{
+        {"temperature_2m", "2 m temperature", "2 m temperature", Quantity::Temperature, false, false, 1},
+        {"precipitation", "Precipitation added up", "Precipitation added up since the first hour", Quantity::Precipitation, true, true, 2},
+        {"dew_point_2m", "2 m dewpoint", "2 m dewpoint", Quantity::Temperature, false, false, 1},
+        {"wind_speed_10m", "10 m wind speed", "10 m wind speed", Quantity::Wind, false, true, 1},
+        {"wind_gusts_10m", "10 m wind gusts", "10 m wind gusts (not every model has them)", Quantity::Wind, false, true, 1},
+        {"snowfall", "Snowfall added up", "Snowfall added up since the first hour", Quantity::Snow, true, true, 2},
+        {"pressure_msl", "Sea level pressure", "Sea level pressure", Quantity::Pressure, false, false, 1},
+        {"cloud_cover", "Cloud cover", "Cloud cover", Quantity::Percent, false, true, 0},
+        {"relative_humidity_2m", "2 m relative humidity", "2 m relative humidity", Quantity::Percent, false, true, 0},
+    };
+    return list;
+}
+
+const EnsemblePercentiles::Variable * EnsemblePercentiles::findVariable(const std::string& id) {
+    for (const auto& v : variables()) {
+        if (v.id == id) {
+            return &v;
+        }
+    }
+    return nullptr;
+}
+
+double EnsemblePercentiles::display(const Variable& variable, double value, bool difference) {
+    switch (variable.quantity) {
+        case Quantity::Temperature: return DisplayUnits::value(value, "deg C", difference ? DisplayUnits::Kind::Delta : DisplayUnits::Kind::Absolute);
+        case Quantity::Precipitation: return DisplayUnits::value(value, "mm");
+        case Quantity::Wind: return DisplayUnits::us() ? value * 2.2369363 : value;   // m/s to mph
+        case Quantity::Snow: return DisplayUnits::us() ? value / 2.54 : value;       // cm to inches
+        default: return value;
+    }
+}
+
+std::string EnsemblePercentiles::unitLabel(const Variable& variable) {
+    switch (variable.quantity) {
+        case Quantity::Temperature: return DisplayUnits::label("deg C");
+        case Quantity::Precipitation: return DisplayUnits::label("mm");
+        case Quantity::Wind: return DisplayUnits::us() ? "mph" : "m/s";
+        case Quantity::Snow: return DisplayUnits::us() ? "in" : "cm";
+        case Quantity::Pressure: return "hPa";
+        default: return "%";
+    }
+}
+
+bool EnsemblePercentiles::fetchOne(double lat, double lon, const std::string& model, const Variable& variable, Series& out, std::string& why) {
+    static std::mutex lock;
+    static std::map<std::string, std::pair<std::chrono::steady_clock::time_point, QByteArray>> kept;
+    const auto address = url(lat, lon, model, {variable.id});
+    QByteArray bytes;
+    {
+        const std::lock_guard<std::mutex> guard{lock};
+        const auto found = kept.find(address);
+        if (found != kept.end() && std::chrono::steady_clock::now() - found->second.first < std::chrono::minutes{20}) {
+            bytes = found->second.second;
+        }
+    }
+    if (bytes.isEmpty()) {
+        bytes = UtilityIO::downloadAsByteArray(address);
+        if (bytes.contains("Minutely API request limit exceeded")) {
+            why = "the service's limit for a minute was reached: try again in a minute";
+            return false;
+        }
+    }
+    Series series;
+    if (!parse(bytes, variable.id, series, why)) {
+        return false;
+    }
+    {
+        const std::lock_guard<std::mutex> guard{lock};
+        kept[address] = {std::chrono::steady_clock::now(), bytes};
+    }
+    out = variable.accumulate ? accumulated(series) : std::move(series);
+    return true;
 }

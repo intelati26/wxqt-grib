@@ -35,7 +35,7 @@ public:
         QString name;
         std::vector<float> values;   // the members at the hour (native units)
     };
-    AllModelsChart(QWidget * parent, const QString& title, bool temperature, std::vector<Row> rows) : QWidget{parent}, titleText{title}, isTemperature{temperature}, rows{std::move(rows)} {
+    AllModelsChart(QWidget * parent, const QString& title, const EnsemblePercentiles::Variable& variable, std::vector<Row> rows) : QWidget{parent}, titleText{title}, var{variable}, rows{std::move(rows)} {
         setMinimumSize(560, 420);
         ChartExport::install(this, "Ensembles at one time");
         std::sort(this->rows.begin(), this->rows.end(), [] (const Row& x, const Row& y) { return EnsemblePercentiles::percentile(x.values, 50) < EnsemblePercentiles::percentile(y.values, 50); });
@@ -54,8 +54,7 @@ protected:
         p.drawText(QRectF{10, 4, width() - 20.0, 22}, Qt::AlignLeft | Qt::AlignVCenter, titleText);
         p.setFont(base);
         p.drawText(QPointF{10, 40}, "whisker: lowest to highest; thick: 10 to 90 percent; box: 25 to 75 percent; bar: median; dots: each member");
-        const std::string unit = isTemperature ? "deg C" : "mm";
-        const auto show = [&] (float v) { return DisplayUnits::value(static_cast<double>(v), unit); };
+        const auto show = [&] (float v) { return EnsemblePercentiles::display(var, static_cast<double>(v)); };
         double lo = 1e18, hi = -1e18;
         for (const auto& row : rows) {
             for (const float v : row.values) {
@@ -69,7 +68,7 @@ protected:
             p.drawText(rect(), Qt::AlignCenter, "no values at this time");
             return;
         }
-        if (!isTemperature) {
+        if (var.zeroBased) {
             lo = 0.0;
         }
         const double rough = std::max(hi - lo, 1e-6) / 6.0, mag = std::pow(10.0, std::floor(std::log10(rough)));
@@ -80,7 +79,7 @@ protected:
                 break;
             }
         }
-        const double axisLow = isTemperature ? std::floor(lo / step) * step : 0.0, axisHigh = std::max(std::ceil(hi / step) * step, axisLow + step);
+        const double axisLow = var.zeroBased ? 0.0 : std::floor(lo / step) * step, axisHigh = std::max(std::ceil(hi / step) * step, axisLow + step);
         const QRectF box{62, 78, width() - 62.0 - 20, height() - 78.0 - 96};
         p.setPen(QPen{QColor{150, 150, 150}, 1.0});
         p.drawRect(box);
@@ -91,7 +90,7 @@ protected:
             p.setPen(Qt::black);
             p.drawText(QRectF{box.left() - 58, yOf(v) - 8, 52, 16}, Qt::AlignRight | Qt::AlignVCenter, QString::number(v, 'f', step < 1.0 ? 2 : (std::fabs(step - std::round(step)) > 1e-6 ? 1 : 0)));
         }
-        p.drawText(QRectF{4, box.top() - 20, 200, 16}, Qt::AlignLeft | Qt::AlignVCenter, QString::fromStdString(DisplayUnits::label(unit)));
+        p.drawText(QRectF{4, box.top() - 20, 200, 16}, Qt::AlignLeft | Qt::AlignVCenter, QString::fromStdString(EnsemblePercentiles::unitLabel(var)));
         const double slot = box.width() / std::max<size_t>(1, rows.size()), half = std::min(28.0, slot * 0.22);
         static const QColor palette[] = {QColor{30, 90, 200}, QColor{220, 120, 20}, QColor{40, 150, 80}, QColor{160, 50, 160}, QColor{200, 50, 50}, QColor{90, 90, 90}};
         for (size_t r = 0; r < rows.size(); r++) {
@@ -137,18 +136,18 @@ protected:
             p.setPen(Qt::black);
             const auto name = rows[r].name;
             p.drawText(QRectF{cx - slot / 2, box.bottom() + 6, slot, 44}, Qt::AlignHCenter | Qt::AlignTop | Qt::TextWordWrap, name);
-            p.drawText(QRectF{cx - slot / 2, box.bottom() + 52, slot, 16}, Qt::AlignHCenter | Qt::AlignTop, QString{"median %1"}.arg(show(EnsemblePercentiles::percentile(v, 50)), 0, 'f', isTemperature ? 1 : 2));
+            p.drawText(QRectF{cx - slot / 2, box.bottom() + 52, slot, 16}, Qt::AlignHCenter | Qt::AlignTop, QString{"median %1"}.arg(show(EnsemblePercentiles::percentile(v, 50)), 0, 'f', var.digits));
         }
     }
 
 private:
     QString titleText;
-    bool isTemperature;
+    EnsemblePercentiles::Variable var;
     std::vector<Row> rows;
 };
 
 std::string ModelCompareViewer::mapModel(const std::string& id) {
-    static const std::vector<std::pair<std::string, std::string>> map{{"gfs025", "GEFS"}, {"ecmwf_ifs025", "IFS-ENS"}, {"ecmwf_aifs025", "AIFS"}, {"gem_global", "GEPS"}, {"icon_seamless", "ICON"}, {"ukmo_global_ensemble_20km", "UKMO"}};
+    static const std::vector<std::pair<std::string, std::string>> map{{"gfs025", "GEFS"}, {"ecmwf_ifs025", "IFS-ENS"}, {"ecmwf_aifs025", "AIFS"}, {"gem_global", "GEPS"}, {"icon_seamless", "ICON"}, {"ukmo_global_ensemble_20km", "UKMO"}, {"ncep_aigefs025", "AIGFS"}, {"icon_eu", "ICON-EU"}};
     for (const auto& [openMeteo, program] : map) {
         if (openMeteo == id) {
             return program;
@@ -182,11 +181,11 @@ public:
         drawBoxes = boxes;
         update();
     }
-    void set(const QString& title, const QString& nameOfA, const QString& nameOfB, bool temperature, const EnsemblePercentiles::Compare& c) {
+    void set(const QString& title, const QString& nameOfA, const QString& nameOfB, const EnsemblePercentiles::Variable& variable, const EnsemblePercentiles::Compare& c) {
         titleText = title;
         a = nameOfA;
         b = nameOfB;
-        isTemperature = temperature;
+        var = variable;
         data = c;
         have = !c.times.empty();
         picked = -1;
@@ -240,9 +239,8 @@ protected:
                 break;
             }
         }
-        const std::string unit = isTemperature ? "deg C" : "mm";
-        const auto show = [&] (float v) { return DisplayUnits::value(static_cast<double>(v), unit); };
-        const auto delta = [&] (float v) { return DisplayUnits::value(static_cast<double>(v), unit, DisplayUnits::Kind::Delta); };
+        const auto show = [&] (float v) { return EnsemblePercentiles::display(var, static_cast<double>(v)); };
+        const auto delta = [&] (float v) { return EnsemblePercentiles::display(var, static_cast<double>(v), true); };
         // the key, under the title
         double kx = 14;
         const auto key = [&] (const QColor& color, const QString& text, bool filled) {
@@ -293,7 +291,7 @@ protected:
             p.drawText(rect(), Qt::AlignCenter, "no values in common");
             return;
         }
-        axes(p, upper, lo, hi, !isTemperature, QString::fromStdString((isTemperature ? "2 m temperature (" : "precipitation added up since the first hour (") + DisplayUnits::label(unit) + ")"), yTop);
+        axes(p, upper, lo, hi, var.zeroBased, QString::fromStdString(var.title + " (" + EnsemblePercentiles::unitLabel(var) + ")"), yTop);
         const auto yOfTop = [&] (double v) { return upper.bottom() - (v - yTop.low) / (yTop.high - yTop.low) * upper.height(); };
         p.save();
         p.setClipRect(upper);
@@ -357,7 +355,7 @@ protected:
             }
         }
         const double span = std::ceil(dmax);
-        axes(p, lower, -span, span, false, QString::fromStdString(a.toStdString() + " minus " + b.toStdString() + ": the difference of the medians (" + DisplayUnits::label(unit) + "), and its average for each day"), yLow, true);
+        axes(p, lower, -span, span, false, QString::fromStdString(a.toStdString() + " minus " + b.toStdString() + ": the difference of the medians (" + EnsemblePercentiles::unitLabel(var) + "), and its average for each day"), yLow, true);
         const auto yOfLow = [&] (double v) { return lower.bottom() - (v - yLow.low) / (yLow.high - yLow.low) * lower.height(); };
         p.save();
         p.setClipRect(lower);
@@ -393,7 +391,7 @@ protected:
         for (const double days : {3.0, 5.0, 10.0}) {
             const auto m = EnsemblePercentiles::meanDifference(data, days);
             if (!std::isnan(m) && (days == 3.0 || data.times.back() - data.times.front() >= days * 86400.0 - 3600)) {
-                words << QString{"%1 days: %2%3"}.arg(static_cast<int>(days)).arg(delta(m) >= 0 ? "+" : "").arg(delta(m), 0, 'f', isTemperature ? 1 : 2);
+                words << QString{"%1 days: %2%3"}.arg(static_cast<int>(days)).arg(delta(m) >= 0 ? "+" : "").arg(delta(m), 0, 'f', var.digits);
             }
         }
         p.setPen(Qt::black);
@@ -549,7 +547,8 @@ private:
 
     std::vector<std::vector<float>> membersA, membersB;
     bool drawBands{true}, drawMembers{false}, drawBoxes{false};
-    bool have{false}, isTemperature{true};
+    bool have{false};
+    EnsemblePercentiles::Variable var;
     QString message, titleText, a, b;
     EnsemblePercentiles::Compare data;
     Axis yTop, yLow;
@@ -587,8 +586,9 @@ ModelCompareViewer::ModelCompareViewer(Window * parent, double lat, double lon, 
     modelA->setCurrentIndex(std::max(0, modelA->findData(QString::fromStdString(idA))));
     modelB->setCurrentIndex(std::max(0, modelB->findData(QString::fromStdString(idB))));
     field = UiStandards::combo(body);
-    field->addItem("2 m temperature", "temperature");
-    field->addItem("Precipitation added up", "precipitation");
+    for (const auto& v : EnsemblePercentiles::variables()) {
+        field->addItem(QString::fromStdString(v.label), QString::fromStdString(v.id));
+    }
     field->setCurrentIndex(std::max(0, field->findData(QString::fromStdString(fieldId))));
     spread = UiStandards::combo(body);
     spread->addItem("Spread: 25 to 75 percent bands", 0);
@@ -650,17 +650,19 @@ void ModelCompareViewer::load() {
     const double lat = latBox->value(), lon = lonBox->value();
     const auto idA = modelA->currentData().toString().toStdString(), idB = modelB->currentData().toString().toStdString();
     const auto nameA = modelA->currentText().section(" (", 0, 0), nameB = modelB->currentText().section(" (", 0, 0);
-    const bool temperature = field->currentData().toString() == "temperature";
+    const auto * chosen = EnsemblePercentiles::findVariable(field->currentData().toString().toStdString());
+    if (chosen == nullptr) {
+        return;
+    }
+    const auto variable = *chosen;
     go->setEnabled(false);
     status->setText("reading the members of both models...");
     QPointer<ModelCompareViewer> self{this};
-    std::thread{[self, mine, lat, lon, idA, idB, nameA, nameB, temperature] {
+    std::thread{[self, mine, lat, lon, idA, idB, nameA, nameB, variable] {
         const auto read = [&] (const std::string& id, EnsemblePercentiles::Fan& fan, EnsemblePercentiles::Series& members, std::string& why) {
-            EnsemblePercentiles::Series t, r;
-            if (!EnsemblePercentiles::fetch(lat, lon, id, t, r, why)) {
+            if (!EnsemblePercentiles::fetchOne(lat, lon, id, variable, members, why)) {
                 return false;
             }
-            members = temperature ? t : EnsemblePercentiles::accumulated(r);
             fan = EnsemblePercentiles::fan(members);
             return true;
         };
@@ -679,7 +681,7 @@ void ModelCompareViewer::load() {
             linesA = EnsemblePercentiles::onTimes(sa, compared.times);
             linesB = EnsemblePercentiles::onTimes(sb, compared.times);
         }
-        QMetaObject::invokeMethod(QCoreApplication::instance(), [self, mine, okA, okB, whyA, whyB, compared, linesA, linesB, lat, lon, nameA, nameB, temperature] {
+        QMetaObject::invokeMethod(QCoreApplication::instance(), [self, mine, okA, okB, whyA, whyB, compared, linesA, linesB, lat, lon, nameA, nameB, variable] {
             if (!self || self->generation != mine) {
                 return;
             }
@@ -695,7 +697,7 @@ void ModelCompareViewer::load() {
             self->chart->setMembers(linesA, linesB);
             const int how = self->spread->currentData().toInt();
             self->chart->showMembers(how == 0 || how == 2, how == 1 || how == 2, how == 3);
-            self->chart->set(QString{"%1 minus %2 at %3, %4"}.arg(nameA, nameB).arg(lat, 0, 'f', 2).arg(lon, 0, 'f', 2), nameA, nameB, temperature, compared);
+            self->chart->set(QString{"%1 minus %2 at %3, %4"}.arg(nameA, nameB).arg(lat, 0, 'f', 2).arg(lon, 0, 'f', 2), nameA, nameB, variable, compared);
         }, Qt::QueuedConnection);
     }}.detach();
 }
@@ -770,22 +772,25 @@ void ModelCompareViewer::allModels() {
         return;
     }
     const double lat = latBox->value(), lon = lonBox->value();
-    const bool temperature = field->currentData().toString() == "temperature";
+    const auto * chosenVariable = EnsemblePercentiles::findVariable(field->currentData().toString().toStdString());
+    if (chosenVariable == nullptr) {
+        return;
+    }
+    const auto variable = *chosenVariable;
     status->setText("reading every ensemble...");
     allButton->setEnabled(false);
     QPointer<ModelCompareViewer> self{this};
-    std::thread{[self, lat, lon, temperature, t] {
+    std::thread{[self, lat, lon, variable, t] {
         std::vector<std::future<std::pair<bool, AllModelsChart::Row>>> reads;
         for (const auto& m : EnsemblePercentiles::models()) {
-            reads.push_back(std::async(std::launch::async, [m, lat, lon, temperature, t] {
+            reads.push_back(std::async(std::launch::async, [m, lat, lon, variable, t] {
                 AllModelsChart::Row row;
                 row.name = QString::fromStdString(m.label).section(" (", 0, 0);
-                EnsemblePercentiles::Series a, r;
+                EnsemblePercentiles::Series series;
                 std::string why;
-                if (!EnsemblePercentiles::fetch(lat, lon, m.id, a, r, why)) {
+                if (!EnsemblePercentiles::fetchOne(lat, lon, m.id, variable, series, why)) {
                     return std::pair{false, row};
                 }
-                const auto series = temperature ? a : EnsemblePercentiles::accumulated(r);
                 size_t at = series.times.size();
                 for (size_t i = 0; i < series.times.size(); i++) {
                     if (series.times[i] == t) {
@@ -808,7 +813,7 @@ void ModelCompareViewer::allModels() {
             auto got = f.get();
             (got.first ? rows.push_back(got.second) : (void) left.push_back(got.second.name));
         }
-        QMetaObject::invokeMethod(QCoreApplication::instance(), [self, rows, left, temperature, t, lat, lon] {
+        QMetaObject::invokeMethod(QCoreApplication::instance(), [self, rows, left, variable, t, lat, lon] {
             if (!self) {
                 return;
             }
@@ -821,7 +826,7 @@ void ModelCompareViewer::allModels() {
             auto * window = new Window{self.data()};
             window->setAttribute(Qt::WA_DeleteOnClose);
             window->setTitle("Ensembles at one time");
-            window->setCentralWidget(new AllModelsChart{window, QString{"%1 at %2, %3: every ensemble, %4"}.arg(temperature ? "2 m temperature" : "Precipitation added up").arg(lat, 0, 'f', 2).arg(lon, 0, 'f', 2).arg(when), temperature, rows});
+            window->setCentralWidget(new AllModelsChart{window, QString{"%1 at %2, %3: every ensemble, %4"}.arg(QString::fromStdString(variable.title)).arg(lat, 0, 'f', 2).arg(lon, 0, 'f', 2).arg(when), variable, rows});
             window->setSize(1000, 640);
             window->QWidget::show();
             if (self->allShown) {
