@@ -8,6 +8,10 @@
 #include <cmath>
 #include <thread>
 #include <QDateTime>
+#include <QImage>
+#include <QJsonArray>
+#include <QJsonDocument>
+#include <QJsonObject>
 #include <QMouseEvent>
 #include <QPainter>
 #include <QPainterPath>
@@ -19,6 +23,7 @@
 #include "ui/FlowBox.h"
 #include "ui/UiStandards.h"
 #include "util/DisplayUnits.h"
+#include "util/UtilityIO.h"
 #include "misc/NbmText.h"
 
 namespace {
@@ -39,12 +44,22 @@ public:
     void setBlend(const QString& title, const NbmText::Block& block) {
         blendMode = true;
         blend = block;
+        image = QImage{};
         titleText = title;
         have = !block.columns.empty();
         hover = -1;
         update();
     }
+    // ECMWF's own ENS meteogram of the place (a picture from ECMWF's Open Charts, CC BY 4.0, the licence and source are in the picture)
+    void setImage(const QImage& picture) {
+        image = picture;
+        blendMode = false;
+        have = !picture.isNull();
+        hover = -1;
+        update();
+    }
     void clear(const QString& text) {
+        image = QImage{};
         blendMode = false;
         have = false;
         message = text;
@@ -52,6 +67,7 @@ public:
     }
     void set(const QString& title, const EnsemblePercentiles::Series& temperature, const EnsemblePercentiles::Series& precipitation) {
         blendMode = false;
+        image = QImage{};
         titleText = title;
         members = static_cast<int>(temperature.members.size());
         tempFan = EnsemblePercentiles::fan(temperature);
@@ -108,6 +124,13 @@ protected:
         const QFont base = p.font();
         if (!have) {
             p.drawText(rect(), Qt::AlignCenter, message.isEmpty() ? "Choose a place and a model, then Load." : message);
+            return;
+        }
+        if (!image.isNull()) {
+            const double scale = std::min(static_cast<double>(width()) / image.width(), static_cast<double>(height()) / image.height());
+            const QSizeF size{image.width() * scale, image.height() * scale};
+            p.setRenderHint(QPainter::SmoothPixmapTransform, true);
+            p.drawImage(QRectF{(width() - size.width()) / 2.0, 0, size.width(), size.height()}, image);
             return;
         }
         if (blendMode) {
@@ -554,6 +577,7 @@ private:
         }
     }
 
+    QImage image;
     bool have{false}, blendMode{false};
     NbmText::Block blend;
     QString message, titleText;
@@ -587,6 +611,9 @@ EnsemblePercentileViewer::EnsemblePercentileViewer(Window * parent, double lat, 
     lonBox->setValue(lon);
     model = UiStandards::combo(body);
     model->addItem("NWS National Blend of Models (text bulletin, US stations)", "nbm");
+    model->addItem("ECMWF ENS meteogram, 10 days (ECMWF's own chart, anywhere)", "ecmwf-chart-classical_10d");
+    model->addItem("ECMWF ENS meteogram, 15 days (ECMWF's own chart, anywhere)", "ecmwf-chart-classical_15d");
+    model->addItem("ECMWF ENS plumes (ECMWF's own chart, anywhere)", "ecmwf-chart-classical_plume");
     for (const auto& m : EnsemblePercentiles::models()) {
         model->addItem(QString::fromStdString(m.label), QString::fromStdString(m.id));
     }
@@ -629,6 +656,36 @@ void EnsemblePercentileViewer::load() {
     go->setEnabled(false);
     status->setText("reading the members...");
     QPointer<EnsemblePercentileViewer> self{this};
+    if (id.rfind("ecmwf-chart-", 0) == 0) {   // the ECMWF's own picture: Open Charts makes it for any latitude and longitude (a few seconds)
+        const auto kind = id.substr(12);
+        std::thread{[self, mine, lat, lon, kind] {
+            const auto answer = UtilityIO::downloadAsByteArray("https://charts.ecmwf.int/opencharts-api/v1/products/opencharts_meteogram/?epsgram=" + kind + "&lon=" + QString::number(lon, 'f', 3).toStdString() + "&lat=" + QString::number(lat, 'f', 3).toStdString());
+            const auto href = QJsonDocument::fromJson(answer).object().value("data").toObject().value("link").toObject().value("href").toString();
+            QImage picture;
+            std::string error = "ECMWF's chart service did not make the chart";
+            if (!href.isEmpty()) {
+                picture.loadFromData(UtilityIO::downloadAsByteArray(href.toStdString()));
+                if (picture.isNull()) {
+                    error = "the picture could not be read";
+                }
+            }
+            QMetaObject::invokeMethod(QCoreApplication::instance(), [self, mine, picture, error, lat, lon] {
+                if (!self || self->generation != mine) {
+                    return;
+                }
+                self->loading = false;
+                self->go->setEnabled(true);
+                if (picture.isNull()) {
+                    self->status->setText("could not read the chart: " + QString::fromStdString(error));
+                    self->chart->clear("No chart: " + QString::fromStdString(error));
+                    return;
+                }
+                self->status->setText(QString{"ECMWF ENS meteogram at %1, %2 (made by ECMWF's Open Charts, CC BY 4.0; the picture is ECMWF's, its box is 10, 25, 50, 75, 90 percent, with the lowest and highest member)"}.arg(lat, 0, 'f', 2).arg(lon, 0, 'f', 2));
+                self->chart->setImage(picture);
+            }, Qt::QueuedConnection);
+        }}.detach();
+        return;
+    }
     if (id == "nbm") {   // the NWS's own percentiles, from its text bulletin of the nearest station: no member of an ensemble, the blend's distribution
         std::thread{[self, mine, lat, lon, label] {
             std::string station, name, error;
