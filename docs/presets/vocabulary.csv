@@ -1,6 +1,6 @@
 kind,name,charts_using,models_using,example_ids
-barbs,wind barbs,105,59,100_pv_ht 100_temp_ht 100_wnd_ht 10_pv_ht
-extra fills,"bands over the fill (snow, mixed ...)",26,15,1000_850_thick_type 10m_wnd_precip_type 850_700_thick_type 850_temp_mslp_precip_type
+barbs,wind barbs,113,58,100_pv_ht 100_temp_ht 100_wnd_ht 10_pv_ht
+extra fills,"bands over the fill (snow, mixed ...)",29,32,1000_850_thick_type 10m_wnd_precip_type 850_700_thick_type 850_temp_mslp_precip_type
 fill field,WPC # hour liquid: chance of # in or more,44,1,ppp_24h_qpf_prob_0p01 ppp_24h_qpf_prob_0p10 ppp_24h_qpf_prob_0p25 ppp_24h_qpf_prob_0p50
 fill field,WPC # hour freezing rain: chance of # in or more,36,1,ppp_24h_zr_prob_0p01 ppp_24h_zr_prob_0p10 ppp_24h_zr_prob_0p25 ppp_24h_zr_prob_0p50
 fill field,WPC # hour snow: chance of # in or more,32,1,ppp_24h_sn_prob_0p10 ppp_24h_sn_prob_12p0 ppp_24h_sn_prob_18p0 ppp_24h_sn_prob_1p00
@@ -18,9 +18,10 @@ fill field,Spread of the # mb height,7,2,500_vort_ht 700_vort_ht 850_vort_ht spr
 fill field,Spread of the # mb temperature,7,1,250_temp 500_temp 700_temp 850_temp
 fill field,Chance of mixed-layer CAPE over # J/kg,7,2,ens_prob_cape_1000 ens_prob_cape_2000 ens_prob_cape_500 prob_cape_1000
 fill field,Chance of # in or more of snow in the hour,7,1,prob_1h_snow_0.1in prob_1h_snow_0.5in prob_1h_snow_1.5in prob_1h_snow_1in
-fill field,# m temperature,6,56,10m_wnd_2m_temp 2m_temp_10m_wnd 2m_tmpc member_2m_temp_mslp
+fill field,# m temperature,6,55,10m_wnd_2m_temp 2m_temp_10m_wnd 2m_tmpc member_2m_temp_mslp
 fill field,Chance of # in or more of precipitation in the # hours ending at the valid time,6,1,all_prob_24h_0.01in all_prob_24h_0.1in all_prob_24h_0.25in all_prob_24h_0.5in
 fill field,Potential vorticity,6,3,100_pv_ht 10_pv_ht 20_pv_ht 30_pv_ht
+fill field,"Chance of a ceiling under #,# ft",6,2,ens_prob_ceil_1000ft ens_prob_ceil_2000ft ens_prob_ceil_3000ft prob_ceil_1000ft
 fill field,#-h QPF > # in (ensemble probability),6,1,qpf_01h_acc_prob_t>001 qpf_01h_acc_prob_t>0p010 qpf_06h_acc_prob_t>001 qpf_06h_acc_prob_t>002
 fill field,Relative vorticity,5,39,500_vort_ht 850_stream_vort 850_vort_ht max_relv_0_1km
 fill field,"Precipitation (green rain, blue snow, pink mixed), hours #",5,10,1000_850_thick_type 10m_wnd_precip_type 850_700_thick_type 850_temp_mslp_precip_type
@@ -49,16 +50,15 @@ fill field,"WPC # hour liquid, expected amount",4,1,ppp_24h_qpf_expected ppp_36h
 fill field,"WPC # hour snow, expected amount",4,1,ppp_24h_sn_expected ppp_36h_sn_expected ppp_48h_sn_expected ppp_72h_sn_expected
 fill field,# m dewpoint,3,36,2m_dewp_10m_wnd 2m_dewpoint dewpoint_2m
 fill field,# m relative humidity,3,27,2m_relh_10m_wnd 2m_rh_10m_wnd_derived rh_2m
-fill field,# m wind speed,3,44,10m_wnd mslp_10m_wind wind_mslp
+fill field,# m wind speed,3,43,10m_wnd mslp_10m_wind wind_mslp
 fill field,Mean wind speed,3,32,ens_250_wnd ens_850_wnd steering_850_200
 fill field,Relative humidity,3,38,500_rh_ht 700_rh_ht 850_rh_ht
-fill field,Surface-based CAPE,3,33,cape sbcape sbcape_wind
+fill field,Surface-based CAPE,3,32,cape sbcape sbcape_wind
 fill field,Composite reflectivity,3,20,member_refc reflectivity sim_radar_comp
 fill field,#th percentile of the # members: # m wind speed,3,1,pct10_10m_wnd pct50_10m_wnd pct90_10m_wnd
 fill field,#th percentile of the # members: # m temperature,3,1,pct10_2m_temp pct50_2m_temp pct90_2m_temp
 fill field,Spread of the sea level pressure,3,3,ens_mslp mslp spread_mslp
 fill field,Chance of more than # in of precipitation in # hours,3,1,prob_precip_0.25in prob_precip_0.5in prob_precip_1in
-fill field,"Chance of a ceiling under #,# ft",3,1,prob_ceil_1000ft prob_ceil_2000ft prob_ceil_3000ft
 fill field,Neighborhood chance of more than # in of rain in the hour,3,1,eas_prob_1h_rain_0.01in eas_prob_1h_rain_0.25in eas_prob_1h_rain_0.5in
 fill field,Neighborhood chance of more than # in of rain in # hours,3,1,eas_prob_3h_rain_0.01in eas_prob_3h_rain_0.25in eas_prob_3h_rain_0.5in
 fill field,Chance of updraft helicity over #,3,1,prob_max_hlcy_150 prob_max_hlcy_25 prob_max_hlcy_75
@@ -108,6 +108,7 @@ fill field,"Share of the pooled members (REFS, NSSL MPAS-HT and MPAS-RN; most re
 fill field,Vorticity of the mean wind,2,1,ens_250_vort_ht ens_500_vort_ht
 fill field,Mean relative humidity,2,1,ens_700_rh ens_850_rh
 fill field,Mean temperature,2,1,ens_700_temp ens_850_temp
+fill field,"PM# at # m, the hour's mean: the RRFS's smoke and dust",2,1,pm10_aq pm25_sfc
 fill field,"Energy helicity index, # km",2,2,ehi_0_1km ehi_0_3km
 fill field,# km bulk shear,2,2,shear_0_1km shear_0_6km
 fill field,# km storm relative helicity,2,2,srh_0_1km srh_0_3km
@@ -137,8 +138,9 @@ fill field,"#-h Min # km Updraft Helicity (ensemble minimum, shown as magnitude)
 fill field,#-h Max Updraft Speed (ensemble maximum),2,1,wmax_04h_max_overlap_max wmax_24h_max_overlap12h_max
 fill field,#-h Paintball Updraft Speed > # m/s: each member over the limit in its own color,2,1,wmax_04h_max_overlap_pb_t020 wmax_24h_max_overlap12h_pb_t020
 fill field,Pressure anomaly from the # mean,1,5,mslp_anom
-fill field,Sea level pressure change,1,42,mslp_trend
+fill field,Sea level pressure change,1,41,mslp_trend
 fill field,#mb height change,1,38,z500_trend
+fill field,Low cloud (%): each place in the color of its layer with the most cover,1,26,cloud_layers
 fill field,Equivalent potential temperature,1,38,850_thetae_ht
 fill field,#mb relative vorticity,1,32,850vor_500ht_200wd
 fill field,Shear magnitude,1,33,shear_850_200
@@ -251,7 +253,10 @@ fill field,Chance of # km wind shear over # kt,1,1,prob_vwshr_30kt
 fill field,Mean mixed-layer CAPE,1,1,mean_ml_cape
 fill field,Mean # km wind shear,1,1,mean_vwshr
 fill field,Mean # m dew point,1,1,mean_2m_dewp
-fill field,Ceiling,1,11,ceiling
+fill field,Aerosol optical thickness,1,3,aod
+fill field,"Smoke in the whole column (milligrams per square meter): the haze aloft, even where the ground air is clean",1,2,smoke_column
+fill field,"Smoke (PM#) at # m, the HRRR-Smoke model's",1,2,smoke_sfc
+fill field,Ceiling,1,20,ceiling
 fill field,Lowest relative humidity of the last hour,1,10,2m_rh_10m_wnd
 fill field,"Haines index: # very low, # low, # moderate, # high",1,10,haines
 fill field,Transport wind speed,1,10,transport_wind
@@ -301,12 +306,19 @@ fill field,"REFS #; HRRR grays (now, -#, -#); MPAS-HT pink, MPAS-RN teal; REFS m
 fill field,Mean snow since the start of the run,1,1,ens_snow_total_mean
 fill field,Spread of the snow since the start of the run,1,1,ens_snow_total_sprd
 fill field,Mean precipitation in the last hour,1,1,mean_precip_p01
+fill field,Chance of a ceiling under # ft,1,1,ens_prob_ceil_500ft
 fill field,Chance of rotating updrafts,1,1,prob_uphl_75
 fill field,Mean surface-based CAPE,1,1,ens_cape
 fill field,Mean surface-based CIN,1,1,ens_cin
 fill field,RRFS # km updraft helicity in the last hour,1,1,combo_uphl_chance
 fill field,RRFS composite reflectivity,1,1,combo_refc_chance
 fill field,Mean # m wind speed,1,1,ens_10m_wind
+fill field,Dust (PM#) in the whole column,1,1,dust_column
+fill field,Dust lifted into the air (micrograms per square meter per second): the dust sources,1,1,dust_emission
+fill field,Fine dust (PM#) at # m,1,1,dust_sfc
+fill field,"Smoke in the whole column (milligrams per square meter): the haze aloft, even where the ground air is clean; the fires in reds",1,1,smoke_column
+fill field,Smoke put into the air (micrograms per square meter per second): the fires the model knows of,1,1,smoke_emission
+fill field,"Smoke (organic matter, PM#) at # m (micrograms per cubic meter); the fires in reds",1,1,smoke_sfc
 fill field,Derecho composite parameter,1,2,dcp
 fill field,Supercell composite parameter,1,2,scp
 fill field,"Significant hail parameter: over #, significant hail",1,2,ship
@@ -328,6 +340,8 @@ fill field,Effective storm relative helicity,1,2,srh_eff
 fill field,Freezing level above ground,1,2,fzl
 fill field,# m water vapor mixing ratio,1,2,mixr_2m
 fill field,# m equivalent potential temperature,1,2,thetae_2m
+fill field,Water running off the ground in the last hour,1,1,runoff_1hr
+fill field,Water running off the ground in the last # hours,1,1,runoff_6hr
 fill field,Precipitation of the month against the ECMWF climate: month # of the forecast,1,1,seas5_precip_departure
 fill field,Precipitation of the month: month # of the forecast,1,1,seas5_precip
 fill field,"Sea level pressure, the month's mean against the ECMWF climate (mb): month # of the forecast",1,1,seas5_mslp_departure
@@ -380,7 +394,7 @@ fill field,"#-m Wind, west-east component (ensemble mean)",1,1,u10m_mean
 fill field,"#-m Wind, south-north component (ensemble mean)",1,1,v10m_mean
 level,2 m,33,21,2m_dwpc 2m_max_temp 2m_min_temp 2m_temp
 level,500 mb,32,42,500_510_552_ht 500_516_558_ht 500_522_564_ht 500_528_570_ht
-level,10 m,29,56,10m_maxwnd 10m_wnd 10m_wnd_2m_temp 10m_wnd_gust
+level,10 m,29,55,10m_maxwnd 10m_wnd 10m_wnd_2m_temp 10m_wnd_gust
 level,850 mb,24,44,850_pw_ht 850_rh_ht 850_stream_vort 850_temp
 level,700 mb,15,38,700_hgt_anom 700_rh_ht 700_temp 700_temp_mslp
 level,200 mb,9,33,200_1176_ht 200_1188_ht 200_1200_ht 200_1212_ht
@@ -401,7 +415,7 @@ level,700-500 mb,2,3,lapse_700_500 lr75_mean
 level,700-300 mb,1,30,rh_700_300
 level,180 mb,1,10,lifted_index_ml
 line family,Heights,68,43,100_pv_ht 100_temp_ht 100_wnd_ht 10_pv_ht
-line family,Pressure,54,47,1000_500_thick 1000_850_thick 1000_850_thick_type 10m_wnd
+line family,Pressure,54,46,1000_500_thick 1000_850_thick 1000_850_thick_type 10m_wnd
 line family,Temperature,39,17,250_temp 2m_temp 500_temp 700_temp
 line family,Members,34,3,200_1176_ht 200_1188_ht 200_1200_ht 200_1212_ht
 line family,Chance contour,31,3,combo_refc_chance combo_uphl_chance cref_pb_t040 maxref1km_04h_max_overlap_max
@@ -410,10 +424,10 @@ line family,Ensemble mean / spread,17,4,500_vort_ht 700_vort_ht 850_vort_ht all_
 line family,Other lines,5,11,best_cape_cin cfs30_t2m_precip sfc_cape_cin ship
 line family,Omega,1,20,700_rh_ht
 line family,Waves,1,2,waves
-mode,Value,368,72,1000_500_thick 1000_850_thick 1000_850_thick_type 100_pv_ht
-mode,Chance of a limit,318,11,12hour_precip_chance 1hour_precip_chance 6hour_precip_chance all_prob_24h_0.01in
+mode,Value,377,72,1000_500_thick 1000_850_thick 1000_850_thick_type 100_pv_ht
+mode,Chance of a limit,322,11,12hour_precip_chance 1hour_precip_chance 6hour_precip_chance all_prob_24h_0.01in
 mode,Amount: expected / percentile,113,4,10th_percentile_1hr_snow 50th_percentile_1hr_snow 90th_percentile_1hr_snow efi_10m_wnd
 mode,Ensemble: members / spread,87,5,200_1176_ht 200_1188_ht 200_1200_ht 200_1212_ht
-mode,Change,5,44,mslp_trend snodpth_chng snodpth_chng_mean snodpth_chng_sprd
+mode,Change,5,43,mslp_trend snodpth_chng snodpth_chng_mean snodpth_chng_sprd
 mode,Anomaly,3,7,500_hgt_anom 700_hgt_anom mslp_anom
 streamlines,streamlines,8,42,200_stream_div 850_stream_vort ocean_current peak_dir_per

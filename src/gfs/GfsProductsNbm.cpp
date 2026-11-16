@@ -5,6 +5,7 @@
 
 // The National Blend of Models (NBM), and the real-time and unrestricted mesoscale analyses (RTMA, URMA) that share its way of reading the files.
 #include "gfs/GfsChartInternal.h"
+#include <array>
 #include <QTimeZone>
 #include "gfs/AirNowLoader.h"
 #include "gfs/GfsNormals.h"
@@ -73,10 +74,15 @@ for (const std::string source : {"NBM"}) {
     x.id = "nice_weather";
     x.label = "Nice Weather Outlook (hour 24 = day 1)";
     x.periodHours = 24;
+    x.validOf = [lastDay] (const QDateTime& initUtc, int hour) {   // the date of the day drawn (the run's date plus the day less one), at 18Z: about midday in the middle of the country
+        return QDateTime{initUtc.date().addDays(std::clamp(hour / 24, 1, lastDay) - 1), QTime{18, 0}, QTimeZone::utc()};
+    };
     x.mainCycleStep = 6;   // the long hours are made by the main runs
+    // Day 1 is the run's own day, 12Z to 12Z (the convention of the SPC's and his day 1): a run before 12Z gives today's daytime, a run after it what is left of today's; day 2 the next ...
     const auto sampleHours = [blend] (int day) {   // the forecast hours that can fall in a cell's daytime of that day, whatever the run's hour: 3-hourly where the model has them, then (the blend) 6-hourly
         std::vector<int> hours;
-        for (int f = 24 * (day - 1) + 3; f <= 24 * (day - 1) + 36; f += 3) {   // (to 36 hours: a late run's tomorrow reaches to the evening of the west coast)
+        for (int f = std::max(3, 24 * (day - 1) - 12); f <= 24 * (day - 1) + 30; f += 3) {   // (the daytime of the day is about 12Z to 04Z the next day, by the sun from the east coast to the west: from a 23Z run, 11 hours
+                                                                                          // before the run's 24 (day - 1), from a 00Z run 28 hours after)
             if (!blend || f <= 36 || f % 6 == 0) {
                 hours.push_back(f);
             }
@@ -224,7 +230,8 @@ for (const std::string source : {"NBM"}) {
                 }
                 const double nowLocal = runHours + zone;
                 const double hourNow = nowLocal - 24.0 * std::floor(nowLocal / 24.0);
-                const double target = std::floor(nowLocal / 24.0) + (hourNow <= 9.5 ? 0 : 1) + (day - 1);
+                const double target = std::floor(runHours / 24.0) + (day - 1);   // the day by the date of the run (UTC): the local daytime of that date
+                (void) hourNow;
                 double wWorst = 1.0, tScore = 0, dScore = 0, cScore = 0, wScore = 0, pMax = 0, pSum = 0, smoke = 0, smokeWeight = 0, aSum = 0, high = -1000.0, gustMax = 0;
                 double count = 0;   // the weight of the hours (an hour counts fully from 10 to 18 o'clock and less towards 8 and 20, so that the cells where the hours fall differently do not make a line)
                 for (const int f : hours) {
@@ -348,7 +355,9 @@ for (const std::string source : {"NBM"}) {
         {
             const double midLocal = runHours - 6.3;   // the day's date by the sun's time at the middle of the country
             const double hourMid = midLocal - 24.0 * std::floor(midLocal / 24.0);
-            const long dayCount = static_cast<long>(std::floor(midLocal / 24.0)) + (hourMid < 17.0 ? 0 : 1) + (day - 1);
+            const long dayCount = static_cast<long>(std::floor(runHours / 24.0)) + (day - 1);   // (the same day as the scores: the run's date plus the day less one)
+            (void) midLocal;
+            (void) hourMid;
             const auto points = AirNow::points(QDate{1970, 1, 1}.addDays(dayCount));
             const double radiusKm = 80.5;
             for (const auto& point : points) {
@@ -377,6 +386,7 @@ for (const std::string source : {"NBM"}) {
         }
         // the base each level needs (his day 1 colored 10% of the area Beautiful, 17% Nice, 63% Fair and 10% Decent: Fair is the wide band, Nice and Beautiful are the narrow ones; fitted with the temperature judged against the normal)
         GfsGrid::Grid gate = level, gateValue = level;   // what sets each cell's level, and its score (for the hover)
+        std::array<GfsGrid::Grid, 8> parts{level, level, level, level, level, level, level, level};   // the ingredient scores and the weighted base (of 100) and the smoke, for the hover and for fitting the marks
         const double thP = 0.92, thB = 0.805, thN = 0.76, thF = 0.45, thD = 0.20;   // (his scale: Beautiful from about 82 of 100, as at Huntsville; the shares of his day 1: 10% Beautiful, 17% Nice, 60% Fair)
         for (size_t at = 0; at < cells; at++) {
             double lonAt = shape.lon0 + static_cast<double>(at % static_cast<size_t>(shape.columns)) * shape.step;
@@ -387,6 +397,9 @@ for (const std::string source : {"NBM"}) {
                 level.values[at] = none;
                 gate.values[at] = none;
                 gateValue.values[at] = none;
+                for (auto& part : parts) {
+                    part.values[at] = none;
+                }
                 continue;
             }
             const double tScore = cT[at], rScore = cR[at], dScore = cD[at], cScore = cC[at], wScore = cW[at], apparentMean = cA[at], smoke = cS[at], gusty = cG[at];
@@ -444,6 +457,11 @@ for (const std::string source : {"NBM"}) {
             if (wScore < 0.2 || gusty >= 0.05) {   // gusts over 35 mph in the area around (or a mean gust past about 31 mph) hold a place at Decent whatever its score
                 cap(1, 9);
             }
+            for (size_t k = 0; k < 6; k++) {
+                parts[k].values[at] = static_cast<float>(scores[k]);
+            }
+            parts[6].values[at] = static_cast<float>(base * 100.0);
+            parts[7].values[at] = static_cast<float>(smoke);
             gate.values[at] = static_cast<float>(gateCode);
             gateValue.values[at] = static_cast<float>(gateScore);
             level.values[at] = static_cast<float>(value);
@@ -451,9 +469,13 @@ for (const std::string source : {"NBM"}) {
         g["level"] = std::move(level);
         g["gate"] = std::move(gate);
         g["gatescore"] = std::move(gateValue);
+        static const char * const partKeys[8] = {"s_temp", "s_rain", "s_heat", "s_dew", "s_sky", "s_wind", "s_base", "s_smoke"};
+        for (size_t k = 0; k < 8; k++) {
+            g[partKeys[k]] = std::move(parts[k]);
+        }
     };
     // the smoke is the RRFS's (the blend has none): its near-surface fine particles at the same hours, for the first days it reaches
-    x.extras.push_back({"RRFS", nbmWant("s", "MASSDEN", "8 m above ground", "", "aerosol=Total aerosol"), "RRFS smoke", 0, [sampleHours] (int hour) { return sampleHours(std::clamp(hour / 24, 1, 8)); }, 6});
+    x.extras.push_back({"RRFS", nbmWant("s", "MASSDEN", "8 m above ground", "", "aerosol=Total aerosol|aerosol_size <2.5e-06"), "RRFS smoke", 0, [sampleHours] (int hour) { return sampleHours(std::clamp(hour / 24, 1, 8)); }, 6});
     {   // GEOS-FP's fine particles at the same hours (the daytime of the days it has): the dust, sea salt, black carbon, organic matter and sulfate of its 3 hour surface averages
         const auto geosHours = [sampleHours] (int hour) { return sampleHours(std::clamp(hour / 24, 1, 8)); };
         x.extras.push_back({"GEOS-FP", GfsData::Want{"y", "PM25", "aerosol", "", ""}, "GEOS-FP particles", 0, geosHours, 0});
@@ -461,7 +483,8 @@ for (const std::string source : {"NBM"}) {
     x.fill = [] (const Grids& g) { return pick(g, "level"); };
     x.hoverValues = {{"gate", "Limited by", {"Temperature", "Chance of rain", "Heat", "Dewpoint (humidity)", "Cloud cover (sky)", "Wind", "How far off the day is (a later day is held to a lower level)", "Smoke (fine particles)", "Air quality (AirNow)",
                                             "Gusts over 35 mph nearby", "Nothing: every ingredient allows the level"}},
-                     {"gatescore", "Its score (of 100)", {}}};
+                     {"gatescore", "Its score (of 100)", {}}, {"s_temp", "Temperature score (of 100)", {}}, {"s_rain", "Rain score (of 100)", {}}, {"s_heat", "Heat score (of 100)", {}}, {"s_dew", "Dewpoint score (of 100)", {}},
+                     {"s_sky", "Sky score (of 100)", {}}, {"s_wind", "Wind score (of 100)", {}}, {"s_base", "Weighted base (of 100)", {}}, {"s_smoke", "Smoke (micrograms a cubic meter)", {}}};
     x.ramp = Ramp{{{1.0, QColor{"#d6e7a3"}}, {2.0, QColor{"#9fd486"}}, {3.0, QColor{"#4fb868"}}, {4.0, QColor{"#1a8c9a"}}, {5.0, QColor{"#f5b800"}}}, true};   // each level starts at its whole number; the scale ends at 5
     x.fillTitle = "Nice weather in the daytime: 1 Decent, 2 Fair, 3 Nice, 4 Beautiful, Perfect 5/5";
     x.legendStep = 1;
@@ -506,6 +529,19 @@ for (const char * source : {"RTMA", "URMA", "RTMA-AK", "URMA-AK", "RTMA-HI", "UR
         auto x = analysisChart("visibility", "2-meter Visibility", "VIS", "surface", visibilityRamp(), "Visibility (miles)", Quantity::Other, 0, false);
         x.fill = [] (const Grids& g) { return GfsGrid::scaled(pick(g, "f"), 1.0 / 1609.344); };
         x.palette = "vis";
+        p.push_back(x);
+    }
+    {   // the analysed ceiling (CEIL, meters; every one of these analyses has it)
+        auto x = analysisChart("ceiling", "Cloud Ceiling", "CEIL", "cloud ceiling", ceilingRamp(), "Ceiling (feet)", Quantity::Other, 0, false);
+        x.fill = [] (const Grids& g) {   // (feet; the analyses write "no ceiling" as 52,493 ft: left clear, so the low ceilings stand out)
+            auto out = GfsGrid::scaled(pick(g, "f"), 3.28084);
+            for (auto& v : out.values) {
+                v = v < 40000.0f ? v : std::nanf("");
+            }
+            return out;
+        };
+        x.palette = "ceiling";
+        x.fillTitle = "Ceiling (feet; none: clear)";
         p.push_back(x);
     }
 }

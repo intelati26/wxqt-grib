@@ -1018,11 +1018,29 @@ int main(int argc, char * argv[]) {
                 if (const auto samples = qEnvironmentVariable("WXQT_SAMPLES"); !samples.isEmpty() && probe.valid()) {   // WXQT_SAMPLES=<in.csv>,<out.csv>: the chart's value at each "lat,lon" line (the fill grid at those places)
                     QFile in{samples.section(',', 0, 0)}, result{samples.section(',', 1, 1)};
                     if (in.open(QIODevice::ReadOnly) && result.open(QIODevice::WriteOnly)) {
-                        const auto& grid = probe.fields.front().grid;
+                        const auto nearest = [] (const GfsGrid::Grid& g, double lon, double lat) {   // the value of the cell the place is in (a level is a class, not a number to blend; and a coastal place keeps its cell)
+                            if (g.empty()) {
+                                return std::numeric_limits<float>::quiet_NaN();
+                            }
+                            const int row = static_cast<int>(std::lround((g.lat0 - lat) / g.step));
+                            double x = lon;
+                            while (x < g.lon0) {
+                                x += 360.0;
+                            }
+                            int column = static_cast<int>(std::lround((x - g.lon0) / g.step));
+                            if (g.global()) {
+                                column %= g.columns;
+                            }
+                            return row < 0 || row >= g.rows || column < 0 || column >= g.columns ? std::numeric_limits<float>::quiet_NaN() : g.at(column, row);
+                        };
                         while (!in.atEnd()) {
                             const auto cells = in.readLine().trimmed().split(',');
                             if (cells.size() >= 2) {
-                                result.write(QByteArray::number(grid.sample(cells[1].toDouble(), cells[0].toDouble()), 'f', 3) + "\n");
+                                QByteArray line;
+                                for (size_t k = 0; k < probe.fields.size(); k++) {   // the fill, then every other grid of the chart (the hover's values), in order, each at the nearest cell
+                                    line += (k == 0 ? "" : ",") + QByteArray::number(nearest(probe.fields[k].grid, cells[1].toDouble(), cells[0].toDouble()), 'f', 3);
+                                }
+                                result.write(line + "\n");
                             }
                         }
                     }

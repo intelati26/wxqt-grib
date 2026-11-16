@@ -50,6 +50,7 @@ Fill field,Composite reflectivity,1,sim_radar_comp
 Fill field,# m temperature,1,10m_wnd_2m_temp
 Fill field,# m dewpoint,1,2m_dewpoint
 Fill field,# m relative humidity,1,2m_rh_10m_wnd_derived
+Fill field,Low cloud (%): each place in the color of its layer with the most cover,1,cloud_layers
 Fill field,# m wind speed,1,mslp_10m_wind
 Fill field,Equivalent potential temperature,1,850_thetae_ht
 Fill field,#mb relative vorticity,1,850vor_500ht_200wd
@@ -77,7 +78,7 @@ Level / layer,250 mb,1,250_wnd_ht
 Level / layer,300 mb,1,300_wnd_ht
 Level / layer,925 mb,1,925_temp_ht
 Level / layer,700-300 mb,1,rh_700_300
-Mode,Value,79,1000_500_thick 1000_850_thick 1000_850_thick_type 10m_wnd_precip
+Mode,Value,80,1000_500_thick 1000_850_thick 1000_850_thick_type 10m_wnd_precip
 Mode,Anomaly,3,500_hgt_anom 700_hgt_anom mslp_anom
 Mode,Change,3,mslp_trend snodpth_chng z500_trend
 Period,total / since start,12,1000_500_thick 1000_850_thick 1000_850_thick_type 10m_wnd_precip
@@ -91,4 +92,4 @@ Period,48 h,1,precip_p48
 Period,60 h,1,precip_p60
 Streamlines,200 mb,1,200_stream_div
 Streamlines,850 mb,1,850_stream_vort
-Type bands,rain / snow / mixed,6,1000_850_thick_type 10m_wnd_precip_type 850_700_thick_type 850_temp_mslp_precip_type
+Type bands,rain / snow / mixed,7,1000_850_thick_type 10m_wnd_precip_type 850_700_thick_type 850_temp_mslp_precip_type

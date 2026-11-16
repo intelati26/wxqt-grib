@@ -31,6 +31,7 @@ public:
 
 private:
     void load();
+    static void addAirQuality(NbmText::Table& table, double lat, double lon);   // the RRFS PM2.5 line (section 24 of the plan)
     void fill();
     void picked(int column);
     Window * owner;

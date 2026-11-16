@@ -1112,6 +1112,61 @@ namespace {
                 }
                 list.push_back(o);
             }
+            {   // the pressure the most unstable parcel is lifted from (PLPL, the lowest 255 mb): where the storms' air comes from. Near the ground it is surface based; well above it, elevated
+                // (storms over a cold layer: hail more than tornadoes). The GFS, the HRRR and the RRFS have it.
+                const std::vector<std::string> plplModels{"GFS", "HRRR", "RRFS"};
+                // only where there is something to lift: with no instability the "most unstable" parcel is any level at all (a stable day fills the map); 100 J/kg of the same parcel's CAPE
+                const auto unstable = [] (const Grids& g, GfsGrid::Grid field) {
+                    if (const auto cape = g.find("mc"); cape != g.end()) {
+                        for (size_t i = 0; i < field.values.size() && i < cape->second.values.size(); i++) {
+                            if (!(cape->second.values[i] >= 100.0f)) {
+                                field.values[i] = std::nanf("");
+                            }
+                        }
+                    }
+                    return field;
+                };
+                Overlay pl;
+                pl.id = "line_plpl";
+                pl.label = "Most unstable parcel's level (mb, where CAPE >= 100)";
+                pl.group = "Lines";
+                pl.sources = plplModels;
+                pl.needs = [] (int hour) { return std::vector<GfsData::Need>{{hour, {"lp", "PLPL", "255-0 mb above ground", "", ""}}, {hour, {"mc", "CAPE", "255-0 mb above ground", "", ""}}}; };
+                pl.derive = [unstable] (Grids& g, const Context&) {
+                    if (g.find("lp") != g.end()) {
+                        g["lpmb"] = unstable(g, GfsGrid::scaled(g.at("lp"), 0.01));   // Pa -> mb
+                    }
+                };
+                pl.contour.key = "lpmb";
+                pl.contour.interval = 50;
+                pl.contour.title = "Most unstable parcel lifted from (mb)";
+                pl.contour.color = QColor{150, 80, 20};
+                pl.contour.width = 1.3;
+                list.push_back(pl);
+                Overlay pf;
+                pf.id = "fill_plpl_elevated";
+                pf.label = "Elevated parcels (lifted from above the ground, where CAPE >= 100)";
+                pf.group = "Fill";
+                pf.sources = plplModels;
+                pf.fill = true;
+                pf.fillName = "Most unstable parcel above the ground (mb)";
+                pf.fillRamp = Ramp{{{0, QColor{255, 200, 120, 0}}, {50, QColor{255, 200, 120, 0}}, {75, QColor{255, 200, 120, 140}}, {150, QColor{240, 130, 50, 160}}, {250, QColor{180, 50, 90, 180}}}};
+                pf.needs = [] (int hour) { return std::vector<GfsData::Need>{{hour, {"lp", "PLPL", "255-0 mb above ground", "", ""}}, {hour, {"ps", "PRES", "surface", "", ""}}, {hour, {"mc", "CAPE", "255-0 mb above ground", "", ""}}}; };
+                const std::string elevatedKey = "fill|" + pf.fillName;
+                pf.derive = [elevatedKey, unstable] (Grids& g, const Context&) {   // the surface pressure less the parcel's: 0 for a surface based parcel, 100 mb or more for an elevated one
+                    if (g.find("lp") == g.end() || g.find("ps") == g.end()) {
+                        return;
+                    }
+                    auto out = g.at("lp");
+                    const auto& ps = g.at("ps");
+                    for (size_t i = 0; i < out.values.size() && i < ps.values.size(); i++) {
+                        const double above = (ps.values[i] - out.values[i]) * 0.01;
+                        out.values[i] = std::isfinite(above) ? static_cast<float>(std::max(0.0, above)) : std::nanf("");
+                    }
+                    g[elevatedKey] = unstable(g, std::move(out));
+                };
+                list.push_back(pf);
+            }
             {   // the blend gives the 10 m wind as a speed and a direction
                 Overlay o;
                 o.id = "barbs_10m";
@@ -2242,7 +2297,7 @@ void drawHeader(HeaderState& state, const Label& drawLabel) {
         p.setFont(font);
         p.setPen(ink);
     }
-    const QString times = "Run " + initUtc.toString("ddd yyyy-MM-dd HH") + "Z   F" + QString::number(forecastHour).rightJustified(3, '0') + "   Valid " + valid.toString("ddd yyyy-MM-dd HH") + "Z";
+    const QString times = "Run " + initUtc.toString("ddd yyyy-MM-dd HH") + "Z   F" + QString::number(forecastHour).rightJustified(3, '0') + "   Valid " + (product.validOf ? product.validOf(initUtc, forecastHour).toString("ddd yyyy-MM-dd") + " (daytime)" : valid.toString("ddd yyyy-MM-dd HH") + "Z");
     drawLabel(QRectF{0, 8, image.width() / S - static_cast<double>(margin), 20}, Qt::AlignRight, times);
 }
 
@@ -3113,6 +3168,9 @@ void fillProbe(MapFrame& f, const GfsGrid::Grid& fill, const std::string& windU,
         probe.us = us;
         probe.validUtc = QDateTime::fromString(QString::fromStdString(run.id()), "yyyyMMddHH").addSecs(static_cast<qint64>(forecastHour) * 3600);
         probe.validUtc.setTimeZone(QTimeZone::utc());
+        if (product.validOf) {
+            probe.validUtc = product.validOf(QDateTime{probe.validUtc.addSecs(-static_cast<qint64>(forecastHour) * 3600)}, forecastHour);
+        }
         if (!product.linesOnly) {
             QString title = QString::fromStdString(product.fillTitleFor ? product.fillTitleFor(forecastHour) : product.fillTitle);
             if (const auto unit = unitText(product.quantity, us); !unit.isEmpty()) {

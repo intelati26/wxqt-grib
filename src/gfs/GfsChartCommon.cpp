@@ -44,5 +44,48 @@ double thetaE(double tC, double rh, double p) {
     return t * std::pow(1000.0 / (p - e), 0.2854 * (1.0 - 0.28 * r)) * std::exp((3.376 / tl - 0.00254) * r * 1000.0 * (1.0 + 0.81 * r));
 }
 
+// The clouds by height in one map (the GFS, the HRRR and the RRFS give the cover of the low, middle and high layers): each place takes the layer with the most cover (a tie goes to the lower
+// one, the layer seen from the ground), in that layer's colors, paler for less cover; under 20% clear. The low layer is the fill, the middle and the high are overlays with legend rows of their
+// own; a place is in one grid only, so the colors never mix. The layers stand in for the cloud types: low the stratus and fog, middle the alto clouds, high the cirrus.
+Product cloudLayersProduct(const std::string& model) {
+    Product x;
+    x.source = model;
+    x.id = "cloud_layers";
+    x.label = "Cloud Cover by Height (low, middle, high)";
+    x.wants = {GfsData::Want{"lo", "LCDC", "low cloud layer", "", ""}, GfsData::Want{"mi", "MCDC", "middle cloud layer", "", ""}, GfsData::Want{"hi", "HCDC", "high cloud layer", "", ""}};
+    x.derive = [] (Grids& g, const Context&) {
+        if (g.find("lo") == g.end() || g.find("mi") == g.end() || g.find("hi") == g.end()) {
+            return;
+        }
+        const auto& lo = g.at("lo");
+        const auto& mi = g.at("mi");
+        const auto& hi = g.at("hi");
+        auto low = lo, middle = lo, high = lo;
+        const float none = std::nanf("");
+        for (size_t i = 0; i < low.values.size(); i++) {
+            const float l = lo.values[i], m = i < mi.values.size() ? mi.values[i] : none, h = i < hi.values.size() ? hi.values[i] : none;
+            const float lv = std::isnan(l) ? -1.0f : l, mv = std::isnan(m) ? -1.0f : m, hv = std::isnan(h) ? -1.0f : h;
+            low.values[i] = middle.values[i] = high.values[i] = none;
+            if (lv >= 20.0f && lv >= mv && lv >= hv) {
+                low.values[i] = lv;
+            } else if (mv >= 20.0f && mv >= hv && mv > lv) {
+                middle.values[i] = mv;
+            } else if (hv >= 20.0f && hv > lv && hv > mv) {
+                high.values[i] = hv;
+            }
+        }
+        g["low"] = std::move(low);
+        g["fill|Middle cloud (%)"] = std::move(middle);
+        g["fill|High cloud (%)"] = std::move(high);
+    };
+    x.fill = [] (const Grids& g) { return pick(g, "low"); };
+    x.ramp = Ramp{{{20, QColor{"#ececec"}}, {50, QColor{"#bdbdbd"}}, {80, QColor{"#8a8a8a"}}, {100, QColor{"#5e5e5e"}}}};
+    x.overlays = {{"fill|Middle cloud (%)", Ramp{{{20, QColor{"#dbe8f7"}}, {50, QColor{"#9cc0e8"}}, {80, QColor{"#4f8acb"}}, {100, QColor{"#245c9e"}}}}},
+                  {"fill|High cloud (%)", Ramp{{{20, QColor{"#f8e1ef"}}, {50, QColor{"#eab0d3"}}, {80, QColor{"#d270ad"}}, {100, QColor{"#a23c82"}}}}}};
+    x.fillTitle = "Low cloud (%): each place in the color of its layer with the most cover (gray low, blue middle, pink high; under 20% clear)";
+    x.legendStep = 20;
+    return x;
+}
+
 }  // namespace detail
 }  // namespace GfsChart

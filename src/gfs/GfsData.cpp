@@ -447,7 +447,10 @@ bool GfsData::one(const Run& run, int hour, const std::string& file, const std::
     const auto warp = warpFor(run);
     const QString decoded = (warp.enabled ? QString{"w%1_%2_%3_%4_%5"}.arg(warp.step).arg(warp.west).arg(warp.south).arg(warp.east).arg(warp.north) : QString{"p"}) + (fellBack(run) ? "_lo" : "");   // (a run read from the legacy files while the new ones are not there: its own entries)
     const QString missing = std::isnan(source.extraMissing) ? QString{} : QString{"_m%1"}.arg(static_cast<double>(source.extraMissing));
-    QString name = QString::fromStdString(source.id + "_" + run.id() + "_f" + pad(hour, 3) + "_" + file + "_") + QString::fromStdString(want.variable + "_" + want.level + "_" + want.forecast + "_" + want.detail) + "_" + decoded + missing + (want.variable == "MASSDEN" ? "_u" : "");
+    QString name = QString::fromStdString(source.id + "_" + run.id() + "_f" + pad(hour, 3) + "_" + file + "_") + QString::fromStdString(want.variable + "_" + want.level + "_" + want.forecast + "_" + want.detail) + "_" + decoded + missing + (want.variable == "MASSDEN" || want.variable == "COLMD" || want.variable == "AEMFLX" || want.variable == "AOTK" ? "_u" : "");
+    if (const double factor = source.valueScale ? source.valueScale(want) : 1.0; factor != 1.0) {   // the values are kept scaled: a field read with another scale (a model file changed) is another entry
+        name += "_x" + QString::number(factor, 'g', 8);
+    }
     if (!want.stat.empty()) {   // an ensemble member of the same file and record is a field of its own
         name += "_" + QString::fromStdString(want.stat);
     }
@@ -512,7 +515,7 @@ bool GfsData::one(const Run& run, int hour, const std::string& file, const std::
     }
     std::string message;
     auto readOptions = gdalOptions(warpFor(run), config.gdalBin, 0);
-    if (want.variable == "MASSDEN") {   // (GDAL reads the particles' mass density as a temperature and subtracts 273.15, which a float does not survive: the values as the file has them)
+    if (want.variable == "MASSDEN" || want.variable == "COLMD" || want.variable == "AEMFLX" || want.variable == "AOTK") {   // (GDAL reads the particles' mass density as a temperature and subtracts 273.15, which a float does not survive: the values as the file has them)
         readOptions.extra << "--config" << "GRIB_NORMALIZE_UNITS" << "NO";
     }
     if (!GdalRaster::translate(gribPath, config.cacheFolder + "/" + scratch, readOptions, message)) {
@@ -710,6 +713,9 @@ bool GfsData::oneWhole(const Run& run, int hour, const std::string& file, const 
     const bool omRegion = boxSet && source.om.enabled && source.om.gaussian <= 0;
     if (omRegion) {
         name += QString{"b%1_%2_%3_%4_"}.arg(static_cast<int>(box.west)).arg(static_cast<int>(box.south)).arg(static_cast<int>(box.east)).arg(static_cast<int>(box.north));
+    }
+    if (const double factor = source.valueScale ? source.valueScale(want) : 1.0; factor != 1.0) {   // (kept scaled: another scale is another entry, as in the indexed path)
+        name += "x" + QString::number(factor, 'g', 8) + "_";
     }
     name.replace(QRegularExpression{"[^A-Za-z0-9_.-]"}, "-");
     if (name.size() > 110) {
@@ -1723,6 +1729,9 @@ bool GfsData::loadBox(const Run& run, const std::vector<Need>& needs, std::map<s
     const QString boxTag = QString{"_b%1_%2_%3_%4"}.arg(static_cast<int>(box.west)).arg(static_cast<int>(box.south)).arg(static_cast<int>(box.east)).arg(static_cast<int>(box.north));
     const auto cachePath = [&] (const Need& need) {
         QString name = QString::fromStdString(source.id + "_" + run.id() + "_f" + pad(need.hour, 3) + "__" + need.want.variable + "_" + need.want.level + "___p") + boxTag;
+        if (const double factor = source.valueScale ? source.valueScale(need.want) : 1.0; factor != 1.0) {   // (kept scaled: another scale is another entry)
+            name += "_x" + QString::number(factor, 'g', 8);
+        }
         name.replace(QRegularExpression{"[^A-Za-z0-9_.-]"}, "-");
         return config.cacheFolder + "/" + name + ".gz4";
     };

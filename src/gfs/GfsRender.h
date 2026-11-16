@@ -57,6 +57,8 @@ namespace GfsRender {
     bool drawsModel(const std::string& model);
     // The column of a model over a point for one run and forecast hour ("yyyyMMddHH"), as a sounding: the pressure levels 1000 to 100 mb (those the model has, above the ground) and the surface
     // (pressure, 2 m temperature and dewpoint, 10 m wind). Fields are read like a chart's (byte ranges, a box round the point where the server can cut one). False with the reason when too little came.
+    // One field of a model at a place for several hours of one run ("yyyyMMddHH"): hour -> the value (the field's own unit; NaN where the hour is missing). Read over a few degrees round the place.
+    std::map<int, double> pointSeries(Session& session, const std::string& model, const std::string& runId, const std::vector<int>& hours, const GfsData::Want& want, double lat, double lon, std::string& error);
     bool columnProfile(Session& session, const std::string& model, const std::string& run, int hour, double lat, double lon, SoundingProfile& out, std::string& error);
     // The cyclone phase space (Hart 2003: B, -VTL, -VTU) of a storm in a deterministic model's run, hour by hour: the heights of 900 to 300 mb and the sea level pressure are read in a box round the
     // storm, whose centre is followed as the lowest pressure near where it was (`lat`, `lon` is where it is at `validTime`, "yyyyMMddHH" UTC; the run's hours before that are skipped, and the track

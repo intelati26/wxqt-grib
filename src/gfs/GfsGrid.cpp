@@ -62,7 +62,7 @@ std::vector<IdxRecord> parseEcmwfIndex(const std::string& text, const std::strin
     static const Name names[] = {
         {"gh", "HGT", ""}, {"t", "TMP", ""}, {"u", "UGRD", ""}, {"v", "VGRD", ""}, {"r", "RH", ""}, {"q", "SPFH", ""}, {"w", "VVEL", ""},
         {"2t", "TMP", "2 m above ground"}, {"2d", "DPT", "2 m above ground"}, {"10u", "UGRD", "10 m above ground"}, {"10v", "VGRD", "10 m above ground"},
-        {"msl", "PRMSL", "mean sea level"}, {"10fg", "GUST", "surface"}, {"tcc", "TCDC", "entire atmosphere"}, {"tcwv", "PWAT", "entire atmosphere (considered as a single layer)"},
+        {"msl", "PRMSL", "mean sea level"}, {"10fg", "GUST", "surface"}, {"tcc", "TCDC", "entire atmosphere"}, {"lcc", "LCDC", "low cloud layer"}, {"mcc", "MCDC", "middle cloud layer"}, {"hcc", "HCDC", "high cloud layer"}, {"tcwv", "PWAT", "entire atmosphere (considered as a single layer)"},
         {"mucape", "CAPE", "surface"}, {"tp", "APCP", "surface"}, {"tprate", "PRATE", "surface"}};
     std::vector<IdxRecord> records;
     std::istringstream in{text};
@@ -140,6 +140,7 @@ std::vector<IdxRecord> parseIdx(const std::string& text) {
         r.level = parts[4];
         r.forecast = parts[5];
         r.detail = parts.size() > 6 ? parts[6] : std::string{};
+        r.more = parts.size() > 7 ? parts[7] : std::string{};
         if (!records.empty() && r.start != records.back().start) {   // (the fields of one message share its bytes: they all end where the next message begins)
             for (auto k = records.rbegin(); k != records.rend() && k->start == records.back().start; ++k) {
                 k->end = r.start - 1;
@@ -188,8 +189,12 @@ const IdxRecord * find(const std::vector<IdxRecord>& records, const std::string&
     const IdxRecord * first = nullptr;
     const IdxRecord * last = nullptr;
     const auto wantLevel = plainLevel(level);
+    const auto bar = detail.find('|');   // "aerosol=Total aerosol|aerosol_size <2.5e-06": the detail and the field after it (two records differ only there)
+    const std::string wantDetail = bar == std::string::npos ? detail : detail.substr(0, bar);
+    const std::string wantMore = bar == std::string::npos ? std::string{} : detail.substr(bar + 1);
     for (const auto& r : records) {
-        if (r.variable == variable && (r.level == level || plainLevel(r.level) == wantLevel) && matches(r.forecast, forecast) && (detail == "*" || r.detail == detail) && (date.empty() || r.date == date)) {
+        if (r.variable == variable && (r.level == level || plainLevel(r.level) == wantLevel) && matches(r.forecast, forecast) && (detail == "*" || r.detail == wantDetail) &&
+            (bar == std::string::npos || r.more == wantMore) && (date.empty() || r.date == date)) {
             if (!forecast.empty()) {
                 return &r;
             }

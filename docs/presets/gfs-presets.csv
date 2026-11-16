@@ -21,6 +21,7 @@ Simulated Composite Radar Reflectivity,Severe: storm structure,Value,Composite r
 "MSLP, 10m wind, 2m temperature",Surface,Value,# m temperature,,,Pressure MSLP (checked),barbs @ 10 m (checked),,,1,10m_wnd_2m_temp
 "MSLP, 10m wind, 2m dewpoint",Surface,Value,# m dewpoint,,,Pressure MSLP (checked),barbs @ 10 m (checked),,,1,2m_dewpoint
 "2 m Relative Humidity (from temperature and dewpoint), MSLP and 10m Wind",Surface,Value,# m relative humidity,,,Pressure MSLP (checked),barbs @ 10 m (checked),,,1,2m_rh_10m_wnd_derived
+"Cloud Cover by Height (low, middle, high)",Surface,Value,Low cloud (%): each place in the color of its layer with the most cover,bands: rain / snow / mixed,,,,,yes,1,cloud_layers
 MSLP and 10m Wind,Surface,Value,# m wind speed,,,Pressure MSLP (checked),barbs @ 10 m (checked),,,1,mslp_10m_wind
 "#mb Vorticity, Wind, and Height",Tropical and dynamics,Value,Relative vorticity,,Level (mb): 500/850,Heights 500 mb (checked),barbs @ 500 mb (checked),,,2,500_vort_ht 850_vort_ht
 "200mb Divergence, Wind and Height",Tropical and dynamics,Value,Divergence,,,Heights 200 mb (checked),barbs @ 200 mb (checked),,,1,200_div_wnd

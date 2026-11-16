@@ -480,7 +480,7 @@ void refsProducts(std::vector<Product>& p) {
         const auto detail = std::string{q.detail};
         const int period = q.period;
         x.needs = [window, variable, detail, period] (int hour) { return std::vector<GfsData::Need>{{hour, {"a", variable, "surface", window(hour, period), detail, "ens:eas"}}}; };
-        x.fill = [] (const Grids& g) { return GfsGrid::scaled(pick(g, "a"), 100.0); };   // a fraction -> percent
+        x.fill = [] (const Grids& g) { return GfsGrid::scaled(pick(g, "a"), 1.0); };   // (the files hold percent already; read 2026-11-16: 6-hour chances of 17 to 37 at the Washington coast)
         x.ramp = probability();
         x.palette = "prob";
         x.fillTitle = "Chance (%, within the neighborhood)";
@@ -544,7 +544,7 @@ void refsProducts(std::vector<Product>& p) {
         auto x = make(id, (std::string{"Probability of 6-hour Precipitation over "} + inches + " in").c_str());
         const std::string detail = millimeters;
         x.needs = [ens, accum, detail] (int hour) { return hour < 6 ? std::vector<GfsData::Need>{} : std::vector<GfsData::Need>{{hour, ens("a", "APCP", "surface", accum(hour - 6, hour), "eas", detail.c_str())}}; };
-        x.fill = [] (const Grids& g) { return GfsGrid::scaled(pick(g, "a"), 100.0); };
+        x.fill = [] (const Grids& g) { return GfsGrid::scaled(pick(g, "a"), 1.0); };
         x.ramp = probability();
         x.palette = "prob";
         x.fillTitle = std::string{"Chance of more than "} + inches + " in of rain in 6 hours (%, within the neighborhood)";
@@ -669,10 +669,24 @@ void refsProducts(std::vector<Product>& p) {
     {
         auto x = make("ens_prob_2m_temp_0C", "Probability of 2m Temperature under 0 C");
         x.needs = [ens, atHour] (int hour) { return std::vector<GfsData::Need>{{hour, ens("t", "TMP", "2 m above ground", atHour(hour), "prob", "prob <273.15")}}; };
-        x.fill = [] (const Grids& g) { return GfsGrid::scaled(pick(g, "t"), 100.0); };
+        x.fill = [] (const Grids& g) { return GfsGrid::scaled(pick(g, "t"), 1.0); };
         x.ramp = probability();
         x.palette = "prob";
         x.fillTitle = "Chance of a 2 m temperature under 0 C (% of the members)";
+        x.legendStep = 10;
+        p.push_back(x);
+    }
+    // the chance of a low ceiling (the aviation steps: LIFR under 500 ft, IFR under 1,000, the MVFR bands to 3,000). No mean ceiling: the file's mean averages members with a ceiling
+    // and members with none, which drew 1,000 to 5,000 ft ceilings over the clear desert (16 Nov 2026); the chances say what the members agree on
+    for (const auto& [id, feet, meters] : {std::tuple{"ens_prob_ceil_500ft", "500", "prob <152.4"}, {"ens_prob_ceil_1000ft", "1,000", "prob <305"}, {"ens_prob_ceil_2000ft", "2,000", "prob <610"},
+                                             {"ens_prob_ceil_3000ft", "3,000", "prob <915"}}) {
+        auto x = make(id, (std::string{"Probability of Ceiling under "} + feet + " ft").c_str());
+        const std::string detail = meters;
+        x.needs = [ens, atHour, detail] (int hour) { return std::vector<GfsData::Need>{{hour, ens("c", "HGT", "cloud ceiling", atHour(hour), "prob", detail.c_str())}}; };
+        x.fill = [] (const Grids& g) { return GfsGrid::scaled(pick(g, "c"), 1.0); };
+        x.ramp = probability();
+        x.palette = "prob";
+        x.fillTitle = std::string{"Chance of a ceiling under "} + feet + " ft (% of the members)";
         x.legendStep = 10;
         p.push_back(x);
     }
@@ -698,7 +712,7 @@ void refsProducts(std::vector<Product>& p) {
         auto x = make(("ens_prob_cape_" + std::to_string(joules)).c_str(), ("Probability of CAPE over " + std::to_string(joules)).c_str());
         const std::string detail = "prob >" + std::to_string(joules);
         x.needs = [ens, atHour, detail] (int hour) { return std::vector<GfsData::Need>{{hour, ens("c", "CAPE", "90-0 mb above ground", atHour(hour), "prob", detail.c_str())}}; };
-        x.fill = [] (const Grids& g) { return GfsGrid::scaled(pick(g, "c"), 100.0); };
+        x.fill = [] (const Grids& g) { return GfsGrid::scaled(pick(g, "c"), 1.0); };
         x.ramp = probability();
         x.palette = "prob";
         x.fillTitle = "Chance of mixed-layer CAPE over " + std::to_string(joules) + " J/kg (% of the members)";

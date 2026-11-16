@@ -16,6 +16,7 @@ namespace GfsChart {
 namespace detail {
 
 void gfsProducts(std::vector<Product>& p, std::map<std::string, Product>& plainPrecip) {
+    p.push_back(cloudLayersProduct("GFS"));   // the clouds by height (low, middle, high) in one map
 // the upper-air charts: wind speed filled, heights contoured, barbs
 const auto upper = [&] (const char * id, const char * label, const char * level, double interval) {
     Product x;

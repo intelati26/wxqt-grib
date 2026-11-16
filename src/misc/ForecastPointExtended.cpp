@@ -12,6 +12,7 @@
 #include <QPainterPath>
 #include <QScrollBar>
 #include <QVBoxLayout>
+#include "gfs/GfsRender.h"
 #include "objects/FutureVoid.h"
 #include "util/DisplayUnits.h"
 #include "ui/Window.h"
@@ -107,6 +108,10 @@ namespace {
         if (any("SLV", 0)) {
             m.rows.push_back({Kind::Line, "Snow kft", 18, "SLV"});
         }
+        if (m.some([] (const NbmText::Column& c) { return c.has("PM25"); })) {   // the RRFS's fine particles at the place (its 6 hourly runs reach 84 hours)
+            m.rows.push_back({Kind::Title, "Air quality", 20, ""});
+            m.rows.push_back({Kind::Line, "Smoke+dust ug/m3", 18, "PM25"});   // (the RRFS models the fires' smoke and the dust only: no traffic or industry, so clean air reads near 0)
+        }
         int y = 0;
         for (auto& row : m.rows) {
             row.top = y;
@@ -164,6 +169,9 @@ namespace {
         }
         if (code == "SLV") {
             return c.has("SLV") ? QString::number(c.get("SLV") / 10.0, 'f', 1) : QString{};
+        }
+        if (code == "PM25") {
+            return c.has("PM25") ? QString::number(c.get("PM25") / 10.0, 'f', c.get("PM25") < 100 ? 1 : 0) : QString{};
         }
         if (code == "TSD") {
             return c.has("TSD") ? QString{"+/-"} + QString::number(c.get("TSD")) : QString{};
@@ -420,6 +428,41 @@ private:
     ExtendedCanvas * canvas{nullptr};
 };
 
+// The RRFS's near-surface fine particles (PM2.5, the hour's mean at 8 m; its smoke and dust only, the model has no traffic or industry) at the place, at the columns' times of its newest 6 hourly run (the runs between carry 18 hours only): a
+// line under the precipitation, in micrograms a cubic meter (the US air quality index: good to 9, moderate to 35.4, unhealthy for sensitive groups to 55.4). Nothing outside the RRFS's map.
+void ForecastPointExtended::addAirQuality(NbmText::Table& table, double lat, double lon) {
+    std::string cycle, date;
+    if (!GfsRender::latestCycle("RRFS", cycle, "", &date)) {
+        return;
+    }
+    auto run = QDateTime{QDate::fromString(QString::fromStdString(date), "yyyyMMdd"), QTime{std::atoi(cycle.c_str()) / 6 * 6, 0}, QTimeZone::utc()};
+    GfsRender::Session session;
+    const GfsData::Want pm25{"", "MASSDEN", "8 m above ground", "", "aerosol=Total aerosol|aerosol_size <2.5e-06"};
+    for (int attempt = 0; attempt < 2; attempt++, run = run.addSecs(-6 * 3600)) {   // the newest 6 hourly run may still be coming in: the one before
+        std::vector<int> hours;
+        for (const auto& c : table.columns) {
+            const qint64 h = (c.time - run.toSecsSinceEpoch()) / 3600;
+            if ((c.time - run.toSecsSinceEpoch()) % 3600 == 0 && h >= 1 && h <= 84 && h % 3 == 0 && (hours.empty() || hours.back() != static_cast<int>(h))) {
+                hours.push_back(static_cast<int>(h));
+            }
+        }
+        std::string error;
+        const auto values = GfsRender::pointSeries(session, "RRFS", run.toString("yyyyMMddHH").toStdString(), hours, pm25, lat, lon, error);
+        int found = 0;
+        for (auto& c : table.columns) {
+            const qint64 h = (c.time - run.toSecsSinceEpoch()) / 3600;
+            if (const auto v = values.find(static_cast<int>(h)); v != values.end() && !std::isnan(v->second) && (c.time - run.toSecsSinceEpoch()) % 3600 == 0) {
+                c.value["PM25"] = static_cast<int>(std::lround(v->second * 1e10));   // (tenths of a microgram: clean air is under one)
+                found++;
+            }
+        }
+        if (found > 0) {
+            table.cycles["RRFS"] = run.toSecsSinceEpoch();
+            return;
+        }
+    }
+}
+
 ForecastPointExtended::ForecastPointExtended(Window * owner, QWidget * parent) : QWidget{parent}, owner{owner} {
     auto * column = new QVBoxLayout{this};
     column->setContentsMargins(0, 4, 0, 0);
@@ -483,7 +526,12 @@ void ForecastPointExtended::load() {
     status->setText("Loading the National Blend of Models bulletins for this place (the first time takes a few seconds)...");
     auto result = std::make_shared<NbmText::Table>();
     auto grid = data;
-    new FutureVoid{owner, [result, grid] { *result = NbmText::fetch(*grid); }, [this, result, mine] {
+    new FutureVoid{owner, [result, grid] {
+                       *result = NbmText::fetch(*grid);
+                       if (result->ok) {
+                           addAirQuality(*result, grid->lat, grid->lon);
+                       }
+                   }, [this, result, mine] {
                        if (mine != generation) {
                            return;
                        }
@@ -511,7 +559,7 @@ void ForecastPointExtended::fill() {
         }
         from += lastGrid != 0 ? " to " + when(lastGrid) : QString{" (no column of it)"};
     }
-    for (const char * k : {"NBS", "NBE", "NBX"}) {
+    for (const char * k : {"NBS", "NBE", "NBX", "RRFS"}) {
         if (table->cycles.count(k)) {
             from += QString{" - "} + k + " " + QDateTime::fromSecsSinceEpoch(table->cycles.at(k), QTimeZone::utc()).toString("HH'Z'");
         }

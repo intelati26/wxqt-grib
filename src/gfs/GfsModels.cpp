@@ -103,6 +103,7 @@ namespace {
                 return run.date >= "20110401" ? ncei + "model-cfs-allfile-operational-analysis/time-series/" + run.date.substr(0, 4) + "/" + month + "/" + name
                                               : ncei + "model-cfs-allfile-reanalysis/time-series/" + month + "/" + name;
             };
+            s.candidates = nullptr;   // (the code builds the whole address: the model file's url list, made for its server names, would be asked first and must not be)
             return s;
         };
         return def;
@@ -126,6 +127,7 @@ namespace {
             s.indexOf = [] (const std::string& url) {
                 return url.find("/rap-130-13km/") != std::string::npos ? url + ".inv" : url.substr(0, url.size() - 5) + ".inv";
             };
+            s.candidates = nullptr;   // (the code builds the whole address: the model file's url list, made for its server names, would be asked first and must not be)
             return s;
         };
         return def;
@@ -144,6 +146,15 @@ namespace {
                 auto url = first(run, hour, file);
                 return run.date >= "20170407" ? url + "2" : url;
             };
+            if (const auto candidates = s.candidates) {   // (the same ending on every server of the model file's list, which is asked first)
+                s.candidates = [candidates] (const GfsData::Run& run, int hour, const std::string& file) {
+                    auto urls = candidates(run, hour, file);
+                    for (auto& url : urls) {
+                        url += run.date >= "20170407" ? "2" : "";
+                    }
+                    return urls;
+                };
+            }
             return s;
         };
         return def;
@@ -164,10 +175,14 @@ namespace {
                 return want.forecast.find(" min ") != std::string::npos ? subhFile : (fileOf ? fileOf(want) : std::string{});
             };
             const auto fileUrl = s.fileUrl;
-            s.fileUrl = [fileUrl] (const GfsData::Run& run, int hour, const std::string& file) {
+            const auto subhourlyFile = [] (const GfsData::Run& run, int hour, const std::string& file) {
                 const bool subhourly = std::atoi(run.cycle.c_str()) % 3 != 0 && hour > 0 && file.compare(0, 6, "2dfld.") == 0 && file.find(".subh") == std::string::npos;
-                return fileUrl(run, hour, subhourly ? file + ".subh" : file);
+                return subhourly ? file + ".subh" : file;
             };
+            s.fileUrl = [fileUrl, subhourlyFile] (const GfsData::Run& run, int hour, const std::string& file) { return fileUrl(run, hour, subhourlyFile(run, hour, file)); };
+            if (const auto candidates = s.candidates) {   // (the model file's list of servers is asked first: the same file on each)
+                s.candidates = [candidates, subhourlyFile] (const GfsData::Run& run, int hour, const std::string& file) { return candidates(run, hour, subhourlyFile(run, hour, file)); };
+            }
             return s;
         };
         return def;
@@ -188,6 +203,7 @@ namespace {
                 const std::string ending = rtma && run.date <= "20140128" ? "grb2" : run.date < (rtma ? "20170502" : "20170501") ? "grb2_ext" : "grb2_wexp";
                 return "https://noaa-" + low + "-pds.s3.amazonaws.com/" + low + "2p5." + run.date + "/" + low + "2p5.t" + run.cycle + "z.2dvaranl_ndfd." + ending;
             };
+            s.candidates = nullptr;   // (the code builds the whole address: the model file's url list, made for its server names, would be asked first and must not be)
             return s;
         };
         return def;
@@ -225,6 +241,9 @@ namespace {
         else if (v == "PWAT") out = {"128_137_tcwv.ll025sc", "TCWV"};
         else if (v == "CAPE") out = {"128_059_cape.ll025sc", "CAPE"};
         else if (v == "TCDC") out = {"128_164_tcc.ll025sc", "TCC"};
+        else if (v == "LCDC") out = {"128_186_lcc.ll025sc", "LCC"};   // (the low, middle and high cloud: a month's file each, about 1.5 GB; one hour is one band of it)
+        else if (v == "MCDC") out = {"128_187_mcc.ll025sc", "MCC"};
+        else if (v == "HCDC") out = {"128_188_hcc.ll025sc", "HCC"};
         else return false;
         return true;
     }
@@ -255,6 +274,7 @@ namespace {
                 const auto last = QDate{day.year(), day.month(), day.daysInMonth()}.toString("yyyyMMdd").toStdString();
                 return "https://nsf-ncar-era5.s3.amazonaws.com/e5.oper.an.sfc/" + month + "/e5.oper.an.sfc." + stem + "." + month + "0100_" + last + "23.nc";
             };
+            s.candidates = nullptr;   // (the code builds the whole address: the model file's url list, made for its server names, would be asked first and must not be)
             s.ncBand = [] (const GfsData::Run& run, int, const GfsData::Want& w) {
                 const int hour = std::atoi(run.cycle.c_str());
                 EraName n{};
@@ -275,7 +295,7 @@ namespace {
                 return 0;
             };
             s.valueScale = [] (const GfsData::Want& w) {
-                return w.variable == "HGT" ? 1.0 / 9.80665 : w.variable == "TCDC" ? 100.0 : 1.0;   // geopotential to meters, a fraction to percent
+                return w.variable == "HGT" ? 1.0 / 9.80665 : w.variable == "TCDC" || w.variable == "LCDC" || w.variable == "MCDC" || w.variable == "HCDC" ? 100.0 : 1.0;   // geopotential to meters, a fraction to percent
             };
             s.valueOffset = [] (const GfsData::Want& w) {
                 return w.variable == "TMP" || w.variable == "DPT" ? -273.15 : 0.0;
@@ -379,7 +399,7 @@ const std::vector<GfsModels::Def>& GfsModels::all() {
         m.push_back(fromFile("MF-CURRENT"));
         m.push_back(fromFile("COPERNICUS"));
         m.push_back(fromFile("ICON-2I"));
-        m.push_back(fromFile("AROME-AT"));
+        // (AROME-AT, GeoSphere Austria's AROME through Open-Meteo, removed 2026-11-16: Open-Meteo keeps no map files of it any more, only its point series)
         m.push_back(cfsAnalysis());
         m.push_back(rapAnalysis());
         m.push_back(fromFile("GFS-ANL"));

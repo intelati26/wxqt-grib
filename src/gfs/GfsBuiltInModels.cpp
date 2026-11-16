@@ -22,6 +22,7 @@ file = when level="aerosol" => tavg3_2d_aer_Nx
 # the four levels of the hourly collection stay there; every other level is a band of the 3 hourly instantaneous collection (42 levels, 1000 to 0.1 hPa, one variable each: H, T, U, V, QV, OMEGA, EPV)
 file = when level~"^(1000|850|500|250) mb$" => tavg1_2d_slv_Nx
 file = when level~"^[0-9.]+ mb$" => inst3_3d_asm_Np
+file = when level~"cloud layer$" => tavg1_2d_rad_Nx
 file = tavg1_2d_slv_Nx
 valid_offset = 30
 # the instantaneous 3 hour collection is stamped at the hour itself (the offset is from the run's time plus the hour, not added to the 30 minutes of the averages)
@@ -49,11 +50,14 @@ nc_variable = when variable=UGRD level="10 m above ground" => U10M
 nc_variable = when variable=VGRD level="10 m above ground" => V10M
 nc_variable = when variable=PRMSL => SLP
 nc_variable = when variable=PRES level=surface => PS
+nc_variable = when variable=LCDC => CLDLOW
+nc_variable = when variable=MCDC => CLDMID
+nc_variable = when variable=HCDC => CLDHGH
 nc_variable = when variable=PWAT => TQV
 # Kelvin to degrees C, as the GRIB models arrive
 value_offset = TMP:-273.15
 # Ertel potential vorticity comes in K m2 / kg / s: to PVU (1e-6 of it)
-value_scale = EPV:1000000
+value_scale = EPV:1000000, LCDC:100, MCDC:100, HCDC:100
 # NASA's GrADS Data Server gives one variable at one time of the hourly single-level collection: tried before the 48 MB file
 partial = geos-opendap
 # the grid is 0.3125 degrees of longitude by 0.25 of latitude: warped to a square 0.25 degree grid
@@ -70,7 +74,7 @@ run_every = 6
 overlays = true
 list = true
 clone = true
-clone_variables = HGT, TMP, UGRD, VGRD, SPFH, VVEL, PRMSL, PWAT, PRES, RH
+clone_variables = HGT, TMP, UGRD, VGRD, SPFH, VVEL, PRMSL, PWAT, PRES, RH, LCDC, MCDC, HCDC
 clone_fields = HGT|1000 mb, HGT|850 mb, HGT|500 mb, HGT|250 mb, TMP|850 mb, TMP|500 mb, TMP|250 mb, UGRD|850 mb, UGRD|500 mb, UGRD|250 mb, VGRD|850 mb, VGRD|500 mb, VGRD|250 mb, SPFH|850 mb, SPFH|500 mb, SPFH|250 mb, VVEL|500 mb, RH|850 mb, RH|500 mb, RH|250 mb, HGT|925 mb, TMP|925 mb, UGRD|925 mb, VGRD|925 mb, HGT|700 mb, TMP|700 mb, UGRD|700 mb, VGRD|700 mb, HGT|300 mb, TMP|300 mb, UGRD|300 mb, VGRD|300 mb, HGT|200 mb, TMP|200 mb, UGRD|200 mb, VGRD|200 mb, HGT|100 mb, TMP|100 mb, UGRD|100 mb, VGRD|100 mb, HGT|70 mb, TMP|70 mb, UGRD|70 mb, VGRD|70 mb, HGT|50 mb, TMP|50 mb, UGRD|50 mb, VGRD|50 mb, HGT|30 mb, TMP|30 mb, UGRD|30 mb, VGRD|30 mb, HGT|20 mb, TMP|20 mb, UGRD|20 mb, VGRD|20 mb, HGT|10 mb, TMP|10 mb, UGRD|10 mb, VGRD|10 mb, HGT|5 mb, TMP|5 mb, UGRD|5 mb, VGRD|5 mb, HGT|2 mb, TMP|2 mb, UGRD|2 mb, VGRD|2 mb, HGT|1 mb, TMP|1 mb, UGRD|1 mb, VGRD|1 mb
 clone_pieces = false
 clone_specific_humidity = true
@@ -441,7 +445,7 @@ probe_file = sfc
 index_format = ecmwf
 index_suffix = .index
 index_replaces = .grib2
-value_scale = APCP:1000, TCDC:100
+value_scale = APCP:1000, TCDC:100, LCDC:100, MCDC:100, HCDC:100
 cycle_hours = 6
 lag_hours = 8
 probe_hour = 0
@@ -451,7 +455,7 @@ run_every = 6
 overlays = true
 list = true
 clone = true
-clone_variables = HGT, TMP, RH, UGRD, VGRD, VVEL, SPFH, PRMSL, DPT, GUST, TCDC, PWAT, CAPE, APCP, PRATE
+clone_variables = HGT, TMP, RH, UGRD, VGRD, VVEL, SPFH, PRMSL, DPT, GUST, TCDC, PWAT, CAPE, APCP, PRATE, LCDC, MCDC, HCDC
 clone_levels = 1000 mb, 925 mb, 850 mb, 700 mb, 600 mb, 500 mb, 400 mb, 300 mb, 250 mb, 200 mb, 150 mb, 100 mb, 50 mb, 10 mb
 clone_pieces = false
 clone_skip = precip_p01
@@ -466,7 +470,7 @@ url = {@ecmwf-gcs}/{date}/{cycle}z/ifs/0p25/enfo/{date}{cycle}0000-{hour}h-enfo-
 index_format = ecmwf
 index_suffix = .index
 index_replaces = .grib2
-value_scale = APCP:1000
+value_scale = APCP:1000, LCDC:100, MCDC:100, HCDC:100
 cycle_hours = 6
 lag_hours = 9
 probe_hour = 0
@@ -507,6 +511,7 @@ index_suffix = .index
 index_replaces = .grib2
 # the AIFS gives the precipitation in millimeters already (the IFS gives meters)
 value_scale = TCDC:100
+# (its low, middle and high cloud are percent already, unlike the IFS's fractions: checked 16 Nov 2026, a max of 10000 with the scale)
 cycle_hours = 6
 lag_hours = 8
 probe_hour = 0
@@ -514,7 +519,7 @@ hours = 0-360/6
 overlays = true
 list = true
 clone = true
-clone_variables = HGT, TMP, RH, UGRD, VGRD, VVEL, SPFH, PRMSL, DPT, GUST, TCDC, APCP, PRATE
+clone_variables = HGT, TMP, RH, UGRD, VGRD, VVEL, SPFH, PRMSL, DPT, GUST, TCDC, APCP, PRATE, LCDC, MCDC, HCDC
 # the open data has specific humidity on the pressure levels, not relative: the charts of relative humidity are worked out from it, with the temperature
 clone_specific_humidity = true
 clone_levels = 1000 mb, 925 mb, 850 mb, 700 mb, 600 mb, 500 mb, 400 mb, 300 mb, 250 mb, 200 mb, 150 mb, 100 mb, 50 mb
@@ -570,6 +575,9 @@ file = when variable=GUST => vmax_10m
 file = when variable=PRMSL => pmsl
 file = when variable=CAPE => cape_ml
 file = when variable=TCDC => clct
+file = when variable=LCDC => clcl
+file = when variable=MCDC => clcm
+file = when variable=HCDC => clch
 file = none
 extra_missing = 9999
 probe_file = t_2m
@@ -584,7 +592,7 @@ run_every = 3
 overlays = false
 list = true
 clone = true
-clone_variables = TMP, DPT, RH, UGRD, VGRD, PRMSL, CAPE, TCDC, GUST
+clone_variables = TMP, DPT, RH, UGRD, VGRD, PRMSL, CAPE, TCDC, GUST, LCDC, MCDC, HCDC
 clone_levels = 1 mb
 clone_skip = anom, precip
 clone_pieces = false
@@ -613,6 +621,9 @@ nc_variable = when variable=GUST => wind_gusts_10m
 nc_variable = when variable=PRMSL => pressure_msl
 nc_variable = when variable=CAPE => cape
 nc_variable = when variable=TCDC => cloud_cover
+nc_variable = when variable=LCDC => cloud_cover_low
+nc_variable = when variable=MCDC => cloud_cover_mid
+nc_variable = when variable=HCDC => cloud_cover_high
 value_scale = PRMSL:100
 probe_hour = 0
 cycle_hours = 6
@@ -626,7 +637,7 @@ sectors = world
 overlays = true
 list = true
 clone = true
-clone_variables = HGT, TMP, RH, UGRD, VGRD, PRMSL, CAPE, TCDC, GUST
+clone_variables = HGT, TMP, RH, UGRD, VGRD, PRMSL, CAPE, TCDC, GUST, LCDC, MCDC, HCDC
 clone_levels = 1000 mb, 925 mb, 850 mb, 700 mb, 500 mb, 400 mb, 300 mb, 250 mb, 200 mb, 100 mb, 50 mb
 clone_skip = anom, precip
 clone_pieces = false
@@ -654,6 +665,9 @@ nc_variable = when variable=TMP level="2 m above ground" => temperature_2m
 nc_variable = when variable=RH level="2 m above ground" => relative_humidity_2m
 nc_variable = when variable=PRMSL => pressure_msl
 nc_variable = when variable=TCDC => cloud_cover
+nc_variable = when variable=LCDC => cloud_cover_low
+nc_variable = when variable=MCDC => cloud_cover_mid
+nc_variable = when variable=HCDC => cloud_cover_high
 value_scale = PRMSL:100
 probe_hour = 0
 cycle_hours = 6
@@ -667,7 +681,7 @@ sectors = world
 overlays = true
 list = true
 clone = true
-clone_variables = HGT, TMP, RH, UGRD, VGRD, PRMSL, CAPE, TCDC, GUST
+clone_variables = HGT, TMP, RH, UGRD, VGRD, PRMSL, CAPE, TCDC, GUST, LCDC, MCDC, HCDC
 clone_levels = 1000 mb, 925 mb, 850 mb, 700 mb, 600 mb, 500 mb, 400 mb, 300 mb, 250 mb, 200 mb, 100 mb, 50 mb
 clone_skip = anom, precip
 clone_pieces = false
@@ -693,6 +707,9 @@ nc_variable = when variable=TMP level="2 m above ground" => temperature_2m
 nc_variable = when variable=RH level="2 m above ground" => relative_humidity_2m
 nc_variable = when variable=PRMSL => pressure_msl
 nc_variable = when variable=TCDC => cloud_cover
+nc_variable = when variable=LCDC => cloud_cover_low
+nc_variable = when variable=MCDC => cloud_cover_mid
+nc_variable = when variable=HCDC => cloud_cover_high
 # the file's heights are the geometric height divided by 9.80665 (581.7 for the 5704 m of the 500 mb surface; Open-Meteo's API converts them back)
 value_scale = PRMSL:100, HGT:9.80665
 probe_hour = 0
@@ -707,7 +724,7 @@ sectors = world
 overlays = true
 list = true
 clone = true
-clone_variables = HGT, TMP, RH, UGRD, VGRD, PRMSL, TCDC
+clone_variables = HGT, TMP, RH, UGRD, VGRD, PRMSL, TCDC, LCDC, MCDC, HCDC
 clone_levels = 1000 mb, 925 mb, 850 mb, 700 mb, 600 mb, 500 mb, 400 mb, 300 mb, 250 mb, 200 mb, 150 mb, 100 mb
 clone_skip = anom, precip
 clone_pieces = false
@@ -734,6 +751,9 @@ nc_variable = when variable=TMP level="2 m above ground" => temperature_2m
 nc_variable = when variable=RH level="2 m above ground" => relative_humidity_2m
 nc_variable = when variable=PRMSL => pressure_msl
 nc_variable = when variable=TCDC => cloud_cover
+nc_variable = when variable=LCDC => cloud_cover_low
+nc_variable = when variable=MCDC => cloud_cover_mid
+nc_variable = when variable=HCDC => cloud_cover_high
 value_scale = PRMSL:100
 probe_hour = 0
 cycle_hours = 6
@@ -746,7 +766,7 @@ sectors = world
 overlays = true
 list = true
 clone = true
-clone_variables = HGT, TMP, RH, UGRD, VGRD, PRMSL, CAPE, TCDC, GUST
+clone_variables = HGT, TMP, RH, UGRD, VGRD, PRMSL, CAPE, TCDC, GUST, LCDC, MCDC, HCDC
 clone_levels = 1000 mb, 925 mb, 850 mb, 700 mb, 600 mb, 500 mb, 400 mb, 300 mb, 250 mb, 200 mb, 100 mb, 50 mb
 clone_skip = anom, precip
 clone_pieces = false
@@ -773,6 +793,9 @@ nc_variable = when variable=TMP level="2 m above ground" => temperature_2m
 nc_variable = when variable=RH level="2 m above ground" => relative_humidity_2m
 nc_variable = when variable=PRMSL => pressure_msl
 nc_variable = when variable=TCDC => cloud_cover
+nc_variable = when variable=LCDC => cloud_cover_low
+nc_variable = when variable=MCDC => cloud_cover_mid
+nc_variable = when variable=HCDC => cloud_cover_high
 value_scale = PRMSL:100
 probe_hour = 0
 cycle_hours = 6
@@ -785,7 +808,7 @@ sectors = world
 overlays = true
 list = true
 clone = true
-clone_variables = HGT, TMP, RH, UGRD, VGRD, PRMSL, CAPE, TCDC, GUST
+clone_variables = HGT, TMP, RH, UGRD, VGRD, PRMSL, CAPE, TCDC, GUST, LCDC, MCDC, HCDC
 clone_levels = 1000 mb, 925 mb, 850 mb, 700 mb, 600 mb, 500 mb, 400 mb, 300 mb, 250 mb, 200 mb, 100 mb, 50 mb
 clone_skip = anom, precip
 clone_pieces = false
@@ -810,6 +833,9 @@ nc_variable = when variable=UGRD level="10 m above ground" => wind_u_component_1
 nc_variable = when variable=VGRD level="10 m above ground" => wind_v_component_10m
 nc_variable = when variable=PRMSL => pressure_msl
 nc_variable = when variable=TCDC => cloud_cover
+nc_variable = when variable=LCDC => cloud_cover_low
+nc_variable = when variable=MCDC => cloud_cover_mid
+nc_variable = when variable=HCDC => cloud_cover_high
 value_scale = PRMSL:100
 probe_hour = 6
 cycle_hours = 6
@@ -822,7 +848,7 @@ sectors = world
 overlays = true
 list = true
 clone = true
-clone_variables = HGT, TMP, RH, UGRD, VGRD, PRMSL, TCDC
+clone_variables = HGT, TMP, RH, UGRD, VGRD, PRMSL, TCDC, LCDC, MCDC, HCDC
 clone_levels = 1000 mb, 925 mb, 850 mb, 700 mb, 600 mb, 500 mb, 400 mb, 300 mb, 250 mb, 200 mb, 150 mb, 100 mb, 50 mb
 clone_prefix = "Mean "
 clone_skip = anom, precip
@@ -851,6 +877,9 @@ nc_variable = when variable=CAPE => cape
 nc_variable = when variable=PRMSL => pressure_msl
 value_scale = PRMSL:100
 nc_variable = when variable=TCDC => cloud_cover
+nc_variable = when variable=LCDC => cloud_cover_low
+nc_variable = when variable=MCDC => cloud_cover_mid
+nc_variable = when variable=HCDC => cloud_cover_high
 probe_hour = 0
 cycle_hours = 3
 lag_hours = 5
@@ -862,7 +891,7 @@ sectors = world
 overlays = true
 list = true
 clone = true
-clone_variables = HGT, TMP, RH, UGRD, VGRD, PRMSL, CAPE, TCDC, GUST
+clone_variables = HGT, TMP, RH, UGRD, VGRD, PRMSL, CAPE, TCDC, GUST, LCDC, MCDC, HCDC
 clone_levels = 1000 mb, 950 mb, 925 mb, 900 mb, 850 mb, 800 mb, 700 mb, 600 mb, 500 mb, 400 mb, 300 mb, 250 mb, 200 mb, 150 mb, 100 mb
 clone_skip = anom, precip
 clone_pieces = false
@@ -883,6 +912,9 @@ nc_variable = when variable=UGRD level="10 m above ground" => wind_u_component_1
 nc_variable = when variable=VGRD level="10 m above ground" => wind_v_component_10m
 nc_variable = when variable=GUST => wind_gusts_10m
 nc_variable = when variable=CAPE => cape
+nc_variable = when variable=LCDC => cloud_cover_low
+nc_variable = when variable=MCDC => cloud_cover_mid
+nc_variable = when variable=HCDC => cloud_cover_high
 probe_hour = 0
 cycle_hours = 3
 lag_hours = 5
@@ -894,7 +926,7 @@ sectors = world
 overlays = true
 list = true
 clone = true
-clone_variables = TMP, RH, UGRD, VGRD, CAPE, GUST
+clone_variables = TMP, RH, UGRD, VGRD, CAPE, GUST, LCDC, MCDC, HCDC
 clone_levels = 1 mb
 clone_skip = anom, precip
 clone_pieces = false
@@ -916,6 +948,9 @@ nc_variable = when variable=GUST => wind_gusts_10m
 nc_variable = when variable=PRMSL => pressure_msl
 value_scale = PRMSL:100
 nc_variable = when variable=TCDC => cloud_cover
+nc_variable = when variable=LCDC => cloud_cover_low
+nc_variable = when variable=MCDC => cloud_cover_mid
+nc_variable = when variable=HCDC => cloud_cover_high
 probe_hour = 0
 cycle_hours = 6
 lag_hours = 5
@@ -927,7 +962,7 @@ sectors = world
 overlays = true
 list = true
 clone = true
-clone_variables = TMP, RH, UGRD, VGRD, PRMSL, TCDC, GUST
+clone_variables = TMP, RH, UGRD, VGRD, PRMSL, TCDC, GUST, LCDC, MCDC, HCDC
 clone_levels = 1 mb
 clone_skip = anom, precip
 clone_pieces = false
@@ -1116,6 +1151,9 @@ nc_variable = when variable=VGRD level="10 m above ground" => wind_v_component_1
 nc_variable = when variable=PRMSL => pressure_msl
 value_scale = PRMSL:100
 nc_variable = when variable=TCDC => cloud_cover
+nc_variable = when variable=LCDC => cloud_cover_low
+nc_variable = when variable=MCDC => cloud_cover_mid
+nc_variable = when variable=HCDC => cloud_cover_high
 probe_hour = 0
 cycle_hours = 3
 lag_hours = 4
@@ -1128,7 +1166,7 @@ sectors = world
 overlays = true
 list = true
 clone = true
-clone_variables = TMP, RH, UGRD, VGRD, PRMSL, TCDC
+clone_variables = TMP, RH, UGRD, VGRD, PRMSL, TCDC, LCDC, MCDC, HCDC
 clone_levels = 1 mb
 clone_skip = anom, precip
 clone_pieces = false
@@ -1189,6 +1227,9 @@ nc_variable = when variable=CAPE => cape
 nc_variable = when variable=PRMSL => pressure_msl
 value_scale = PRMSL:100
 nc_variable = when variable=TCDC => cloud_cover
+nc_variable = when variable=LCDC => cloud_cover_low
+nc_variable = when variable=MCDC => cloud_cover_mid
+nc_variable = when variable=HCDC => cloud_cover_high
 probe_hour = 0
 cycle_hours = 12
 lag_hours = 3
@@ -1200,43 +1241,8 @@ sectors = world
 overlays = true
 list = true
 clone = true
-clone_variables = HGT, TMP, RH, UGRD, VGRD, PRMSL, CAPE, TCDC, GUST
+clone_variables = HGT, TMP, RH, UGRD, VGRD, PRMSL, CAPE, TCDC, GUST, LCDC, MCDC, HCDC
 clone_levels = 1000 mb, 925 mb, 850 mb, 700 mb, 500 mb, 250 mb
-clone_skip = anom, precip
-clone_pieces = false
-)MODEL"},
-        {"AROME-AT", R"MODEL(
-# GeoSphere Austria's AROME: 2.5 km over Austria and the Alps, a run every 3 hours, hourly to 60 hours, as Open-Meteo keeps it (open-meteo/om-file-format). The winds are given as speed and direction.
-# Surface fields only.
-id = AROME-AT
-group = Convection allowing
-label = GeoSphere AROME Austria 2.5 km (via Open-Meteo)
-source_label = GeoSphere AROME Austria 2.5 km, data by Open-Meteo.com
-kind = om
-om_grid = regular
-url = {@openmeteo-s3}/geosphere_arome_austria/{year}/{month}/{day}/{cycle}00Z/{valid_iso}.om
-nc_variable = when variable=TMP level="2 m above ground" => temperature_2m
-nc_variable = when variable=RH level="2 m above ground" => relative_humidity_2m
-nc_variable = when variable=UGRD level="10 m above ground" => wind_speed_10m/wind_direction_10m
-nc_variable = when variable=VGRD level="10 m above ground" => wind_speed_10m/wind_direction_10m
-nc_variable = when variable=GUST => wind_gusts_10m
-nc_variable = when variable=CAPE => cape
-nc_variable = when variable=PRMSL => pressure_msl
-value_scale = PRMSL:100
-nc_variable = when variable=TCDC => cloud_cover
-probe_hour = 0
-cycle_hours = 3
-lag_hours = 4
-cycles_to_try = 6
-max_parallel = 3
-hours = 0-60/1
-run_every = 3
-sectors = world
-overlays = true
-list = true
-clone = true
-clone_variables = TMP, RH, UGRD, VGRD, PRMSL, CAPE, TCDC, GUST
-clone_levels = 1 mb
 clone_skip = anom, precip
 clone_pieces = false
 )MODEL"},
@@ -1587,6 +1593,9 @@ file = when variable=GUST => vmax_10m/VMAX_10M
 file = when variable=PRMSL => pmsl/PMSL
 file = when variable=CAPE => cape_ml/CAPE_ML
 file = when variable=TCDC => clct/CLCT
+file = when variable=LCDC => clcl/CLCL
+file = when variable=MCDC => clcm/CLCM
+file = when variable=HCDC => clch/CLCH
 file = none/none
 value_scale = HGT:0.1019716
 extra_missing = 9999
@@ -1602,7 +1611,7 @@ run_every = 3
 overlays = true
 list = true
 clone = true
-clone_variables = HGT, TMP, RH, UGRD, VGRD, DPT, PRMSL, CAPE, TCDC, GUST, VVEL
+clone_variables = HGT, TMP, RH, UGRD, VGRD, DPT, PRMSL, CAPE, TCDC, GUST, VVEL, LCDC, MCDC, HCDC
 clone_levels = 200 mb, 250 mb, 300 mb, 400 mb, 500 mb, 700 mb, 850 mb, 925 mb, 1000 mb
 clone_skip = anom, precip
 clone_pieces = false
@@ -1657,7 +1666,7 @@ hourly_runs = true
 overlays = true
 list = true
 clone = true
-clone_variables = HGT, TMP, RH, UGRD, VGRD, SPFH, VVEL, DPT, PRMSL, PWAT, CAPE, TCDC
+clone_variables = HGT, TMP, RH, UGRD, VGRD, SPFH, VVEL, DPT, PRMSL, PWAT, CAPE, TCDC, LCDC, MCDC, HCDC
 clone_levels = 10 mb, 30 mb, 50 mb, 100 mb, 200 mb, 250 mb, 300 mb, 400 mb, 500 mb, 700 mb, 850 mb, 925 mb, 1000 mb
 clone_skip = anom, precip
 clone_pieces = false

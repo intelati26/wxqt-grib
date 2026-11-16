@@ -147,6 +147,7 @@ namespace GfsChart {
         std::string palette;                    // the name of the model guidance site's scale for this chart ("" none): used when Options.magColors is on
         std::string fillTitle;                  // "Wind speed (kt)"
         std::function<std::string(int hour)> fillTitleFor;   // when the title depends on the hour (a precipitation period)
+        std::function<QDateTime(const QDateTime& initUtc, int hour)> validOf;   // when the frame is not of the run's time plus the hour (a day of the nice weather outlook): what it is of, shown as a date
         Quantity quantity{Quantity::Other};
         double legendStep{10.0};                // in displayed units; 0: a tick at every ramp stop
         std::vector<ContourSet> contours;

@@ -6,6 +6,8 @@
 // The RRFS, the HRRR and the MPAS runs: the rapid-refresh family of convection-allowing models.
 #include "gfs/GfsChartInternal.h"
 #include <QTimeZone>
+#include <cmath>
+#include <limits>
 
 namespace GfsChart {
 namespace detail {
@@ -262,6 +264,50 @@ void rrfsProducts(std::vector<Product>& p, const std::string& model) {
         x.fillTitle = "Precipitation rate (per hour)";
         x.legendStep = 0;
         p.push_back(x);
+    }
+    if (model.compare(0, 4, "RRFS") == 0 || model.compare(0, 4, "HRRR") == 0) {   // the clouds by height (low, middle, high) in one map: the RRFS and the HRRR and their regional runs (checked 16 Nov 2026)
+        p.push_back(cloudLayersProduct(model));
+    }
+    if (model == "RRFS") {   // the storm surface runoff (SSRUN): the water that runs off the ground instead of soaking in, an amount for each hour in each file (kg/m2 = mm): where the rain is
+        // more than the ground takes, the flash flood guidance of the model itself
+        const auto runoff = [] (int hour) { return std::to_string(hour - 1) + "-" + std::to_string(hour) + " hour acc fcst"; };
+        for (const int span : {1, 6}) {
+            auto x = make(span == 1 ? "runoff_1hr" : "runoff_6hr", span == 1 ? "Surface Runoff in the last hour" : "Surface Runoff in the last 6 hours");
+            x.needs = [runoff, span] (int hour) {
+                std::vector<GfsData::Need> needs;
+                for (int h = std::max(1, hour - span + 1); h <= hour; h++) {
+                    needs.push_back({h, {"r" + std::to_string(h), "SSRUN", "surface", runoff(h), ""}});
+                }
+                return needs;
+            };
+            x.derive = [span] (Grids& g, const Context& context) {   // the hours' amounts added up (from hour 1 when the run is younger than the span)
+                GfsGrid::Grid total;
+                for (int h = std::max(1, context.hour - span + 1); h <= context.hour; h++) {
+                    const auto found = g.find("r" + std::to_string(h));
+                    if (found == g.end() || found->second.empty()) {
+                        continue;
+                    }
+                    if (total.empty()) {
+                        total = found->second;
+                    } else {
+                        for (size_t i = 0; i < total.values.size() && i < found->second.values.size(); i++) {
+                            total.values[i] += found->second.values[i];
+                        }
+                    }
+                }
+                for (auto& v : total.values) {   // (no runoff: clear, so the map under it shows)
+                    v = v > 0.05f ? v : std::numeric_limits<float>::quiet_NaN();
+                }
+                g["runoff"] = std::move(total);
+            };
+            x.fill = [] (const Grids& g) { return pick(g, "runoff"); };
+            x.ramp = precipitation();
+            x.palette = "precip";
+            x.quantity = Quantity::Millimeters;
+            x.fillTitle = span == 1 ? "Water running off the ground in the last hour (the rain the ground does not take)" : "Water running off the ground in the last 6 hours (the rain the ground does not take)";
+            x.legendStep = 0;
+            p.push_back(x);
+        }
     }
     {
         auto x = make("500_temp_ht", "500mb Temperature and Height");
@@ -602,6 +648,110 @@ void rrfsProducts(std::vector<Product>& p, const std::string& model) {
         x.barbU = "u";
         x.barbV = "v";
         p.push_back(x);
+    }
+    if (model == "RRFS" || hrrr) {   // the smoke and dust of the RRFS (its 2dfld files) and the HRRR's smoke: near the ground, in the column, where the fires and dust sources put them into the air, and the haze (section 24 of the plan)
+        const auto aerosol = [] (const char * kind, const char * size) { return std::string{"aerosol="} + kind + "|aerosol_size " + size; };
+        const auto clean = [] (Ramp r) {   // the air quality index's colors from a third of "good" up: clean air is left clear, the green is where there is something
+            r.stops.front().first = r.stops[1].first / 3.0;
+            return r;
+        };
+        const Ramp smokeColumn{{{0, QColor{217, 205, 184, 0}}, {2, QColor{217, 205, 184, 0}}, {5, QColor{"#e3d7c2"}}, {10, QColor{"#c9b79a"}}, {25, QColor{"#a38a6c"}}, {50, QColor{"#7a604a"}},
+                                {100, QColor{"#523d30"}}, {250, QColor{"#2b1f19"}}, {500, QColor{"#120b08"}}}};   // milligrams a square meter
+        const Ramp dust{{{0, QColor{246, 226, 150, 0}}, {5, QColor{246, 226, 150, 0}}, {10, QColor{"#f5dc8a"}}, {25, QColor{"#eab552"}}, {50, QColor{"#d98a3a"}}, {100, QColor{"#c0602a"}},
+                         {250, QColor{"#9a3a25"}}, {500, QColor{"#6f1d3a"}}, {1000, QColor{"#4a0f5c"}}}};
+        const Ramp flux{{{0, QColor{255, 230, 120, 0}}, {0.05, QColor{255, 230, 120, 0}}, {0.1, QColor{"#ffe678"}}, {0.5, QColor{"#ffb43c"}}, {2, QColor{"#ff6e1e"}}, {10, QColor{"#dc1e14"}},
+                         {50, QColor{"#8c0a3c"}}, {250, QColor{"#3c0050"}}}};   // micrograms a square meter a second: the sources (a fire's flux runs to thousands)
+        const Ramp optical{{{0, QColor{232, 243, 216, 0}}, {0.05, QColor{232, 243, 216, 0}}, {0.1, QColor{"#e8f3d8"}}, {0.25, QColor{"#cfe6a0"}}, {0.5, QColor{"#f1e27a"}}, {1.0, QColor{"#f0a63a"}},
+                            {2.0, QColor{"#d63a2a"}}, {3.0, QColor{"#7a1a6a"}}}};
+        struct Spec {
+            const char * id;
+            const char * label;
+            const char * variable;
+            const char * level;
+            std::string detail;
+            double scale;
+            Ramp ramp;
+            const char * title;
+            int spread{0};   // a source is one 3 km cell, a speck on a map of the country: drawn over this many cells round it (the largest value near each cell; the values are the sources' own)
+            bool fires{false};   // the fires (the smoke's emission flux) painted over the smoke, so the plume is seen with where it comes from
+        };
+        const char * surface = "8 m above ground";
+        const char * column = "entire atmosphere (considered as a single layer)";
+        const std::vector<Spec> rrfsSpecs{
+            {"pm25_sfc", "Fine particles (PM2.5) near the surface", "MASSDEN", surface, aerosol("Total aerosol", "<2.5e-06"), 1e9, clean(airQuality({9, 35.4, 55.4, 125.4, 225.4})),
+             "PM2.5 at 8 m, the hour's mean: the RRFS's smoke and dust (no traffic or industry; micrograms per cubic meter, US air quality index colors)"},
+            {"pm10_aq", "Coarse particles (PM10) near the surface", "MASSDEN", surface, aerosol("Total aerosol", "<1e-05"), 1e9, clean(airQuality({54, 154, 254, 354, 424})),
+             "PM10 at 8 m, the hour's mean: the RRFS's smoke and dust (no traffic or industry; micrograms per cubic meter, US air quality index colors)"},
+            {"smoke_sfc", "Smoke near the surface", "MASSDEN", surface, aerosol("Particulate organic matter dry", "<2.5e-06"), 1e9, clean(airQuality({9, 35.4, 55.4, 125.4, 225.4})),
+             "Smoke (organic matter, PM2.5) at 8 m (micrograms per cubic meter); the fires in reds", 0, true},
+            {"dust_sfc", "Dust near the surface", "MASSDEN", surface, aerosol("Dust dry", "<2.5e-06"), 1e9, dust, "Fine dust (PM2.5) at 8 m (micrograms per cubic meter)"},
+            {"smoke_column", "Smoke aloft (column)", "COLMD", column, aerosol("Particulate organic matter dry", "<2.5e-06"), 1e6, smokeColumn,
+             "Smoke in the whole column (milligrams per square meter): the haze aloft, even where the ground air is clean; the fires in reds", 0, true},
+            {"dust_column", "Dust aloft (column)", "COLMD", column, aerosol("Dust dry", "<1e-05"), 1e6, dust, "Dust (PM10) in the whole column (milligrams per square meter)"},
+            {"smoke_emission", "Fire smoke emissions", "AEMFLX", column, aerosol("Particulate organic matter dry", "<2.5e-06"), 1e9, flux,
+             "Smoke put into the air (micrograms per square meter per second): the fires the model knows of (each drawn about 10 km across)", 3},
+            {"dust_emission", "Dust emissions", "AEMFLX", column, aerosol("Dust dry", "<1e-05"), 1e9, flux, "Dust lifted into the air (micrograms per square meter per second): the dust sources (each drawn about 10 km across)", 3},
+            {"aod", "Aerosol optical thickness", "AOTK", column, "", 1.0, optical, "Aerosol optical thickness (how much the haze dims the sun; over 1 is thick)"},
+        };
+        // the HRRR (and HRRR-AK) has its smoke model's fields only: the smoke near the ground and in the column, and the optical thickness; no dust, no emission flux (checked 16 Nov 2026)
+        const std::vector<Spec> hrrrSpecs{
+            {"smoke_sfc", "Smoke near the surface", "MASSDEN", surface, "", 1e9, clean(airQuality({9, 35.4, 55.4, 125.4, 225.4})), "Smoke (PM2.5) at 8 m, the HRRR-Smoke model's (micrograms per cubic meter)"},
+            {"smoke_column", "Smoke aloft (column)", "COLMD", column, "", 1e6, smokeColumn, "Smoke in the whole column (milligrams per square meter): the haze aloft, even where the ground air is clean"},
+            {"aod", "Aerosol optical thickness", "AOTK", column, "", 1.0, optical, "Aerosol optical thickness (how much the haze dims the sun; over 1 is thick)"},
+        };
+        const auto& specs = hrrr ? hrrrSpecs : rrfsSpecs;
+        for (const auto& spec : specs) {
+            auto x = make(spec.id, spec.label);
+            x.wants.push_back(GfsData::Want{"a", spec.variable, spec.level, "", spec.detail});
+            if (spec.fires) {
+                x.wants.push_back(GfsData::Want{"e", "AEMFLX", column, "", aerosol("Particulate organic matter dry", "<2.5e-06")});
+                x.overlays.push_back({"fires", flux});
+            }
+            wind10(x);
+            const double factor = spec.scale;
+            const int spread = spec.spread;
+            const bool fires = spec.fires;
+            const auto widen = [] (GfsGrid::Grid out, int spread) {
+                const auto source = out;
+                for (int r = 0; r < out.rows; r++) {
+                    for (int c = 0; c < out.columns; c++) {
+                        float best = std::numeric_limits<float>::quiet_NaN();
+                        for (int dr = -spread; dr <= spread; dr++) {
+                            for (int dc = -spread; dc <= spread; dc++) {
+                                const int rr = r + dr, cc = c + dc;
+                                if (rr >= 0 && rr < out.rows && cc >= 0 && cc < out.columns && dr * dr + dc * dc <= spread * spread) {
+                                    const float v = source.at(cc, rr);
+                                    if (!std::isnan(v) && (std::isnan(best) || v > best)) {
+                                        best = v;
+                                    }
+                                }
+                            }
+                        }
+                        out.values[static_cast<size_t>(r) * static_cast<size_t>(out.columns) + static_cast<size_t>(c)] = best;
+                    }
+                }
+                return out;
+            };
+            x.derive = [factor, spread, fires, widen] (Grids& g, const Context&) {
+                auto out = GfsGrid::scaled(pick(g, "a"), factor);
+                if (spread > 0 && !out.empty()) {
+                    out = widen(out, spread);
+                }
+                g["fill"] = std::move(out);
+                if (fires && g.count("e") && !g["e"].empty()) {   // a fire is a flux of at least 0.1 microgram a square meter a second; elsewhere clear, so the smoke shows
+                    auto fire = widen(GfsGrid::scaled(g["e"], 1e9), 3);
+                    for (auto& v : fire.values) {
+                        v = v >= 0.1f ? v : std::numeric_limits<float>::quiet_NaN();
+                    }
+                    g["fires"] = std::move(fire);
+                }
+            };
+            x.fill = [] (const Grids& g) { return pick(g, "fill"); };
+            x.ramp = spec.ramp;
+            x.fillTitle = spec.title;
+            x.legendStep = 0;
+            p.push_back(x);
+        }
     }
 }
 

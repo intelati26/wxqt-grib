@@ -484,6 +484,33 @@ bool GfsRender::handles(const std::string& model, const std::string& param) {
     return GfsModels::draws(model) && GfsChart::product(param, model) != nullptr;
 }
 
+std::map<int, double> GfsRender::pointSeries(Session& session, const std::string& model, const std::string& runId, const std::vector<int>& hours, const GfsData::Want& want, double lat, double lon, std::string& error) {
+    std::map<int, double> out;
+    if (runId.size() < 10) {
+        error = "no run";
+        return out;
+    }
+    auto gfs = data(session.folder(), model);
+    const GfsData::Run run{runId.substr(0, 8), runId.substr(8, 2)};
+    GfsData::Box box;
+    box.west = std::max(-180.0, std::floor(lon) - 1.0);
+    box.east = std::min(180.0, std::floor(lon) + 2.0);
+    box.south = std::max(-90.0, std::floor(lat) - 1.0);
+    box.north = std::min(90.0, std::floor(lat) + 2.0);
+    gfs.setBox(box);
+    for (const int hour : hours) {
+        auto w = want;
+        w.key = "h" + std::to_string(hour);
+        std::map<std::string, GfsGrid::Grid> got;
+        std::string message;
+        out[hour] = gfs.load(run, {{hour, w}}, got, message) && got.count(w.key) ? static_cast<double>(got.at(w.key).sample(lon, lat)) : std::nan("");
+        if (!message.empty()) {
+            error = message;
+        }
+    }
+    return out;
+}
+
 bool GfsRender::columnProfile(Session& session, const std::string& model, const std::string& runId, int hour, double lat, double lon, SoundingProfile& out, std::string& error) {
     auto gfs = data(session.folder(), model);
     if (runId.size() < 10) {

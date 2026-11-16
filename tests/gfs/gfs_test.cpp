@@ -51,6 +51,18 @@ int main() {
     CHECK(find(blend, "TMP", "2 m above ground", "24 hour fcst")->number == 6 && find(blend, "TMP", "2 m above ground", "24 hour fcst", "ens std dev")->number == 5);
     CHECK(find(blend, "ASNOW", "surface", "18-24 hour acc fcst")->number == 1 && !find(blend, "ASNOW", "surface", "12-24 hour acc fcst"));
 
+    // the RRFS's aerosols: two records differ only in the field after the detail (the size); "<detail>|<size>" asks for one of them (section 24 of the plan)
+    const auto rrfs = parseIdx(
+        "1:0:d=2026111606:MASSDEN:8 m above ground:11-12 hour ave fcst:aerosol=Total aerosol:aerosol_size <2.5e-06\n"
+        "2:1000:d=2026111606:MASSDEN:8 m above ground:11-12 hour ave fcst:aerosol=Total aerosol:aerosol_size <1e-05\n"
+        "3:2000:d=2026111606:AEMFLX:entire atmosphere (considered as a single layer):12 hour fcst:aerosol=Dust dry:aerosol_size <1e-05\n");
+    CHECK(rrfs.size() == 3 && rrfs[1].detail == "aerosol=Total aerosol" && rrfs[1].more == "aerosol_size <1e-05");
+    CHECK(find(rrfs, "MASSDEN", "8 m above ground", "", "aerosol=Total aerosol")->number == 1);   // no size: the first, as before
+    CHECK(find(rrfs, "MASSDEN", "8 m above ground", "", "aerosol=Total aerosol|aerosol_size <2.5e-06")->number == 1);
+    CHECK(find(rrfs, "MASSDEN", "8 m above ground", "", "aerosol=Total aerosol|aerosol_size <1e-05")->number == 2);
+    CHECK(!find(rrfs, "MASSDEN", "8 m above ground", "", "aerosol=Total aerosol|aerosol_size <5e-06"));
+    CHECK(find(rrfs, "AEMFLX", "entire atmosphere", "", "aerosol=Dust dry|aerosol_size <1e-05")->number == 3);
+
     // sampling: a field equal to the longitude, wrapping on a global grid
     auto g = make(1440, 721, 0.0, 90.0, 0.25);
     for (int r = 0; r < g.rows; r++) {

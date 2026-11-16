@@ -13,6 +13,7 @@ AIFS,Total Accumulated Precipitation of Period,Precipitation and moisture,Value,
 AIFS,"MSLP, 10m wind, 2m temperature",Surface,Value,# m temperature,Pressure,yes,,,,1,10m_wnd_2m_temp
 AIFS,"MSLP, 10m wind, 2m dewpoint",Surface,Value,# m dewpoint,Pressure,yes,,,,1,2m_dewpoint
 AIFS,"2 m Relative Humidity (from temperature and dewpoint), MSLP and 10m Wind",Surface,Value,# m relative humidity,Pressure,yes,,,,1,2m_rh_10m_wnd_derived
+AIFS,"Cloud Cover by Height (low, middle, high)",Surface,Value,Low cloud (%): each place in the color of its layer with the most cover,,,,yes,,1,cloud_layers
 AIFS,MSLP and 10m Wind,Surface,Value,# m wind speed,Pressure,yes,,,,1,mslp_10m_wind
 AIFS,"200mb Divergence, Wind and Height",Tropical and dynamics,Value,Divergence,Heights,yes,,,,1,200_div_wnd
 AIFS,200mb Divergence and Streamlines,Tropical and dynamics,Value,Divergence,,,yes,,,1,200_stream_div
@@ -63,6 +64,7 @@ AROME,MSLP and 48-hour Change,Changes and trends,Change,Sea level pressure chang
 AROME,500mb Height and 48-hour Change,Changes and trends,Change,#mb height change,Heights,,,,,1,z500_trend
 AROME,"Surface-Based CAPE, MSLP and 10m Wind",Severe: instability,Value,Surface-based CAPE,Pressure,yes,,,,1,sbcape_wind
 AROME,"MSLP, 10m wind, 2m temperature",Surface,Value,# m temperature,Pressure,yes,,,,1,10m_wnd_2m_temp
+AROME,"Cloud Cover by Height (low, middle, high)",Surface,Value,Low cloud (%): each place in the color of its layer with the most cover,,,,yes,,1,cloud_layers
 AROME,MSLP and 10m Wind,Surface,Value,# m wind speed,Pressure,yes,,,,1,mslp_10m_wind
 AROME,"200mb Divergence, Wind and Height",Tropical and dynamics,Value,Divergence,Heights,yes,,,,1,200_div_wnd
 AROME,200mb Divergence and Streamlines,Tropical and dynamics,Value,Divergence,,,yes,,,1,200_stream_div
@@ -74,10 +76,7 @@ AROME,850-200mb Mean Wind (Steering Flow),Tropical and dynamics,Value,Mean wind 
 AROME,"700mb Temperature, Wind and MSLP",Upper air,Value,#mb temperature,Pressure,yes,,,,1,700_temp_mslp
 AROME,850-700mb Mean Relative Humidity,Upper air,Value,Mean relative humidity of # and # mb,,,,,,1,850_700_rh
 AROME,"700-300mb Mean Relative Humidity, 500mb Height and Wind",Upper air,Value,"Mean relative humidity, #mb",Heights,yes,,,,1,rh_700_300
-AROME-AT,MSLP and 48-hour Change,Changes and trends,Change,Sea level pressure change,Pressure,,,,,1,mslp_trend
-AROME-AT,"Surface-Based CAPE, MSLP and 10m Wind",Severe: instability,Value,Surface-based CAPE,Pressure,yes,,,,1,sbcape_wind
-AROME-AT,"MSLP, 10m wind, 2m temperature",Surface,Value,# m temperature,Pressure,yes,,,,1,10m_wnd_2m_temp
-AROME-AT,MSLP and 10m Wind,Surface,Value,# m wind speed,Pressure,yes,,,,1,mslp_10m_wind
+AROME-HD,"Cloud Cover by Height (low, middle, high)",Surface,Value,Low cloud (%): each place in the color of its layer with the most cover,,,,yes,,1,cloud_layers
 ARPEGE,"#mb Temperature, Wind and Height",Upper air,Value,Temperature,Heights,yes,,,50/100/850/925,4,100_temp_ht 50_temp_ht 850_temp_ht 925_temp_ht
 ARPEGE,#mb Wind and Height,Upper air,Value,Wind speed,Heights,yes,,,50/100/500/850,4,100_wnd_ht 500_wnd_ht 50_wnd_ht 850_wnd_ht
 ARPEGE,#mb Wind and Height,Upper air,Value,Wind speed,Heights,,,,200/250/300,3,200_wnd_ht 250_wnd_ht 300_wnd_ht
@@ -87,6 +86,7 @@ ARPEGE,MSLP and 48-hour Change,Changes and trends,Change,Sea level pressure chan
 ARPEGE,500mb Height and 48-hour Change,Changes and trends,Change,#mb height change,Heights,,,,,1,z500_trend
 ARPEGE,"Surface-Based CAPE, MSLP and 10m Wind",Severe: instability,Value,Surface-based CAPE,Pressure,yes,,,,1,sbcape_wind
 ARPEGE,"MSLP, 10m wind, 2m temperature",Surface,Value,# m temperature,Pressure,yes,,,,1,10m_wnd_2m_temp
+ARPEGE,"Cloud Cover by Height (low, middle, high)",Surface,Value,Low cloud (%): each place in the color of its layer with the most cover,,,,yes,,1,cloud_layers
 ARPEGE,MSLP and 10m Wind,Surface,Value,# m wind speed,Pressure,yes,,,,1,mslp_10m_wind
 ARPEGE,"200mb Divergence, Wind and Height",Tropical and dynamics,Value,Divergence,Heights,yes,,,,1,200_div_wnd
 ARPEGE,200mb Divergence and Streamlines,Tropical and dynamics,Value,Divergence,,,yes,,,1,200_stream_div
@@ -100,6 +100,7 @@ ARPEGE,850-700mb Mean Relative Humidity,Upper air,Value,Mean relative humidity o
 ARPEGE,"700-300mb Mean Relative Humidity, 500mb Height and Wind",Upper air,Value,"Mean relative humidity, #mb",Heights,yes,,,,1,rh_700_300
 ARPEGE-EU,MSLP and 48-hour Change,Changes and trends,Change,Sea level pressure change,Pressure,,,,,1,mslp_trend
 ARPEGE-EU,"MSLP, 10m wind, 2m temperature",Surface,Value,# m temperature,Pressure,yes,,,,1,10m_wnd_2m_temp
+ARPEGE-EU,"Cloud Cover by Height (low, middle, high)",Surface,Value,Low cloud (%): each place in the color of its layer with the most cover,,,,yes,,1,cloud_layers
 ARPEGE-EU,MSLP and 10m Wind,Surface,Value,# m wind speed,Pressure,yes,,,,1,mslp_10m_wind
 ARWEN,MSLP and 48-hour Change,Changes and trends,Change,Sea level pressure change,Pressure,,,,,1,mslp_trend
 ARWEN,Simulated Composite Radar Reflectivity,Severe: storm structure,Value,Composite reflectivity,,,,,,1,sim_radar_comp
@@ -182,6 +183,7 @@ ERA5,"Surface-Based CAPE, MSLP and 10m Wind",Severe: instability,Value,Surface-b
 ERA5,"MSLP, 10m wind, 2m temperature",Surface,Value,# m temperature,Pressure,yes,,,,1,10m_wnd_2m_temp
 ERA5,"MSLP, 10m wind, 2m dewpoint",Surface,Value,# m dewpoint,Pressure,yes,,,,1,2m_dewpoint
 ERA5,"2 m Relative Humidity (from temperature and dewpoint), MSLP and 10m Wind",Surface,Value,# m relative humidity,Pressure,yes,,,,1,2m_rh_10m_wnd_derived
+ERA5,"Cloud Cover by Height (low, middle, high)",Surface,Value,Low cloud (%): each place in the color of its layer with the most cover,,,,yes,,1,cloud_layers
 ERA5,MSLP and 10m Wind,Surface,Value,# m wind speed,Pressure,yes,,,,1,mslp_10m_wind
 ERA5,"200mb Divergence, Wind and Height",Tropical and dynamics,Value,Divergence,Heights,yes,,,,1,200_div_wnd
 ERA5,200mb Divergence and Streamlines,Tropical and dynamics,Value,Divergence,,,yes,,,1,200_stream_div
@@ -309,6 +311,7 @@ GEOS-FP,MSLP and 48-hour Change,Changes and trends,Change,Sea level pressure cha
 GEOS-FP,500mb Height and 48-hour Change,Changes and trends,Change,#mb height change,Heights,,,,,1,z500_trend
 GEOS-FP,MSLP and Precipitable Water,Precipitation and moisture,Value,Precipitable water,Pressure,,,,,1,mslp_pwat
 GEOS-FP,"MSLP, 10m wind, 2m temperature",Surface,Value,# m temperature,Pressure,yes,,,,1,10m_wnd_2m_temp
+GEOS-FP,"Cloud Cover by Height (low, middle, high)",Surface,Value,Low cloud (%): each place in the color of its layer with the most cover,,,,yes,,1,cloud_layers
 GEOS-FP,MSLP and 10m Wind,Surface,Value,# m wind speed,Pressure,yes,,,,1,mslp_10m_wind
 GEOS-FP,"200mb Divergence, Wind and Height",Tropical and dynamics,Value,Divergence,Heights,yes,,,,1,200_div_wnd
 GEOS-FP,200mb Divergence and Streamlines,Tropical and dynamics,Value,Divergence,,,yes,,,1,200_stream_div
@@ -377,6 +380,7 @@ GFS,Simulated Composite Radar Reflectivity,Severe: storm structure,Value,Composi
 GFS,"MSLP, 10m wind, 2m temperature",Surface,Value,# m temperature,Pressure,yes,,,,1,10m_wnd_2m_temp
 GFS,"MSLP, 10m wind, 2m dewpoint",Surface,Value,# m dewpoint,Pressure,yes,,,,1,2m_dewpoint
 GFS,"2 m Relative Humidity (from temperature and dewpoint), MSLP and 10m Wind",Surface,Value,# m relative humidity,Pressure,yes,,,,1,2m_rh_10m_wnd_derived
+GFS,"Cloud Cover by Height (low, middle, high)",Surface,Value,Low cloud (%): each place in the color of its layer with the most cover,,,,yes,,1,cloud_layers
 GFS,MSLP and 10m Wind,Surface,Value,# m wind speed,Pressure,yes,,,,1,mslp_10m_wind
 GFS,"200mb Divergence, Wind and Height",Tropical and dynamics,Value,Divergence,Heights,yes,,,,1,200_div_wnd
 GFS,200mb Divergence and Streamlines,Tropical and dynamics,Value,Divergence,,,yes,,,1,200_stream_div
@@ -459,6 +463,7 @@ GRAPES,MSLP and 48-hour Change,Changes and trends,Change,Sea level pressure chan
 GRAPES,500mb Height and 48-hour Change,Changes and trends,Change,#mb height change,Heights,,,,,1,z500_trend
 GRAPES,"Surface-Based CAPE, MSLP and 10m Wind",Severe: instability,Value,Surface-based CAPE,Pressure,yes,,,,1,sbcape_wind
 GRAPES,"MSLP, 10m wind, 2m temperature",Surface,Value,# m temperature,Pressure,yes,,,,1,10m_wnd_2m_temp
+GRAPES,"Cloud Cover by Height (low, middle, high)",Surface,Value,Low cloud (%): each place in the color of its layer with the most cover,,,,yes,,1,cloud_layers
 GRAPES,MSLP and 10m Wind,Surface,Value,# m wind speed,Pressure,yes,,,,1,mslp_10m_wind
 GRAPES,"200mb Divergence, Wind and Height",Tropical and dynamics,Value,Divergence,Heights,yes,,,,1,200_div_wnd
 GRAPES,200mb Divergence and Streamlines,Tropical and dynamics,Value,Divergence,,,yes,,,1,200_stream_div
@@ -478,6 +483,7 @@ GSM,#mb Relative Humidity and Height,Upper air,Value,Relative humidity,Heights,y
 GSM,MSLP and 48-hour Change,Changes and trends,Change,Sea level pressure change,Pressure,,,,,1,mslp_trend
 GSM,500mb Height and 48-hour Change,Changes and trends,Change,#mb height change,Heights,,,,,1,z500_trend
 GSM,"MSLP, 10m wind, 2m temperature",Surface,Value,# m temperature,Pressure,yes,,,,1,10m_wnd_2m_temp
+GSM,"Cloud Cover by Height (low, middle, high)",Surface,Value,Low cloud (%): each place in the color of its layer with the most cover,,,,yes,,1,cloud_layers
 GSM,MSLP and 10m Wind,Surface,Value,# m wind speed,Pressure,yes,,,,1,mslp_10m_wind
 GSM,"200mb Divergence, Wind and Height",Tropical and dynamics,Value,Divergence,Heights,yes,,,,1,200_div_wnd
 GSM,200mb Divergence and Streamlines,Tropical and dynamics,Value,Divergence,,,yes,,,1,200_stream_div
@@ -523,6 +529,7 @@ HGEFS,Mean #mb Relative Humidity and Height,Upper air,Value,Relative humidity,He
 HGEFS,Mean MSLP and 48-hour Change,Changes and trends,Change,Sea level pressure change,Pressure,,,,,1,mslp_trend
 HGEFS,Mean 500mb Height and 48-hour Change,Changes and trends,Change,#mb height change,Heights,,,,,1,z500_trend
 HGEFS,"Mean MSLP, 10m wind, 2m temperature",Surface,Value,# m temperature,Pressure,yes,,,,1,10m_wnd_2m_temp
+HGEFS,"Mean Cloud Cover by Height (low, middle, high)",Surface,Value,Low cloud (%): each place in the color of its layer with the most cover,,,,yes,,1,cloud_layers
 HGEFS,Mean MSLP and 10m Wind,Surface,Value,# m wind speed,Pressure,yes,,,,1,mslp_10m_wind
 HGEFS,"Mean 200mb Divergence, Wind and Height",Tropical and dynamics,Value,Divergence,Heights,yes,,,,1,200_div_wnd
 HGEFS,Mean 200mb Divergence and Streamlines,Tropical and dynamics,Value,Divergence,,,yes,,,1,200_stream_div
@@ -618,6 +625,9 @@ HRRR,#mb Wind,Upper air,Value,Wind speed,,yes,,,250/300,2,250_wnd 300_wnd
 HRRR,#mb Relative Humidity and Height,Upper air,Value,Relative humidity,Heights,yes,,,500/850,2,500_rh_ht 850_rh_ht
 HRRR,#mb Wind and Height,Upper air,Value,Wind speed,Heights,yes,,,500/850,2,500_wnd_ht 850_wnd_ht
 HRRR,"#mb Temperature, Wind and Height",Upper air,Value,Temperature,Heights,yes,,,850/925,2,850_temp_ht 925_temp_ht
+HRRR,Aerosol optical thickness,Air quality and smoke,Value,Aerosol optical thickness,,yes,,,,1,aod
+HRRR,Smoke aloft (column),Air quality and smoke,Value,"Smoke in the whole column (milligrams per square meter): the haze aloft, even where the ground air is clean",,yes,,,,1,smoke_column
+HRRR,Smoke near the surface,Air quality and smoke,Value,"Smoke (PM#) at # m, the HRRR-Smoke model's",,yes,,,,1,smoke_sfc
 HRRR,Cloud Ceiling,Aviation and visibility,Value,Ceiling,,,,,,1,ceiling
 HRRR,Surface Visibility,Aviation and visibility,Value,Visibility,,,,,,1,vis
 HRRR,"1-hr Minimum Relative Humidity, 10m Wind",Boundary layer and fire weather,Value,Lowest relative humidity of the last hour,,yes,,,,1,2m_rh_10m_wnd
@@ -667,6 +677,7 @@ HRRR,Shelter (2 m) Dew Point Temperature,Surface,Value,# m dew point,,,,,,1,2m_d
 HRRR,"2 m Relative Humidity (from temperature and dewpoint), MSLP and 10m Wind",Surface,Value,# m relative humidity,Pressure,yes,,,,1,2m_rh_10m_wnd_derived
 HRRR,2m Temperature and 10m Wind,Surface,Value,# m temperature,,yes,,,,1,2m_temp_10m_wnd
 HRRR,Shelter (2 m) Temperature,Surface,Value,# m temperature,,,,,,1,2m_tmpc
+HRRR,"Cloud Cover by Height (low, middle, high)",Surface,Value,Low cloud (%): each place in the color of its layer with the most cover,,,,yes,,1,cloud_layers
 HRRR,MSLP and 10m Wind,Surface,Value,# m wind speed,Pressure,yes,,,,1,mslp_10m_wind
 HRRR,"200mb Divergence, Wind and Height",Tropical and dynamics,Value,Divergence,Heights,yes,,,,1,200_div_wnd
 HRRR,200mb Divergence and Streamlines,Tropical and dynamics,Value,Divergence,,,yes,,,1,200_stream_div
@@ -693,6 +704,9 @@ HRRR-AK,#mb Wind,Upper air,Value,Wind speed,,yes,,,250/300,2,250_wnd 300_wnd
 HRRR-AK,#mb Relative Humidity and Height,Upper air,Value,Relative humidity,Heights,yes,,,500/850,2,500_rh_ht 850_rh_ht
 HRRR-AK,#mb Wind and Height,Upper air,Value,Wind speed,Heights,yes,,,500/850,2,500_wnd_ht 850_wnd_ht
 HRRR-AK,"#mb Temperature, Wind and Height",Upper air,Value,Temperature,Heights,yes,,,850/925,2,850_temp_ht 925_temp_ht
+HRRR-AK,Aerosol optical thickness,Air quality and smoke,Value,Aerosol optical thickness,,yes,,,,1,aod
+HRRR-AK,Smoke aloft (column),Air quality and smoke,Value,"Smoke in the whole column (milligrams per square meter): the haze aloft, even where the ground air is clean",,yes,,,,1,smoke_column
+HRRR-AK,Smoke near the surface,Air quality and smoke,Value,"Smoke (PM#) at # m, the HRRR-Smoke model's",,yes,,,,1,smoke_sfc
 HRRR-AK,Cloud Ceiling,Aviation and visibility,Value,Ceiling,,,,,,1,ceiling
 HRRR-AK,Surface Visibility,Aviation and visibility,Value,Visibility,,,,,,1,vis
 HRRR-AK,"1-hr Minimum Relative Humidity, 10m Wind",Boundary layer and fire weather,Value,Lowest relative humidity of the last hour,,yes,,,,1,2m_rh_10m_wnd
@@ -742,6 +756,7 @@ HRRR-AK,Shelter (2 m) Dew Point Temperature,Surface,Value,# m dew point,,,,,,1,2
 HRRR-AK,"2 m Relative Humidity (from temperature and dewpoint), MSLP and 10m Wind",Surface,Value,# m relative humidity,Pressure,yes,,,,1,2m_rh_10m_wnd_derived
 HRRR-AK,2m Temperature and 10m Wind,Surface,Value,# m temperature,,yes,,,,1,2m_temp_10m_wnd
 HRRR-AK,Shelter (2 m) Temperature,Surface,Value,# m temperature,,,,,,1,2m_tmpc
+HRRR-AK,"Cloud Cover by Height (low, middle, high)",Surface,Value,Low cloud (%): each place in the color of its layer with the most cover,,,,yes,,1,cloud_layers
 HRRR-AK,MSLP and 10m Wind,Surface,Value,# m wind speed,Pressure,yes,,,,1,mslp_10m_wind
 HRRR-AK,"200mb Divergence, Wind and Height",Tropical and dynamics,Value,Divergence,Heights,yes,,,,1,200_div_wnd
 HRRR-AK,200mb Divergence and Streamlines,Tropical and dynamics,Value,Divergence,,,yes,,,1,200_stream_div
@@ -766,6 +781,7 @@ ICON,MSLP and 48-hour Change,Changes and trends,Change,Sea level pressure change
 ICON,500mb Height and 48-hour Change,Changes and trends,Change,#mb height change,Heights,,,,,1,z500_trend
 ICON,"Surface-Based CAPE, MSLP and 10m Wind",Severe: instability,Value,Surface-based CAPE,Pressure,yes,,,,1,sbcape_wind
 ICON,"MSLP, 10m wind, 2m temperature",Surface,Value,# m temperature,Pressure,yes,,,,1,10m_wnd_2m_temp
+ICON,"Cloud Cover by Height (low, middle, high)",Surface,Value,Low cloud (%): each place in the color of its layer with the most cover,,,,yes,,1,cloud_layers
 ICON,MSLP and 10m Wind,Surface,Value,# m wind speed,Pressure,yes,,,,1,mslp_10m_wind
 ICON,"200mb Divergence, Wind and Height",Tropical and dynamics,Value,Divergence,Heights,yes,,,,1,200_div_wnd
 ICON,200mb Divergence and Streamlines,Tropical and dynamics,Value,Divergence,,,yes,,,1,200_stream_div
@@ -785,6 +801,7 @@ ICON-2I,MSLP and 48-hour Change,Changes and trends,Change,Sea level pressure cha
 ICON-2I,500mb Height and 48-hour Change,Changes and trends,Change,#mb height change,Heights,,,,,1,z500_trend
 ICON-2I,"Surface-Based CAPE, MSLP and 10m Wind",Severe: instability,Value,Surface-based CAPE,Pressure,yes,,,,1,sbcape_wind
 ICON-2I,"MSLP, 10m wind, 2m temperature",Surface,Value,# m temperature,Pressure,yes,,,,1,10m_wnd_2m_temp
+ICON-2I,"Cloud Cover by Height (low, middle, high)",Surface,Value,Low cloud (%): each place in the color of its layer with the most cover,,,,yes,,1,cloud_layers
 ICON-2I,MSLP and 10m Wind,Surface,Value,# m wind speed,Pressure,yes,,,,1,mslp_10m_wind
 ICON-2I,850mb Vorticity and Streamlines,Tropical and dynamics,Value,Relative vorticity,,,yes,,,1,850_stream_vort
 ICON-2I,"850mb Equivalent Potential Temperature, Wind and Height",Tropical and dynamics,Value,Equivalent potential temperature,Heights,yes,,,,1,850_thetae_ht
@@ -796,6 +813,7 @@ ICON-D2,"Surface-Based CAPE, MSLP and 10m Wind",Severe: instability,Value,Surfac
 ICON-D2,"MSLP, 10m wind, 2m temperature",Surface,Value,# m temperature,Pressure,yes,,,,1,10m_wnd_2m_temp
 ICON-D2,"MSLP, 10m wind, 2m dewpoint",Surface,Value,# m dewpoint,Pressure,yes,,,,1,2m_dewpoint
 ICON-D2,"2 m Relative Humidity (from temperature and dewpoint), MSLP and 10m Wind",Surface,Value,# m relative humidity,Pressure,yes,,,,1,2m_rh_10m_wnd_derived
+ICON-D2,"Cloud Cover by Height (low, middle, high)",Surface,Value,Low cloud (%): each place in the color of its layer with the most cover,,,,yes,,1,cloud_layers
 ICON-D2,MSLP and 10m Wind,Surface,Value,# m wind speed,Pressure,yes,,,,1,mslp_10m_wind
 ICON-EU,#mb Wind and Height,Upper air,Value,Wind speed,Heights,,,,200/250/300,3,200_wnd_ht 250_wnd_ht 300_wnd_ht
 ICON-EU,"#mb Vorticity, Wind, and Height",Tropical and dynamics,Value,Relative vorticity,Heights,yes,,,500/850,2,500_vort_ht 850_vort_ht
@@ -808,6 +826,7 @@ ICON-EU,"Surface-Based CAPE, MSLP and 10m Wind",Severe: instability,Value,Surfac
 ICON-EU,"MSLP, 10m wind, 2m temperature",Surface,Value,# m temperature,Pressure,yes,,,,1,10m_wnd_2m_temp
 ICON-EU,"MSLP, 10m wind, 2m dewpoint",Surface,Value,# m dewpoint,Pressure,yes,,,,1,2m_dewpoint
 ICON-EU,"2 m Relative Humidity (from temperature and dewpoint), MSLP and 10m Wind",Surface,Value,# m relative humidity,Pressure,yes,,,,1,2m_rh_10m_wnd_derived
+ICON-EU,"Cloud Cover by Height (low, middle, high)",Surface,Value,Low cloud (%): each place in the color of its layer with the most cover,,,,yes,,1,cloud_layers
 ICON-EU,MSLP and 10m Wind,Surface,Value,# m wind speed,Pressure,yes,,,,1,mslp_10m_wind
 ICON-EU,"200mb Divergence, Wind and Height",Tropical and dynamics,Value,Divergence,Heights,yes,,,,1,200_div_wnd
 ICON-EU,200mb Divergence and Streamlines,Tropical and dynamics,Value,Divergence,,,yes,,,1,200_stream_div
@@ -839,6 +858,7 @@ IFS,"Surface-Based CAPE, MSLP and 10m Wind",Severe: instability,Value,Surface-ba
 IFS,"MSLP, 10m wind, 2m temperature",Surface,Value,# m temperature,Pressure,yes,,,,1,10m_wnd_2m_temp
 IFS,"MSLP, 10m wind, 2m dewpoint",Surface,Value,# m dewpoint,Pressure,yes,,,,1,2m_dewpoint
 IFS,"2 m Relative Humidity (from temperature and dewpoint), MSLP and 10m Wind",Surface,Value,# m relative humidity,Pressure,yes,,,,1,2m_rh_10m_wnd_derived
+IFS,"Cloud Cover by Height (low, middle, high)",Surface,Value,Low cloud (%): each place in the color of its layer with the most cover,,,,yes,,1,cloud_layers
 IFS,MSLP and 10m Wind,Surface,Value,# m wind speed,Pressure,yes,,,,1,mslp_10m_wind
 IFS,"200mb Divergence, Wind and Height",Tropical and dynamics,Value,Divergence,Heights,yes,,,,1,200_div_wnd
 IFS,200mb Divergence and Streamlines,Tropical and dynamics,Value,Divergence,,,yes,,,1,200_stream_div
@@ -994,6 +1014,7 @@ MPAS-RN,925mb Temperature and Wind,Upper air,Value,# mb temperature,,yes,,,,1,92
 MRMS,Simulated Composite Radar Reflectivity,Severe: storm structure,Value,Composite reflectivity,,,,,,1,sim_radar_comp
 MSM,MSLP and 48-hour Change,Changes and trends,Change,Sea level pressure change,Pressure,,,,,1,mslp_trend
 MSM,"MSLP, 10m wind, 2m temperature",Surface,Value,# m temperature,Pressure,yes,,,,1,10m_wnd_2m_temp
+MSM,"Cloud Cover by Height (low, middle, high)",Surface,Value,Low cloud (%): each place in the color of its layer with the most cover,,,,yes,,1,cloud_layers
 MSM,MSLP and 10m Wind,Surface,Value,# m wind speed,Pressure,yes,,,,1,mslp_10m_wind
 MSM-UL,"#mb Temperature, Wind and Height",Upper air,Value,Temperature,Heights,yes,,,100/850/925,3,100_temp_ht 850_temp_ht 925_temp_ht
 MSM-UL,#mb Wind and Height,Upper air,Value,Wind speed,Heights,yes,,,100/500/850,3,100_wnd_ht 500_wnd_ht 850_wnd_ht
@@ -1109,6 +1130,7 @@ REFS,Probability of # in or more of rain in an hour,Probability: precipitation,C
 REFS,"Pooled REFS + MPAS: chance of # dBZ or more, last # runs of each",Severe: storm structure,Chance of a limit,"Share of the pooled members (REFS, NSSL MPAS-HT and MPAS-RN; last # runs of each) at the level, nearby",,,,,40/50 | 2/3,4,pool_refc_40_lag2 pool_refc_40_lag3 pool_refc_50_lag2 pool_refc_50_lag3
 REFS,Mean #-#mb Thickness,Precipitation and moisture,Ensemble: members / spread,Mean #mb Thickness,Thickness,,,,850/1000 | 500/700/850,3,ens_1000_500_thick ens_1000_850_thick ens_850_700_thick
 REFS,Mean #-hour Precipitation,Precipitation and moisture,Ensemble: members / spread,Mean precipitation in the last # hours,,,,,06/12/24,3,ens_precip_p06 ens_precip_p12 ens_precip_p24
+REFS,"Probability of Ceiling under #,# ft",Probability: aviation and visibility,Chance of a limit,"Chance of a ceiling under #,# ft",,,,,1000/2000/3000,3,ens_prob_ceil_1000ft ens_prob_ceil_2000ft ens_prob_ceil_3000ft
 REFS,Probability of #-hour Precipitation over # in,Probability: precipitation,Chance of a limit,Chance of more than # in of rain in # hours,,,,,0.25/0.5/1,3,ens_prob_precip_6h_0.25in ens_prob_precip_6h_0.5in ens_prob_precip_6h_1in
 REFS,Probability of CAPE over #,Probability: severe and storms,Chance of a limit,Chance of mixed-layer CAPE over # J/kg,,,,,500/1000/2000,3,ens_prob_cape_1000 ens_prob_cape_2000 ens_prob_cape_500
 REFS,Probability of # in or more of snow in # hours,Probability: precipitation,Chance of a limit,Chance,,,,,1/3,2,prob_snow_3h_1in prob_snow_3h_3in
@@ -1132,6 +1154,7 @@ REFS,Snow Total Mean,Precipitation and moisture,Ensemble: members / spread,Mean 
 REFS,Snow Total Spread,Precipitation and moisture,Ensemble: members / spread,Spread of the snow since the start of the run,,,,,,1,ens_snow_total_sprd
 REFS,"Ensemble Mean Precipitation, 1 hour",Precipitation and moisture,Value,Mean precipitation in the last hour,,,,,,1,mean_precip_p01
 REFS,"Ensemble Mean Precipitation, 3 hours",Precipitation and moisture,Value,Mean precipitation in the last # hours,,,,,,1,mean_precip_p03
+REFS,Probability of Ceiling under 500 ft,Probability: aviation and visibility,Chance of a limit,Chance of a ceiling under # ft,,,,,,1,ens_prob_ceil_500ft
 REFS,Probability of 2-5 km Updraft Helicity of 75 or more (last hour),Probability: severe and storms,Chance of a limit,Chance of rotating updrafts,,,,,,1,prob_uphl_75
 REFS,Probability of 10m Wind Speeds over 25 kt,Probability: temperature and wind,Chance of a limit,Chance of a # m wind over # kt,,,,,,1,ens_prob_10m_wind_25kt
 REFS,Probability of 2m Temperature under 0 C,Probability: temperature and wind,Chance of a limit,Chance of a # m temperature under # C,,,,,,1,ens_prob_2m_temp_0C
@@ -1155,6 +1178,15 @@ RRFS,#mb Wind,Upper air,Value,Wind speed,,yes,,,250/300,2,250_wnd 300_wnd
 RRFS,#mb Relative Humidity and Height,Upper air,Value,Relative humidity,Heights,yes,,,500/850,2,500_rh_ht 850_rh_ht
 RRFS,#mb Wind and Height,Upper air,Value,Wind speed,Heights,yes,,,500/850,2,500_wnd_ht 850_wnd_ht
 RRFS,"#mb Temperature, Wind and Height",Upper air,Value,Temperature,Heights,yes,,,850/925,2,850_temp_ht 925_temp_ht
+RRFS,Aerosol optical thickness,Air quality and smoke,Value,Aerosol optical thickness,,yes,,,,1,aod
+RRFS,Dust aloft (column),Air quality and smoke,Value,Dust (PM#) in the whole column,,yes,,,,1,dust_column
+RRFS,Dust emissions,Air quality and smoke,Value,Dust lifted into the air (micrograms per square meter per second): the dust sources,,yes,,,,1,dust_emission
+RRFS,Dust near the surface,Air quality and smoke,Value,Fine dust (PM#) at # m,,yes,,,,1,dust_sfc
+RRFS,Coarse particles (PM10) near the surface,Air quality and smoke,Value,"PM# at # m, the hour's mean: the RRFS's smoke and dust",,yes,,,,1,pm10_aq
+RRFS,Fine particles (PM2.5) near the surface,Air quality and smoke,Value,"PM# at # m, the hour's mean: the RRFS's smoke and dust",,yes,,,,1,pm25_sfc
+RRFS,Smoke aloft (column),Air quality and smoke,Value,"Smoke in the whole column (milligrams per square meter): the haze aloft, even where the ground air is clean; the fires in reds",,yes,,yes,,1,smoke_column
+RRFS,Fire smoke emissions,Air quality and smoke,Value,Smoke put into the air (micrograms per square meter per second): the fires the model knows of,,yes,,,,1,smoke_emission
+RRFS,Smoke near the surface,Air quality and smoke,Value,"Smoke (organic matter, PM#) at # m (micrograms per cubic meter); the fires in reds",,yes,,yes,,1,smoke_sfc
 RRFS,Cloud Ceiling,Aviation and visibility,Value,Ceiling,,,,,,1,ceiling
 RRFS,Surface Visibility,Aviation and visibility,Value,Visibility,,,,,,1,vis
 RRFS,"1-hr Minimum Relative Humidity, 10m Wind",Boundary layer and fire weather,Value,Lowest relative humidity of the last hour,,yes,,,,1,2m_rh_10m_wnd
@@ -1204,7 +1236,10 @@ RRFS,Shelter (2 m) Dew Point Temperature,Surface,Value,# m dew point,,,,,,1,2m_d
 RRFS,"2 m Relative Humidity (from temperature and dewpoint), MSLP and 10m Wind",Surface,Value,# m relative humidity,Pressure,yes,,,,1,2m_rh_10m_wnd_derived
 RRFS,2m Temperature and 10m Wind,Surface,Value,# m temperature,,yes,,,,1,2m_temp_10m_wnd
 RRFS,Shelter (2 m) Temperature,Surface,Value,# m temperature,,,,,,1,2m_tmpc
+RRFS,"Cloud Cover by Height (low, middle, high)",Surface,Value,Low cloud (%): each place in the color of its layer with the most cover,,,,yes,,1,cloud_layers
 RRFS,MSLP and 10m Wind,Surface,Value,# m wind speed,Pressure,yes,,,,1,mslp_10m_wind
+RRFS,Surface Runoff in the last hour,Surface,Value,Water running off the ground in the last hour,,,,,,1,runoff_1hr
+RRFS,Surface Runoff in the last 6 hours,Surface,Value,Water running off the ground in the last # hours,,,,,,1,runoff_6hr
 RRFS,"200mb Divergence, Wind and Height",Tropical and dynamics,Value,Divergence,Heights,yes,,,,1,200_div_wnd
 RRFS,200mb Divergence and Streamlines,Tropical and dynamics,Value,Divergence,,,yes,,,1,200_stream_div
 RRFS,850mb Vorticity and Streamlines,Tropical and dynamics,Value,Relative vorticity,,,yes,,,1,850_stream_vort
@@ -1279,6 +1314,7 @@ RRFS-AK,Shelter (2 m) Dew Point Temperature,Surface,Value,# m dew point,,,,,,1,2
 RRFS-AK,"2 m Relative Humidity (from temperature and dewpoint), MSLP and 10m Wind",Surface,Value,# m relative humidity,Pressure,yes,,,,1,2m_rh_10m_wnd_derived
 RRFS-AK,2m Temperature and 10m Wind,Surface,Value,# m temperature,,yes,,,,1,2m_temp_10m_wnd
 RRFS-AK,Shelter (2 m) Temperature,Surface,Value,# m temperature,,,,,,1,2m_tmpc
+RRFS-AK,"Cloud Cover by Height (low, middle, high)",Surface,Value,Low cloud (%): each place in the color of its layer with the most cover,,,,yes,,1,cloud_layers
 RRFS-AK,MSLP and 10m Wind,Surface,Value,# m wind speed,Pressure,yes,,,,1,mslp_10m_wind
 RRFS-AK,"200mb Divergence, Wind and Height",Tropical and dynamics,Value,Divergence,Heights,yes,,,,1,200_div_wnd
 RRFS-AK,200mb Divergence and Streamlines,Tropical and dynamics,Value,Divergence,,,yes,,,1,200_stream_div
@@ -1354,6 +1390,7 @@ RRFS-FIREWX,Shelter (2 m) Dew Point Temperature,Surface,Value,# m dew point,,,,,
 RRFS-FIREWX,"2 m Relative Humidity (from temperature and dewpoint), MSLP and 10m Wind",Surface,Value,# m relative humidity,Pressure,yes,,,,1,2m_rh_10m_wnd_derived
 RRFS-FIREWX,2m Temperature and 10m Wind,Surface,Value,# m temperature,,yes,,,,1,2m_temp_10m_wnd
 RRFS-FIREWX,Shelter (2 m) Temperature,Surface,Value,# m temperature,,,,,,1,2m_tmpc
+RRFS-FIREWX,"Cloud Cover by Height (low, middle, high)",Surface,Value,Low cloud (%): each place in the color of its layer with the most cover,,,,yes,,1,cloud_layers
 RRFS-FIREWX,MSLP and 10m Wind,Surface,Value,# m wind speed,Pressure,yes,,,,1,mslp_10m_wind
 RRFS-FIREWX,"200mb Divergence, Wind and Height",Tropical and dynamics,Value,Divergence,Heights,yes,,,,1,200_div_wnd
 RRFS-FIREWX,200mb Divergence and Streamlines,Tropical and dynamics,Value,Divergence,,,yes,,,1,200_stream_div
@@ -1429,6 +1466,7 @@ RRFS-HI,Shelter (2 m) Dew Point Temperature,Surface,Value,# m dew point,,,,,,1,2
 RRFS-HI,"2 m Relative Humidity (from temperature and dewpoint), MSLP and 10m Wind",Surface,Value,# m relative humidity,Pressure,yes,,,,1,2m_rh_10m_wnd_derived
 RRFS-HI,2m Temperature and 10m Wind,Surface,Value,# m temperature,,yes,,,,1,2m_temp_10m_wnd
 RRFS-HI,Shelter (2 m) Temperature,Surface,Value,# m temperature,,,,,,1,2m_tmpc
+RRFS-HI,"Cloud Cover by Height (low, middle, high)",Surface,Value,Low cloud (%): each place in the color of its layer with the most cover,,,,yes,,1,cloud_layers
 RRFS-HI,MSLP and 10m Wind,Surface,Value,# m wind speed,Pressure,yes,,,,1,mslp_10m_wind
 RRFS-HI,"200mb Divergence, Wind and Height",Tropical and dynamics,Value,Divergence,Heights,yes,,,,1,200_div_wnd
 RRFS-HI,200mb Divergence and Streamlines,Tropical and dynamics,Value,Divergence,,,yes,,,1,200_stream_div
@@ -1504,6 +1542,7 @@ RRFS-NA,Shelter (2 m) Dew Point Temperature,Surface,Value,# m dew point,,,,,,1,2
 RRFS-NA,"2 m Relative Humidity (from temperature and dewpoint), MSLP and 10m Wind",Surface,Value,# m relative humidity,Pressure,yes,,,,1,2m_rh_10m_wnd_derived
 RRFS-NA,2m Temperature and 10m Wind,Surface,Value,# m temperature,,yes,,,,1,2m_temp_10m_wnd
 RRFS-NA,Shelter (2 m) Temperature,Surface,Value,# m temperature,,,,,,1,2m_tmpc
+RRFS-NA,"Cloud Cover by Height (low, middle, high)",Surface,Value,Low cloud (%): each place in the color of its layer with the most cover,,,,yes,,1,cloud_layers
 RRFS-NA,MSLP and 10m Wind,Surface,Value,# m wind speed,Pressure,yes,,,,1,mslp_10m_wind
 RRFS-NA,"200mb Divergence, Wind and Height",Tropical and dynamics,Value,Divergence,Heights,yes,,,,1,200_div_wnd
 RRFS-NA,200mb Divergence and Streamlines,Tropical and dynamics,Value,Divergence,,,yes,,,1,200_stream_div
@@ -1579,6 +1618,7 @@ RRFS-PR,Shelter (2 m) Dew Point Temperature,Surface,Value,# m dew point,,,,,,1,2
 RRFS-PR,"2 m Relative Humidity (from temperature and dewpoint), MSLP and 10m Wind",Surface,Value,# m relative humidity,Pressure,yes,,,,1,2m_rh_10m_wnd_derived
 RRFS-PR,2m Temperature and 10m Wind,Surface,Value,# m temperature,,yes,,,,1,2m_temp_10m_wnd
 RRFS-PR,Shelter (2 m) Temperature,Surface,Value,# m temperature,,,,,,1,2m_tmpc
+RRFS-PR,"Cloud Cover by Height (low, middle, high)",Surface,Value,Low cloud (%): each place in the color of its layer with the most cover,,,,yes,,1,cloud_layers
 RRFS-PR,MSLP and 10m Wind,Surface,Value,# m wind speed,Pressure,yes,,,,1,mslp_10m_wind
 RRFS-PR,"200mb Divergence, Wind and Height",Tropical and dynamics,Value,Divergence,Heights,yes,,,,1,200_div_wnd
 RRFS-PR,200mb Divergence and Streamlines,Tropical and dynamics,Value,Divergence,,,yes,,,1,200_stream_div
@@ -1624,26 +1664,31 @@ RRFSD,2 m Mixing Ratio,Surface,Value,# m water vapor mixing ratio,,,,,,1,mixr_2m
 RRFSD,2 m Relative Humidity,Surface,Value,# m relative humidity,,,,,,1,rh_2m
 RRFSD,2 m Temperature,Surface,Value,# m temperature,,,,,,1,temp_2m
 RRFSD,2 m Equivalent Potential Temperature,Surface,Value,# m equivalent potential temperature,,,,,,1,thetae_2m
+RTMA,Cloud Ceiling,Aviation and visibility,Value,Ceiling,,,,,,1,ceiling
 RTMA,2-meter Visibility,Aviation and visibility,Value,Visibility,,,,,,1,visibility
 RTMA,10 m Wind and Gust,Surface,Value,# m wind gust,,yes,,,,1,10m_wnd_gust
 RTMA,2 m Dewpoint and 10 m Wind,Surface,Value,# m dewpoint,,yes,,,,1,2m_dewp_10m_wnd
 RTMA,2 m Temperature and 10 m Wind,Surface,Value,# m temperature,,yes,,,,1,2m_temp_10m_wnd
 RTMA,Total Cloud Cover and 10 m Wind,Surface,Value,Total cloud cover,,yes,,,,1,total_cloud_cover
+RTMA-AK,Cloud Ceiling,Aviation and visibility,Value,Ceiling,,,,,,1,ceiling
 RTMA-AK,2-meter Visibility,Aviation and visibility,Value,Visibility,,,,,,1,visibility
 RTMA-AK,10 m Wind and Gust,Surface,Value,# m wind gust,,yes,,,,1,10m_wnd_gust
 RTMA-AK,2 m Dewpoint and 10 m Wind,Surface,Value,# m dewpoint,,yes,,,,1,2m_dewp_10m_wnd
 RTMA-AK,2 m Temperature and 10 m Wind,Surface,Value,# m temperature,,yes,,,,1,2m_temp_10m_wnd
 RTMA-AK,Total Cloud Cover and 10 m Wind,Surface,Value,Total cloud cover,,yes,,,,1,total_cloud_cover
+RTMA-GU,Cloud Ceiling,Aviation and visibility,Value,Ceiling,,,,,,1,ceiling
 RTMA-GU,2-meter Visibility,Aviation and visibility,Value,Visibility,,,,,,1,visibility
 RTMA-GU,10 m Wind and Gust,Surface,Value,# m wind gust,,yes,,,,1,10m_wnd_gust
 RTMA-GU,2 m Dewpoint and 10 m Wind,Surface,Value,# m dewpoint,,yes,,,,1,2m_dewp_10m_wnd
 RTMA-GU,2 m Temperature and 10 m Wind,Surface,Value,# m temperature,,yes,,,,1,2m_temp_10m_wnd
 RTMA-GU,Total Cloud Cover and 10 m Wind,Surface,Value,Total cloud cover,,yes,,,,1,total_cloud_cover
+RTMA-HI,Cloud Ceiling,Aviation and visibility,Value,Ceiling,,,,,,1,ceiling
 RTMA-HI,2-meter Visibility,Aviation and visibility,Value,Visibility,,,,,,1,visibility
 RTMA-HI,10 m Wind and Gust,Surface,Value,# m wind gust,,yes,,,,1,10m_wnd_gust
 RTMA-HI,2 m Dewpoint and 10 m Wind,Surface,Value,# m dewpoint,,yes,,,,1,2m_dewp_10m_wnd
 RTMA-HI,2 m Temperature and 10 m Wind,Surface,Value,# m temperature,,yes,,,,1,2m_temp_10m_wnd
 RTMA-HI,Total Cloud Cover and 10 m Wind,Surface,Value,Total cloud cover,,yes,,,,1,total_cloud_cover
+RTMA-PR,Cloud Ceiling,Aviation and visibility,Value,Ceiling,,,,,,1,ceiling
 RTMA-PR,2-meter Visibility,Aviation and visibility,Value,Visibility,,,,,,1,visibility
 RTMA-PR,10 m Wind and Gust,Surface,Value,# m wind gust,,yes,,,,1,10m_wnd_gust
 RTMA-PR,2 m Dewpoint and 10 m Wind,Surface,Value,# m dewpoint,,yes,,,,1,2m_dewp_10m_wnd
@@ -1824,6 +1869,7 @@ UKMO,MSLP and 48-hour Change,Changes and trends,Change,Sea level pressure change
 UKMO,500mb Height and 48-hour Change,Changes and trends,Change,#mb height change,Heights,,,,,1,z500_trend
 UKMO,"Surface-Based CAPE, MSLP and 10m Wind",Severe: instability,Value,Surface-based CAPE,Pressure,yes,,,,1,sbcape_wind
 UKMO,"MSLP, 10m wind, 2m temperature",Surface,Value,# m temperature,Pressure,yes,,,,1,10m_wnd_2m_temp
+UKMO,"Cloud Cover by Height (low, middle, high)",Surface,Value,Low cloud (%): each place in the color of its layer with the most cover,,,,yes,,1,cloud_layers
 UKMO,MSLP and 10m Wind,Surface,Value,# m wind speed,Pressure,yes,,,,1,mslp_10m_wind
 UKMO,"200mb Divergence, Wind and Height",Tropical and dynamics,Value,Divergence,Heights,yes,,,,1,200_div_wnd
 UKMO,200mb Divergence and Streamlines,Tropical and dynamics,Value,Divergence,,,yes,,,1,200_stream_div
@@ -1835,21 +1881,25 @@ UKMO,850-200mb Mean Wind (Steering Flow),Tropical and dynamics,Value,Mean wind s
 UKMO,"700mb Temperature, Wind and MSLP",Upper air,Value,#mb temperature,Pressure,yes,,,,1,700_temp_mslp
 UKMO,850-700mb Mean Relative Humidity,Upper air,Value,Mean relative humidity of # and # mb,,,,,,1,850_700_rh
 UKMO,"700-300mb Mean Relative Humidity, 500mb Height and Wind",Upper air,Value,"Mean relative humidity, #mb",Heights,yes,,,,1,rh_700_300
+URMA,Cloud Ceiling,Aviation and visibility,Value,Ceiling,,,,,,1,ceiling
 URMA,2-meter Visibility,Aviation and visibility,Value,Visibility,,,,,,1,visibility
 URMA,10 m Wind and Gust,Surface,Value,# m wind gust,,yes,,,,1,10m_wnd_gust
 URMA,2 m Dewpoint and 10 m Wind,Surface,Value,# m dewpoint,,yes,,,,1,2m_dewp_10m_wnd
 URMA,2 m Temperature and 10 m Wind,Surface,Value,# m temperature,,yes,,,,1,2m_temp_10m_wnd
 URMA,Total Cloud Cover and 10 m Wind,Surface,Value,Total cloud cover,,yes,,,,1,total_cloud_cover
+URMA-AK,Cloud Ceiling,Aviation and visibility,Value,Ceiling,,,,,,1,ceiling
 URMA-AK,2-meter Visibility,Aviation and visibility,Value,Visibility,,,,,,1,visibility
 URMA-AK,10 m Wind and Gust,Surface,Value,# m wind gust,,yes,,,,1,10m_wnd_gust
 URMA-AK,2 m Dewpoint and 10 m Wind,Surface,Value,# m dewpoint,,yes,,,,1,2m_dewp_10m_wnd
 URMA-AK,2 m Temperature and 10 m Wind,Surface,Value,# m temperature,,yes,,,,1,2m_temp_10m_wnd
 URMA-AK,Total Cloud Cover and 10 m Wind,Surface,Value,Total cloud cover,,yes,,,,1,total_cloud_cover
+URMA-HI,Cloud Ceiling,Aviation and visibility,Value,Ceiling,,,,,,1,ceiling
 URMA-HI,2-meter Visibility,Aviation and visibility,Value,Visibility,,,,,,1,visibility
 URMA-HI,10 m Wind and Gust,Surface,Value,# m wind gust,,yes,,,,1,10m_wnd_gust
 URMA-HI,2 m Dewpoint and 10 m Wind,Surface,Value,# m dewpoint,,yes,,,,1,2m_dewp_10m_wnd
 URMA-HI,2 m Temperature and 10 m Wind,Surface,Value,# m temperature,,yes,,,,1,2m_temp_10m_wnd
 URMA-HI,Total Cloud Cover and 10 m Wind,Surface,Value,Total cloud cover,,yes,,,,1,total_cloud_cover
+URMA-PR,Cloud Ceiling,Aviation and visibility,Value,Ceiling,,,,,,1,ceiling
 URMA-PR,2-meter Visibility,Aviation and visibility,Value,Visibility,,,,,,1,visibility
 URMA-PR,10 m Wind and Gust,Surface,Value,# m wind gust,,yes,,,,1,10m_wnd_gust
 URMA-PR,2 m Dewpoint and 10 m Wind,Surface,Value,# m dewpoint,,yes,,,,1,2m_dewp_10m_wnd

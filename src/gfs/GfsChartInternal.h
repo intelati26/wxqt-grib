@@ -111,6 +111,7 @@ struct CumulativeEnsemble {
 };
 const Ramp& exceedRamp();
 Product exceedProduct(const CumulativeEnsemble& ensemble, const std::string& id, const std::string& label, double inches, int period);
+Product cloudLayersProduct(const std::string& model);   // low, middle and high cloud in one map: each place colored by its dominant layer (LCDC, MCDC, HCDC)
 Product exceedPooledProduct(const std::string& id, const std::string& label, double inches, int period);
 
 // the ingredients of a pattern as conditions (GfsChartIngredients.cpp)

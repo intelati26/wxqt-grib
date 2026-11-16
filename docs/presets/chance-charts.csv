@@ -107,6 +107,10 @@ NBM,prob_sleet,Probability of Sleet,"Ice (freezing rain, sleet)",,,ensemble,no l
 NBM,prob_snow,Probability of Snow,Snow,,,ensemble,no limit (fixed definition)
 NBM,prob_tstm,Thunderstorm Probability,Thunderstorm,,,ensemble,no limit (fixed definition)
 NBM,tstm_prob,Thunderstorm Probability (6 hours ending),Thunderstorm,6 h,,ensemble,no limit (fixed definition)
+REFS,ens_prob_ceil_1000ft,"Probability of Ceiling under 1,000 ft",Ceiling,,"under 1,000 ft",ensemble,"fits (product, window, one limit, kind)"
+REFS,ens_prob_ceil_2000ft,"Probability of Ceiling under 2,000 ft",Ceiling,,"under 2,000 ft",ensemble,"fits (product, window, one limit, kind)"
+REFS,ens_prob_ceil_3000ft,"Probability of Ceiling under 3,000 ft",Ceiling,,"under 3,000 ft",ensemble,"fits (product, window, one limit, kind)"
+REFS,ens_prob_ceil_500ft,Probability of Ceiling under 500 ft,Ceiling,,under 500 ft,ensemble,"fits (product, window, one limit, kind)"
 REFS,ens_prob_precip_6h_0.25in,Probability of 6-hour Precipitation over 0.25 in,Rain / total precipitation,6 h,over 0.25 in,ensemble,"fits (product, window, one limit, kind)"
 REFS,ens_prob_precip_6h_0.5in,Probability of 6-hour Precipitation over 0.5 in,Rain / total precipitation,6 h,over 0.5 in,ensemble,"fits (product, window, one limit, kind)"
 REFS,ens_prob_precip_6h_1in,Probability of 6-hour Precipitation over 1 in,Rain / total precipitation,6 h,over 1 in,ensemble,"fits (product, window, one limit, kind)"

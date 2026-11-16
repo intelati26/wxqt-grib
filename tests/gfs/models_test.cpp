@@ -138,6 +138,47 @@ int main() {
             CHECK(grids.count("vc00") == 0 && range->fill(grids).values[1] == p50.values[1]);
         }
     }
+    {   // the address a model makes in code is the one asked for: the candidate list (made for the server names, asked first) must start with fileUrl's address, for every model and for
+        // runs in each era the code tells apart (the bug of 16 Nov 2026: ERA5, CFS-ANL, RAP-ANL, RTMA, URMA, GFS1-ANL and the RRFS's in-between runs asked the model file's address instead)
+        const std::vector<GfsData::Run> runs{{"20100715", "00"}, {"20150715", "12"}, {"20190715", "12"}, {"20220715", "18"}, {"20261116", "07"}};
+        for (const auto& d : GfsModels::all()) {
+            if (d.storm) {
+                continue;
+            }
+            current = d.id;
+            const auto source = d.source("");
+            if (!source.candidates || !source.fileUrl) {
+                continue;
+            }
+            for (const auto& run : runs) {
+                for (const int hour : {0, 3}) {
+                    const std::string file = source.probeFile;
+                    const auto urls = source.candidates(run, hour, file);
+                    CHECK(!urls.empty() && urls.front() == source.fileUrl(run, hour, file));
+                }
+            }
+        }
+        const auto urlOf = [] (const char * id, const GfsData::Run& run, int hour, const GfsData::Want& want) {
+            const auto * d = GfsModels::find(id);
+            if (d == nullptr) {
+                return std::string{"no model"};
+            }
+            const auto source = d->source("");
+            const auto file = source.fileOf ? source.fileOf(want) : std::string{};
+            return source.candidates ? source.candidates(run, hour, file).front() : source.fileUrl(run, hour, file);
+        };
+        current = "ERA5 address";
+        CHECK(urlOf("ERA5", {"20220715", "18"}, 0, {"p", "PWAT", "entire atmosphere (considered as a single layer)", "", ""}) ==
+              "https://nsf-ncar-era5.s3.amazonaws.com/e5.oper.an.sfc/202207/e5.oper.an.sfc.128_137_tcwv.ll025sc.2022070100_2022073123.nc");
+        CHECK(urlOf("ERA5", {"20240715", "18"}, 0, {"l", "LCDC", "low cloud layer", "", ""}) ==
+              "https://nsf-ncar-era5.s3.amazonaws.com/e5.oper.an.sfc/202407/e5.oper.an.sfc.128_186_lcc.ll025sc.2024070100_2024073123.nc");
+        current = "CFS-ANL address";
+        CHECK(urlOf("CFS-ANL", {"20100715", "00"}, 0, {"z", "HGT", "500 mb", "", ""}).find("model-cfs-allfile-reanalysis/time-series/201007/z500.l.gdas.201007.grb2") != std::string::npos);
+        current = "GFS1-ANL address";
+        CHECK(urlOf("GFS1-ANL", {"20190715", "12"}, 0, {"z", "HGT", "500 mb", "", ""}).back() == '2');   // the GRIB2 files from April 2017
+        current = "RRFS in-between run";
+        CHECK(urlOf("RRFS", {"20261116", "07"}, 3, {"u", "UGRD", "10 m above ground", "", ""}).find(".subh.") != std::string::npos);
+    }
     std::printf(failures ? "%d failures\n" : "all model registry tests passed\n", failures);
     return failures ? 1 : 0;
 }

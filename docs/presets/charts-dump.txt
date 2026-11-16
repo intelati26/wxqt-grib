@@ -12,6 +12,7 @@ CHART AIFS|Precipitation and moisture|precip_ptot|Total Accumulated Precipitatio
 CHART AIFS|Surface|10m_wnd_2m_temp|MSLP, 10m wind, 2m temperature|2 m temperature|Sea level pressure (mb)|own||0
 CHART AIFS|Surface|2m_dewpoint|MSLP, 10m wind, 2m dewpoint|2 m dewpoint|Sea level pressure (mb)|own||0
 CHART AIFS|Surface|2m_rh_10m_wnd_derived|2 m Relative Humidity (from temperature and dewpoint), MSLP and 10m Wind|2 m relative humidity (%)|Sea level pressure (mb)|own||0
+CHART AIFS|Surface|cloud_layers|Cloud Cover by Height (low, middle, high)|Low cloud (%): each place in the color of its layer with the most cover (gray low, blue middle, pink high; under 20% clear)||||2
 CHART AIFS|Surface|mslp_10m_wind|MSLP and 10m Wind|10 m wind speed (kt)|Sea level pressure (mb)|own||0
 CHART AIFS|Tropical and dynamics|200_div_wnd|200mb Divergence, Wind and Height|Divergence (1e-5 /s)|Height (dam)|own||0
 CHART AIFS|Tropical and dynamics|200_stream_div|200mb Divergence and Streamlines|Divergence (1e-5 /s)|||streamlines|0
@@ -85,14 +86,12 @@ CHART AIGFS|Upper air|850_temp_ht|850mb Temperature, Wind and Height|Temperature
 CHART AIGFS|Upper air|850_wnd_ht|850mb Height and Wind|Wind speed (kt)|Height (dam)|own||0
 CHART AIGFS|Upper air|925_temp_ht|925mb Temperature, Wind and Height|Temperature|Height (dam)|own||0
 CHART AIGFS|Upper air|rh_700_300|700-300mb Mean Relative Humidity, 500mb Height and Wind|Mean relative humidity, 700-300mb (%)|Height (dam)|own||0
-CHART AROME-AT|Changes and trends|mslp_trend|MSLP and 48-hour Change|Sea level pressure change (mb)|Sea level pressure (mb)|||0
-CHART AROME-AT|Severe: instability|sbcape_wind|Surface-Based CAPE, MSLP and 10m Wind|Surface-based CAPE (J/kg)|Sea level pressure (mb)|own||0
-CHART AROME-AT|Surface|10m_wnd_2m_temp|MSLP, 10m wind, 2m temperature|2 m temperature|Sea level pressure (mb)|own||0
-CHART AROME-AT|Surface|mslp_10m_wind|MSLP and 10m Wind|10 m wind speed (kt)|Sea level pressure (mb)|own||0
 CHART AROME|Changes and trends|mslp_trend|MSLP and 48-hour Change|Sea level pressure change (mb)|Sea level pressure (mb)|||0
 CHART AROME|Changes and trends|z500_trend|500mb Height and 48-hour Change|500mb height change (dam)|Height (dam)|||0
+CHART AROME-HD|Surface|cloud_layers|Cloud Cover by Height (low, middle, high)|Low cloud (%): each place in the color of its layer with the most cover (gray low, blue middle, pink high; under 20% clear)||||2
 CHART AROME|Severe: instability|sbcape_wind|Surface-Based CAPE, MSLP and 10m Wind|Surface-based CAPE (J/kg)|Sea level pressure (mb)|own||0
 CHART AROME|Surface|10m_wnd_2m_temp|MSLP, 10m wind, 2m temperature|2 m temperature|Sea level pressure (mb)|own||0
+CHART AROME|Surface|cloud_layers|Cloud Cover by Height (low, middle, high)|Low cloud (%): each place in the color of its layer with the most cover (gray low, blue middle, pink high; under 20% clear)||||2
 CHART AROME|Surface|mslp_10m_wind|MSLP and 10m Wind|10 m wind speed (kt)|Sea level pressure (mb)|own||0
 CHART AROME|Tropical and dynamics|200_div_wnd|200mb Divergence, Wind and Height|Divergence (1e-5 /s)|Height (dam)|own||0
 CHART AROME|Tropical and dynamics|200_stream_div|200mb Divergence and Streamlines|Divergence (1e-5 /s)|||streamlines|0
@@ -121,9 +120,11 @@ CHART ARPEGE|Changes and trends|mslp_trend|MSLP and 48-hour Change|Sea level pre
 CHART ARPEGE|Changes and trends|z500_trend|500mb Height and 48-hour Change|500mb height change (dam)|Height (dam)|||0
 CHART ARPEGE-EU|Changes and trends|mslp_trend|MSLP and 48-hour Change|Sea level pressure change (mb)|Sea level pressure (mb)|||0
 CHART ARPEGE-EU|Surface|10m_wnd_2m_temp|MSLP, 10m wind, 2m temperature|2 m temperature|Sea level pressure (mb)|own||0
+CHART ARPEGE-EU|Surface|cloud_layers|Cloud Cover by Height (low, middle, high)|Low cloud (%): each place in the color of its layer with the most cover (gray low, blue middle, pink high; under 20% clear)||||2
 CHART ARPEGE-EU|Surface|mslp_10m_wind|MSLP and 10m Wind|10 m wind speed (kt)|Sea level pressure (mb)|own||0
 CHART ARPEGE|Severe: instability|sbcape_wind|Surface-Based CAPE, MSLP and 10m Wind|Surface-based CAPE (J/kg)|Sea level pressure (mb)|own||0
 CHART ARPEGE|Surface|10m_wnd_2m_temp|MSLP, 10m wind, 2m temperature|2 m temperature|Sea level pressure (mb)|own||0
+CHART ARPEGE|Surface|cloud_layers|Cloud Cover by Height (low, middle, high)|Low cloud (%): each place in the color of its layer with the most cover (gray low, blue middle, pink high; under 20% clear)||||2
 CHART ARPEGE|Surface|mslp_10m_wind|MSLP and 10m Wind|10 m wind speed (kt)|Sea level pressure (mb)|own||0
 CHART ARPEGE|Tropical and dynamics|200_div_wnd|200mb Divergence, Wind and Height|Divergence (1e-5 /s)|Height (dam)|own||0
 CHART ARPEGE|Tropical and dynamics|200_stream_div|200mb Divergence and Streamlines|Divergence (1e-5 /s)|||streamlines|0
@@ -241,6 +242,7 @@ CHART ERA5|Severe: instability|sbcape_wind|Surface-Based CAPE, MSLP and 10m Wind
 CHART ERA5|Surface|10m_wnd_2m_temp|MSLP, 10m wind, 2m temperature|2 m temperature|Sea level pressure (mb)|own||0
 CHART ERA5|Surface|2m_dewpoint|MSLP, 10m wind, 2m dewpoint|2 m dewpoint|Sea level pressure (mb)|own||0
 CHART ERA5|Surface|2m_rh_10m_wnd_derived|2 m Relative Humidity (from temperature and dewpoint), MSLP and 10m Wind|2 m relative humidity (%)|Sea level pressure (mb)|own||0
+CHART ERA5|Surface|cloud_layers|Cloud Cover by Height (low, middle, high)|Low cloud (%): each place in the color of its layer with the most cover (gray low, blue middle, pink high; under 20% clear)||||2
 CHART ERA5|Surface|mslp_10m_wind|MSLP and 10m Wind|10 m wind speed (kt)|Sea level pressure (mb)|own||0
 CHART ERA5|Tropical and dynamics|200_div_wnd|200mb Divergence, Wind and Height|Divergence (1e-5 /s)|Height (dam)|own||0
 CHART ERA5|Tropical and dynamics|200_stream_div|200mb Divergence and Streamlines|Divergence (1e-5 /s)|||streamlines|0
@@ -453,6 +455,7 @@ CHART GEOS-FP|Changes and trends|mslp_trend|MSLP and 48-hour Change|Sea level pr
 CHART GEOS-FP|Changes and trends|z500_trend|500mb Height and 48-hour Change|500mb height change (dam)|Height (dam)|||0
 CHART GEOS-FP|Precipitation and moisture|mslp_pwat|MSLP and Precipitable Water|Precipitable water|Sea level pressure (mb)|||0
 CHART GEOS-FP|Surface|10m_wnd_2m_temp|MSLP, 10m wind, 2m temperature|2 m temperature|Sea level pressure (mb)|own||0
+CHART GEOS-FP|Surface|cloud_layers|Cloud Cover by Height (low, middle, high)|Low cloud (%): each place in the color of its layer with the most cover (gray low, blue middle, pink high; under 20% clear)||||2
 CHART GEOS-FP|Surface|mslp_10m_wind|MSLP and 10m Wind|10 m wind speed (kt)|Sea level pressure (mb)|own||0
 CHART GEOS-FP|Tropical and dynamics|200_div_wnd|200mb Divergence, Wind and Height|Divergence (1e-5 /s)|Height (dam)|own||0
 CHART GEOS-FP|Tropical and dynamics|200_stream_div|200mb Divergence and Streamlines|Divergence (1e-5 /s)|||streamlines|0
@@ -652,6 +655,7 @@ CHART GFS|Surface|2m_rh_10m_wnd_derived|2 m Relative Humidity (from temperature 
 CHART GFS|Surface|530K_pv|530 K Isentropic Potential Vorticity, Wind and Pressure|Potential vorticity on the surface (PVU)|Pressure of the 530 K surface (mb)|own||0
 CHART GFS|Surface|650K_pv|650 K Isentropic Potential Vorticity, Wind and Pressure|Potential vorticity on the surface (PVU)|Pressure of the 650 K surface (mb)|own||0
 CHART GFS|Surface|850K_pv|850 K Isentropic Potential Vorticity, Wind and Pressure|Potential vorticity on the surface (PVU)|Pressure of the 850 K surface (mb)|own||0
+CHART GFS|Surface|cloud_layers|Cloud Cover by Height (low, middle, high)|Low cloud (%): each place in the color of its layer with the most cover (gray low, blue middle, pink high; under 20% clear)||||2
 CHART GFS|Surface|mslp_10m_wind|MSLP and 10m Wind|10 m wind speed (kt)|Sea level pressure (mb)|own||0
 CHART GFS|Tropical and dynamics|200_div_wnd|200mb Divergence, Wind and Height|Divergence (1e-5 /s)|Height (dam)|own||0
 CHART GFS|Tropical and dynamics|200_stream_div|200mb Divergence and Streamlines|Divergence (1e-5 /s)|||streamlines|0
@@ -716,6 +720,7 @@ CHART GRAPES|Changes and trends|mslp_trend|MSLP and 48-hour Change|Sea level pre
 CHART GRAPES|Changes and trends|z500_trend|500mb Height and 48-hour Change|500mb height change (dam)|Height (dam)|||0
 CHART GRAPES|Severe: instability|sbcape_wind|Surface-Based CAPE, MSLP and 10m Wind|Surface-based CAPE (J/kg)|Sea level pressure (mb)|own||0
 CHART GRAPES|Surface|10m_wnd_2m_temp|MSLP, 10m wind, 2m temperature|2 m temperature|Sea level pressure (mb)|own||0
+CHART GRAPES|Surface|cloud_layers|Cloud Cover by Height (low, middle, high)|Low cloud (%): each place in the color of its layer with the most cover (gray low, blue middle, pink high; under 20% clear)||||2
 CHART GRAPES|Surface|mslp_10m_wind|MSLP and 10m Wind|10 m wind speed (kt)|Sea level pressure (mb)|own||0
 CHART GRAPES|Tropical and dynamics|200_div_wnd|200mb Divergence, Wind and Height|Divergence (1e-5 /s)|Height (dam)|own||0
 CHART GRAPES|Tropical and dynamics|200_stream_div|200mb Divergence and Streamlines|Divergence (1e-5 /s)|||streamlines|0
@@ -745,6 +750,7 @@ CHART GRAPES|Upper air|rh_700_300|700-300mb Mean Relative Humidity, 500mb Height
 CHART GSM|Changes and trends|mslp_trend|MSLP and 48-hour Change|Sea level pressure change (mb)|Sea level pressure (mb)|||0
 CHART GSM|Changes and trends|z500_trend|500mb Height and 48-hour Change|500mb height change (dam)|Height (dam)|||0
 CHART GSM|Surface|10m_wnd_2m_temp|MSLP, 10m wind, 2m temperature|2 m temperature|Sea level pressure (mb)|own||0
+CHART GSM|Surface|cloud_layers|Cloud Cover by Height (low, middle, high)|Low cloud (%): each place in the color of its layer with the most cover (gray low, blue middle, pink high; under 20% clear)||||2
 CHART GSM|Surface|mslp_10m_wind|MSLP and 10m Wind|10 m wind speed (kt)|Sea level pressure (mb)|own||0
 CHART GSM|Tropical and dynamics|200_div_wnd|200mb Divergence, Wind and Height|Divergence (1e-5 /s)|Height (dam)|own||0
 CHART GSM|Tropical and dynamics|200_stream_div|200mb Divergence and Streamlines|Divergence (1e-5 /s)|||streamlines|0
@@ -798,6 +804,7 @@ CHART HAFSB|Tropical and dynamics|shear_850_200|850-200mb Deep-Layer Wind Shear|
 CHART HGEFS|Changes and trends|mslp_trend|Mean MSLP and 48-hour Change|Sea level pressure change (mb)|Sea level pressure (mb)|||0
 CHART HGEFS|Changes and trends|z500_trend|Mean 500mb Height and 48-hour Change|500mb height change (dam)|Height (dam)|||0
 CHART HGEFS|Surface|10m_wnd_2m_temp|Mean MSLP, 10m wind, 2m temperature|2 m temperature|Sea level pressure (mb)|own||0
+CHART HGEFS|Surface|cloud_layers|Mean Cloud Cover by Height (low, middle, high)|Low cloud (%): each place in the color of its layer with the most cover (gray low, blue middle, pink high; under 20% clear)||||2
 CHART HGEFS|Surface|mslp_10m_wind|Mean MSLP and 10m Wind|10 m wind speed (kt)|Sea level pressure (mb)|own||0
 CHART HGEFS|Tropical and dynamics|200_div_wnd|Mean 200mb Divergence, Wind and Height|Divergence (1e-5 /s)|Height (dam)|own||0
 CHART HGEFS|Tropical and dynamics|200_stream_div|Mean 200mb Divergence and Streamlines|Divergence (1e-5 /s)|||streamlines|0
@@ -923,6 +930,12 @@ CHART HREF|Severe: storm structure|pmm_refd_max_emsl|Probability Matched Mean of
 CHART HREF|Severe: storm structure|pmm_refd_max|Probability Matched Mean of Maximum Reflectivity|Probability-matched mean of the hourly maximum reflectivity (dBZ)||||0
 CHART HREF|Surface|mean_2m_dewp|Mean 2 m Dew Point|Mean 2 m dew point||||0
 CHART HREF|Surface|mean_2m_temp|Mean 2 m Temperature|Mean 2 m temperature||||0
+CHART HRRR|Air quality and smoke|aod|Aerosol optical thickness|Aerosol optical thickness (how much the haze dims the sun; over 1 is thick)||own||0
+CHART HRRR|Air quality and smoke|smoke_column|Smoke aloft (column)|Smoke in the whole column (milligrams per square meter): the haze aloft, even where the ground air is clean||own||0
+CHART HRRR|Air quality and smoke|smoke_sfc|Smoke near the surface|Smoke (PM2.5) at 8 m, the HRRR-Smoke model's (micrograms per cubic meter)||own||0
+CHART HRRR-AK|Air quality and smoke|aod|Aerosol optical thickness|Aerosol optical thickness (how much the haze dims the sun; over 1 is thick)||own||0
+CHART HRRR-AK|Air quality and smoke|smoke_column|Smoke aloft (column)|Smoke in the whole column (milligrams per square meter): the haze aloft, even where the ground air is clean||own||0
+CHART HRRR-AK|Air quality and smoke|smoke_sfc|Smoke near the surface|Smoke (PM2.5) at 8 m, the HRRR-Smoke model's (micrograms per cubic meter)||own||0
 CHART HRRR-AK|Aviation and visibility|ceiling|Cloud Ceiling|Ceiling (feet)||||0
 CHART HRRR-AK|Aviation and visibility|vis|Surface Visibility|Visibility (miles)||||0
 CHART HRRR-AK|Boundary layer and fire weather|2m_rh_10m_wnd|1-hr Minimum Relative Humidity, 10m Wind|Lowest relative humidity of the last hour (%)||own||0
@@ -989,6 +1002,7 @@ CHART HRRR-AK|Surface|2m_dwpc|Shelter (2 m) Dew Point Temperature|2 m dew point|
 CHART HRRR-AK|Surface|2m_rh_10m_wnd_derived|2 m Relative Humidity (from temperature and dewpoint), MSLP and 10m Wind|2 m relative humidity (%)|Sea level pressure (mb)|own||0
 CHART HRRR-AK|Surface|2m_temp_10m_wnd|2m Temperature and 10m Wind|2 m temperature||own||0
 CHART HRRR-AK|Surface|2m_tmpc|Shelter (2 m) Temperature|2 m temperature||||0
+CHART HRRR-AK|Surface|cloud_layers|Cloud Cover by Height (low, middle, high)|Low cloud (%): each place in the color of its layer with the most cover (gray low, blue middle, pink high; under 20% clear)||||2
 CHART HRRR-AK|Surface|mslp_10m_wind|MSLP and 10m Wind|10 m wind speed (kt)|Sea level pressure (mb)|own||0
 CHART HRRR-AK|Tropical and dynamics|200_div_wnd|200mb Divergence, Wind and Height|Divergence (1e-5 /s)|Height (dam)|own||0
 CHART HRRR-AK|Tropical and dynamics|200_stream_div|200mb Divergence and Streamlines|Divergence (1e-5 /s)|||streamlines|0
@@ -1083,6 +1097,7 @@ CHART HRRR|Surface|2m_dwpc|Shelter (2 m) Dew Point Temperature|2 m dew point||||
 CHART HRRR|Surface|2m_rh_10m_wnd_derived|2 m Relative Humidity (from temperature and dewpoint), MSLP and 10m Wind|2 m relative humidity (%)|Sea level pressure (mb)|own||0
 CHART HRRR|Surface|2m_temp_10m_wnd|2m Temperature and 10m Wind|2 m temperature||own||0
 CHART HRRR|Surface|2m_tmpc|Shelter (2 m) Temperature|2 m temperature||||0
+CHART HRRR|Surface|cloud_layers|Cloud Cover by Height (low, middle, high)|Low cloud (%): each place in the color of its layer with the most cover (gray low, blue middle, pink high; under 20% clear)||||2
 CHART HRRR|Surface|mslp_10m_wind|MSLP and 10m Wind|10 m wind speed (kt)|Sea level pressure (mb)|own||0
 CHART HRRR|Tropical and dynamics|200_div_wnd|200mb Divergence, Wind and Height|Divergence (1e-5 /s)|Height (dam)|own||0
 CHART HRRR|Tropical and dynamics|200_stream_div|200mb Divergence and Streamlines|Divergence (1e-5 /s)|||streamlines|0
@@ -1115,6 +1130,7 @@ CHART ICON-2I|Changes and trends|mslp_trend|MSLP and 48-hour Change|Sea level pr
 CHART ICON-2I|Changes and trends|z500_trend|500mb Height and 48-hour Change|500mb height change (dam)|Height (dam)|||0
 CHART ICON-2I|Severe: instability|sbcape_wind|Surface-Based CAPE, MSLP and 10m Wind|Surface-based CAPE (J/kg)|Sea level pressure (mb)|own||0
 CHART ICON-2I|Surface|10m_wnd_2m_temp|MSLP, 10m wind, 2m temperature|2 m temperature|Sea level pressure (mb)|own||0
+CHART ICON-2I|Surface|cloud_layers|Cloud Cover by Height (low, middle, high)|Low cloud (%): each place in the color of its layer with the most cover (gray low, blue middle, pink high; under 20% clear)||||2
 CHART ICON-2I|Surface|mslp_10m_wind|MSLP and 10m Wind|10 m wind speed (kt)|Sea level pressure (mb)|own||0
 CHART ICON-2I|Tropical and dynamics|500_vort_ht|500mb Vorticity, Wind, and Height|Relative vorticity (1e-5 /s)|Height (dam)|own||0
 CHART ICON-2I|Tropical and dynamics|850_stream_vort|850mb Vorticity and Streamlines|Relative vorticity (1e-5 /s)|||streamlines|0
@@ -1136,6 +1152,7 @@ CHART ICON-D2|Severe: instability|sbcape_wind|Surface-Based CAPE, MSLP and 10m W
 CHART ICON-D2|Surface|10m_wnd_2m_temp|MSLP, 10m wind, 2m temperature|2 m temperature|Sea level pressure (mb)|own||0
 CHART ICON-D2|Surface|2m_dewpoint|MSLP, 10m wind, 2m dewpoint|2 m dewpoint|Sea level pressure (mb)|own||0
 CHART ICON-D2|Surface|2m_rh_10m_wnd_derived|2 m Relative Humidity (from temperature and dewpoint), MSLP and 10m Wind|2 m relative humidity (%)|Sea level pressure (mb)|own||0
+CHART ICON-D2|Surface|cloud_layers|Cloud Cover by Height (low, middle, high)|Low cloud (%): each place in the color of its layer with the most cover (gray low, blue middle, pink high; under 20% clear)||||2
 CHART ICON-D2|Surface|mslp_10m_wind|MSLP and 10m Wind|10 m wind speed (kt)|Sea level pressure (mb)|own||0
 CHART ICON-EU|Changes and trends|mslp_trend|MSLP and 48-hour Change|Sea level pressure change (mb)|Sea level pressure (mb)|||0
 CHART ICON-EU|Changes and trends|z500_trend|500mb Height and 48-hour Change|500mb height change (dam)|Height (dam)|||0
@@ -1143,6 +1160,7 @@ CHART ICON-EU|Severe: instability|sbcape_wind|Surface-Based CAPE, MSLP and 10m W
 CHART ICON-EU|Surface|10m_wnd_2m_temp|MSLP, 10m wind, 2m temperature|2 m temperature|Sea level pressure (mb)|own||0
 CHART ICON-EU|Surface|2m_dewpoint|MSLP, 10m wind, 2m dewpoint|2 m dewpoint|Sea level pressure (mb)|own||0
 CHART ICON-EU|Surface|2m_rh_10m_wnd_derived|2 m Relative Humidity (from temperature and dewpoint), MSLP and 10m Wind|2 m relative humidity (%)|Sea level pressure (mb)|own||0
+CHART ICON-EU|Surface|cloud_layers|Cloud Cover by Height (low, middle, high)|Low cloud (%): each place in the color of its layer with the most cover (gray low, blue middle, pink high; under 20% clear)||||2
 CHART ICON-EU|Surface|mslp_10m_wind|MSLP and 10m Wind|10 m wind speed (kt)|Sea level pressure (mb)|own||0
 CHART ICON-EU|Tropical and dynamics|200_div_wnd|200mb Divergence, Wind and Height|Divergence (1e-5 /s)|Height (dam)|own||0
 CHART ICON-EU|Tropical and dynamics|200_stream_div|200mb Divergence and Streamlines|Divergence (1e-5 /s)|||streamlines|0
@@ -1168,6 +1186,7 @@ CHART ICON-EU|Upper air|925_temp_ht|925mb Temperature, Wind and Height|Temperatu
 CHART ICON-EU|Upper air|rh_700_300|700-300mb Mean Relative Humidity, 500mb Height and Wind|Mean relative humidity, 700-300mb (%)|Height (dam)|own||0
 CHART ICON|Severe: instability|sbcape_wind|Surface-Based CAPE, MSLP and 10m Wind|Surface-based CAPE (J/kg)|Sea level pressure (mb)|own||0
 CHART ICON|Surface|10m_wnd_2m_temp|MSLP, 10m wind, 2m temperature|2 m temperature|Sea level pressure (mb)|own||0
+CHART ICON|Surface|cloud_layers|Cloud Cover by Height (low, middle, high)|Low cloud (%): each place in the color of its layer with the most cover (gray low, blue middle, pink high; under 20% clear)||||2
 CHART ICON|Surface|mslp_10m_wind|MSLP and 10m Wind|10 m wind speed (kt)|Sea level pressure (mb)|own||0
 CHART ICON|Tropical and dynamics|200_div_wnd|200mb Divergence, Wind and Height|Divergence (1e-5 /s)|Height (dam)|own||0
 CHART ICON|Tropical and dynamics|200_stream_div|200mb Divergence and Streamlines|Divergence (1e-5 /s)|||streamlines|0
@@ -1237,6 +1256,7 @@ CHART IFS|Severe: instability|sbcape_wind|Surface-Based CAPE, MSLP and 10m Wind|
 CHART IFS|Surface|10m_wnd_2m_temp|MSLP, 10m wind, 2m temperature|2 m temperature|Sea level pressure (mb)|own||0
 CHART IFS|Surface|2m_dewpoint|MSLP, 10m wind, 2m dewpoint|2 m dewpoint|Sea level pressure (mb)|own||0
 CHART IFS|Surface|2m_rh_10m_wnd_derived|2 m Relative Humidity (from temperature and dewpoint), MSLP and 10m Wind|2 m relative humidity (%)|Sea level pressure (mb)|own||0
+CHART IFS|Surface|cloud_layers|Cloud Cover by Height (low, middle, high)|Low cloud (%): each place in the color of its layer with the most cover (gray low, blue middle, pink high; under 20% clear)||||2
 CHART IFS|Surface|mslp_10m_wind|MSLP and 10m Wind|10 m wind speed (kt)|Sea level pressure (mb)|own||0
 CHART IFS|Tropical and dynamics|200_div_wnd|200mb Divergence, Wind and Height|Divergence (1e-5 /s)|Height (dam)|own||0
 CHART IFS|Tropical and dynamics|200_stream_div|200mb Divergence and Streamlines|Divergence (1e-5 /s)|||streamlines|0
@@ -1413,6 +1433,7 @@ CHART MPAS-RN|Upper air|925_temp_wnd|925mb Temperature and Wind|925 mb temperatu
 CHART MRMS|Severe: storm structure|sim_radar_comp|Simulated Composite Radar Reflectivity|Composite reflectivity (dBZ)||||0
 CHART MSM|Changes and trends|mslp_trend|MSLP and 48-hour Change|Sea level pressure change (mb)|Sea level pressure (mb)|||0
 CHART MSM|Surface|10m_wnd_2m_temp|MSLP, 10m wind, 2m temperature|2 m temperature|Sea level pressure (mb)|own||0
+CHART MSM|Surface|cloud_layers|Cloud Cover by Height (low, middle, high)|Low cloud (%): each place in the color of its layer with the most cover (gray low, blue middle, pink high; under 20% clear)||||2
 CHART MSM|Surface|mslp_10m_wind|MSLP and 10m Wind|10 m wind speed (kt)|Sea level pressure (mb)|own||0
 CHART MSM-UL|Changes and trends|z500_trend|500mb Height and 48-hour Change|500mb height change (dam)|Height (dam)|||0
 CHART MSM-UL|Tropical and dynamics|200_div_wnd|200mb Divergence, Wind and Height|Divergence (1e-5 /s)|Height (dam)|own||0
@@ -1585,6 +1606,10 @@ CHART REFS|Precipitation and moisture|ens_snow_total_mean|Snow Total Mean|Mean s
 CHART REFS|Precipitation and moisture|ens_snow_total_sprd|Snow Total Spread|Spread of the snow since the start of the run (the 5 members)||||0
 CHART REFS|Precipitation and moisture|mean_precip_p01|Ensemble Mean Precipitation, 1 hour|Mean precipitation in the last hour||||0
 CHART REFS|Precipitation and moisture|mean_precip_p03|Ensemble Mean Precipitation, 3 hours|Mean precipitation in the last 3 hours||||0
+CHART REFS|Probability: aviation and visibility|ens_prob_ceil_1000ft|Probability of Ceiling under 1,000 ft|Chance of a ceiling under 1,000 ft (% of the members)||||0
+CHART REFS|Probability: aviation and visibility|ens_prob_ceil_2000ft|Probability of Ceiling under 2,000 ft|Chance of a ceiling under 2,000 ft (% of the members)||||0
+CHART REFS|Probability: aviation and visibility|ens_prob_ceil_3000ft|Probability of Ceiling under 3,000 ft|Chance of a ceiling under 3,000 ft (% of the members)||||0
+CHART REFS|Probability: aviation and visibility|ens_prob_ceil_500ft|Probability of Ceiling under 500 ft|Chance of a ceiling under 500 ft (% of the members)||||0
 CHART REFS|Probability: precipitation|ens_prob_precip_6h_0.25in|Probability of 6-hour Precipitation over 0.25 in|Chance of more than 0.25 in of rain in 6 hours (%, within the neighborhood)||||0
 CHART REFS|Probability: precipitation|ens_prob_precip_6h_0.5in|Probability of 6-hour Precipitation over 0.5 in|Chance of more than 0.5 in of rain in 6 hours (%, within the neighborhood)||||0
 CHART REFS|Probability: precipitation|ens_prob_precip_6h_1in|Probability of 6-hour Precipitation over 1 in|Chance of more than 1 in of rain in 6 hours (%, within the neighborhood)||||0
@@ -1627,6 +1652,15 @@ CHART REFS|Upper air|ens_700_temp|700mb Temperature|Mean temperature|Height (dam
 CHART REFS|Upper air|ens_850_rh|850mb Relative Humidity|Mean relative humidity (%)|Height (dam)|own||0
 CHART REFS|Upper air|ens_850_temp|850mb Temperature|Mean temperature|Height (dam)|own||0
 CHART REFS|Upper air|ens_850_wnd|850mb Wind|Mean wind speed (kt)|Height (dam)|own||0
+CHART RRFS|Air quality and smoke|aod|Aerosol optical thickness|Aerosol optical thickness (how much the haze dims the sun; over 1 is thick)||own||0
+CHART RRFS|Air quality and smoke|dust_column|Dust aloft (column)|Dust (PM10) in the whole column (milligrams per square meter)||own||0
+CHART RRFS|Air quality and smoke|dust_emission|Dust emissions|Dust lifted into the air (micrograms per square meter per second): the dust sources (each drawn about 10 km across)||own||0
+CHART RRFS|Air quality and smoke|dust_sfc|Dust near the surface|Fine dust (PM2.5) at 8 m (micrograms per cubic meter)||own||0
+CHART RRFS|Air quality and smoke|pm10_aq|Coarse particles (PM10) near the surface|PM10 at 8 m, the hour's mean: the RRFS's smoke and dust (no traffic or industry; micrograms per cubic meter, US air quality index colors)||own||0
+CHART RRFS|Air quality and smoke|pm25_sfc|Fine particles (PM2.5) near the surface|PM2.5 at 8 m, the hour's mean: the RRFS's smoke and dust (no traffic or industry; micrograms per cubic meter, US air quality index colors)||own||0
+CHART RRFS|Air quality and smoke|smoke_column|Smoke aloft (column)|Smoke in the whole column (milligrams per square meter): the haze aloft, even where the ground air is clean; the fires in reds||own||1
+CHART RRFS|Air quality and smoke|smoke_emission|Fire smoke emissions|Smoke put into the air (micrograms per square meter per second): the fires the model knows of (each drawn about 10 km across)||own||0
+CHART RRFS|Air quality and smoke|smoke_sfc|Smoke near the surface|Smoke (organic matter, PM2.5) at 8 m (micrograms per cubic meter); the fires in reds||own||1
 CHART RRFS-AK|Aviation and visibility|ceiling|Cloud Ceiling|Ceiling (feet)||||0
 CHART RRFS-AK|Aviation and visibility|vis|Surface Visibility|Visibility (miles)||||0
 CHART RRFS-AK|Boundary layer and fire weather|2m_rh_10m_wnd|1-hr Minimum Relative Humidity, 10m Wind|Lowest relative humidity of the last hour (%)||own||0
@@ -1693,6 +1727,7 @@ CHART RRFS-AK|Surface|2m_dwpc|Shelter (2 m) Dew Point Temperature|2 m dew point|
 CHART RRFS-AK|Surface|2m_rh_10m_wnd_derived|2 m Relative Humidity (from temperature and dewpoint), MSLP and 10m Wind|2 m relative humidity (%)|Sea level pressure (mb)|own||0
 CHART RRFS-AK|Surface|2m_temp_10m_wnd|2m Temperature and 10m Wind|2 m temperature||own||0
 CHART RRFS-AK|Surface|2m_tmpc|Shelter (2 m) Temperature|2 m temperature||||0
+CHART RRFS-AK|Surface|cloud_layers|Cloud Cover by Height (low, middle, high)|Low cloud (%): each place in the color of its layer with the most cover (gray low, blue middle, pink high; under 20% clear)||||2
 CHART RRFS-AK|Surface|mslp_10m_wind|MSLP and 10m Wind|10 m wind speed (kt)|Sea level pressure (mb)|own||0
 CHART RRFS-AK|Tropical and dynamics|200_div_wnd|200mb Divergence, Wind and Height|Divergence (1e-5 /s)|Height (dam)|own||0
 CHART RRFS-AK|Tropical and dynamics|200_stream_div|200mb Divergence and Streamlines|Divergence (1e-5 /s)|||streamlines|0
@@ -1831,6 +1866,7 @@ CHART RRFS-FIREWX|Surface|2m_dwpc|Shelter (2 m) Dew Point Temperature|2 m dew po
 CHART RRFS-FIREWX|Surface|2m_rh_10m_wnd_derived|2 m Relative Humidity (from temperature and dewpoint), MSLP and 10m Wind|2 m relative humidity (%)|Sea level pressure (mb)|own||0
 CHART RRFS-FIREWX|Surface|2m_temp_10m_wnd|2m Temperature and 10m Wind|2 m temperature||own||0
 CHART RRFS-FIREWX|Surface|2m_tmpc|Shelter (2 m) Temperature|2 m temperature||||0
+CHART RRFS-FIREWX|Surface|cloud_layers|Cloud Cover by Height (low, middle, high)|Low cloud (%): each place in the color of its layer with the most cover (gray low, blue middle, pink high; under 20% clear)||||2
 CHART RRFS-FIREWX|Surface|mslp_10m_wind|MSLP and 10m Wind|10 m wind speed (kt)|Sea level pressure (mb)|own||0
 CHART RRFS-FIREWX|Tropical and dynamics|200_div_wnd|200mb Divergence, Wind and Height|Divergence (1e-5 /s)|Height (dam)|own||0
 CHART RRFS-FIREWX|Tropical and dynamics|200_stream_div|200mb Divergence and Streamlines|Divergence (1e-5 /s)|||streamlines|0
@@ -1925,6 +1961,7 @@ CHART RRFS-HI|Surface|2m_dwpc|Shelter (2 m) Dew Point Temperature|2 m dew point|
 CHART RRFS-HI|Surface|2m_rh_10m_wnd_derived|2 m Relative Humidity (from temperature and dewpoint), MSLP and 10m Wind|2 m relative humidity (%)|Sea level pressure (mb)|own||0
 CHART RRFS-HI|Surface|2m_temp_10m_wnd|2m Temperature and 10m Wind|2 m temperature||own||0
 CHART RRFS-HI|Surface|2m_tmpc|Shelter (2 m) Temperature|2 m temperature||||0
+CHART RRFS-HI|Surface|cloud_layers|Cloud Cover by Height (low, middle, high)|Low cloud (%): each place in the color of its layer with the most cover (gray low, blue middle, pink high; under 20% clear)||||2
 CHART RRFS-HI|Surface|mslp_10m_wind|MSLP and 10m Wind|10 m wind speed (kt)|Sea level pressure (mb)|own||0
 CHART RRFS-HI|Tropical and dynamics|200_div_wnd|200mb Divergence, Wind and Height|Divergence (1e-5 /s)|Height (dam)|own||0
 CHART RRFS-HI|Tropical and dynamics|200_stream_div|200mb Divergence and Streamlines|Divergence (1e-5 /s)|||streamlines|0
@@ -2019,6 +2056,7 @@ CHART RRFS-NA|Surface|2m_dwpc|Shelter (2 m) Dew Point Temperature|2 m dew point|
 CHART RRFS-NA|Surface|2m_rh_10m_wnd_derived|2 m Relative Humidity (from temperature and dewpoint), MSLP and 10m Wind|2 m relative humidity (%)|Sea level pressure (mb)|own||0
 CHART RRFS-NA|Surface|2m_temp_10m_wnd|2m Temperature and 10m Wind|2 m temperature||own||0
 CHART RRFS-NA|Surface|2m_tmpc|Shelter (2 m) Temperature|2 m temperature||||0
+CHART RRFS-NA|Surface|cloud_layers|Cloud Cover by Height (low, middle, high)|Low cloud (%): each place in the color of its layer with the most cover (gray low, blue middle, pink high; under 20% clear)||||2
 CHART RRFS-NA|Surface|mslp_10m_wind|MSLP and 10m Wind|10 m wind speed (kt)|Sea level pressure (mb)|own||0
 CHART RRFS-NA|Tropical and dynamics|200_div_wnd|200mb Divergence, Wind and Height|Divergence (1e-5 /s)|Height (dam)|own||0
 CHART RRFS-NA|Tropical and dynamics|200_stream_div|200mb Divergence and Streamlines|Divergence (1e-5 /s)|||streamlines|0
@@ -2137,6 +2175,7 @@ CHART RRFS-PR|Surface|2m_dwpc|Shelter (2 m) Dew Point Temperature|2 m dew point|
 CHART RRFS-PR|Surface|2m_rh_10m_wnd_derived|2 m Relative Humidity (from temperature and dewpoint), MSLP and 10m Wind|2 m relative humidity (%)|Sea level pressure (mb)|own||0
 CHART RRFS-PR|Surface|2m_temp_10m_wnd|2m Temperature and 10m Wind|2 m temperature||own||0
 CHART RRFS-PR|Surface|2m_tmpc|Shelter (2 m) Temperature|2 m temperature||||0
+CHART RRFS-PR|Surface|cloud_layers|Cloud Cover by Height (low, middle, high)|Low cloud (%): each place in the color of its layer with the most cover (gray low, blue middle, pink high; under 20% clear)||||2
 CHART RRFS-PR|Surface|mslp_10m_wind|MSLP and 10m Wind|10 m wind speed (kt)|Sea level pressure (mb)|own||0
 CHART RRFS-PR|Tropical and dynamics|200_div_wnd|200mb Divergence, Wind and Height|Divergence (1e-5 /s)|Height (dam)|own||0
 CHART RRFS-PR|Tropical and dynamics|200_stream_div|200mb Divergence and Streamlines|Divergence (1e-5 /s)|||streamlines|0
@@ -2196,7 +2235,10 @@ CHART RRFS|Surface|2m_dwpc|Shelter (2 m) Dew Point Temperature|2 m dew point||||
 CHART RRFS|Surface|2m_rh_10m_wnd_derived|2 m Relative Humidity (from temperature and dewpoint), MSLP and 10m Wind|2 m relative humidity (%)|Sea level pressure (mb)|own||0
 CHART RRFS|Surface|2m_temp_10m_wnd|2m Temperature and 10m Wind|2 m temperature||own||0
 CHART RRFS|Surface|2m_tmpc|Shelter (2 m) Temperature|2 m temperature||||0
+CHART RRFS|Surface|cloud_layers|Cloud Cover by Height (low, middle, high)|Low cloud (%): each place in the color of its layer with the most cover (gray low, blue middle, pink high; under 20% clear)||||2
 CHART RRFS|Surface|mslp_10m_wind|MSLP and 10m Wind|10 m wind speed (kt)|Sea level pressure (mb)|own||0
+CHART RRFS|Surface|runoff_1hr|Surface Runoff in the last hour|Water running off the ground in the last hour (the rain the ground does not take)||||0
+CHART RRFS|Surface|runoff_6hr|Surface Runoff in the last 6 hours|Water running off the ground in the last 6 hours (the rain the ground does not take)||||0
 CHART RRFS|Tropical and dynamics|200_div_wnd|200mb Divergence, Wind and Height|Divergence (1e-5 /s)|Height (dam)|own||0
 CHART RRFS|Tropical and dynamics|200_stream_div|200mb Divergence and Streamlines|Divergence (1e-5 /s)|||streamlines|0
 CHART RRFS|Tropical and dynamics|500_vort_ht|500mb Vorticity, Wind, and Height|Relative vorticity (1e-5 /s)|Height (dam)|own||0
@@ -2224,22 +2266,27 @@ CHART RRFS|Upper air|850_wnd_ht|850mb Height and Wind|Wind speed (kt)|Height (da
 CHART RRFS|Upper air|925_temp_ht|925mb Temperature, Wind and Height|Temperature|Height (dam)|own||0
 CHART RRFS|Upper air|925_temp_wnd|925mb Temperature and Wind|925 mb temperature||own||0
 CHART RRFS|Upper air|rh_700_300|700-300mb Mean Relative Humidity, 500mb Height and Wind|Mean relative humidity, 700-300mb (%)|Height (dam)|own||0
+CHART RTMA-AK|Aviation and visibility|ceiling|Cloud Ceiling|Ceiling (feet; none: clear)||||0
 CHART RTMA-AK|Aviation and visibility|visibility|2-meter Visibility|Visibility (miles)||||0
 CHART RTMA-AK|Surface|10m_wnd_gust|10 m Wind and Gust|10 m wind gust (kt)||own||0
 CHART RTMA-AK|Surface|2m_dewp_10m_wnd|2 m Dewpoint and 10 m Wind|2 m dewpoint||own||0
 CHART RTMA-AK|Surface|2m_temp_10m_wnd|2 m Temperature and 10 m Wind|2 m temperature||own||0
 CHART RTMA-AK|Surface|total_cloud_cover|Total Cloud Cover and 10 m Wind|Total cloud cover (%)||own||0
+CHART RTMA|Aviation and visibility|ceiling|Cloud Ceiling|Ceiling (feet; none: clear)||||0
 CHART RTMA|Aviation and visibility|visibility|2-meter Visibility|Visibility (miles)||||0
+CHART RTMA-GU|Aviation and visibility|ceiling|Cloud Ceiling|Ceiling (feet; none: clear)||||0
 CHART RTMA-GU|Aviation and visibility|visibility|2-meter Visibility|Visibility (miles)||||0
 CHART RTMA-GU|Surface|10m_wnd_gust|10 m Wind and Gust|10 m wind gust (kt)||own||0
 CHART RTMA-GU|Surface|2m_dewp_10m_wnd|2 m Dewpoint and 10 m Wind|2 m dewpoint||own||0
 CHART RTMA-GU|Surface|2m_temp_10m_wnd|2 m Temperature and 10 m Wind|2 m temperature||own||0
 CHART RTMA-GU|Surface|total_cloud_cover|Total Cloud Cover and 10 m Wind|Total cloud cover (%)||own||0
+CHART RTMA-HI|Aviation and visibility|ceiling|Cloud Ceiling|Ceiling (feet; none: clear)||||0
 CHART RTMA-HI|Aviation and visibility|visibility|2-meter Visibility|Visibility (miles)||||0
 CHART RTMA-HI|Surface|10m_wnd_gust|10 m Wind and Gust|10 m wind gust (kt)||own||0
 CHART RTMA-HI|Surface|2m_dewp_10m_wnd|2 m Dewpoint and 10 m Wind|2 m dewpoint||own||0
 CHART RTMA-HI|Surface|2m_temp_10m_wnd|2 m Temperature and 10 m Wind|2 m temperature||own||0
 CHART RTMA-HI|Surface|total_cloud_cover|Total Cloud Cover and 10 m Wind|Total cloud cover (%)||own||0
+CHART RTMA-PR|Aviation and visibility|ceiling|Cloud Ceiling|Ceiling (feet; none: clear)||||0
 CHART RTMA-PR|Aviation and visibility|visibility|2-meter Visibility|Visibility (miles)||||0
 CHART RTMA-PR|Surface|10m_wnd_gust|10 m Wind and Gust|10 m wind gust (kt)||own||0
 CHART RTMA-PR|Surface|2m_dewp_10m_wnd|2 m Dewpoint and 10 m Wind|2 m dewpoint||own||0
@@ -2478,6 +2525,7 @@ CHART UKMO|Changes and trends|mslp_trend|MSLP and 48-hour Change|Sea level press
 CHART UKMO|Changes and trends|z500_trend|500mb Height and 48-hour Change|500mb height change (dam)|Height (dam)|||0
 CHART UKMO|Severe: instability|sbcape_wind|Surface-Based CAPE, MSLP and 10m Wind|Surface-based CAPE (J/kg)|Sea level pressure (mb)|own||0
 CHART UKMO|Surface|10m_wnd_2m_temp|MSLP, 10m wind, 2m temperature|2 m temperature|Sea level pressure (mb)|own||0
+CHART UKMO|Surface|cloud_layers|Cloud Cover by Height (low, middle, high)|Low cloud (%): each place in the color of its layer with the most cover (gray low, blue middle, pink high; under 20% clear)||||2
 CHART UKMO|Surface|mslp_10m_wind|MSLP and 10m Wind|10 m wind speed (kt)|Sea level pressure (mb)|own||0
 CHART UKMO|Tropical and dynamics|200_div_wnd|200mb Divergence, Wind and Height|Divergence (1e-5 /s)|Height (dam)|own||0
 CHART UKMO|Tropical and dynamics|200_stream_div|200mb Divergence and Streamlines|Divergence (1e-5 /s)|||streamlines|0
@@ -2504,17 +2552,21 @@ CHART UKMO|Upper air|850_temp_ht|850mb Temperature, Wind and Height|Temperature|
 CHART UKMO|Upper air|850_wnd_ht|850mb Height and Wind|Wind speed (kt)|Height (dam)|own||0
 CHART UKMO|Upper air|925_temp_ht|925mb Temperature, Wind and Height|Temperature|Height (dam)|own||0
 CHART UKMO|Upper air|rh_700_300|700-300mb Mean Relative Humidity, 500mb Height and Wind|Mean relative humidity, 700-300mb (%)|Height (dam)|own||0
+CHART URMA-AK|Aviation and visibility|ceiling|Cloud Ceiling|Ceiling (feet; none: clear)||||0
 CHART URMA-AK|Aviation and visibility|visibility|2-meter Visibility|Visibility (miles)||||0
 CHART URMA-AK|Surface|10m_wnd_gust|10 m Wind and Gust|10 m wind gust (kt)||own||0
 CHART URMA-AK|Surface|2m_dewp_10m_wnd|2 m Dewpoint and 10 m Wind|2 m dewpoint||own||0
 CHART URMA-AK|Surface|2m_temp_10m_wnd|2 m Temperature and 10 m Wind|2 m temperature||own||0
 CHART URMA-AK|Surface|total_cloud_cover|Total Cloud Cover and 10 m Wind|Total cloud cover (%)||own||0
+CHART URMA|Aviation and visibility|ceiling|Cloud Ceiling|Ceiling (feet; none: clear)||||0
 CHART URMA|Aviation and visibility|visibility|2-meter Visibility|Visibility (miles)||||0
+CHART URMA-HI|Aviation and visibility|ceiling|Cloud Ceiling|Ceiling (feet; none: clear)||||0
 CHART URMA-HI|Aviation and visibility|visibility|2-meter Visibility|Visibility (miles)||||0
 CHART URMA-HI|Surface|10m_wnd_gust|10 m Wind and Gust|10 m wind gust (kt)||own||0
 CHART URMA-HI|Surface|2m_dewp_10m_wnd|2 m Dewpoint and 10 m Wind|2 m dewpoint||own||0
 CHART URMA-HI|Surface|2m_temp_10m_wnd|2 m Temperature and 10 m Wind|2 m temperature||own||0
 CHART URMA-HI|Surface|total_cloud_cover|Total Cloud Cover and 10 m Wind|Total cloud cover (%)||own||0
+CHART URMA-PR|Aviation and visibility|ceiling|Cloud Ceiling|Ceiling (feet; none: clear)||||0
 CHART URMA-PR|Aviation and visibility|visibility|2-meter Visibility|Visibility (miles)||||0
 CHART URMA-PR|Surface|10m_wnd_gust|10 m Wind and Gust|10 m wind gust (kt)||own||0
 CHART URMA-PR|Surface|2m_dewp_10m_wnd|2 m Dewpoint and 10 m Wind|2 m dewpoint||own||0
@@ -2812,6 +2864,7 @@ LEVELS AIFS|850vor_500ht_200wd|z=HGT@500 mb,u=UGRD@850 mb,v=VGRD@850 mb,u2=UGRD@
 LEVELS AIFS|850_vort_ht|z=HGT@850 mb,u=UGRD@850 mb,v=VGRD@850 mb|HGT@850 mb|UGRD@850 mb
 LEVELS AIFS|850_wnd_ht|z=HGT@850 mb,u=UGRD@850 mb,v=VGRD@850 mb|HGT@850 mb|UGRD@850 mb
 LEVELS AIFS|925_temp_ht|z=HGT@925 mb,u=UGRD@925 mb,v=VGRD@925 mb,t=TMP@925 mb|HGT@925 mb|UGRD@925 mb
+LEVELS AIFS|cloud_layers|lo=LCDC@low cloud layer,mi=MCDC@middle cloud layer,hi=HCDC@high cloud layer||
 LEVELS AIFS|mslp_10m_wind|u=UGRD@10 m above ground,v=VGRD@10 m above ground,p=PRMSL@mean sea level|PRMSL@mean sea level|UGRD@10 m above ground
 LEVELS AIFS|mslp_anom|p=PRMSL@mean sea level,u=UGRD@10 m above ground,v=VGRD@10 m above ground|PRMSL@mean sea level|UGRD@10 m above ground
 LEVELS AIFS|mslp_trend|||
@@ -2893,10 +2946,8 @@ LEVELS AROME|850vor_500ht_200wd|z=HGT@500 mb,u=UGRD@850 mb,v=VGRD@850 mb,u2=UGRD
 LEVELS AROME|850_vort_ht|z=HGT@850 mb,u=UGRD@850 mb,v=VGRD@850 mb|HGT@850 mb|UGRD@850 mb
 LEVELS AROME|850_wnd_ht|z=HGT@850 mb,u=UGRD@850 mb,v=VGRD@850 mb|HGT@850 mb|UGRD@850 mb
 LEVELS AROME|925_temp_ht|z=HGT@925 mb,u=UGRD@925 mb,v=VGRD@925 mb,t=TMP@925 mb|HGT@925 mb|UGRD@925 mb
-LEVELS AROME-AT|10m_wnd_2m_temp|t=TMP@2 m above ground,u=UGRD@10 m above ground,v=VGRD@10 m above ground,p=PRMSL@mean sea level|PRMSL@mean sea level|UGRD@10 m above ground
-LEVELS AROME-AT|mslp_10m_wind|u=UGRD@10 m above ground,v=VGRD@10 m above ground,p=PRMSL@mean sea level|PRMSL@mean sea level|UGRD@10 m above ground
-LEVELS AROME-AT|mslp_trend|||
-LEVELS AROME-AT|sbcape_wind|c=CAPE@surface,u=UGRD@10 m above ground,v=VGRD@10 m above ground,p=PRMSL@mean sea level|PRMSL@mean sea level|UGRD@10 m above ground
+LEVELS AROME|cloud_layers|lo=LCDC@low cloud layer,mi=MCDC@middle cloud layer,hi=HCDC@high cloud layer||
+LEVELS AROME-HD|cloud_layers|lo=LCDC@low cloud layer,mi=MCDC@middle cloud layer,hi=HCDC@high cloud layer||
 LEVELS AROME|mslp_10m_wind|u=UGRD@10 m above ground,v=VGRD@10 m above ground,p=PRMSL@mean sea level|PRMSL@mean sea level|UGRD@10 m above ground
 LEVELS AROME|mslp_trend|||
 LEVELS AROME|rh_700_300|r7=RH@700 mb,r5=RH@500 mb,r3=RH@300 mb,z=HGT@500 mb,u=UGRD@500 mb,v=VGRD@500 mb|HGT@500 mb|UGRD@500 mb
@@ -2927,7 +2978,9 @@ LEVELS ARPEGE|850vor_500ht_200wd|z=HGT@500 mb,u=UGRD@850 mb,v=VGRD@850 mb,u2=UGR
 LEVELS ARPEGE|850_vort_ht|z=HGT@850 mb,u=UGRD@850 mb,v=VGRD@850 mb|HGT@850 mb|UGRD@850 mb
 LEVELS ARPEGE|850_wnd_ht|z=HGT@850 mb,u=UGRD@850 mb,v=VGRD@850 mb|HGT@850 mb|UGRD@850 mb
 LEVELS ARPEGE|925_temp_ht|z=HGT@925 mb,u=UGRD@925 mb,v=VGRD@925 mb,t=TMP@925 mb|HGT@925 mb|UGRD@925 mb
+LEVELS ARPEGE|cloud_layers|lo=LCDC@low cloud layer,mi=MCDC@middle cloud layer,hi=HCDC@high cloud layer||
 LEVELS ARPEGE-EU|10m_wnd_2m_temp|t=TMP@2 m above ground,u=UGRD@10 m above ground,v=VGRD@10 m above ground,p=PRMSL@mean sea level|PRMSL@mean sea level|UGRD@10 m above ground
+LEVELS ARPEGE-EU|cloud_layers|lo=LCDC@low cloud layer,mi=MCDC@middle cloud layer,hi=HCDC@high cloud layer||
 LEVELS ARPEGE-EU|mslp_10m_wind|u=UGRD@10 m above ground,v=VGRD@10 m above ground,p=PRMSL@mean sea level|PRMSL@mean sea level|UGRD@10 m above ground
 LEVELS ARPEGE-EU|mslp_trend|||
 LEVELS ARPEGE|mslp_10m_wind|u=UGRD@10 m above ground,v=VGRD@10 m above ground,p=PRMSL@mean sea level|PRMSL@mean sea level|UGRD@10 m above ground
@@ -3052,6 +3105,7 @@ LEVELS ERA5|850vor_500ht_200wd|z=HGT@500 mb,u=UGRD@850 mb,v=VGRD@850 mb,u2=UGRD@
 LEVELS ERA5|850_vort_ht|z=HGT@850 mb,u=UGRD@850 mb,v=VGRD@850 mb|HGT@850 mb|UGRD@850 mb
 LEVELS ERA5|850_wnd_ht|z=HGT@850 mb,u=UGRD@850 mb,v=VGRD@850 mb|HGT@850 mb|UGRD@850 mb
 LEVELS ERA5|925_temp_ht|z=HGT@925 mb,u=UGRD@925 mb,v=VGRD@925 mb,t=TMP@925 mb|HGT@925 mb|UGRD@925 mb
+LEVELS ERA5|cloud_layers|lo=LCDC@low cloud layer,mi=MCDC@middle cloud layer,hi=HCDC@high cloud layer||
 LEVELS ERA5|mslp_10m_wind|u=UGRD@10 m above ground,v=VGRD@10 m above ground,p=PRMSL@mean sea level|PRMSL@mean sea level|UGRD@10 m above ground
 LEVELS ERA5|mslp_pwat|pw=PWAT@entire atmosphere (considered as a single layer),p=PRMSL@mean sea level|PRMSL@mean sea level|
 LEVELS ERA5|mslp_trend|||
@@ -3269,6 +3323,7 @@ LEVELS GEOS-FP|850vor_500ht_200wd|z=HGT@500 mb,u=UGRD@850 mb,v=VGRD@850 mb,u2=UG
 LEVELS GEOS-FP|850_wnd_ht|z=HGT@850 mb,u=UGRD@850 mb,v=VGRD@850 mb|HGT@850 mb|UGRD@850 mb
 LEVELS GEOS-FP|925_temp_ht|z=HGT@925 mb,u=UGRD@925 mb,v=VGRD@925 mb,t=TMP@925 mb|HGT@925 mb|UGRD@925 mb
 LEVELS GEOS-FP|aod_total|a0=TOTEXTTAU@aerosol,u=UGRD@10 m above ground,v=VGRD@10 m above ground||UGRD@10 m above ground
+LEVELS GEOS-FP|cloud_layers|lo=LCDC@low cloud layer,mi=MCDC@middle cloud layer,hi=HCDC@high cloud layer||
 LEVELS GEOS-FP|dust_aod|a0=DUEXTTAU@aerosol,u=UGRD@10 m above ground,v=VGRD@10 m above ground||UGRD@10 m above ground
 LEVELS GEOS-FP|dust_column|a0=DUCMASS@aerosol,u=UGRD@10 m above ground,v=VGRD@10 m above ground||UGRD@10 m above ground
 LEVELS GEOS-FP|dust_pm25|a0=DUSMASS25@aerosol,u=UGRD@10 m above ground,v=VGRD@10 m above ground||UGRD@10 m above ground
@@ -3467,6 +3522,7 @@ LEVELS GFS-ANL|sbcape_wind|c=CAPE@surface,u=UGRD@10 m above ground,v=VGRD@10 m a
 LEVELS GFS-ANL|shear_850_200|u8=UGRD@850 mb,v8=VGRD@850 mb,u2=UGRD@200 mb,v2=VGRD@200 mb,p=PRMSL@mean sea level|PRMSL@mean sea level|
 LEVELS GFS-ANL|steering_850_200|u0=UGRD@850 mb,v0=VGRD@850 mb,u1=UGRD@700 mb,v1=VGRD@700 mb,u2=UGRD@500 mb,v2=VGRD@500 mb,u3=UGRD@300 mb,v3=VGRD@300 mb,u4=UGRD@200 mb,v4=VGRD@200 mb,p=PRMSL@mean sea level|PRMSL@mean sea level|
 LEVELS GFS-ANL|z500_trend|||
+LEVELS GFS|cloud_layers|lo=LCDC@low cloud layer,mi=MCDC@middle cloud layer,hi=HCDC@high cloud layer||
 LEVELS GFS|mslp_10m_wind|u=UGRD@10 m above ground,v=VGRD@10 m above ground,p=PRMSL@mean sea level|PRMSL@mean sea level|UGRD@10 m above ground
 LEVELS GFS|mslp_anom|p=PRMSL@mean sea level,u=UGRD@10 m above ground,v=VGRD@10 m above ground|PRMSL@mean sea level|UGRD@10 m above ground
 LEVELS GFS|mslp_pwat|pw=PWAT@entire atmosphere (considered as a single layer),p=PRMSL@mean sea level|PRMSL@mean sea level|
@@ -3522,6 +3578,7 @@ LEVELS GRAPES|850vor_500ht_200wd|z=HGT@500 mb,u=UGRD@850 mb,v=VGRD@850 mb,u2=UGR
 LEVELS GRAPES|850_vort_ht|z=HGT@850 mb,u=UGRD@850 mb,v=VGRD@850 mb|HGT@850 mb|UGRD@850 mb
 LEVELS GRAPES|850_wnd_ht|z=HGT@850 mb,u=UGRD@850 mb,v=VGRD@850 mb|HGT@850 mb|UGRD@850 mb
 LEVELS GRAPES|925_temp_ht|z=HGT@925 mb,u=UGRD@925 mb,v=VGRD@925 mb,t=TMP@925 mb|HGT@925 mb|UGRD@925 mb
+LEVELS GRAPES|cloud_layers|lo=LCDC@low cloud layer,mi=MCDC@middle cloud layer,hi=HCDC@high cloud layer||
 LEVELS GRAPES|mslp_10m_wind|u=UGRD@10 m above ground,v=VGRD@10 m above ground,p=PRMSL@mean sea level|PRMSL@mean sea level|UGRD@10 m above ground
 LEVELS GRAPES|mslp_trend|||
 LEVELS GRAPES|rh_700_300|r7=RH@700 mb,r5=RH@500 mb,r3=RH@300 mb,z=HGT@500 mb,u=UGRD@500 mb,v=VGRD@500 mb|HGT@500 mb|UGRD@500 mb
@@ -3550,6 +3607,7 @@ LEVELS GSM|850vor_500ht_200wd|z=HGT@500 mb,u=UGRD@850 mb,v=VGRD@850 mb,u2=UGRD@2
 LEVELS GSM|850_vort_ht|z=HGT@850 mb,u=UGRD@850 mb,v=VGRD@850 mb|HGT@850 mb|UGRD@850 mb
 LEVELS GSM|850_wnd_ht|z=HGT@850 mb,u=UGRD@850 mb,v=VGRD@850 mb|HGT@850 mb|UGRD@850 mb
 LEVELS GSM|925_temp_ht|z=HGT@925 mb,u=UGRD@925 mb,v=VGRD@925 mb,t=TMP@925 mb|HGT@925 mb|UGRD@925 mb
+LEVELS GSM|cloud_layers|lo=LCDC@low cloud layer,mi=MCDC@middle cloud layer,hi=HCDC@high cloud layer||
 LEVELS GSM|mslp_10m_wind|u=UGRD@10 m above ground,v=VGRD@10 m above ground,p=PRMSL@mean sea level|PRMSL@mean sea level|UGRD@10 m above ground
 LEVELS GSM|mslp_trend|||
 LEVELS GSM|rh_700_300|r7=RH@700 mb,r5=RH@500 mb,r3=RH@300 mb,z=HGT@500 mb,u=UGRD@500 mb,v=VGRD@500 mb|HGT@500 mb|UGRD@500 mb
@@ -3605,6 +3663,7 @@ LEVELS HGEFS|850vor_500ht_200wd|z=HGT@500 mb,u=UGRD@850 mb,v=VGRD@850 mb,u2=UGRD
 LEVELS HGEFS|850_vort_ht|z=HGT@850 mb,u=UGRD@850 mb,v=VGRD@850 mb|HGT@850 mb|UGRD@850 mb
 LEVELS HGEFS|850_wnd_ht|z=HGT@850 mb,u=UGRD@850 mb,v=VGRD@850 mb|HGT@850 mb|UGRD@850 mb
 LEVELS HGEFS|925_temp_ht|z=HGT@925 mb,u=UGRD@925 mb,v=VGRD@925 mb,t=TMP@925 mb|HGT@925 mb|UGRD@925 mb
+LEVELS HGEFS|cloud_layers|lo=LCDC@low cloud layer,mi=MCDC@middle cloud layer,hi=HCDC@high cloud layer||
 LEVELS HGEFS|mslp_10m_wind|u=UGRD@10 m above ground,v=VGRD@10 m above ground,p=PRMSL@mean sea level|PRMSL@mean sea level|UGRD@10 m above ground
 LEVELS HGEFS|mslp_trend|||
 LEVELS HGEFS|rh_700_300|r7=RH@700 mb,r5=RH@500 mb,r3=RH@300 mb,z=HGT@500 mb,u=UGRD@500 mb,v=VGRD@500 mb|HGT@500 mb|UGRD@500 mb
@@ -3800,9 +3859,11 @@ LEVELS HRRR-AK|850_wnd_ht|z=HGT@850 mb,u=UGRD@850 mb,v=VGRD@850 mb|HGT@850 mb|UG
 LEVELS HRRR-AK|925_temp_ht|z=HGT@925 mb,u=UGRD@925 mb,v=VGRD@925 mb,t=TMP@925 mb|HGT@925 mb|UGRD@925 mb
 LEVELS HRRR-AK|925_temp_wnd|t=TMP@925 mb,u=UGRD@925 mb,v=VGRD@925 mb||UGRD@925 mb
 LEVELS HRRR-AK|accu_max_updraft_hlcy|||
+LEVELS HRRR-AK|aod|a=AOTK@entire atmosphere (considered as a single layer),u=UGRD@10 m above ground,v=VGRD@10 m above ground||UGRD@10 m above ground
 LEVELS HRRR-AK|best_cape|c=CAPE@255-0 mb above ground||
 LEVELS HRRR-AK|best_cape_cin|c=CAPE@255-0 mb above ground,n=CIN@255-0 mb above ground|CIN@255-0 mb above ground|
 LEVELS HRRR-AK|ceiling|c=HGT@cloud ceiling||
+LEVELS HRRR-AK|cloud_layers|lo=LCDC@low cloud layer,mi=MCDC@middle cloud layer,hi=HCDC@high cloud layer||
 LEVELS HRRR-AK|echo_top|t=RETOP@cloud top||
 LEVELS HRRR-AK|haines|t8=TMP@850 mb,t7=TMP@700 mb,d8=DPT@850 mb||
 LEVELS HRRR-AK|helicity_1km|h=HLCY@1000-0 m above ground||
@@ -3841,6 +3902,8 @@ LEVELS HRRR-AK|ship|||
 LEVELS HRRR-AK|sim_radar_1km|r=REFD@1000 m above ground,cr=CRAIN@surface,cs=CSNOW@surface,cf=CFRZR@surface,ci=CICEP@surface||
 LEVELS HRRR-AK|sim_radar_comp|||
 LEVELS HRRR-AK|sim_radar_max|||
+LEVELS HRRR-AK|smoke_column|a=COLMD@entire atmosphere (considered as a single layer),u=UGRD@10 m above ground,v=VGRD@10 m above ground||UGRD@10 m above ground
+LEVELS HRRR-AK|smoke_sfc|a=MASSDEN@8 m above ground,u=UGRD@10 m above ground,v=VGRD@10 m above ground||UGRD@10 m above ground
 LEVELS HRRR-AK|snodpth_chng|||
 LEVELS HRRR-AK|snow_total|||
 LEVELS HRRR-AK|steering_850_200|u0=UGRD@850 mb,v0=VGRD@850 mb,u1=UGRD@700 mb,v1=VGRD@700 mb,u2=UGRD@500 mb,v2=VGRD@500 mb,u3=UGRD@300 mb,v3=VGRD@300 mb,u4=UGRD@200 mb,v4=VGRD@200 mb,p=PRMSL@mean sea level|PRMSL@mean sea level|
@@ -3849,9 +3912,11 @@ LEVELS HRRR-AK|transport_wind|hp=HPBL@surface,u925=UGRD@925 mb,v925=VGRD@925 mb,
 LEVELS HRRR-AK|vent_rate|hp=HPBL@surface,u925=UGRD@925 mb,v925=VGRD@925 mb,u850=UGRD@850 mb,v850=VGRD@850 mb,u10=UGRD@10 m above ground,v10=VGRD@10 m above ground,u30=UGRD@30 m above ground,v30=VGRD@30 m above ground,u50=UGRD@50 m above ground,v50=VGRD@50 m above ground,u80=UGRD@80 m above ground,v80=VGRD@80 m above ground,u100=UGRD@100 m above ground,v100=VGRD@100 m above ground,u160=UGRD@160 m above ground,v160=VGRD@160 m above ground,u320=UGRD@320 m above ground,v320=VGRD@320 m above ground||
 LEVELS HRRR-AK|vis|v=VIS@surface||
 LEVELS HRRR-AK|z500_trend|||
+LEVELS HRRR|aod|a=AOTK@entire atmosphere (considered as a single layer),u=UGRD@10 m above ground,v=VGRD@10 m above ground||UGRD@10 m above ground
 LEVELS HRRR|best_cape|c=CAPE@255-0 mb above ground||
 LEVELS HRRR|best_cape_cin|c=CAPE@255-0 mb above ground,n=CIN@255-0 mb above ground|CIN@255-0 mb above ground|
 LEVELS HRRR|ceiling|c=HGT@cloud ceiling||
+LEVELS HRRR|cloud_layers|lo=LCDC@low cloud layer,mi=MCDC@middle cloud layer,hi=HCDC@high cloud layer||
 LEVELS HRRR|echo_top|t=RETOP@cloud top||
 LEVELS HRRR|haines|t8=TMP@850 mb,t7=TMP@700 mb,d8=DPT@850 mb||
 LEVELS HRRR|helicity_1km|h=HLCY@1000-0 m above ground||
@@ -3890,6 +3955,8 @@ LEVELS HRRR|ship|||
 LEVELS HRRR|sim_radar_1km|r=REFD@1000 m above ground,cr=CRAIN@surface,cs=CSNOW@surface,cf=CFRZR@surface,ci=CICEP@surface||
 LEVELS HRRR|sim_radar_comp|||
 LEVELS HRRR|sim_radar_max|||
+LEVELS HRRR|smoke_column|a=COLMD@entire atmosphere (considered as a single layer),u=UGRD@10 m above ground,v=VGRD@10 m above ground||UGRD@10 m above ground
+LEVELS HRRR|smoke_sfc|a=MASSDEN@8 m above ground,u=UGRD@10 m above ground,v=VGRD@10 m above ground||UGRD@10 m above ground
 LEVELS HRRR|snodpth_chng|||
 LEVELS HRRR|snow_total|||
 LEVELS HRRR|steering_850_200|u0=UGRD@850 mb,v0=VGRD@850 mb,u1=UGRD@700 mb,v1=VGRD@700 mb,u2=UGRD@500 mb,v2=VGRD@500 mb,u3=UGRD@300 mb,v3=VGRD@300 mb,u4=UGRD@200 mb,v4=VGRD@200 mb,p=PRMSL@mean sea level|PRMSL@mean sea level|
@@ -3919,6 +3986,7 @@ LEVELS ICON-2I|850_thetae_ht|z=HGT@850 mb,u=UGRD@850 mb,v=VGRD@850 mb,t=TMP@850 
 LEVELS ICON-2I|850_vort_ht|z=HGT@850 mb,u=UGRD@850 mb,v=VGRD@850 mb|HGT@850 mb|UGRD@850 mb
 LEVELS ICON-2I|850_wnd_ht|z=HGT@850 mb,u=UGRD@850 mb,v=VGRD@850 mb|HGT@850 mb|UGRD@850 mb
 LEVELS ICON-2I|925_temp_ht|z=HGT@925 mb,u=UGRD@925 mb,v=VGRD@925 mb,t=TMP@925 mb|HGT@925 mb|UGRD@925 mb
+LEVELS ICON-2I|cloud_layers|lo=LCDC@low cloud layer,mi=MCDC@middle cloud layer,hi=HCDC@high cloud layer||
 LEVELS ICON-2I|mslp_10m_wind|u=UGRD@10 m above ground,v=VGRD@10 m above ground,p=PRMSL@mean sea level|PRMSL@mean sea level|UGRD@10 m above ground
 LEVELS ICON-2I|mslp_trend|||
 LEVELS ICON-2I|sbcape_wind|c=CAPE@surface,u=UGRD@10 m above ground,v=VGRD@10 m above ground,p=PRMSL@mean sea level|PRMSL@mean sea level|UGRD@10 m above ground
@@ -3939,9 +4007,11 @@ LEVELS ICON|850vor_500ht_200wd|z=HGT@500 mb,u=UGRD@850 mb,v=VGRD@850 mb,u2=UGRD@
 LEVELS ICON|850_vort_ht|z=HGT@850 mb,u=UGRD@850 mb,v=VGRD@850 mb|HGT@850 mb|UGRD@850 mb
 LEVELS ICON|850_wnd_ht|z=HGT@850 mb,u=UGRD@850 mb,v=VGRD@850 mb|HGT@850 mb|UGRD@850 mb
 LEVELS ICON|925_temp_ht|z=HGT@925 mb,u=UGRD@925 mb,v=VGRD@925 mb,t=TMP@925 mb|HGT@925 mb|UGRD@925 mb
+LEVELS ICON|cloud_layers|lo=LCDC@low cloud layer,mi=MCDC@middle cloud layer,hi=HCDC@high cloud layer||
 LEVELS ICON-D2|10m_wnd_2m_temp|t=TMP@2 m above ground,u=UGRD@10 m above ground,v=VGRD@10 m above ground,p=PRMSL@mean sea level|PRMSL@mean sea level|UGRD@10 m above ground
 LEVELS ICON-D2|2m_dewpoint|d=DPT@2 m above ground,u=UGRD@10 m above ground,v=VGRD@10 m above ground,p=PRMSL@mean sea level|PRMSL@mean sea level|UGRD@10 m above ground
 LEVELS ICON-D2|2m_rh_10m_wnd_derived|t=TMP@2 m above ground,d=DPT@2 m above ground,u=UGRD@10 m above ground,v=VGRD@10 m above ground,p=PRMSL@mean sea level|PRMSL@mean sea level|UGRD@10 m above ground
+LEVELS ICON-D2|cloud_layers|lo=LCDC@low cloud layer,mi=MCDC@middle cloud layer,hi=HCDC@high cloud layer||
 LEVELS ICON-D2|mslp_10m_wind|u=UGRD@10 m above ground,v=VGRD@10 m above ground,p=PRMSL@mean sea level|PRMSL@mean sea level|UGRD@10 m above ground
 LEVELS ICON-D2|mslp_trend|||
 LEVELS ICON-D2|sbcape_wind|c=CAPE@surface,u=UGRD@10 m above ground,v=VGRD@10 m above ground,p=PRMSL@mean sea level|PRMSL@mean sea level|UGRD@10 m above ground
@@ -3967,6 +4037,7 @@ LEVELS ICON-EU|850vor_500ht_200wd|z=HGT@500 mb,u=UGRD@850 mb,v=VGRD@850 mb,u2=UG
 LEVELS ICON-EU|850_vort_ht|z=HGT@850 mb,u=UGRD@850 mb,v=VGRD@850 mb|HGT@850 mb|UGRD@850 mb
 LEVELS ICON-EU|850_wnd_ht|z=HGT@850 mb,u=UGRD@850 mb,v=VGRD@850 mb|HGT@850 mb|UGRD@850 mb
 LEVELS ICON-EU|925_temp_ht|z=HGT@925 mb,u=UGRD@925 mb,v=VGRD@925 mb,t=TMP@925 mb|HGT@925 mb|UGRD@925 mb
+LEVELS ICON-EU|cloud_layers|lo=LCDC@low cloud layer,mi=MCDC@middle cloud layer,hi=HCDC@high cloud layer||
 LEVELS ICON-EU|mslp_10m_wind|u=UGRD@10 m above ground,v=VGRD@10 m above ground,p=PRMSL@mean sea level|PRMSL@mean sea level|UGRD@10 m above ground
 LEVELS ICON-EU|mslp_trend|||
 LEVELS ICON-EU|rh_700_300|r7=RH@700 mb,r5=RH@500 mb,r3=RH@300 mb,z=HGT@500 mb,u=UGRD@500 mb,v=VGRD@500 mb|HGT@500 mb|UGRD@500 mb
@@ -4017,6 +4088,7 @@ LEVELS IFS|850vor_500ht_200wd|z=HGT@500 mb,u=UGRD@850 mb,v=VGRD@850 mb,u2=UGRD@2
 LEVELS IFS|850_vort_ht|z=HGT@850 mb,u=UGRD@850 mb,v=VGRD@850 mb|HGT@850 mb|UGRD@850 mb
 LEVELS IFS|850_wnd_ht|z=HGT@850 mb,u=UGRD@850 mb,v=VGRD@850 mb|HGT@850 mb|UGRD@850 mb
 LEVELS IFS|925_temp_ht|z=HGT@925 mb,u=UGRD@925 mb,v=VGRD@925 mb,t=TMP@925 mb|HGT@925 mb|UGRD@925 mb
+LEVELS IFS|cloud_layers|lo=LCDC@low cloud layer,mi=MCDC@middle cloud layer,hi=HCDC@high cloud layer||
 LEVELS IFS-ENS|ens_prob_total_0.01in|||
 LEVELS IFS-ENS|ens_prob_total_0.1in|||
 LEVELS IFS-ENS|ens_prob_total_0.25in|||
@@ -4199,6 +4271,7 @@ LEVELS MPAS-RN|vis|v=VIS@surface||
 LEVELS MPAS-RN|z500_trend|||
 LEVELS MRMS|sim_radar_comp|r=REFC@entire atmosphere||
 LEVELS MSM|10m_wnd_2m_temp|t=TMP@2 m above ground,u=UGRD@10 m above ground,v=VGRD@10 m above ground,p=PRMSL@mean sea level|PRMSL@mean sea level|UGRD@10 m above ground
+LEVELS MSM|cloud_layers|lo=LCDC@low cloud layer,mi=MCDC@middle cloud layer,hi=HCDC@high cloud layer||
 LEVELS MSM|mslp_10m_wind|u=UGRD@10 m above ground,v=VGRD@10 m above ground,p=PRMSL@mean sea level|PRMSL@mean sea level|UGRD@10 m above ground
 LEVELS MSM|mslp_trend|||
 LEVELS MSM-UL|100_temp_ht|z=HGT@100 mb,u=UGRD@100 mb,v=VGRD@100 mb,t=TMP@100 mb|HGT@100 mb|UGRD@100 mb
@@ -4379,6 +4452,10 @@ LEVELS REFS|ens_prob_2m_temp_0C|||
 LEVELS REFS|ens_prob_cape_1000|||
 LEVELS REFS|ens_prob_cape_2000|||
 LEVELS REFS|ens_prob_cape_500|||
+LEVELS REFS|ens_prob_ceil_1000ft|||
+LEVELS REFS|ens_prob_ceil_2000ft|||
+LEVELS REFS|ens_prob_ceil_3000ft|||
+LEVELS REFS|ens_prob_ceil_500ft|||
 LEVELS REFS|ens_prob_precip_6h_0.25in|||
 LEVELS REFS|ens_prob_precip_6h_0.5in|||
 LEVELS REFS|ens_prob_precip_6h_1in|||
@@ -4507,6 +4584,7 @@ LEVELS RRFS-AK|accu_max_updraft_hlcy|||
 LEVELS RRFS-AK|best_cape|c=CAPE@255-0 mb above ground||
 LEVELS RRFS-AK|best_cape_cin|c=CAPE@255-0 mb above ground,n=CIN@255-0 mb above ground|CIN@255-0 mb above ground|
 LEVELS RRFS-AK|ceiling|c=CEIL@cloud ceiling||
+LEVELS RRFS-AK|cloud_layers|lo=LCDC@low cloud layer,mi=MCDC@middle cloud layer,hi=HCDC@high cloud layer||
 LEVELS RRFS-AK|echo_top|t=RETOP@entire atmosphere (considered as a single layer)||
 LEVELS RRFS-AK|haines|t8=TMP@850 mb,t7=TMP@700 mb,d8=DPT@850 mb||
 LEVELS RRFS-AK|helicity_1km|h=HLCY@1000-0 m above ground||
@@ -4553,9 +4631,11 @@ LEVELS RRFS-AK|transport_wind|hp=HPBL@surface,u925=UGRD@925 mb,v925=VGRD@925 mb,
 LEVELS RRFS-AK|vent_rate|hp=HPBL@surface,u925=UGRD@925 mb,v925=VGRD@925 mb,u850=UGRD@850 mb,v850=VGRD@850 mb,u10=UGRD@10 m above ground,v10=VGRD@10 m above ground,u30=UGRD@30 m above ground,v30=VGRD@30 m above ground,u50=UGRD@50 m above ground,v50=VGRD@50 m above ground,u80=UGRD@80 m above ground,v80=VGRD@80 m above ground,u100=UGRD@100 m above ground,v100=VGRD@100 m above ground,u160=UGRD@160 m above ground,v160=VGRD@160 m above ground,u320=UGRD@320 m above ground,v320=VGRD@320 m above ground||
 LEVELS RRFS-AK|vis|v=VIS@surface||
 LEVELS RRFS-AK|z500_trend|||
+LEVELS RRFS|aod|a=AOTK@entire atmosphere (considered as a single layer),u=UGRD@10 m above ground,v=VGRD@10 m above ground||UGRD@10 m above ground
 LEVELS RRFS|best_cape|c=CAPE@255-0 mb above ground||
 LEVELS RRFS|best_cape_cin|c=CAPE@255-0 mb above ground,n=CIN@255-0 mb above ground|CIN@255-0 mb above ground|
 LEVELS RRFS|ceiling|c=CEIL@cloud ceiling||
+LEVELS RRFS|cloud_layers|lo=LCDC@low cloud layer,mi=MCDC@middle cloud layer,hi=HCDC@high cloud layer||
 LEVELS RRFSD|critical_angle|a=critical_angle@||
 LEVELS RRFSD|dcape|a=dcape@||
 LEVELS RRFSD|dcp|a=dcp@||
@@ -4589,6 +4669,9 @@ LEVELS RRFSD|stp_eff|a=stp_eff@||
 LEVELS RRFSD|stp_fix|a=stp_fix@||
 LEVELS RRFSD|temp_2m|a=tmpk_2m@||
 LEVELS RRFSD|thetae_2m|a=thetae_2m@||
+LEVELS RRFS|dust_column|a=COLMD@entire atmosphere (considered as a single layer),u=UGRD@10 m above ground,v=VGRD@10 m above ground||UGRD@10 m above ground
+LEVELS RRFS|dust_emission|a=AEMFLX@entire atmosphere (considered as a single layer),u=UGRD@10 m above ground,v=VGRD@10 m above ground||UGRD@10 m above ground
+LEVELS RRFS|dust_sfc|a=MASSDEN@8 m above ground,u=UGRD@10 m above ground,v=VGRD@10 m above ground||UGRD@10 m above ground
 LEVELS RRFS|echo_top|t=RETOP@entire atmosphere (considered as a single layer)||
 LEVELS RRFS-FIREWX|1000_500_thick|||
 LEVELS RRFS-FIREWX|1000_850_thick|||
@@ -4638,6 +4721,7 @@ LEVELS RRFS-FIREWX|accu_max_updraft_hlcy|||
 LEVELS RRFS-FIREWX|best_cape|c=CAPE@255-0 mb above ground||
 LEVELS RRFS-FIREWX|best_cape_cin|c=CAPE@255-0 mb above ground,n=CIN@255-0 mb above ground|CIN@255-0 mb above ground|
 LEVELS RRFS-FIREWX|ceiling|c=CEIL@cloud ceiling||
+LEVELS RRFS-FIREWX|cloud_layers|lo=LCDC@low cloud layer,mi=MCDC@middle cloud layer,hi=HCDC@high cloud layer||
 LEVELS RRFS-FIREWX|echo_top|t=RETOP@entire atmosphere (considered as a single layer)||
 LEVELS RRFS-FIREWX|haines|t8=TMP@850 mb,t7=TMP@700 mb,d8=DPT@850 mb||
 LEVELS RRFS-FIREWX|helicity_1km|h=HLCY@1000-0 m above ground||
@@ -4736,6 +4820,7 @@ LEVELS RRFS-HI|accu_max_updraft_hlcy|||
 LEVELS RRFS-HI|best_cape|c=CAPE@255-0 mb above ground||
 LEVELS RRFS-HI|best_cape_cin|c=CAPE@255-0 mb above ground,n=CIN@255-0 mb above ground|CIN@255-0 mb above ground|
 LEVELS RRFS-HI|ceiling|c=CEIL@cloud ceiling||
+LEVELS RRFS-HI|cloud_layers|lo=LCDC@low cloud layer,mi=MCDC@middle cloud layer,hi=HCDC@high cloud layer||
 LEVELS RRFS-HI|echo_top|t=RETOP@entire atmosphere (considered as a single layer)||
 LEVELS RRFS-HI|haines|t8=TMP@850 mb,t7=TMP@700 mb,d8=DPT@850 mb||
 LEVELS RRFS-HI|helicity_1km|h=HLCY@1000-0 m above ground||
@@ -4840,6 +4925,7 @@ LEVELS RRFS-NA|accu_max_updraft_hlcy|||
 LEVELS RRFS-NA|best_cape|c=CAPE@255-0 mb above ground||
 LEVELS RRFS-NA|best_cape_cin|c=CAPE@255-0 mb above ground,n=CIN@255-0 mb above ground|CIN@255-0 mb above ground|
 LEVELS RRFS-NA|ceiling|c=CEIL@cloud ceiling||
+LEVELS RRFS-NA|cloud_layers|lo=LCDC@low cloud layer,mi=MCDC@middle cloud layer,hi=HCDC@high cloud layer||
 LEVELS RRFS-NA|echo_top|t=RETOP@entire atmosphere (considered as a single layer)||
 LEVELS RRFS-NA|haines|t8=TMP@850 mb,t7=TMP@700 mb,d8=DPT@850 mb||
 LEVELS RRFS-NA|helicity_1km|h=HLCY@1000-0 m above ground||
@@ -4888,6 +4974,8 @@ LEVELS RRFS-NA|vis|v=VIS@surface||
 LEVELS RRFS-NA|z500_trend|||
 LEVELS RRFS|pbl_height|h=HPBL@surface||
 LEVELS RRFS|pbl_rich_height|h=HPBL@surface||
+LEVELS RRFS|pm10_aq|a=MASSDEN@8 m above ground,u=UGRD@10 m above ground,v=VGRD@10 m above ground||UGRD@10 m above ground
+LEVELS RRFS|pm25_sfc|a=MASSDEN@8 m above ground,u=UGRD@10 m above ground,v=VGRD@10 m above ground||UGRD@10 m above ground
 LEVELS RRFS-PR|1000_500_thick|||
 LEVELS RRFS-PR|1000_850_thick|||
 LEVELS RRFS-PR|1000_850_thick_type|||
@@ -4936,6 +5024,7 @@ LEVELS RRFS-PR|accu_max_updraft_hlcy|||
 LEVELS RRFS-PR|best_cape|c=CAPE@255-0 mb above ground||
 LEVELS RRFS-PR|best_cape_cin|c=CAPE@255-0 mb above ground,n=CIN@255-0 mb above ground|CIN@255-0 mb above ground|
 LEVELS RRFS-PR|ceiling|c=CEIL@cloud ceiling||
+LEVELS RRFS-PR|cloud_layers|lo=LCDC@low cloud layer,mi=MCDC@middle cloud layer,hi=HCDC@high cloud layer||
 LEVELS RRFS-PR|echo_top|t=RETOP@entire atmosphere (considered as a single layer)||
 LEVELS RRFS|precip_p01|||
 LEVELS RRFS|precip_p03|||
@@ -4996,6 +5085,8 @@ LEVELS RRFS-PR|vent_rate|hp=HPBL@surface,u925=UGRD@925 mb,v925=VGRD@925 mb,u850=
 LEVELS RRFS-PR|vis|v=VIS@surface||
 LEVELS RRFS-PR|z500_trend|||
 LEVELS RRFS|rh_700_300|r7=RH@700 mb,r5=RH@500 mb,r3=RH@300 mb,z=HGT@500 mb,u=UGRD@500 mb,v=VGRD@500 mb|HGT@500 mb|UGRD@500 mb
+LEVELS RRFS|runoff_1hr|||
+LEVELS RRFS|runoff_6hr|||
 LEVELS RRFS|sbcape_wind|c=CAPE@surface,u=UGRD@10 m above ground,v=VGRD@10 m above ground,p=PRMSL@mean sea level|PRMSL@mean sea level|UGRD@10 m above ground
 LEVELS RRFS|sfc_cape_cin|c=CAPE@surface,n=CIN@surface|CIN@surface|
 LEVELS RRFS|shear_850_200|u8=UGRD@850 mb,v8=VGRD@850 mb,u2=UGRD@200 mb,v2=VGRD@200 mb,p=PRMSL@mean sea level|PRMSL@mean sea level|
@@ -5003,6 +5094,9 @@ LEVELS RRFS|ship|||
 LEVELS RRFS|sim_radar_1km|r=REFD@1000 m above ground,cr=CRAIN@surface,cs=CSNOW@surface,cf=CFRZR@surface,ci=CICEP@surface||
 LEVELS RRFS|sim_radar_comp|||
 LEVELS RRFS|sim_radar_max|||
+LEVELS RRFS|smoke_column|a=COLMD@entire atmosphere (considered as a single layer),e=AEMFLX@entire atmosphere (considered as a single layer),u=UGRD@10 m above ground,v=VGRD@10 m above ground||UGRD@10 m above ground
+LEVELS RRFS|smoke_emission|a=AEMFLX@entire atmosphere (considered as a single layer),u=UGRD@10 m above ground,v=VGRD@10 m above ground||UGRD@10 m above ground
+LEVELS RRFS|smoke_sfc|a=MASSDEN@8 m above ground,e=AEMFLX@entire atmosphere (considered as a single layer),u=UGRD@10 m above ground,v=VGRD@10 m above ground||UGRD@10 m above ground
 LEVELS RRFS|snodpth_chng|||
 LEVELS RRFS|snow_total|||
 LEVELS RRFS|steering_850_200|u0=UGRD@850 mb,v0=VGRD@850 mb,u1=UGRD@700 mb,v1=VGRD@700 mb,u2=UGRD@500 mb,v2=VGRD@500 mb,u3=UGRD@300 mb,v3=VGRD@300 mb,u4=UGRD@200 mb,v4=VGRD@200 mb,p=PRMSL@mean sea level|PRMSL@mean sea level|
@@ -5017,21 +5111,26 @@ LEVELS RTMA|2m_temp_10m_wnd|||
 LEVELS RTMA-AK|10m_wnd_gust|||
 LEVELS RTMA-AK|2m_dewp_10m_wnd|||
 LEVELS RTMA-AK|2m_temp_10m_wnd|||
+LEVELS RTMA-AK|ceiling|||
 LEVELS RTMA-AK|total_cloud_cover|||
 LEVELS RTMA-AK|visibility|||
+LEVELS RTMA|ceiling|||
 LEVELS RTMA-GU|10m_wnd_gust|||
 LEVELS RTMA-GU|2m_dewp_10m_wnd|||
 LEVELS RTMA-GU|2m_temp_10m_wnd|||
+LEVELS RTMA-GU|ceiling|||
 LEVELS RTMA-GU|total_cloud_cover|||
 LEVELS RTMA-GU|visibility|||
 LEVELS RTMA-HI|10m_wnd_gust|||
 LEVELS RTMA-HI|2m_dewp_10m_wnd|||
 LEVELS RTMA-HI|2m_temp_10m_wnd|||
+LEVELS RTMA-HI|ceiling|||
 LEVELS RTMA-HI|total_cloud_cover|||
 LEVELS RTMA-HI|visibility|||
 LEVELS RTMA-PR|10m_wnd_gust|||
 LEVELS RTMA-PR|2m_dewp_10m_wnd|||
 LEVELS RTMA-PR|2m_temp_10m_wnd|||
+LEVELS RTMA-PR|ceiling|||
 LEVELS RTMA-PR|total_cloud_cover|||
 LEVELS RTMA-PR|visibility|||
 LEVELS RTMA|total_cloud_cover|||
@@ -5284,6 +5383,7 @@ LEVELS UKMO|850vor_500ht_200wd|z=HGT@500 mb,u=UGRD@850 mb,v=VGRD@850 mb,u2=UGRD@
 LEVELS UKMO|850_vort_ht|z=HGT@850 mb,u=UGRD@850 mb,v=VGRD@850 mb|HGT@850 mb|UGRD@850 mb
 LEVELS UKMO|850_wnd_ht|z=HGT@850 mb,u=UGRD@850 mb,v=VGRD@850 mb|HGT@850 mb|UGRD@850 mb
 LEVELS UKMO|925_temp_ht|z=HGT@925 mb,u=UGRD@925 mb,v=VGRD@925 mb,t=TMP@925 mb|HGT@925 mb|UGRD@925 mb
+LEVELS UKMO|cloud_layers|lo=LCDC@low cloud layer,mi=MCDC@middle cloud layer,hi=HCDC@high cloud layer||
 LEVELS UKMO|mslp_10m_wind|u=UGRD@10 m above ground,v=VGRD@10 m above ground,p=PRMSL@mean sea level|PRMSL@mean sea level|UGRD@10 m above ground
 LEVELS UKMO|mslp_trend|||
 LEVELS UKMO|rh_700_300|r7=RH@700 mb,r5=RH@500 mb,r3=RH@300 mb,z=HGT@500 mb,u=UGRD@500 mb,v=VGRD@500 mb|HGT@500 mb|UGRD@500 mb
@@ -5297,16 +5397,20 @@ LEVELS URMA|2m_temp_10m_wnd|||
 LEVELS URMA-AK|10m_wnd_gust|||
 LEVELS URMA-AK|2m_dewp_10m_wnd|||
 LEVELS URMA-AK|2m_temp_10m_wnd|||
+LEVELS URMA-AK|ceiling|||
 LEVELS URMA-AK|total_cloud_cover|||
 LEVELS URMA-AK|visibility|||
+LEVELS URMA|ceiling|||
 LEVELS URMA-HI|10m_wnd_gust|||
 LEVELS URMA-HI|2m_dewp_10m_wnd|||
 LEVELS URMA-HI|2m_temp_10m_wnd|||
+LEVELS URMA-HI|ceiling|||
 LEVELS URMA-HI|total_cloud_cover|||
 LEVELS URMA-HI|visibility|||
 LEVELS URMA-PR|10m_wnd_gust|||
 LEVELS URMA-PR|2m_dewp_10m_wnd|||
 LEVELS URMA-PR|2m_temp_10m_wnd|||
+LEVELS URMA-PR|ceiling|||
 LEVELS URMA-PR|total_cloud_cover|||
 LEVELS URMA-PR|visibility|||
 LEVELS URMA|total_cloud_cover|||
