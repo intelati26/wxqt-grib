@@ -1374,7 +1374,11 @@ int main(int argc, char * argv[]) {
                 box->resize(1100, 720);
                 box->show();
                 const auto file = route.section(':', 1, 1);
-                QTimer::singleShot(1500, box, [box, file] { box->grab().save(file); QTimer::singleShot(200, qApp, &QCoreApplication::quit); });
+                const int wait = qEnvironmentVariableIntValue("WXQT_WAIT");   // WXQT_WAIT=<seconds>: the tab's check of every model is run first, and the picture is taken that long after
+                if (wait > 0) {
+                    box->entered();
+                }
+                QTimer::singleShot(wait > 0 ? wait * 1000 : 1500, box, [box, file] { box->grab().save(file); QTimer::singleShot(200, qApp, &QCoreApplication::quit); });
             } else if (route.startsWith("crosspicker:")) {   // WXQT_OPEN=crosspicker:<out.png>[:<model to start on>]: the "Another model's field" dialog as it opens, saved, then closed
                 const auto file = route.section(':', 1, 1);
                 const auto start = route.section(':', 2, 2);

@@ -4,6 +4,7 @@
 // *****************************************************************************
 
 #include "gfs/GfsRender.h"
+#include "gfs/ServerStatus.h"
 #include "gfs/NceiInventory.h"
 #include "models/PaletteStore.h"
 #include <stdexcept>
@@ -184,8 +185,13 @@ GfsRender::SourceCheck GfsRender::checkSource(Session& session, const std::strin
     SourceCheck result;
     result.model = model;
     const auto started = std::chrono::steady_clock::now();
+    int cycleHours = 6, lagHours = 0;
+    bool expectRecent = true, remember = false;   // remember: the result says something about the server (not that GDAL is missing here)
     const auto finish = [&] {
         result.seconds = std::chrono::duration<double>(std::chrono::steady_clock::now() - started).count();
+        if (remember) {
+            ServerStatus::record(model, result.ok, result.skipped, result.run, result.detail, cycleHours, lagHours, expectRecent);
+        }
         return result;
     };
     const auto * def = GfsModels::find(model);
@@ -204,6 +210,10 @@ GfsRender::SourceCheck GfsRender::checkSource(Session& session, const std::strin
         return finish();
     }
     const auto gfs = data(session.folder(), model);
+    cycleHours = std::max(1, gfs.model().cycleHours);
+    lagHours = std::max(0, gfs.model().lagHours);
+    expectRecent = gfs.model().checkRun.size() != 10;
+    remember = true;
     if (gfs.model().netcdf) {   // its fields are read through GDAL's NetCDF driver, which a trimmed GDAL (the Windows package's) may not have
         static const bool hasDriver = [] {
             QProcess formats;
@@ -212,6 +222,7 @@ GfsRender::SourceCheck GfsRender::checkSource(Session& session, const std::strin
             return QString::fromUtf8(formats.readAllStandardOutput()).contains("netCDF", Qt::CaseInsensitive);
         }();
         if (!hasDriver) {
+            remember = false;
             result.detail = "the GDAL in use has no NetCDF driver, so this model's fields cannot be read";
             return finish();
         }

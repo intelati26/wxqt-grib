@@ -9,6 +9,7 @@
 #include <QBrush>
 #include <QCheckBox>
 #include <QDesktopServices>
+#include <QDateTime>
 #include <QDir>
 #include <QUrl>
 #include <QCoreApplication>
@@ -23,6 +24,7 @@
 #include "gfs/GfsClimate.h"
 #include "gfs/GfsModels.h"
 #include "gfs/Servers.h"
+#include "gfs/ServerStatus.h"
 #include "misc/HelpViewer.h"
 #include "util/Utility.h"
 #include "models/UtilityGrib.h"
@@ -133,8 +135,9 @@ SettingsSourcesBox::SettingsSourcesBox(QWidget * parent)
         layout->addWidget(serversStatus);
         refreshServers();
     }
-    table = new QTableWidget{0, 5, this};
-    table->setHorizontalHeaderLabels({"Model", "Status", "Newest run (UTC)", "Seconds", "What was found"});
+    table = new QTableWidget{0, 7, this};
+    table->setHorizontalHeaderLabels({"Model", "Status", "State", "Newest run (UTC)", "Seconds", "Last OK", "What was found"});
+    table->horizontalHeaderItem(2)->setToolTip("OK: the newest run is as recent as this model's runs should be. Late: found, but behind. Failing: the last check failed. Down: two checks or more failed over ten minutes or more. Retired: down for over a week (the files moved, or the product was retired).");
     table->horizontalHeader()->setSectionResizeMode(QHeaderView::ResizeToContents);
     table->horizontalHeader()->setStretchLastSection(true);
     table->verticalHeader()->setVisible(false);
@@ -200,7 +203,10 @@ SettingsSourcesBox::SettingsSourcesBox(QWidget * parent)
         table->setItem(index, 1, new QTableWidgetItem{"-"});
         table->setItem(index, 2, new QTableWidgetItem);
         table->setItem(index, 3, new QTableWidgetItem);
-        table->setItem(index, 4, new QTableWidgetItem{QString::fromStdString(def.label)});
+        table->setItem(index, 4, new QTableWidgetItem);
+        table->setItem(index, 5, new QTableWidgetItem);
+        table->setItem(index, 6, new QTableWidgetItem{QString::fromStdString(def.label)});
+        showState(index, def.id);   // (what the last checks found, before this one)
         index++;
     }
 }
@@ -283,9 +289,29 @@ void SettingsSourcesBox::setRow(int row, const GfsRender::SourceCheck& check) {
     auto * status = table->item(row, 1);
     status->setText(check.skipped ? "skipped" : good ? "OK" : "PROBLEM");
     status->setForeground(check.skipped ? QBrush{Qt::gray} : good ? QBrush{QColor{30, 140, 60}} : QBrush{QColor{200, 40, 40}});
-    table->item(row, 2)->setText(QString::fromStdString(check.run));
-    table->item(row, 3)->setText(QString::number(check.seconds, 'f', 1));
-    table->item(row, 4)->setText(QString::fromStdString(check.detail));
+    table->item(row, 3)->setText(QString::fromStdString(check.run));
+    table->item(row, 4)->setText(QString::number(check.seconds, 'f', 1));
+    table->item(row, 6)->setText(QString::fromStdString(check.detail));
+    showState(row, check.model);   // (the check has just been recorded)
+}
+
+void SettingsSourcesBox::showState(int row, const std::string& model) {
+    const auto entry = ServerStatus::entry(model);
+    const auto state = ServerStatus::stateOf(entry, QDateTime::currentDateTimeUtc());
+    auto * item = table->item(row, 2);
+    item->setText(QString::fromStdString(ServerStatus::name(state)));
+    switch (state) {
+        case ServerStatus::State::Ok: item->setForeground(QBrush{QColor{30, 140, 60}}); break;
+        case ServerStatus::State::Late: item->setForeground(QBrush{QColor{200, 130, 20}}); break;
+        case ServerStatus::State::Failing: item->setForeground(QBrush{QColor{200, 130, 20}}); break;
+        case ServerStatus::State::Down:
+        case ServerStatus::State::Retired: item->setForeground(QBrush{QColor{200, 40, 40}}); break;
+        default: item->setForeground(QBrush{Qt::gray}); break;
+    }
+    table->item(row, 5)->setText(QString::fromStdString(ServerStatus::ago(entry.lastOk)));
+    if (table->item(row, 3)->text().isEmpty() && !entry.newestRun.empty()) {
+        table->item(row, 3)->setText(QString::fromStdString(entry.newestRun) + " (last check)");
+    }
 }
 
 void SettingsSourcesBox::start() {

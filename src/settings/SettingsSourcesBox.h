@@ -29,6 +29,7 @@ private:
     void start();
     void setRow(int row, const GfsRender::SourceCheck&);
     void refreshClimate();   // the climatology rows: stored, or how far the background work is
+    void showState(int row, const std::string& model);   // the state and the last OK of a model's source (ServerStatus), from what the checks kept
     void refreshServers();   // the table of servers by name (Servers::table) and the state of the project's file
     QTableWidget * serversTable{};
     QLabel * serversStatus{};
