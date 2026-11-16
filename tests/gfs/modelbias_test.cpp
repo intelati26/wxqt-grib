@@ -94,6 +94,9 @@ int main() {
     CHECK(rs.n == 1 && near(rs.dayError[0], 6));
     const auto shifted = B::evaluateDaily(dt, -6 * 3600, df, highs, B::Judge::StationHigh);   // the place's days begin at 06 UTC: two whole days (8th and 9th), the third has 18 hours
     CHECK(shifted.n == 2 && near(shifted.dayStart[0], day0 + 6 * 3600));
+    const auto daily = B::dailyOf(dt, 0, df, B::Aggregate::High);
+    CHECK(daily.size() == 3 && near(daily.at(day0), 23) && near(B::dailyOf(dt, 0, df, B::Aggregate::Low).at(day0), 0) && near(B::dailyOf(dt, 0, df, B::Aggregate::Mean).at(day0), 11.5) && near(B::dailyOf(dt, 0, df, B::Aggregate::Sum).at(day0), 276));
+    CHECK(B::dailyOf(dt, -6 * 3600, df, B::Aggregate::High).size() == 2 && B::dailyOf(dt, -6 * 3600, df, B::Aggregate::Sum).size() == 2);
     CHECK(B::models().size() >= 6 && B::models().front().id == "ecmwf_ifs025");
     std::printf(failures == 0 ? "all model bias tests passed\n" : "%d failures\n", failures);
     return failures == 0 ? 0 : 1;

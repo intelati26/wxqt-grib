@@ -31,6 +31,10 @@ namespace {
         ModelBias::Stat statA[8], statB[8];
         QString truthName{"ERA5"};
         bool station{false};
+        // how each model's forecast for each day changed: model (0 = A, 1 = B) -> lead 0 to 7 -> day -> value (native units); and what happened by day
+        std::map<double, float> evolution[2][8];
+        std::map<double, float> happened;
+        bool showEvolution{false};
     };
 }
 
@@ -129,6 +133,10 @@ protected:
                 p.drawText(QRectF{x - 10, (v >= 0 ? y1(v) - 15 : y1(v) + 1), half + 20, 14}, Qt::AlignCenter, QString::number(v, 'f', result.variable.digits));
             }
         }
+        if (result.showEvolution) {
+            drawEvolution(p, lower);
+            return;
+        }
         // ---- lower: the days
         const int lead = result.lead;
         double top2 = 0.0, bottom2 = 0.0;
@@ -204,6 +212,88 @@ protected:
     }
 
 private:
+    // the forecast for each day at every lead, 7 days ahead (pale) to the day itself (dark), the two models side by side, and what happened between them
+    void drawEvolution(QPainter& p, const QRectF& lower) {
+        const auto shown = [&] (float v) { return E::display(result.variable, static_cast<double>(v)); };
+        double lo = 1e18, hi = -1e18, t0 = 1e18, t1 = -1e18;
+        for (int m = 0; m < 2; m++) {
+            for (int k = 0; k <= 7; k++) {
+                for (const auto& [day, v] : result.evolution[m][k]) {
+                    lo = std::min(lo, shown(v));
+                    hi = std::max(hi, shown(v));
+                    t0 = std::min(t0, day);
+                    t1 = std::max(t1, day + 86400.0);
+                }
+            }
+        }
+        for (const auto& [day, v] : result.happened) {
+            lo = std::min(lo, shown(v));
+            hi = std::max(hi, shown(v));
+        }
+        if (t0 > t1) {
+            frame(p, lower, Axis{}, "how the forecast for each day changed");
+            p.drawText(lower, Qt::AlignCenter, "no days");
+            return;
+        }
+        Axis a2 = axis(hi, lo);
+        frame(p, lower, a2, QString{"How the forecast for each day changed, 7 days ahead (pale) to the day itself (dark), and what happened (black) (%1)"}.arg(QString::fromStdString(E::unitLabel(result.variable))));
+        const auto y2 = [&] (double v) { return lower.bottom() - (v - a2.low) / (a2.high - a2.low) * lower.height(); };
+        const auto x2 = [&] (double t) { return lower.left() + (t - t0) / std::max(1.0, t1 - t0) * lower.width(); };
+        const double dayWidth = x2(t0 + 86400.0) - x2(t0), half = std::max(2.0, dayWidth * 0.18);
+        const auto zone = QTimeZone::fromSecondsAheadOfUtc(result.utcOffset);
+        const int every = std::max(1, static_cast<int>(std::ceil((t1 - t0) / 86400.0 / 10.0)));
+        int n = 0;
+        for (double t = t0; t < t1; t += 86400.0, n++) {
+            if (n % every == 0) {
+                p.setPen(Qt::black);
+                p.drawText(QRectF{x2(t) - 30, lower.bottom() + 3, 60, 14}, Qt::AlignCenter, QDateTime::fromSecsSinceEpoch(static_cast<qint64>(t + 3600), zone).toString("d MMM"));
+            }
+        }
+        for (int m = 0; m < 2; m++) {
+            const QColor color = m == 0 ? colorA : colorB;
+            for (double t = t0; t < t1; t += 86400.0) {
+                const double cx = x2(t + 43200.0) + (m == 0 ? -half - 1 : half + 1);
+                QPainterPath stick;
+                bool started = false;
+                for (int k = 7; k >= 0; k--) {   // from the longest lead to the day itself
+                    const auto found = result.evolution[m][k].find(t);
+                    if (found == result.evolution[m][k].end()) {
+                        continue;
+                    }
+                    const QPointF pt{cx, y2(shown(found->second))};
+                    started ? stick.lineTo(pt) : stick.moveTo(pt);
+                    started = true;
+                }
+                QColor line = color;
+                line.setAlpha(110);
+                p.setBrush(Qt::NoBrush);
+                p.setPen(QPen{line, 1.0});
+                p.drawPath(stick);
+                p.setPen(Qt::NoPen);
+                for (int k = 7; k >= 0; k--) {
+                    const auto found = result.evolution[m][k].find(t);
+                    if (found == result.evolution[m][k].end()) {
+                        continue;
+                    }
+                    QColor dot = color;
+                    dot.setAlpha(60 + (7 - k) * 28);
+                    p.setBrush(dot);
+                    p.drawEllipse(QPointF{cx, y2(shown(found->second))}, k == 0 ? 3.2 : 2.2, k == 0 ? 3.2 : 2.2);
+                }
+            }
+        }
+        p.setBrush(Qt::black);
+        p.setPen(Qt::NoPen);
+        for (const auto& [day, v] : result.happened) {
+            if (day >= t0 && day < t1) {
+                const double cx = x2(day + 43200.0);
+                p.drawPolygon(QPolygonF{{cx, y2(shown(v)) - 4}, {cx + 4, y2(shown(v))}, {cx, y2(shown(v)) + 4}, {cx - 4, y2(shown(v))}});
+            }
+        }
+        p.setPen(Qt::black);
+        p.drawText(QRectF{left, lower.bottom() + 20, plotWidth, 16}, Qt::AlignRight | Qt::AlignVCenter, "left of each day: the first model, right: the second; diamond: what happened; the place's own days");
+    }
+
     struct Axis {
         double low{0}, high{1}, step{1};
     };
@@ -289,6 +379,9 @@ ModelBiasViewer::ModelBiasViewer(Window * parent, double lat, double lon, const 
     }
     lead->setCurrentIndex(std::clamp(leadDays, 1, 7) - 1);
     go = UiStandards::button(body, "Load");
+    lowerView = UiStandards::combo(body);
+    lowerView->addItem("Lower chart: the error of each day", 0);
+    lowerView->addItem("Lower chart: how each day's forecast changed", 1);
     judge = UiStandards::combo(body);
     judge->addItem("Judged on ERA5 (reanalysis, everywhere)", 0);
     judge->addItem("Judged on a station: daily highs (US)", 1);
@@ -309,6 +402,7 @@ ModelBiasViewer::ModelBiasViewer(Window * parent, double lat, double lon, const 
     top->addWidget(judge);
     top->addWidget(period);
     top->addWidget(lead);
+    top->addWidget(lowerView);
     top->addWidget(go);
     column->addLayout(top);
     column->addWidget(status);
@@ -323,7 +417,7 @@ ModelBiasViewer::ModelBiasViewer(Window * parent, double lat, double lon, const 
             load();
         }
     });
-    for (auto * box : {modelA, modelB, field, judge, period, lead}) {
+    for (auto * box : {modelA, modelB, field, judge, period, lead, lowerView}) {
         QObject::connect(box, &QComboBox::currentIndexChanged, this, [this] (int) { load(); });
     }
     QObject::connect(go, &QPushButton::clicked, this, [this] { load(); });
@@ -356,7 +450,8 @@ void ModelBiasViewer::load() {
     go->setEnabled(false);
     status->setText("reading the past forecasts and what happened...");
     QPointer<ModelBiasViewer> self{this};
-    std::thread{[self, mine, lat, lon, idA, idB, variable, days, leadDays, nameA, nameB, how] {
+    const bool evolution = lowerView->currentData().toInt() == 1;
+    std::thread{[self, mine, lat, lon, idA, idB, variable, days, leadDays, nameA, nameB, how, evolution] {
         ModelBias::Forecasts forecasts;
         ModelBias::Truth truth;
         std::map<std::string, float> stationDays;
@@ -382,6 +477,21 @@ void ModelBiasViewer::load() {
                 }
             }
             result.station = how != 0;
+            result.showEvolution = evolution;
+            const auto aggregate = how == 1 ? ModelBias::Aggregate::High : how == 2 ? ModelBias::Aggregate::Low : (how == 3 || variable.accumulate) ? ModelBias::Aggregate::Sum : ModelBias::Aggregate::Mean;
+            for (int m = 0; m < 2; m++) {
+                for (int k = 0; k <= 7; k++) {
+                    result.evolution[m][k] = ModelBias::dailyOf(forecasts.times, forecasts.utcOffset, forecasts.byModel[m == 0 ? idA : idB][static_cast<size_t>(k)], aggregate);
+                }
+            }
+            if (how == 0) {
+                result.happened = ModelBias::dailyOf(truth.times, truth.utcOffset, truth.values, aggregate);
+            } else {
+                for (const auto& [date, value] : stationDays) {   // the station's days, put at the place's midnight of that date
+                    const auto midnight = QDateTime{QDate::fromString(QString::fromStdString(date), "yyyy-MM-dd"), QTime{0, 0}, QTimeZone::fromSecondsAheadOfUtc(forecasts.utcOffset)};
+                    result.happened[static_cast<double>(midnight.toSecsSinceEpoch())] = value;
+                }
+            }
             result.truthName = how == 0 ? QString{"ERA5"} : QString::fromStdString(found.name) + QString{" (%1 km)"}.arg(found.km, 0, 'f', 0);
             const QString what = how == 1 ? "daily highs" : how == 2 ? "daily lows" : how == 3 ? "daily rain" : QString::fromStdString(variable.title);
             result.title = QString{"%1 at %2, %3: %4 and %5 against %6"}.arg(what).arg(lat, 0, 'f', 2).arg(lon, 0, 'f', 2).arg(nameA.section(" (", 0, 0), nameB.section(" (", 0, 0), result.truthName);

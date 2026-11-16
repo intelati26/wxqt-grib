@@ -59,6 +59,10 @@ namespace ModelBias {
     Stat evaluateDaily(const std::vector<double>& times, int utcOffset, const std::vector<float>& forecast, const std::map<std::string, float>& station, Judge judge);
     // The place against a station: both models' forecasts, the station's days and the station found. Blocking; kept 20 minutes.
     bool fetchStation(double lat, double lon, Judge judge, const std::string& modelA, const std::string& modelB, int days, Forecasts& forecasts, std::map<std::string, float>& station, Station& found, std::string& why);
+    // One value for each of the place's own days from hourly values: the mean, the highest, the lowest or the total of a day with at least 20 hours (24 for a total). Keyed by the day's midnight
+    // (unix seconds). Used for the forecast evolution: what each lead said for each day, and what happened.
+    enum class Aggregate { Mean, High, Low, Sum };
+    std::map<double, float> dailyOf(const std::vector<double>& times, int utcOffset, const std::vector<float>& values, Aggregate how);
     // The models that keep past runs: id, what it is.
     struct Model { std::string id, label; };
     const std::vector<Model>& models();

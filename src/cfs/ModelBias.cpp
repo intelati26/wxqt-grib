@@ -416,3 +416,27 @@ bool ModelBias::fetchStation(double lat, double lon, Judge judge, const std::str
     found = nearest;
     return true;
 }
+
+std::map<double, float> ModelBias::dailyOf(const std::vector<double>& times, int utcOffset, const std::vector<float>& values, Aggregate how) {
+    struct Day { double high{-1e18}, low{1e18}, sum{0}; int hours{0}; };
+    std::map<long long, Day> days;
+    for (size_t i = 0; i < times.size() && i < values.size(); i++) {
+        if (std::isnan(values[i])) {
+            continue;
+        }
+        const auto day = static_cast<long long>(std::floor((times[i] + utcOffset) / 86400.0)) * 86400 - utcOffset;
+        auto& d = days[day];
+        d.high = std::max(d.high, static_cast<double>(values[i]));
+        d.low = std::min(d.low, static_cast<double>(values[i]));
+        d.sum += static_cast<double>(values[i]);
+        d.hours++;
+    }
+    std::map<double, float> out;
+    for (const auto& [day, d] : days) {
+        if (how == Aggregate::Sum ? d.hours != 24 : d.hours < 20) {
+            continue;
+        }
+        out[static_cast<double>(day)] = static_cast<float>(how == Aggregate::High ? d.high : how == Aggregate::Low ? d.low : how == Aggregate::Sum ? d.sum : d.sum / d.hours);
+    }
+    return out;
+}

@@ -23,6 +23,7 @@ class ModelBiasViewer : public Window {
 public:
     ModelBiasViewer(Window * parent, double lat = 39.1, double lon = -94.6, const std::string& modelA = "ecmwf_ifs025", const std::string& modelB = "gfs_global", const std::string& variable = "temperature_2m", int days = 30, int lead = 3);
     void load();
+    void setLowerView(int how) { lowerView->setCurrentIndex(how); }   // 0 the error of each day, 1 how each day's forecast changed
     void setJudge(int how) { judge->setCurrentIndex(how); }   // 0 ERA5, 1 a station's highs, 2 lows, 3 rain
     QPixmap picture() const;
     QString statusText() const;
@@ -35,6 +36,7 @@ private:
     QComboBox * modelB{};
     QComboBox * field{};
     QComboBox * judge{};
+    QComboBox * lowerView{};
     QComboBox * period{};
     QComboBox * lead{};
     QPushButton * go{};

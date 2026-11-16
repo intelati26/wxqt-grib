@@ -1318,6 +1318,7 @@ int main(int argc, char * argv[]) {
                 const auto parts = route.split(':');
                 auto * viewer = new ModelBiasViewer{&w, parts.value(1, "39.1").toDouble(), parts.value(2, "-94.6").toDouble(), parts.value(3, "ecmwf_ifs025").toStdString(), parts.value(4, "gfs_global").toStdString(),
                                                     parts.value(5, "temperature_2m").toStdString(), parts.value(6, "30").toInt(), parts.value(7, "3").toInt()};
+                viewer->setLowerView(qEnvironmentVariableIntValue("WXQT_EVOLUTION"));   // WXQT_EVOLUTION=1: the lower chart shows how each day's forecast changed over the leads
                 viewer->setJudge(qEnvironmentVariableIntValue("WXQT_JUDGE"));   // WXQT_JUDGE=1|2|3: judged on the nearest station's daily highs, lows or rain (0: ERA5)
                 const auto out = parts.value(8);
                 if (!out.isEmpty()) {
