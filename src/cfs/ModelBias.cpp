@@ -13,6 +13,8 @@
 #include <QJsonDocument>
 #include <QJsonObject>
 #include <QString>
+#include <QUrl>
+#include <QTimeZone>
 #include "util/UtilityIO.h"
 
 ModelBias::Stat ModelBias::evaluate(const std::vector<double>& times, int utcOffset, const std::vector<float>& forecast, const Truth& truth, bool dailySum) {
@@ -208,5 +210,209 @@ bool ModelBias::fetch(double lat, double lon, const std::string& variable, const
     }
     forecasts = std::move(fc);
     truth = std::move(tr);
+    return true;
+}
+
+bool ModelBias::parseStationList(const QByteArray& json, double lat, double lon, size_t count, std::vector<Station>& out, std::string& why) {
+    const auto doc = QJsonDocument::fromJson(json);
+    if (!doc.isObject()) {
+        why = "the station service did not answer with data";
+        return false;
+    }
+    std::vector<Station> found;
+    for (const auto& item : doc.object().value("meta").toArray()) {
+        const auto o = item.toObject();
+        const auto ll = o.value("ll").toArray();
+        if (ll.size() != 2 || !o.contains("uid")) {
+            continue;
+        }
+        const double la = ll[1].toDouble(), lo = ll[0].toDouble();
+        const double dLat = (la - lat) * M_PI / 180.0, dLon = (lo - lon) * M_PI / 180.0;
+        const double a = std::sin(dLat / 2) * std::sin(dLat / 2) + std::cos(lat * M_PI / 180.0) * std::cos(la * M_PI / 180.0) * std::sin(dLon / 2) * std::sin(dLon / 2);
+        Station s;
+        s.uid = QString::number(o.value("uid").toInt()).toStdString();
+        s.name = o.value("name").toString().toStdString();
+        s.km = 2.0 * 6371.0 * std::asin(std::min(1.0, std::sqrt(a)));
+        found.push_back(s);
+    }
+    if (found.empty()) {
+        why = "no weather station with daily temperatures near this place (the stations are the United States')";
+        return false;
+    }
+    std::sort(found.begin(), found.end(), [] (const Station& x, const Station& y) { return x.km < y.km; });
+    if (found.size() > count) {
+        found.resize(count);
+    }
+    out = std::move(found);
+    return true;
+}
+
+bool ModelBias::parseStationMeta(const QByteArray& json, double lat, double lon, Station& out, std::string& why) {
+    std::vector<Station> list;
+    if (!parseStationList(json, lat, lon, 1, list, why)) {
+        return false;
+    }
+    out = list.front();
+    return true;
+}
+
+bool ModelBias::parseStationDaily(const QByteArray& json, int column, std::map<std::string, float>& out, std::string& why) {
+    const auto doc = QJsonDocument::fromJson(json);
+    if (!doc.isObject()) {
+        why = "the station service did not answer with data";
+        return false;
+    }
+    std::map<std::string, float> days;
+    for (const auto& row : doc.object().value("data").toArray()) {
+        const auto r = row.toArray();
+        if (r.size() <= column) {
+            continue;
+        }
+        const auto text = r[column].toString();
+        bool ok = false;
+        double v = text.toDouble(&ok);
+        if (text == "T") {
+            v = 0.0;
+            ok = true;
+        }
+        if (!ok) {
+            continue;
+        }
+        days[r[0].toString().toStdString()] = static_cast<float>(column == 3 ? v * 25.4 : (v - 32.0) / 1.8);
+    }
+    if (days.empty()) {
+        why = "the station has no values for these days";
+        return false;
+    }
+    out = std::move(days);
+    return true;
+}
+
+ModelBias::Stat ModelBias::evaluateDaily(const std::vector<double>& times, int utcOffset, const std::vector<float>& forecast, const std::map<std::string, float>& station, Judge judge) {
+    Stat out;
+    struct Day { double high{-1e18}, low{1e18}, sum{0}; int hours{0}; };
+    std::map<long long, Day> days;
+    for (size_t i = 0; i < times.size() && i < forecast.size(); i++) {
+        if (std::isnan(forecast[i])) {
+            continue;
+        }
+        const auto day = static_cast<long long>(std::floor((times[i] + utcOffset) / 86400.0)) * 86400 - utcOffset;
+        auto& d = days[day];
+        d.high = std::max(d.high, static_cast<double>(forecast[i]));
+        d.low = std::min(d.low, static_cast<double>(forecast[i]));
+        d.sum += static_cast<double>(forecast[i]);
+        d.hours++;
+    }
+    const auto zone = QTimeZone::fromSecondsAheadOfUtc(utcOffset);
+    double errSum = 0.0, absSum = 0.0;
+    for (const auto& [day, d] : days) {
+        if (judge == Judge::StationRain ? d.hours != 24 : d.hours < 20) {
+            continue;
+        }
+        const auto key = QDateTime::fromSecsSinceEpoch(day + 3600, zone).date().toString("yyyy-MM-dd").toStdString();
+        const auto found = station.find(key);
+        if (found == station.end()) {
+            continue;
+        }
+        const double f = judge == Judge::StationHigh ? d.high : judge == Judge::StationLow ? d.low : d.sum;
+        const double e = f - static_cast<double>(found->second);
+        out.dayStart.push_back(static_cast<double>(day));
+        out.dayError.push_back(static_cast<float>(e));
+        errSum += e;
+        absSum += std::fabs(e);
+        out.n++;
+    }
+    if (out.n > 0) {
+        out.bias = static_cast<float>(errSum / out.n);
+        out.mae = static_cast<float>(absSum / out.n);
+    }
+    return out;
+}
+
+bool ModelBias::fetchStation(double lat, double lon, Judge judge, const std::string& modelA, const std::string& modelB, int days, Forecasts& forecasts, std::map<std::string, float>& station, Station& found, std::string& why) {
+    static std::mutex lock;
+    static std::map<std::string, std::pair<std::chrono::steady_clock::time_point, QByteArray>> kept;
+    const auto get = [&] (const std::string& address, QByteArray& bytes) {
+        {
+            const std::lock_guard<std::mutex> guard{lock};
+            const auto found2 = kept.find(address);
+            if (found2 != kept.end() && std::chrono::steady_clock::now() - found2->second.first < std::chrono::minutes{20}) {
+                bytes = found2->second.second;
+                return true;
+            }
+        }
+        bytes = UtilityIO::downloadAsByteArray(address);
+        if (bytes.contains("Minutely API request limit exceeded")) {
+            why = "the service's limit for a minute was reached: try again in a minute";
+            return false;
+        }
+        return true;
+    };
+    days = std::max(7, std::min(days, 60));
+    const auto today = QDate::currentDate();
+    const auto from = today.addDays(-days).toString("yyyy-MM-dd"), to = today.toString("yyyy-MM-dd");
+    const std::string variable = judge == Judge::StationRain ? "precipitation" : "temperature_2m";
+    const auto encode = [] (const QJsonObject& o) { return QUrl::toPercentEncoding(QString::fromUtf8(QJsonDocument{o}.toJson(QJsonDocument::Compact))).toStdString(); };
+    QJsonObject meta;
+    meta["bbox"] = QString{"%1,%2,%3,%4"}.arg(lon - 0.9, 0, 'f', 3).arg(lat - 0.9, 0, 'f', 3).arg(lon + 0.9, 0, 'f', 3).arg(lat + 0.9, 0, 'f', 3);
+    meta["elems"] = judge == Judge::StationRain ? "pcpn" : "maxt,mint";
+    meta["sdate"] = from;
+    meta["edate"] = to;
+    meta["meta"] = "name,ll,uid";
+    QByteArray metaBytes, fBytes, dataBytes;
+    if (!get("https://data.rcc-acis.org/StnMeta?params=" + encode(meta), metaBytes)) {
+        return false;
+    }
+    std::vector<Station> nearby;
+    if (!parseStationList(metaBytes, lat, lon, 8, nearby, why)) {
+        return false;
+    }
+    QJsonArray elems;
+    for (const char * e : {"maxt", "mint", "pcpn"}) {
+        QJsonObject o;
+        o["name"] = e;
+        elems.append(o);
+    }
+    const auto fAddress = forecastUrl(lat, lon, variable, {modelA, modelB}, days);
+    if (!get(fAddress, fBytes)) {
+        return false;
+    }
+    // the nearest of them that has the days (a station of the list may have none: the list is of stations that ever had them)
+    std::map<std::string, float> daily;
+    Station nearest;
+    bool haveStation = false;
+    for (const auto& candidate : nearby) {
+        QJsonObject params;
+        params["sid"] = QString::fromStdString(candidate.uid);
+        params["sdate"] = from;
+        params["edate"] = to;
+        params["elems"] = elems;
+        if (!get("https://data.rcc-acis.org/StnData?params=" + encode(params), dataBytes)) {
+            return false;
+        }
+        std::map<std::string, float> got;
+        std::string ignored;
+        if (parseStationDaily(dataBytes, judge == Judge::StationHigh ? 1 : judge == Judge::StationLow ? 2 : 3, got, ignored) && static_cast<int>(got.size()) * 10 >= days * 6) {   // 60% of the days
+            daily = std::move(got);
+            nearest = candidate;
+            haveStation = true;
+            break;
+        }
+    }
+    if (!haveStation) {
+        why = "none of the nearest weather stations has these days (the stations are the United States')";
+        return false;
+    }
+    Forecasts fc;
+    if (!parseForecasts(fBytes, variable, {modelA, modelB}, fc, why)) {
+        return false;
+    }
+    {
+        const std::lock_guard<std::mutex> guard{lock};
+        kept[fAddress] = {std::chrono::steady_clock::now(), fBytes};
+    }
+    forecasts = std::move(fc);
+    station = std::move(daily);
+    found = nearest;
     return true;
 }

@@ -29,6 +29,8 @@ namespace {
         E::Variable variable;
         int utcOffset{0}, days{30}, lead{3};
         ModelBias::Stat statA[8], statB[8];
+        QString truthName{"ERA5"};
+        bool station{false};
     };
 }
 
@@ -65,8 +67,8 @@ protected:
         p.setFont(bold);
         p.drawText(QRectF{10, 4, width() - 20.0, 22}, Qt::AlignLeft | Qt::AlignVCenter, result.title);
         p.setFont(base);
-        const bool sums = result.variable.accumulate;
-        const QString unit = QString::fromStdString(E::unitLabel(result.variable)) + (sums ? " per day" : "");
+        const bool sums = result.variable.accumulate || result.station;   // (a station's rain is a day's total; its highs and lows are one value for the day)
+        const QString unit = QString::fromStdString(E::unitLabel(result.variable)) + (result.variable.accumulate ? " per day" : "");
         const auto shown = [&] (float v) { return E::display(result.variable, static_cast<double>(v), true); };
         // the key
         double kx = 14;
@@ -287,6 +289,12 @@ ModelBiasViewer::ModelBiasViewer(Window * parent, double lat, double lon, const 
     }
     lead->setCurrentIndex(std::clamp(leadDays, 1, 7) - 1);
     go = UiStandards::button(body, "Load");
+    judge = UiStandards::combo(body);
+    judge->addItem("Judged on ERA5 (reanalysis, everywhere)", 0);
+    judge->addItem("Judged on a station: daily highs (US)", 1);
+    judge->addItem("Judged on a station: daily lows (US)", 2);
+    judge->addItem("Judged on a station: daily rain (US)", 3);
+    judge->setToolTip("What happened: ERA5, a reanalysis about five days behind, or the nearest station's daily highs, lows or rain (NOAA's Regional Climate Centers; no lag, the United States only; the variable box is then ignored)");
     status = new QLabel{"", body};
     status->setWordWrap(true);
     top->addWidget(place);
@@ -298,6 +306,7 @@ ModelBiasViewer::ModelBiasViewer(Window * parent, double lat, double lon, const 
     top->addWidget(new QLabel{"and", body});
     top->addWidget(modelB);
     top->addWidget(field);
+    top->addWidget(judge);
     top->addWidget(period);
     top->addWidget(lead);
     top->addWidget(go);
@@ -314,7 +323,7 @@ ModelBiasViewer::ModelBiasViewer(Window * parent, double lat, double lon, const 
             load();
         }
     });
-    for (auto * box : {modelA, modelB, field, period, lead}) {
+    for (auto * box : {modelA, modelB, field, judge, period, lead}) {
         QObject::connect(box, &QComboBox::currentIndexChanged, this, [this] (int) { load(); });
     }
     QObject::connect(go, &QPushButton::clicked, this, [this] { load(); });
@@ -331,7 +340,13 @@ void ModelBiasViewer::load() {
     if (chosen == nullptr) {
         return;
     }
-    const auto variable = *chosen;
+    const int how = judge->currentData().toInt();
+    auto variable = *chosen;
+    if (how == 1 || how == 2) {   // a station's highs and lows: the temperature
+        variable = *E::findVariable("temperature_2m");
+    } else if (how == 3) {
+        variable = *E::findVariable("precipitation");
+    }
     const int days = period->currentData().toInt(), leadDays = lead->currentData().toInt();
     const auto nameA = modelA->currentText(), nameB = modelB->currentText();
     if (idA == idB) {
@@ -341,11 +356,14 @@ void ModelBiasViewer::load() {
     go->setEnabled(false);
     status->setText("reading the past forecasts and what happened...");
     QPointer<ModelBiasViewer> self{this};
-    std::thread{[self, mine, lat, lon, idA, idB, variable, days, leadDays, nameA, nameB] {
+    std::thread{[self, mine, lat, lon, idA, idB, variable, days, leadDays, nameA, nameB, how] {
         ModelBias::Forecasts forecasts;
         ModelBias::Truth truth;
+        std::map<std::string, float> stationDays;
+        ModelBias::Station found;
         std::string why;
-        const bool ok = ModelBias::fetch(lat, lon, variable.id, idA, idB, days, forecasts, truth, why);
+        const auto judging = how == 1 ? ModelBias::Judge::StationHigh : how == 2 ? ModelBias::Judge::StationLow : how == 3 ? ModelBias::Judge::StationRain : ModelBias::Judge::Era5;
+        const bool ok = how == 0 ? ModelBias::fetch(lat, lon, variable.id, idA, idB, days, forecasts, truth, why) : ModelBias::fetchStation(lat, lon, judging, idA, idB, days, forecasts, stationDays, found, why);
         Result result;
         if (ok) {
             result.nameA = nameA;
@@ -355,10 +373,18 @@ void ModelBiasViewer::load() {
             result.days = days;
             result.lead = leadDays;
             for (int k = 1; k <= 7; k++) {
-                result.statA[k] = ModelBias::evaluate(forecasts.times, forecasts.utcOffset, forecasts.byModel[idA][static_cast<size_t>(k)], truth, variable.accumulate);
-                result.statB[k] = ModelBias::evaluate(forecasts.times, forecasts.utcOffset, forecasts.byModel[idB][static_cast<size_t>(k)], truth, variable.accumulate);
+                if (how == 0) {
+                    result.statA[k] = ModelBias::evaluate(forecasts.times, forecasts.utcOffset, forecasts.byModel[idA][static_cast<size_t>(k)], truth, variable.accumulate);
+                    result.statB[k] = ModelBias::evaluate(forecasts.times, forecasts.utcOffset, forecasts.byModel[idB][static_cast<size_t>(k)], truth, variable.accumulate);
+                } else {
+                    result.statA[k] = ModelBias::evaluateDaily(forecasts.times, forecasts.utcOffset, forecasts.byModel[idA][static_cast<size_t>(k)], stationDays, judging);
+                    result.statB[k] = ModelBias::evaluateDaily(forecasts.times, forecasts.utcOffset, forecasts.byModel[idB][static_cast<size_t>(k)], stationDays, judging);
+                }
             }
-            result.title = QString{"%1 at %2, %3: %4 and %5 against what happened (ERA5)"}.arg(QString::fromStdString(variable.title)).arg(lat, 0, 'f', 2).arg(lon, 0, 'f', 2).arg(nameA.section(" (", 0, 0), nameB.section(" (", 0, 0));
+            result.station = how != 0;
+            result.truthName = how == 0 ? QString{"ERA5"} : QString::fromStdString(found.name) + QString{" (%1 km)"}.arg(found.km, 0, 'f', 0);
+            const QString what = how == 1 ? "daily highs" : how == 2 ? "daily lows" : how == 3 ? "daily rain" : QString::fromStdString(variable.title);
+            result.title = QString{"%1 at %2, %3: %4 and %5 against %6"}.arg(what).arg(lat, 0, 'f', 2).arg(lon, 0, 'f', 2).arg(nameA.section(" (", 0, 0), nameB.section(" (", 0, 0), result.truthName);
         }
         QMetaObject::invokeMethod(QCoreApplication::instance(), [self, mine, ok, why, result, variable] {
             if (!self || self->generation != mine) {
@@ -383,8 +409,8 @@ void ModelBiasViewer::load() {
                 return QString{"%1: %2 %3 %4 (misses by %5)"}.arg(name.section(" (", 0, 0), QString::number(std::fabs(v), 'f', variable.digits), unit,
                                                                   std::fabs(v) < std::pow(10.0, -variable.digits) ? "(no bias)" : v > 0 ? "too high" : "too low").arg(QString::number(E::display(variable, static_cast<double>(s.mae), true), 'f', variable.digits));
             };
-            self->status->setText(QString{"At %1 day%2 ahead over the last %3 days, %4;  %5.  What happened is ERA5, about five days behind: the newest days are left out."}
-                                      .arg(result.lead).arg(result.lead == 1 ? "" : "s").arg(result.days).arg(sentence(result.nameA, a), sentence(result.nameB, b)));
+            self->status->setText(QString{"At %1 day%2 ahead over the last %3 days, %4;  %5.  %6"}
+                                      .arg(result.lead).arg(result.lead == 1 ? "" : "s").arg(result.days).arg(sentence(result.nameA, a), sentence(result.nameB, b), result.station ? "What happened is " + result.truthName + ": the days are the observers' own (usually midnight to midnight, local standard time)." : QString{"What happened is ERA5, about five days behind: the newest days are left out."}));
         }, Qt::QueuedConnection);
     }}.detach();
 }

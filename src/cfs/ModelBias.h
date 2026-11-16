@@ -41,6 +41,24 @@ namespace ModelBias {
     bool parseTruth(const QByteArray& json, const std::string& variable, Truth& out, std::string& why);
     std::string forecastUrl(double lat, double lon, const std::string& variable, const std::vector<std::string>& models, int pastDays);
     std::string truthUrl(double lat, double lon, const std::string& variable, const std::string& from, const std::string& to);
+    // ---- judged on a station instead of the reanalysis (the United States: NOAA's Regional Climate Centers' ACIS, the daily highs, lows and rain of the nearest station that has them; no five day lag)
+    enum class Judge { Era5, StationHigh, StationLow, StationRain };
+    struct Station {
+        std::string uid, name;
+        double km{0};
+    };
+    // the nearest station of a StnMeta answer ({"meta":[{"ll":[lon,lat],"name":..,"uid":..}]}) to the place; false when there is none
+    // the stations of the answer, nearest first (at most `count`); false when there is none
+    bool parseStationList(const QByteArray& json, double lat, double lon, size_t count, std::vector<Station>& out, std::string& why);
+    bool parseStationMeta(const QByteArray& json, double lat, double lon, Station& out, std::string& why);
+    // the daily values of a StnData answer ({"data":[["2026-11-08","66","40","0.00"],...]}) in the program's native units (deg C, mm): column 1 the highs, 2 the lows, 3 the rain; "M" (missing) and
+    // anything that is not a number are left out, "T" (a trace) is zero; keyed by the day "yyyy-MM-dd"
+    bool parseStationDaily(const QByteArray& json, int column, std::map<std::string, float>& out, std::string& why);
+    // The hourly forecast reduced to the place's own days (the highest, the lowest or the total of a day with at least 20 hours, 24 for a total) and judged against the station's days: `dayStart` the
+    // place's midnight (unix seconds), `dayError` forecast minus station.
+    Stat evaluateDaily(const std::vector<double>& times, int utcOffset, const std::vector<float>& forecast, const std::map<std::string, float>& station, Judge judge);
+    // The place against a station: both models' forecasts, the station's days and the station found. Blocking; kept 20 minutes.
+    bool fetchStation(double lat, double lon, Judge judge, const std::string& modelA, const std::string& modelB, int days, Forecasts& forecasts, std::map<std::string, float>& station, Station& found, std::string& why);
     // The models that keep past runs: id, what it is.
     struct Model { std::string id, label; };
     const std::vector<Model>& models();
