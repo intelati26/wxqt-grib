@@ -60,6 +60,7 @@
 #include <QJsonArray>
 #include "gfs/CatalogCheck.h"
 #include "gfs/ServerStatus.h"
+#include "settings/SettingsCatalogueBox.h"
 #include "settings/SettingsSourcesBox.h"
 #include <QDir>
 #include <QStandardPaths>
@@ -1512,6 +1513,27 @@ int main(int argc, char * argv[]) {
                 auto * help = new HelpViewer{&w, route.section(':', 1, 2).section(':', 0, 1).toStdString()};
                 const auto file = route.section(':', 3, 3);
                 QTimer::singleShot(1500, help, [help, file] { help->grab().save(file); QTimer::singleShot(200, qApp, &QCoreApplication::quit); });
+            } else if (route.startsWith("cataloguepage:")) {   // WXQT_OPEN=cataloguepage:<model>:<filter 0-4>:<out.png> (WXQT_MAKE=1: a chart is made from the first row): Settings > Catalogue after its check, saved, then quits
+                auto * box = new SettingsCatalogueBox;
+                box->resize(1100, 720);
+                box->show();
+                const auto parts = route.split(':');
+                box->run(parts.value(1, "GFS"), parts.value(2, "0").toInt(), qEnvironmentVariableIsSet("WXQT_MAKE"));
+                const auto out = parts.value(3);
+                auto * timer = new QTimer{box};
+                timer->setInterval(1000);
+                int waited = 0;
+                QObject::connect(timer, &QTimer::timeout, box, [box, out, timer, waited]() mutable {
+                    const auto text = box->statusText();
+                    const bool done = text.startsWith("Written") || text.startsWith("Not checked") || (!qEnvironmentVariableIsSet("WXQT_MAKE") && text.contains(", run "));
+                    if (done || ++waited > 150) {
+                        box->grab().save(out);
+                        fprintf(stderr, "cataloguepage: %s\n", qPrintable(text));
+                        timer->stop();
+                        QTimer::singleShot(200, qApp, &QCoreApplication::quit);
+                    }
+                });
+                timer->start();
             } else if (route.startsWith("serverspage:")) {   // WXQT_OPEN=serverspage:<out.png>: the Model Sources settings tab (the servers by name above the models' check), saved a moment after it opens
                 auto * box = new SettingsSourcesBox;
                 box->resize(1100, 720);

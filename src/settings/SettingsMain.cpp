@@ -24,6 +24,7 @@ SettingsMain::SettingsMain(Window * parent, const function<void()>& reloadFn, bo
     , settingsLocalRunsBox{make_unique<SettingsLocalRunsBox>()}
     , settingsGdalBox{make_unique<SettingsGdalBox>()}
     , settingsAccountsBox{make_unique<SettingsAccountsBox>()}
+    , settingsCatalogueBox{make_unique<SettingsCatalogueBox>()}
     , settingsColorsBox{make_unique<SettingsColorsBox>(parent)}
     , settingsAboutBox{make_unique<TextViewerStaticBox>(parent, GlobalVariables::aboutString)}
     , settingsString{getSettings()}
@@ -55,6 +56,7 @@ SettingsMain::SettingsMain(Window * parent, const function<void()>& reloadFn, bo
     }
     sourcesIndex = 3 + (showLocationItems ? 2 : 0) + (toolbar ? 2 : 0);   // (after General, Map and Colors, and the tabs of the locations and of the orders)
     tabWidget.addTab(settingsSourcesBox.get(), "Model Sources");
+    tabWidget.addTab(settingsCatalogueBox.get(), "Catalogue");
     tabWidget.addTab(settingsLocalRunsBox.get(), "Local Runs");
     tabWidget.addTab(settingsGdalBox.get(), "GDAL");
     tabWidget.addTab(settingsAccountsBox.get(), "Accounts");
@@ -74,6 +76,8 @@ SettingsMain::SettingsMain(Window * parent, const function<void()>& reloadFn, bo
                 topic = "guide:help-home-toolbar";
             } else if (now == settingsSourcesBox.get()) {
                 topic = "guide:server-file";
+            } else if (now == settingsCatalogueBox.get()) {
+                topic = "guide:chart-files";
             } else if (now == settingsLocalRunsBox.get()) {
                 topic = "guide:help-local-runs";
             } else if (now == settingsGdalBox.get()) {

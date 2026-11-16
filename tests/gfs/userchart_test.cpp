@@ -106,6 +106,20 @@ int main(int argc, char ** argv) {
     CHECK(!UserCharts::parse(doc("{\"id\": \"good\", \"model\": \"GFS\", \"fill\": {\"field\": \"TMP@2 m\"}}, {\"id\": \"bad\", \"model\": \"GFS\"}"), out, why) && out.empty());
     CHECK(!UserCharts::rampNames().empty());
 
+    // a starter chart for a field of the catalogue: the ramp and units chosen from the variable; the file it makes is a valid chart file
+    {
+        auto st = UserCharts::starter("GFS", "CAPE", "surface");
+        CHECK(st.id == "cape_surface" && st.json.find("\"ramp\": \"cape\"") != std::string::npos && st.json.find("\"legend_step\": 1000") != std::string::npos && st.note.empty());
+        std::vector<GfsChart::Product> made;
+        CHECK(UserCharts::parse(QByteArray::fromStdString(st.json), made, why) && made.size() == 1 && made[0].id == "cape_surface");
+        auto temp = UserCharts::starter("IFS", "TMP", "2 m above ground");
+        CHECK(temp.id == "tmp_2_m_above_ground" && temp.json.find("\"quantity\": \"temperature\"") != std::string::npos);
+        auto wind = UserCharts::starter("GFS", "GUST", "surface");
+        CHECK(wind.json.find("\"scale\": 1.94384") != std::string::npos);
+        auto unknown = UserCharts::starter("GFS", "ZZZZ", "surface", "detail x");
+        CHECK(!unknown.note.empty() && unknown.json.find("ZZZZ@surface|detail x") != std::string::npos && UserCharts::parse(QByteArray::fromStdString(unknown.json), made, why));
+        CHECK(UserCharts::starter("GFS", "A B", "x/y").id == "a_b_x_y");
+    }
     // the registry reads the folder again when its files change, without a restart; a pointer from the generation before stays good
     {
         const QString folder = "/tmp/wxqt_userchart_reload_test";

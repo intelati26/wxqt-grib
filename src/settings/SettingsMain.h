@@ -17,6 +17,7 @@
 #include "settings/SettingsLocationsBox.h"
 #include "settings/SettingsRadarBox.h"
 #include "settings/SettingsAccountsBox.h"
+#include "settings/SettingsCatalogueBox.h"
 #include "settings/SettingsGdalBox.h"
 #include "settings/SettingsLocalRunsBox.h"
 #include "settings/SettingsSourcesBox.h"
@@ -54,6 +55,7 @@ private:
     unique_ptr<SettingsLocalRunsBox> settingsLocalRunsBox;
     unique_ptr<SettingsGdalBox> settingsGdalBox;
     unique_ptr<SettingsAccountsBox> settingsAccountsBox;
+    unique_ptr<SettingsCatalogueBox> settingsCatalogueBox;
     unique_ptr<SettingsColorsBox> settingsColorsBox;
     unique_ptr<SettingsLocationsBox> settingsLocationsBox;
     unique_ptr<LocationEditBox> locationEditBox;

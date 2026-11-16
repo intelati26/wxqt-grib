@@ -33,6 +33,15 @@ namespace UserCharts {
     const std::vector<std::string>& problems();
     // The names a "ramp" may have.
     std::vector<std::string> rampNames();
+    // A starter chart file for a field found in the catalogue (what `tools/make_chart.py` makes): the ramp, units (scale, offset, quantity) and legend step chosen from the variable where it is known,
+    // the id and label from the field. `json` is the file's text; `note` says what to check by hand (a variable with no known ramp, the units); `id` is the chart's id.
+    struct Starter {
+        std::string id, json, note;
+    };
+    Starter starter(const std::string& model, const std::string& variable, const std::string& level, const std::string& detail = {});
+    // Writes the starter in the folder as `<id>.chart.json` (another name when that one is taken: `<id>_2`, `<id>_3` ...), the file made again when the registry is refreshed. The path is in `pathOut`;
+    // false with the reason when the folder could not be written.
+    bool writeStarter(const Starter& chart, std::string& pathOut, std::string& why);
     // The folder: the person's own models folder (`GfsModels::setUserFolder`).
     std::string folder();
 }

@@ -14,6 +14,7 @@
 #include <QJsonArray>
 #include <QJsonDocument>
 #include <QJsonObject>
+#include <regex>
 #include "gfs/GfsChartInternal.h"
 #include "gfs/GfsModels.h"
 
@@ -256,4 +257,115 @@ std::string UserCharts::folder() {
 
 void userChartsRecordProblems(const std::vector<std::string>& problems) {   // (called by GfsChart::products())
     problemList = problems;
+}
+
+UserCharts::Starter UserCharts::starter(const std::string& model, const std::string& variable, const std::string& level, const std::string& detail) {
+    struct Rule {
+        const char * pattern, * ramp, * quantity, * title;
+        double scale, step;
+    };
+    // the variable (NOAA's name) -> the fill's defaults; the scale turns the grid's unit into the ramp's (as in tools/make_chart.py)
+    static const Rule rules[] = {
+        {"^(TMP|TMAX|TMIN|APTMP)$", "temperature", "temperature", "Temperature", 1, 5},
+        {"^DPT$", "dewpoint", "temperature", "Dewpoint", 1, 5},
+        {"^(RH|MINRH|MAXRH)$", "humidity", "", "Relative humidity (%)", 1, 10},
+        {"^PWAT$", "precipitable-water", "millimeters", "Precipitable water", 1, 10},
+        {"^(APCP|ACPCP|NCPCP)$", "precipitation", "millimeters", "Precipitation", 1, 0},
+        {"^CAPE$", "cape", "", "CAPE (J/kg)", 1, 1000},
+        {"^(TCDC|LCDC|MCDC|HCDC)$", "cloud-cover", "", "Cloud cover (%)", 1, 10},
+        {"^(REFC|REFD|MAXREF)$", "reflectivity", "", "Reflectivity (dBZ)", 1, 10},
+        {"^(GUST|WIND)$", "wind", "", "Wind (kt)", 1.94384, 20},
+        {"^(PRMSL|MSLET|MSLMA|PRES)$", "sea-level-pressure", "", "Pressure (mb)", 0.01, 10},
+        {"^HLCY$", "helicity", "", "Storm-relative helicity (m2/s2)", 1, 0},
+        {"^(MNUPHL|MXUPHL|UPHL)$", "updraft-helicity", "", "Updraft helicity (m2/s2)", 1, 0},
+        {"^(ABSV|RELV)$", "vorticity", "", "Vorticity (1e-5 /s)", 100000, 10},
+        {"^(WEASD|SNOD)$", "snowfall", "", "Snow (cm)", 100, 0},
+        {"^SOILW$", "humidity", "", "Soil moisture (%)", 100, 0},
+        {"^TSOIL$", "temperature", "temperature", "Soil temperature", 1, 5},
+        {"^(HTSGW|WVHGT|SWELL)$", "wave-height", "", "Wave height (m)", 1, 0},
+        {"^WTMP$", "sea-surface-temperature", "temperature", "Sea surface temperature", 1, 0},
+        {"^VIS$", "visibility", "", "Visibility (mi)", 0.000621371, 0},
+    };
+    Starter out;
+    const auto field = variable + "@" + level + (detail.empty() ? "" : "|" + detail);
+    QJsonObject fill;
+    fill["field"] = QString::fromStdString(field);
+    const Rule * found = nullptr;
+    for (const auto& r : rules) {
+        if (std::regex_match(variable, std::regex{r.pattern})) {
+            found = &r;
+            break;
+        }
+    }
+    if (found != nullptr) {
+        fill["ramp"] = found->ramp;
+        fill["title"] = found->title;
+        if (found->quantity[0] != '\0') {
+            fill["quantity"] = found->quantity;
+        }
+        if (found->scale != 1.0) {
+            fill["scale"] = found->scale;
+        }
+        if (found->step > 0) {
+            fill["legend_step"] = found->step;
+        }
+    } else {
+        fill["ramp"] = "probability";
+        fill["title"] = QString::fromStdString(variable + " " + level);
+        out.note = "no ramp is known for " + variable + ": choose one (the names are in chart-files.md) and check the field's units";
+    }
+    std::string id = variable + "_" + level;
+    for (auto& c : id) {
+        c = std::isalnum(static_cast<unsigned char>(c)) || c == '_' || c == '-' ? static_cast<char>(std::tolower(static_cast<unsigned char>(c))) : '_';
+    }
+    while (!id.empty() && id.back() == '_') {
+        id.pop_back();
+    }
+    std::string squeezed;
+    for (const char c : id) {
+        if (!(c == '_' && !squeezed.empty() && squeezed.back() == '_')) {
+            squeezed += c;
+        }
+    }
+    out.id = squeezed.empty() ? "mychart" : squeezed;
+    QJsonObject chart;
+    chart["id"] = QString::fromStdString(out.id);
+    chart["model"] = QString::fromStdString(model);
+    chart["label"] = QString::fromStdString(variable + "@" + level);
+    chart["group"] = "Your charts";
+    chart["fill"] = fill;
+    QJsonObject root;
+    root["version"] = 1;
+    root["charts"] = QJsonArray{chart};
+    out.json = QJsonDocument{root}.toJson(QJsonDocument::Indented).toStdString();
+    return out;
+}
+
+bool UserCharts::writeStarter(const Starter& chart, std::string& pathOut, std::string& why) {
+    const auto dir = folder();
+    if (dir.empty()) {
+        why = "the folder of your own models is not set";
+        return false;
+    }
+    QDir{}.mkpath(QString::fromStdString(dir));
+    std::string name = chart.id;
+    for (int n = 2; QFile::exists(QString::fromStdString(dir + "/" + name + ".chart.json")) && n < 100; n++) {
+        name = chart.id + "_" + std::to_string(n);
+    }
+    // the chart's id inside the file follows the file's name, so two starters of one field are two charts
+    auto text = chart.json;
+    if (name != chart.id) {
+        const auto at = text.find("\"id\": \"" + chart.id + "\"");
+        if (at != std::string::npos) {
+            text.replace(at, chart.id.size() + 8, "\"id\": \"" + name + "\"");
+        }
+    }
+    QFile f{QString::fromStdString(dir + "/" + name + ".chart.json")};
+    if (!f.open(QIODevice::WriteOnly)) {
+        why = "could not write " + f.fileName().toStdString();
+        return false;
+    }
+    f.write(QByteArray::fromStdString(text));
+    pathOut = f.fileName().toStdString();
+    return true;
 }

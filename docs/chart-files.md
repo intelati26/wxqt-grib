@@ -63,7 +63,14 @@ and:
 
 ## Making one from a field you found
 
-`tools/make_chart.py` writes a starter chart file for a field, choosing the ramp and the units from the variable where it
+**In the program:** Settings > **Catalogue**. Choose a model and press **Check**: the table lists every field the model's newest file has
+and says which the program's charts use (*Found*), which it has lost since the last check (*Gone*), which a chart asks for and has never
+been there (*Never found*) and which no chart draws yet (*Not cataloged*: the list to look through for a map you want). Select a row and
+press **Make a chart**: a starter file (the ramp and units chosen from the variable, as below) is written to your models folder and read at
+once, and the chart is in the Model Viewer under "Your charts" of that model. Open the file (**Your folder...**) to change the title, the
+ramp or the units, then **Reload your files** (Settings > Model Sources) or open a new Model Viewer.
+
+**On the command line:** `tools/make_chart.py` writes a starter chart file for a field, choosing the ramp and the units from the variable where it
 knows them (CAPE, temperature, dewpoint, humidity, precipitation, cloud cover, reflectivity, wind, pressure, helicity, vorticity,
 snow, soil, waves, visibility):
 
@@ -73,13 +80,13 @@ snow, soil, waves, visibility):
 
 `--catalog` takes the catalogue check's `catalog.json` and warns when the model's newest file does not list a field you named
 (and shows the levels it does list). It prints a `note:` for anything it had to guess (a variable with no known ramp, a contour
-with no known units): look at those, and at the title, before you use the file. Put the result in your models folder and restart.
+with no known units): look at those, and at the title, before you use the file. Put the result in your models folder and reload (or restart).
 
 ## Problems
 
 A file that is not valid is not used at all (one bad chart rejects the file) and the reason, with the chart it is in, is in the
-list of model problems (`GfsModels::userProblems`, shown where the model files' problems are). Fix the file; the charts are read
-when the program starts.
+list of model problems (`GfsModels::userProblems`, shown where the model files' problems are). Fix the file and press **Reload your files** (Settings >
+Model Sources): the charts are read again at once (a new Model Viewer window shows them; the program also reads them again whenever a Model Viewer opens and the folder's files changed).
 
 ## Not covered
 
