@@ -2132,6 +2132,11 @@ void ModelViewer::reload() {
         const auto overlayIds = picked.overlays;
         auto shownVariant = variant;
         shownVariant.scale = ChartResolution::scale();   // the size the charts are drawn at (the key of this frame has it)
+        if (const auto colon = picked.crossFill.find(':'); colon != string::npos && shownVariant.kind == GfsRender::Variant::Kind::None) {   // another model's field over the chart: the
+            shownVariant.crossModel = picked.crossFill.substr(0, colon);   // frame key has it (frameKey), so the picture must too (it was drawn without it, 16 Nov 2026, though the button named the field)
+            shownVariant.crossChart = picked.crossFill.substr(colon + 1);
+            shownVariant.fadeFill = picked.fadeFill;
+        }
         const int hour = std::atoi(objectModel.getTime().c_str());
         if (const auto cached = frames.find(frameKey(hour)); cached != frames.end()) {   // drawn already (play, or a visit before)
             showFrame(cached->second);
@@ -3274,14 +3279,20 @@ ModelViewer::Job ModelViewer::makeJob(int index, int mainHour, bool ahead) const
                 }
             }
         }
+        const bool crossHere = !picked.crossFill.empty() && !ahead && v.kind == GfsRender::Variant::Kind::None && picked.crossFill.find(':') != string::npos;
+        if (crossHere) {   // the main chart's second field on every tile of a plain chart (section 10 of the plan: the compare tiles), each tile's own valid time
+            v.crossModel = picked.crossFill.substr(0, picked.crossFill.find(':'));
+            v.crossChart = picked.crossFill.substr(picked.crossFill.find(':') + 1);
+            v.fadeFill = picked.fadeFill;
+        }
         job.variant = v;
-        string vk;
+        string vk = crossHere ? "|cross=" + picked.crossFill + (picked.fadeFill ? "|fade" : "") : string{};
         if (v.kind == GfsRender::Variant::Kind::Change) {
-            vk = "|change" + std::to_string(v.hoursBack);
+            vk += "|change" + std::to_string(v.hoursBack);
         } else if (v.kind == GfsRender::Variant::Kind::Difference) {
-            vk = "|diff" + v.otherModel + v.otherRun;
+            vk += "|diff" + v.otherModel + v.otherRun;
         } else if (v.kind == GfsRender::Variant::Kind::Max && !v.hours.empty()) {
-            vk = "|max" + std::to_string(v.hours.front()) + "-" + std::to_string(v.hours.back());
+            vk += "|max" + std::to_string(v.hours.front()) + "-" + std::to_string(v.hours.back());
         }
         job.variant.scale = ChartResolution::scale();
         job.key = job.model + "|" + job.param + "|" + job.sector + "|" + job.cycle + "|" + std::to_string(job.hour) + ChartResolution::keyPart();
@@ -3930,7 +3941,11 @@ void ModelViewer::chooseCrossFill() {
     if (!ChartPickers::chooseCrossFill(this, objectModel.model, chosen, fade) || (chosen == picked.crossFill && fade == picked.fadeFill)) {
         return;
     }
-    picked.crossFill = chosen;
+    setCrossFill(chosen, fade);
+}
+
+void ModelViewer::setCrossFill(const string& cross, bool fade) {
+    picked.crossFill = cross;
     picked.fadeFill = fade;
     refreshOverlays();
     startPlaying(false);

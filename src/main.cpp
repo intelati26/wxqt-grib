@@ -487,7 +487,16 @@ int main(int argc, char * argv[]) {
                 const auto parts = route.split(':');
                 auto when = QDateTime::fromString(parts.value(2), "yyyyMMddHHmm");
                 when.setTimeZone(QTimeZone::utc());
-                auto * models = MasterMapViewer::openModels(&w, parts.value(1).toStdString(), parts.value(3).toStdString(), parts.value(4).replace('_', ':').toStdString(), when);
+                ChartSelection chosen;   // WXQT_CROSS=<model>:<chart id> (WXQT_CROSS_FADE=1): another model's field over the chart, as the layer's "Another model's field ..." sets it
+                if (const auto cross = qEnvironmentVariable("WXQT_CROSS"); cross.contains(':')) {
+                    chosen.model = parts.value(1).toStdString();
+                    chosen.param = parts.value(3).toStdString();
+                    chosen.sector = parts.value(4).replace('_', ':').toStdString();
+                    chosen.valid = when;
+                    chosen.crossFill = cross.toStdString();
+                    chosen.fadeFill = qEnvironmentVariableIsSet("WXQT_CROSS_FADE");
+                }
+                auto * models = MasterMapViewer::openModels(&w, parts.value(1).toStdString(), parts.value(3).toStdString(), parts.value(4).replace('_', ':').toStdString(), when, chosen);
                 if (const auto out = qEnvironmentVariable("WXQT_WORLD_EXPORT"); !out.isEmpty() && models != nullptr) {   // WXQT_WORLD_EXPORT=<file.png>[,north|south|equal] (WXQT_POLAR_REACH=<latitude>, WXQT_WORLD_WIDTH): the whole world with the chart, as the polar vortex chart is, after a while
                     const auto kind = out.section(',', 1, 1);
                     const auto projection = kind == "south" ? GlobeMapView::Projection::PolarSouth : kind == "equal" ? GlobeMapView::Projection::EqualEarth : GlobeMapView::Projection::PolarNorth;
@@ -1590,6 +1599,9 @@ int main(int argc, char * argv[]) {
                 if (qEnvironmentVariableIsSet("WXQT_RUNSWITCH")) {   // WXQT_RUNSWITCH=<time index>:<run index>: 12 s in that hour is picked, then that run, and the valid time before and after goes to stderr
                     const auto parts = qEnvironmentVariable("WXQT_RUNSWITCH").split(':');
                     QTimer::singleShot(12000, viewer, [viewer, parts] { viewer->runSwitchTest(parts.value(0).toInt(), parts.value(1).toInt()); });
+                }
+                if (const auto cross = qEnvironmentVariable("WXQT_CROSS"); cross.contains(':')) {   // WXQT_CROSS=<model>:<chart id> (WXQT_CROSS_FADE=1): 8 s in, another model's field over the chart (and on the tiles)
+                    QTimer::singleShot(8000, viewer, [viewer, cross] { viewer->setCrossFill(cross.toStdString(), qEnvironmentVariableIsSet("WXQT_CROSS_FADE")); });
                 }
                 if (qEnvironmentVariableIsSet("WXQT_TILE_MODEL")) {   // WXQT_TILE_MODEL=<tile 1-3>:<model>[:<yyyyMMddHH>]: 12 s in that tile shows that model (and run)
                     const auto parts = qEnvironmentVariable("WXQT_TILE_MODEL").split(':');

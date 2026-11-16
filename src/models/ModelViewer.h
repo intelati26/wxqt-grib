@@ -75,6 +75,7 @@ public:
     ChartSelection selection() const;
     void applySelection(const ChartSelection& chosen);   // the model, chart and area, the time, and the variants (applyVariants)
     void applyVariants(const ChartSelection& chosen);
+    void setCrossFill(const string& cross, bool fade);   // another model's field over the chart, "model:chart id" ("" none), as the dialog sets it
     void setTileModel(int index, const string& model, const string& run);   // the tile's model (and run), as its Change... menu does (a development aid)
     void setTileBarbs(int index, const string& value);   // as the pane's Barbs button does (a development aid)
     void setTileRun(int index, const string& run);   // as the tile's Change... menu does (a development aid)
