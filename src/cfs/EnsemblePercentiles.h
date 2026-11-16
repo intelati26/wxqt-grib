@@ -20,6 +20,7 @@ namespace EnsemblePercentiles {
         std::vector<double> times;
         std::vector<std::vector<float>> members;
         std::string units;   // as the service says ("°C", "mm")
+        int utcOffset{0};    // seconds the place's clock is ahead of UTC (the service's timezone=auto): where the day lines go
     };
     // The percentiles of the members at each time. `levels` are 0 to 100 (0 the lowest member, 100 the highest); `value[level][t]`; NaN where fewer than two members have a value.
     struct Fan {
@@ -28,6 +29,7 @@ namespace EnsemblePercentiles {
         std::map<int, std::vector<float>> value;
         std::vector<float> mean;
         std::vector<int> count;   // members with a value at each time
+        int utcOffset{0};
     };
     // The q (0 to 100) percentile of values, by linear interpolation between the sorted values (the usual (n-1) rule: the median of 1, 2, 3, 4 is 2.5); NaNs are left out; NaN when fewer than one value.
     float percentile(std::vector<float> values, double q);
@@ -48,12 +50,14 @@ namespace EnsemblePercentiles {
         std::vector<double> times;
         std::vector<float> aMedian, aLow, aHigh, bMedian, bLow, bHigh, difference, meanDifference;
         std::vector<float> aP10, aP90, bP10, bP90;   // the 10th and 90th percentiles (the whiskers of a box)
-        std::vector<double> dayStart;
+        std::vector<double> dayStart;   // the days are the place's own (utcOffset), the start in unix seconds
         std::vector<float> daily;
+        int utcOffset{0};
     };
     Compare compare(const Fan& a, const Fan& b);
     // The members of a series at the given times (every member, the hours the series does not have as NaN): what a spaghetti plot draws over the common hours of `compare`.
     std::vector<std::vector<float>> onTimes(const Series& series, const std::vector<double>& times);
+    // The text of a place's offset for a label: "local time" (the days begin at the place's midnight).
     // The mean of the difference over the first `days` days from the first time (NaN when fewer than half of the hours have a value).
     float meanDifference(const Compare& c, double days);
     // The variables the comparison windows can show: one row each (id as the service names it, what it is, how its numbers become the person's units). A new variable is a row here.

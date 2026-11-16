@@ -52,6 +52,7 @@ private:
     QLabel * status{};
     CompareChart * chart{};
     int generation{0};
+    int placeOffset{0};   // seconds the place's clock is ahead of UTC, from the last load
 };
 
 #endif  // MODELCOMPAREVIEWER_H

@@ -30,6 +30,7 @@ float EnsemblePercentiles::percentile(std::vector<float> values, double q) {
 EnsemblePercentiles::Fan EnsemblePercentiles::fan(const Series& series, const std::vector<int>& levels) {
     Fan out;
     out.times = series.times;
+    out.utcOffset = series.utcOffset;
     out.levels = levels;
     for (const int level : levels) {
         out.value[level].assign(series.times.size(), std::nanf(""));
@@ -169,6 +170,7 @@ bool EnsemblePercentiles::parse(const QByteArray& json, const std::string& varia
     for (auto& c : columns) {
         result.members.push_back(std::move(c.second));
     }
+    result.utcOffset = root.value("utc_offset_seconds").toInt();
     result.units = root.value("hourly_units").toObject().value(prefix).toString().toStdString();
     out = std::move(result);
     return true;
@@ -180,7 +182,7 @@ std::string EnsemblePercentiles::url(double lat, double lon, const std::string& 
         list += (list.empty() ? "" : ",") + v;
     }
     return "https://ensemble-api.open-meteo.com/v1/ensemble?latitude=" + QString::number(lat, 'f', 3).toStdString() + "&longitude=" + QString::number(lon, 'f', 3).toStdString() +
-           "&hourly=" + list + "&models=" + model + "&forecast_days=" + std::to_string(days) + "&timeformat=unixtime&wind_speed_unit=ms";
+           "&hourly=" + list + "&models=" + model + "&forecast_days=" + std::to_string(days) + "&timeformat=unixtime&wind_speed_unit=ms&timezone=auto";
 }
 
 const std::vector<EnsemblePercentiles::Model>& EnsemblePercentiles::models() {
@@ -234,6 +236,7 @@ bool EnsemblePercentiles::fetch(double lat, double lon, const std::string& model
 
 EnsemblePercentiles::Compare EnsemblePercentiles::compare(const Fan& a, const Fan& b) {
     Compare out;
+    out.utcOffset = a.utcOffset;
     std::map<double, size_t> atB;
     for (size_t i = 0; i < b.times.size(); i++) {
         atB[b.times[i]] = i;
@@ -263,7 +266,7 @@ EnsemblePercentiles::Compare EnsemblePercentiles::compare(const Fan& a, const Fa
     std::map<long long, std::pair<double, int>> sums;   // day -> (sum, hours with a value)
     std::map<long long, int> hours;
     for (size_t i = 0; i < out.times.size(); i++) {
-        const auto day = static_cast<long long>(std::floor(out.times[i] / 86400.0)) * 86400;
+        const auto day = static_cast<long long>(std::floor((out.times[i] + out.utcOffset) / 86400.0)) * 86400 - out.utcOffset;   // (the place's own days)
         hours[day]++;
         if (!std::isnan(out.difference[i])) {
             sums[day].first += static_cast<double>(out.difference[i]);

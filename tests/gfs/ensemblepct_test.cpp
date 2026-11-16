@@ -55,14 +55,14 @@ int main() {
     CHECK(d.times.size() == 2 && near(d.share[1], 1.0 / 3.0));
 
     // the service's answer: the control and the numbered members, null for a missing value, an error with its reason
-    const QByteArray good = R"({"hourly_units":{"time":"unixtime","temperature_2m":"°C"},"hourly":{"time":[100,200,300],"temperature_2m":[1.5,2.5,null],"temperature_2m_member01":[1,2,3],"temperature_2m_member02":[2,3,4],"precipitation":[0,0,0]}})";
+    const QByteArray good = R"({"utc_offset_seconds":-21600,"hourly_units":{"time":"unixtime","temperature_2m":"°C"},"hourly":{"time":[100,200,300],"temperature_2m":[1.5,2.5,null],"temperature_2m_member01":[1,2,3],"temperature_2m_member02":[2,3,4],"precipitation":[0,0,0]}})";
     E::Series t;
     std::string why;
-    CHECK(E::parse(good, "temperature_2m", t, why) && t.members.size() == 3 && t.times.size() == 3 && std::isnan(t.members[0][2]) && t.units == std::string{"°C"} && near(t.members[1][0], 1));
+    CHECK(E::parse(good, "temperature_2m", t, why) && t.members.size() == 3 && t.times.size() == 3 && std::isnan(t.members[0][2]) && t.units == std::string{"°C"} && near(t.members[1][0], 1) && t.utcOffset == -21600);
     CHECK(!E::parse(good, "precipitation", t, why) && why.find("fewer than two") != std::string::npos);   // a single column is not an ensemble
     CHECK(!E::parse(R"({"error":true,"reason":"Latitude must be in range of -90 to 90"})", "temperature_2m", t, why) && why.find("Latitude") != std::string::npos);
     CHECK(!E::parse("not json", "temperature_2m", t, why) && !E::parse(R"({"hourly":{"time":[]}})", "temperature_2m", t, why));
-    CHECK(E::url(39.1, -94.6, "gfs025", {"temperature_2m", "precipitation"}) == "https://ensemble-api.open-meteo.com/v1/ensemble?latitude=39.100&longitude=-94.600&hourly=temperature_2m,precipitation&models=gfs025&forecast_days=16&timeformat=unixtime&wind_speed_unit=ms");
+    CHECK(E::url(39.1, -94.6, "gfs025", {"temperature_2m", "precipitation"}) == "https://ensemble-api.open-meteo.com/v1/ensemble?latitude=39.100&longitude=-94.600&hourly=temperature_2m,precipitation&models=gfs025&forecast_days=16&timeformat=unixtime&wind_speed_unit=ms&timezone=auto");
     CHECK(E::models().size() >= 8 && E::models().front().id == "gfs025");
     // two models at the same hours: the difference of the medians and the daily mean
     E::Series ma, mb;
@@ -78,6 +78,10 @@ int main() {
     CHECK(cmp.aP10.size() == cmp.times.size() && near(cmp.aP10[0], 10.4) && near(cmp.aP90[0], 13.6) && near(cmp.bP10[0], 8.2) && near(cmp.bP90[0], 9.8));   // (members 10, 12, 14: the 10th is 10 + 0.2 * 2)
     CHECK(cmp.daily.size() == 1 && near(cmp.dayStart[0], 86400.0 * 11) && near(cmp.daily[0], 3));   // (the first day has 23 hours: left out)
     CHECK(near(E::meanDifference(cmp, 1.0), 3) && std::isnan(E::meanDifference(E::Compare{}, 1.0)));
+    // a place six hours behind UTC: its days begin at 06 UTC, so the 47 common hours hold one whole day of its own (from 06 UTC on the 11th)
+    ma.utcOffset = -6 * 3600;
+    const auto local = E::compare(E::fan(ma), E::fan(mb));
+    CHECK(local.utcOffset == -6 * 3600 && local.daily.size() == 1 && near(local.dayStart[0], 86400.0 * 10 + 6 * 3600) && near(local.daily[0], 3));
     const auto lines = E::onTimes(mb, cmp.times);   // B's members on the common hours
     CHECK(lines.size() == 3 && lines[0].size() == cmp.times.size() && near(lines[1][0], 10) && near(lines[0][46], 8));
     CHECK(E::onTimes(mb, {86400.0 * 10}).front().front() != E::onTimes(mb, {86400.0 * 10}).front().front());   // (B has not that hour: NaN)

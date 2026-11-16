@@ -164,7 +164,7 @@ protected:
         drawChance(p, chanceBox);
         // the time axis, once, under the last panel
         p.setPen(Qt::black);
-        p.drawText(QRectF{left, chanceBox.bottom() + 20, plotWidth, 16}, Qt::AlignRight | Qt::AlignVCenter, "times are UTC (day lines at 00 UTC)");
+        p.drawText(QRectF{left, chanceBox.bottom() + 20, plotWidth, 16}, Qt::AlignRight | Qt::AlignVCenter, blendMode ? QString{"times are UTC (day lines at 00 UTC)"} : QString{"times are the place's own (UTC%1%2), day lines at its midnight; the 6 hour blocks of the bars are UTC"}.arg(tempFan.utcOffset >= 0 ? "+" : "-").arg(std::abs(tempFan.utcOffset) / 3600.0, 0, 'f', std::abs(tempFan.utcOffset) % 3600 ? 1 : 0));
         key(p, tempBox);
         readout(p, tempBox, rainBox, chanceBox, tconv, pconv);
     }
@@ -339,10 +339,11 @@ private:
         }
     }
 
+    QTimeZone zoneOf() const { return QTimeZone::fromSecondsAheadOfUtc(blendMode ? 0 : tempFan.utcOffset); }
     double xOf(double t) const { return left + (t - t0) / std::max(1.0, t1 - t0) * plotWidth; }
 
     void dayLines(QPainter& p, const QRectF& box, bool labels) const {
-        QDateTime day = QDateTime::fromSecsSinceEpoch(static_cast<qint64>(t0), QTimeZone::utc());
+        QDateTime day = QDateTime::fromSecsSinceEpoch(static_cast<qint64>(t0), QTimeZone::fromSecondsAheadOfUtc(blendMode ? 0 : tempFan.utcOffset));
         day.setTime(QTime{0, 0});
         if (day.toSecsSinceEpoch() < static_cast<qint64>(t0)) {
             day = day.addDays(1);
@@ -489,7 +490,7 @@ private:
             p.drawRect(QRectF{x, box.bottom() - share * box.height(), barWidth, share * box.height()});
         }
         // the day names, under this panel (the last)
-        QDateTime day = QDateTime::fromSecsSinceEpoch(static_cast<qint64>(t0), QTimeZone::utc());
+        QDateTime day = QDateTime::fromSecsSinceEpoch(static_cast<qint64>(t0), zoneOf());
         day.setTime(QTime{0, 0});
         if (day.toSecsSinceEpoch() < static_cast<qint64>(t0)) {
             day = day.addDays(1);
@@ -536,7 +537,7 @@ private:
         p.setPen(QPen{QColor{90, 90, 90}, 1.0});
         p.drawLine(QPointF{x, tempBox.top()}, QPointF{x, chanceBox.bottom()});
         QStringList lines;
-        lines << QDateTime::fromSecsSinceEpoch(static_cast<qint64>(tempFan.times[i]), QTimeZone::utc()).toString("ddd d MMM HH:mm 'UTC'");
+        lines << QDateTime::fromSecsSinceEpoch(static_cast<qint64>(tempFan.times[i]), zoneOf()).toString("ddd d MMM HH:mm") + " local";
         const auto row = [&] (const QString& name, const E& fan, const auto& convert, int digits) {
             if (i >= fan.times.size() || std::isnan(fan.value.at(50)[i])) {
                 lines << name + ": no value";

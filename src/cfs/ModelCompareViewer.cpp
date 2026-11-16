@@ -298,7 +298,7 @@ protected:
         if (drawBoxes) {   // box and whisker every 12 hours: the models side by side (whiskers 10 to 90 percent, box 25 to 75, bar the median)
             const double half = std::max(2.0, (xOf(t0 + 12 * 3600) - xOf(t0)) * 0.19);
             for (size_t i = 0; i < data.times.size(); i++) {
-                const auto hour = QDateTime::fromSecsSinceEpoch(static_cast<qint64>(data.times[i]), QTimeZone::utc()).time().hour();
+                const auto hour = QDateTime::fromSecsSinceEpoch(static_cast<qint64>(data.times[i]), zone()).time().hour();   // (the place's noon and midnight)
                 if (hour % 12 != 0) {
                     continue;
                 }
@@ -397,7 +397,7 @@ protected:
         p.setPen(Qt::black);
         p.drawText(QPointF{14, 60}, "average difference over the first " + words.join(",  ") + "   (click a time, then Why?)");
         // the day names
-        QDateTime day = QDateTime::fromSecsSinceEpoch(static_cast<qint64>(t0), QTimeZone::utc());
+        QDateTime day = QDateTime::fromSecsSinceEpoch(static_cast<qint64>(t0), zone());
         day.setTime(QTime{0, 0});
         if (day.toSecsSinceEpoch() < static_cast<qint64>(t0)) {
             day = day.addDays(1);
@@ -413,13 +413,13 @@ protected:
             }
         }
         p.setPen(Qt::black);
-        p.drawText(QRectF{left, lower.bottom() + 20, plotWidth, 16}, Qt::AlignRight | Qt::AlignVCenter, "times are UTC (day lines at 00 UTC)");
+        p.drawText(QRectF{left, lower.bottom() + 20, plotWidth, 16}, Qt::AlignRight | Qt::AlignVCenter, QString{"times are the place's own (UTC%1%2), day lines at its midnight"}.arg(data.utcOffset >= 0 ? "+" : "-").arg(std::abs(data.utcOffset) / 3600.0, 0, 'f', std::abs(data.utcOffset) % 3600 ? 1 : 0));
         if (picked >= 0 && picked < static_cast<int>(data.times.size())) {
             const auto i = static_cast<size_t>(picked);
             const double x = xOf(data.times[i]);
             p.setPen(QPen{QColor{20, 20, 20}, 1.2});
             p.drawLine(QPointF{x, upper.top()}, QPointF{x, lower.bottom()});
-            const auto when = QDateTime::fromSecsSinceEpoch(static_cast<qint64>(data.times[i]), QTimeZone::utc()).toString("ddd d MMM HH:mm 'UTC'");
+            const auto when = QDateTime::fromSecsSinceEpoch(static_cast<qint64>(data.times[i]), zone()).toString("ddd d MMM HH:mm") + " local";
             QString text = when;
             if (!std::isnan(data.aMedian[i]) && !std::isnan(data.bMedian[i])) {
                 text += QString{":  %1 %2, %3 %4, difference %5%6"}.arg(a).arg(show(data.aMedian[i]), 0, 'f', 1).arg(b).arg(show(data.bMedian[i]), 0, 'f', 1).arg(delta(data.difference[i]) >= 0 ? "+" : "").arg(delta(data.difference[i]), 0, 'f', 1);
@@ -440,6 +440,7 @@ private:
         double low{0}, high{1};
     };
     double xOf(double t) const { return left + (t - t0) / std::max(1.0, t1 - t0) * plotWidth; }
+    QTimeZone zone() const { return QTimeZone::fromSecondsAheadOfUtc(data.utcOffset); }
 
     void choose(double x, bool click) {
         if (!have || plotWidth <= 0 || data.times.empty() || (!click && !(QApplication::mouseButtons() & Qt::LeftButton))) {
@@ -692,8 +693,9 @@ void ModelCompareViewer::load() {
                 self->chart->clear("No comparison: " + why);
                 return;
             }
-            const auto first = QDateTime::fromSecsSinceEpoch(static_cast<qint64>(compared.times.front()), QTimeZone::utc());
-            self->status->setText(QString{"%1 hours in common, from %2 UTC (members by Open-Meteo)"}.arg(compared.times.size()).arg(first.toString("ddd d MMM HH:mm")));
+            const auto first = QDateTime::fromSecsSinceEpoch(static_cast<qint64>(compared.times.front()), QTimeZone::fromSecondsAheadOfUtc(compared.utcOffset));
+            self->status->setText(QString{"%1 hours in common, from %2 local time (members by Open-Meteo)"}.arg(compared.times.size()).arg(first.toString("ddd d MMM HH:mm")));
+            self->placeOffset = compared.utcOffset;
             self->chart->setMembers(linesA, linesB);
             const int how = self->spread->currentData().toInt();
             self->chart->showMembers(how == 0 || how == 2, how == 1 || how == 2, how == 3);
@@ -780,7 +782,8 @@ void ModelCompareViewer::allModels() {
     status->setText("reading every ensemble...");
     allButton->setEnabled(false);
     QPointer<ModelCompareViewer> self{this};
-    std::thread{[self, lat, lon, variable, t] {
+    const int offset = placeOffset;
+    std::thread{[self, lat, lon, variable, t, offset] {
         std::vector<std::future<std::pair<bool, AllModelsChart::Row>>> reads;
         for (const auto& m : EnsemblePercentiles::models()) {
             reads.push_back(std::async(std::launch::async, [m, lat, lon, variable, t] {
@@ -813,7 +816,7 @@ void ModelCompareViewer::allModels() {
             auto got = f.get();
             (got.first ? rows.push_back(got.second) : (void) left.push_back(got.second.name));
         }
-        QMetaObject::invokeMethod(QCoreApplication::instance(), [self, rows, left, variable, t, lat, lon] {
+        QMetaObject::invokeMethod(QCoreApplication::instance(), [self, rows, left, variable, t, lat, lon, offset] {
             if (!self) {
                 return;
             }
@@ -822,7 +825,7 @@ void ModelCompareViewer::allModels() {
                 self->status->setText("no ensemble has this time");
                 return;
             }
-            const auto when = QDateTime::fromSecsSinceEpoch(static_cast<qint64>(t), QTimeZone::utc()).toString("ddd d MMM HH:mm 'UTC'");
+            const auto when = QDateTime::fromSecsSinceEpoch(static_cast<qint64>(t), QTimeZone::fromSecondsAheadOfUtc(offset)).toString("ddd d MMM HH:mm") + " local";
             auto * window = new Window{self.data()};
             window->setAttribute(Qt::WA_DeleteOnClose);
             window->setTitle("Ensembles at one time");
