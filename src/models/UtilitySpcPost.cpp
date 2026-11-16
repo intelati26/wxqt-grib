@@ -4,6 +4,7 @@
 // *****************************************************************************
 
 #include "objects/RenderLock.h"
+#include "gfs/Servers.h"
 #include "models/UtilitySpcPost.h"
 #include <algorithm>
 #include <chrono>
@@ -35,7 +36,9 @@
 #include "util/UtilityLog.h"
 
 namespace {
-    const string baseUrl{"https://nomads.ncep.noaa.gov/pub/data/nccf/com/spc_post/prod"};
+    string baseUrl() {
+        return Servers::first("nomads", "https://nomads.ncep.noaa.gov/pub/data/nccf/com") + "/spc_post/prod";
+    }
 
     // matches an Apache directory-listing anchor, e.g. href="spc_post.20260910/"
     const QRegularExpression hrefRe{R"RX(href="([^"?/][^"]*)")RX"};
@@ -205,7 +208,7 @@ vector<string> UtilitySpcPost::listDir(const string& url) {
 }
 
 vector<string> UtilitySpcPost::listDateDirs() {
-    auto entries = listDir(baseUrl + "/");
+    auto entries = listDir(baseUrl() + "/");
     vector<string> dateDirs;
     for (const auto& entry : entries) {
         if (WString::startsWith(entry, "spc_post.")) {
@@ -242,7 +245,7 @@ bool UtilitySpcPost::resolveRun(int productIndex, const string& runId, RunFiles&
         bool found = false;
         for (const auto& dateDirRaw : listDateDirs()) {
             const auto candidateDate = dateDirRaw.substr(9, 8);   // "spc_post." is 9 chars
-            const auto files = listDir(baseUrl + "/" + dateDirRaw + product.subdir + "/");
+            const auto files = listDir(baseUrl() + "/" + dateDirRaw + product.subdir + "/");
             std::set<string> cycles;
             for (const auto& file : files) {
                 const auto match = re.match(QString::fromStdString(file));
@@ -263,7 +266,7 @@ bool UtilitySpcPost::resolveRun(int productIndex, const string& runId, RunFiles&
         }
     }
 
-    const auto files = listDir(baseUrl + "/spc_post." + dateStr + "/" + product.subdir + "/");
+    const auto files = listDir(baseUrl() + "/spc_post." + dateStr + "/" + product.subdir + "/");
     std::map<int, std::pair<string, string>> byHour;   // fhr -> (filename, env or "")
     for (const auto& file : files) {
         const auto match = re.match(QString::fromStdString(file));
@@ -327,7 +330,7 @@ vector<std::pair<string, string>> UtilitySpcPost::runOptions(int productIndex) {
         }
         daysChecked += 1;
         const auto dateStr = dateDirRaw.substr(9, 8);
-        const auto files = listDir(baseUrl + "/" + dateDirRaw + product.subdir + "/");
+        const auto files = listDir(baseUrl() + "/" + dateDirRaw + product.subdir + "/");
         if (files.empty()) {
             continue;
         }
@@ -428,7 +431,7 @@ string UtilitySpcPost::render(int productIndex, int domainIndex, int boundaryFla
         // no cycle-hour subdirectory - all of a day's cycles live in one
         // per-product folder, differentiated by the "tCCz" in the filename
         // (matches the listing path used in resolveRun() above)
-        const auto url = baseUrl + "/spc_post." + run.dateStr + "/" + product.subdir + "/" + fileName;
+        const auto url = baseUrl() + "/spc_post." + run.dateStr + "/" + product.subdir + "/" + fileName;
         // be gentle on NOMADS - a short randomized pause before each NEW grib2 fetch
         // (skipped when the file is already cached) avoids hammering the server with
         // a tight request burst during an animation sweep, which can trigger a block

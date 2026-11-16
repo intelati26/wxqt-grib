@@ -8,6 +8,7 @@ share and which to touch for which job. The details of each format are in its ow
 |---|---|---|
 | a server's address | `servers.json` | [server-file.md](server-file.md) |
 | a model's layout (names, hours, files) | `<name>.model` | [model-files.md](model-files.md) |
+| one built-in model's lines (a lag, a place to try first) | `<name>.model` with `override = ID` | [model-files.md](model-files.md), "Changing a built-in model" |
 | a map (fill, lines, barbs) | `<name>.chart.json` | [chart-files.md](chart-files.md) |
 | an ensemble or a variable of the place windows (percentiles, two models compared) | `ensembles.json` | [ensemble-file.md](ensemble-file.md) |
 
@@ -17,7 +18,7 @@ share and which to touch for which job. The details of each format are in its ow
 |---|---|
 | A server moved (a bucket renamed, `para` became `prod`) | **a server's base** in `servers.json`, or type it in Settings > Model Sources > Servers |
 | A server has a mirror to fall back to | a second base for that server in `servers.json` |
-| A file is now named differently, or its layout changed | the model's `.model` file (`url`, `file` rules) |
+| A file is now named differently, or its layout changed | the model's `.model` file (`url`, `file` rules); for a built-in model, an **override** file (`override = GFS`) with just the lines that changed |
 | A variable was renamed (`TMP` is now `T`) | the model file's `nc_variable` rule (NetCDF) or file rule; the check below tells you which |
 | The model got a new level or variable you want | a **chart file** that reads it (or the model's `clone_fields`) |
 | You want a map the program does not have | a **chart file** |

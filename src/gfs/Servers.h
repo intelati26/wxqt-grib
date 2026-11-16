@@ -50,6 +50,9 @@ namespace Servers {
     bool promote(const std::string& url);
     std::string demotedBase(const std::string& name);
     // The name of the server one of whose bases begins `url` ("" when none does).
+    // The first base of a server by name (what a place in code that builds an address by hand reads: `Servers::first("nomads", fallback) + "/hafs/..."`); `fallback` when the table has no such name. Read at
+    // the moment of the call (not kept), so a table that changes is followed.
+    std::string first(const std::string& name, const std::string& fallback);
     std::string nameOfUrl(const std::string& url);
     // The name in a leading `{@name}` ("" when there is none or it is not a plain name).
     std::string nameIn(const std::string& pattern);

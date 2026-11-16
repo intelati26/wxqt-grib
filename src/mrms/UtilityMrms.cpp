@@ -4,6 +4,7 @@
 // *****************************************************************************
 
 #include "mrms/UtilityMrms.h"
+#include "gfs/Servers.h"
 #include <algorithm>
 #include <cmath>
 #include <cstring>
@@ -305,7 +306,7 @@ bool UtilityMrms::scansAws(const Product& product, const string& level, vector<S
         const auto dayText = day.toString("yyyyMMdd").toStdString();
         const auto from = back == 0 ? now.addSecs(-20 * 60) : QDateTime{day.date(), QTime{23, 0}, QTimeZone::utc()};
         const string startAfter = folder + dayText + "/MRMS_" + product.id + joined + "_" + dayText + "-" + from.toString("HHmm").toStdString() + "00.grib2.gz";
-        const auto url = "https://noaa-mrms-pds.s3.amazonaws.com/?list-type=2&prefix=" + folder + dayText + "/&start-after=" + startAfter;
+        const auto url = Servers::first("mrms-aws", "https://noaa-mrms-pds.s3.amazonaws.com") + "/?list-type=2&prefix=" + folder + dayText + "/&start-after=" + startAfter;
         const auto listing = URL::getText(url);
         const QRegularExpression key{QString::fromStdString("<Key>(" + folder + dayText + "/(MRMS_" + product.id + joined + "_(\\d{8})-(\\d{6})\\.grib2\\.gz))</Key>")};
         auto matches = key.globalMatch(QString::fromStdString(listing));
@@ -313,7 +314,7 @@ bool UtilityMrms::scansAws(const Product& product, const string& level, vector<S
             const auto match = matches.next();
             const auto utc = QDateTime::fromString(match.captured(3) + match.captured(4), "yyyyMMddhhmmss");
             if (utc.isValid()) {
-                out.push_back({match.captured(2).toStdString(), QDateTime{utc.date(), utc.time(), QTimeZone::utc()}, "https://noaa-mrms-pds.s3.amazonaws.com/" + match.captured(1).toStdString()});
+                out.push_back({match.captured(2).toStdString(), QDateTime{utc.date(), utc.time(), QTimeZone::utc()}, Servers::first("mrms-aws", "https://noaa-mrms-pds.s3.amazonaws.com") + "/" + match.captured(1).toStdString()});
             }
         }
         if (!out.empty()) {
@@ -657,7 +658,7 @@ bool UtilityMrms::scansAwsAt(const Product& product, const string& level, const 
         const auto dayText = day.toString("yyyyMMdd").toStdString();
         const auto first = day == from.date() ? from.time() : QTime{0, 0};
         const string startAfter = folder + dayText + "/MRMS_" + product.id + joined + "_" + dayText + "-" + first.toString("HHmm").toStdString() + "00.grib2.gz";
-        const auto url = "https://noaa-mrms-pds.s3.amazonaws.com/?list-type=2&prefix=" + folder + dayText + "/&start-after=" + startAfter + "&max-keys=1000";
+        const auto url = Servers::first("mrms-aws", "https://noaa-mrms-pds.s3.amazonaws.com") + "/?list-type=2&prefix=" + folder + dayText + "/&start-after=" + startAfter + "&max-keys=1000";
         const auto listing = URL::getText(url);
         const QRegularExpression key{QString::fromStdString("<Key>(" + folder + dayText + "/(MRMS_" + product.id + joined + "_(\\d{8})-(\\d{6})\\.grib2\\.gz))</Key>")};
         auto matches = key.globalMatch(QString::fromStdString(listing));
@@ -669,7 +670,7 @@ bool UtilityMrms::scansAwsAt(const Product& product, const string& level, const 
             }
             const QDateTime at{utc.date(), utc.time(), QTimeZone::utc()};
             if (at >= from && at <= to) {
-                out.push_back({match.captured(2).toStdString(), at, "https://noaa-mrms-pds.s3.amazonaws.com/" + match.captured(1).toStdString()});
+                out.push_back({match.captured(2).toStdString(), at, Servers::first("mrms-aws", "https://noaa-mrms-pds.s3.amazonaws.com") + "/" + match.captured(1).toStdString()});
             }
         }
     }

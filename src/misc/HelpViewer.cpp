@@ -83,6 +83,9 @@ namespace {
         out += "- " + QString::number(charts) + (charts == 1 ? " chart" : " charts") + " in the Model Viewer (picker group: " + QString::fromStdString(GfsModels::pickerGroup(d.id)) + ")\n";
         out += "- Forecast hours: " + hours + "\n";
         out += "- Runs: " + (d.hourlyRuns ? QString{"every hour"} : QString{"every "} + QString::number(d.cycleStep) + " hours") + "\n";
+        if (!d.overriddenBy.empty()) {
+            out += "- **Read with your file `" + QString::fromStdString(d.overriddenBy) + "`**: it changes some of this model's lines (an override: see Help > Model files, \"Changing a built-in model\")\n";
+        }
         return out;
     }
 

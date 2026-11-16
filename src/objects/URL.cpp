@@ -5,6 +5,7 @@
 // *****************************************************************************
 
 #include "objects/URL.h"
+#include "gfs/Servers.h"
 #include "util/Activity.h"
 #include "objects/KnownIntermediates.h"
 #include "objects/NetManager.h"
@@ -84,11 +85,11 @@ namespace {
     // file can be had from AWS. Returns "" for any URL that is not one of
     // those NOMADS trees.
     string mirrorUrl(const string& url) {
-        const string google = "https://storage.googleapis.com/ecmwf-open-data/";   // ECMWF's open data: Google's replica, then ECMWF's own server
+        const string google = Servers::first("ecmwf-gcs", "https://storage.googleapis.com/ecmwf-open-data") + "/";   // ECMWF's open data: Google's replica, then ECMWF's own server
         if (url.compare(0, google.size(), google) == 0) {
             return "https://data.ecmwf.int/forecasts/" + url.substr(google.size());
         }
-        const string nomads = "https://nomads.ncep.noaa.gov/pub/data/nccf/com/";
+        const string nomads = Servers::first("nomads", "https://nomads.ncep.noaa.gov/pub/data/nccf/com") + "/";
         if (url.compare(0, nomads.size(), nomads) != 0) {
             return "";
         }
@@ -102,7 +103,7 @@ namespace {
             if (streamEnd == string::npos) {
                 return "";
             }
-            return "https://noaa-rrfs-ops-pds.s3.amazonaws.com/" + url.substr(streamEnd + 1);
+            return Servers::first("rrfs-ops", "https://noaa-rrfs-ops-pds.s3.amazonaws.com") + "/" + url.substr(streamEnd + 1);
         }
         return "";
     }

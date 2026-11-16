@@ -43,6 +43,7 @@ namespace GfsModels {
     enum class Missing { Nothing, MainRun, PreviousCycle, PreviousRun };   // when a run lacks a field: nothing, the newest 00 / 06 / 12 / 18Z run, the cycle before six hours further on, or (a run still being posted) one of the last few runs before it
     struct Def {
         std::string id;                                // the model screen's name: "GFS", "RRFS"
+        std::string overriddenBy;                      // the file of the person's folder (`override = GFS`) that changes this built-in model, "" when none (docs/model-files.md, "Changing a built-in model")
         std::string label;                             // the credit under a chart
         std::string runNote, legacyRunNote;            // what a run list says beside a run's hour ("0.1 degree"), and for the runs before legacyBefore or read from the legacy files for now ("0.25 degree")
         std::string legacyLabel, legacyBefore;         // the credit under a chart of a run before legacyBefore (yyyyMMddHH), when the model's files changed (the IFS: 0.25 degree before its 0.1 degree set)

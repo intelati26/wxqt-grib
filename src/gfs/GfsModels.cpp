@@ -4,9 +4,11 @@
 // *****************************************************************************
 
 #include "gfs/GfsModels.h"
+#include "gfs/Servers.h"
 #include "gfs/UserCharts.h"
 #include <QDate>
 #include <algorithm>
+#include <map>
 #include <cstdio>
 #include "gfs/GfsModelFile.h"
 #include "gfs/GfsData.h"
@@ -15,9 +17,33 @@ namespace {
     std::string userFolder;
 
     // a built-in model written as a definition file; a mistake in one is a mistake in the program, which the registry test shows
+    // The override files of the person's folder by the id they change (`override = GFS`), read when asked: the file name and its text
+    std::map<std::string, std::pair<std::string, std::string>> overrideFiles() {
+        std::map<std::string, std::pair<std::string, std::string>> out;
+        for (const auto& parsed : GfsModelFile::loadFolder(GfsModels::userFolderPath())) {
+            if (!parsed.overrideId.empty() && out.find(parsed.overrideId) == out.end()) {
+                out[parsed.overrideId] = {parsed.origin, parsed.text};
+            }
+        }
+        return out;
+    }
+
     GfsModels::Def fromFile(const std::string& id) {
         for (const auto& [name, text] : GfsModelFile::builtIn()) {
             if (name == id) {
+                // the person's override of this model (section 20, A): the built-in text with their lines applied, parsed as one definition; a file that is not allowed or does not parse leaves the model as it is
+                // (GfsModels::userProblems says why)
+                static const auto overrides = overrideFiles();
+                if (const auto o = overrides.find(id); o != overrides.end()) {
+                    std::string merged, why;
+                    if (GfsModelFile::mergeOverride(GfsModelFile::builtInText(id), o->second.second, merged, why)) {
+                        auto changed = GfsModelFile::parse(merged, o->second.first);
+                        if (changed.ok) {
+                            changed.def.overriddenBy = o->second.first;
+                            return changed.def;
+                        }
+                    }
+                }
                 auto parsed = GfsModelFile::parse(text, "built in");
                 if (!parsed.ok) {
                     std::fprintf(stderr, "model definition %s: %s\n", id.c_str(), parsed.error.c_str());
@@ -69,7 +95,7 @@ namespace {
             s.fileUrl = [] (const GfsData::Run& run, int, const std::string& stem) {
                 if (run.date >= "20230422") {
                     const std::string name = stem == "tmp2m" || stem == "wnd10m" ? "sfluxgrbf00" : "pgrblanl";
-                    return "https://noaa-cfs-pds.s3.amazonaws.com/cdas." + run.date + "/cdas1.t" + run.cycle + "z." + name + ".grib2";
+                    return Servers::first("cfs-aws", "https://noaa-cfs-pds.s3.amazonaws.com") + "/cdas." + run.date + "/cdas1.t" + run.cycle + "z." + name + ".grib2";
                 }
                 const auto month = run.date.substr(0, 6);
                 const std::string ncei = "https://www.ncei.noaa.gov/thredds/fileServer/";
@@ -294,7 +320,16 @@ std::vector<std::string> GfsModels::userProblems() {
         out.push_back(problem);
     }
     for (const auto& parsed : GfsModelFile::loadFolder(userFolder)) {
-        if (!parsed.ok) {
+        if (!parsed.overrideId.empty()) {   // an override: allowed, and the model that comes of it parses
+            std::string merged, why;
+            if (GfsModelFile::builtInText(parsed.overrideId).empty()) {
+                out.push_back(parsed.origin + ": `override = " + parsed.overrideId + "` is not a model that comes with the program");
+            } else if (!GfsModelFile::mergeOverride(GfsModelFile::builtInText(parsed.overrideId), parsed.text, merged, why)) {
+                out.push_back(parsed.origin + ": " + why);
+            } else if (const auto changed = GfsModelFile::parse(merged, parsed.origin); !changed.ok) {
+                out.push_back(parsed.origin + ": " + changed.error + " (in the built-in text with your lines applied)");
+            }
+        } else if (!parsed.ok) {
             out.push_back(parsed.origin + ": " + parsed.error);
         }
     }

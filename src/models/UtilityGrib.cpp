@@ -4,6 +4,7 @@
 // *****************************************************************************
 
 #include "objects/RenderLock.h"
+#include "gfs/Servers.h"
 #include "models/UtilityGrib.h"
 #include "util/Utility.h"
 #include "ui/WindBarb.h"
@@ -54,7 +55,9 @@
 namespace {
     // RRFS/REFS went operational on NOMADS on 2026-11-03: the "para" (parallel) stream is gone, "prod" is the stream
     const string rrfsStream{"prod"};
-    const string baseDir{"https://nomads.ncep.noaa.gov/pub/data/nccf/com/rrfs/" + rrfsStream};
+    string baseDir() {
+        return Servers::first("nomads", "https://nomads.ncep.noaa.gov/pub/data/nccf/com") + "/rrfs/" + rrfsStream;
+    }
 
     const string dewColorMap{
         "-30 120 90 60\n" "-10 150 130 90\n" "0 205 195 135\n" "5 175 205 135\n"
@@ -410,7 +413,7 @@ vector<std::pair<string, string>> UtilityGrib::runOptions() {
         const auto date = runTime.toString("yyyyMMdd").toStdString();
         const auto hour = runTime.toString("HH").toStdString();
         const auto probe = UtilityIO::getHtml(
-            baseDir + "/rrfs." + date + "/" + hour + "/rrfs.t" + hour + "z.2dfld.3km.subh.f001.conus.grib2.idx");
+            baseDir() + "/rrfs." + date + "/" + hour + "/rrfs.t" + hour + "z.2dfld.3km.subh.f001.conus.grib2.idx");
         if (WString::contains(probe, ":REFC:")) {
             options.emplace_back(runTime.toString("yyyy-MM-dd ").toStdString() + hour + "z", date + hour);
             found += 1;
@@ -825,7 +828,7 @@ bool UtilityGrib::resolveLatestRun(string& dateStr, string& cycle) {
         const auto date = runTime.toString("yyyyMMdd").toStdString();
         const auto hour = runTime.toString("HH").toStdString();
         const auto probe = UtilityIO::getHtml(
-            baseDir + "/rrfs." + date + "/" + hour + "/rrfs.t" + hour + "z.2dfld.3km.subh.f001.conus.grib2.idx");
+            baseDir() + "/rrfs." + date + "/" + hour + "/rrfs.t" + hour + "z.2dfld.3km.subh.f001.conus.grib2.idx");
         if (WString::contains(probe, ":REFC:")) {
             if (resolvedDate != date || resolvedCycle != hour) {
                 purgeCacheForOldRun(date + hour);
@@ -1436,10 +1439,10 @@ string UtilityGrib::render(int fieldIndex, int regionIndex, const string& foreca
     // The plain hourly file only exists at 00/06/12/18z (the para/prod stream is 3-hourly there
     // either way); for the in-between hourly runs fall back to the sub-hourly file, taking the
     // on-the-hour step.
-    const auto plainUrl = baseDir + "/rrfs." + dateStr + "/" + cycle +
+    const auto plainUrl = baseDir() + "/rrfs." + dateStr + "/" + cycle +
         "/rrfs.t" + cycle + "z." + field.product + ".3km.f" + fhr3 + ".conus.grib2";
     const auto subhUrl = (field.product == "2dfld")
-        ? baseDir + "/rrfs." + dateStr + "/" + cycle + "/rrfs.t" + cycle + "z.2dfld.3km.subh.f" + fhr3 + ".conus.grib2"
+        ? baseDir() + "/rrfs." + dateStr + "/" + cycle + "/rrfs.t" + cycle + "z.2dfld.3km.subh.f" + fhr3 + ".conus.grib2"
         : string{};
     string plainIdx;
     string subhIdx;
@@ -2186,10 +2189,10 @@ bool UtilityGrib::fetchFieldSlice(const Field& field, const string& dateStr, con
         return true;
     }
 
-    const auto plainUrl = baseDir + "/rrfs." + dateStr + "/" + cycle +
+    const auto plainUrl = baseDir() + "/rrfs." + dateStr + "/" + cycle +
         "/rrfs.t" + cycle + "z." + field.product + ".3km.f" + fhr3 + ".conus.grib2";
     const auto subhUrl = (field.product == "2dfld")
-        ? baseDir + "/rrfs." + dateStr + "/" + cycle + "/rrfs.t" + cycle + "z.2dfld.3km.subh.f" + fhr3 + ".conus.grib2"
+        ? baseDir() + "/rrfs." + dateStr + "/" + cycle + "/rrfs.t" + cycle + "z.2dfld.3km.subh.f" + fhr3 + ".conus.grib2"
         : string{};
 
     auto grab = [&] (const string& url, int stepHour) -> bool {
@@ -2251,10 +2254,10 @@ void UtilityGrib::fetchFieldSlices(const vector<Field>& fields, const string& da
     for (const auto& entry : byProduct) {
         const auto& product = entry.first;
         auto remaining = entry.second;   // trimmed as fields resolve below
-        const auto plainUrl = baseDir + "/rrfs." + dateStr + "/" + cycle +
+        const auto plainUrl = baseDir() + "/rrfs." + dateStr + "/" + cycle +
             "/rrfs.t" + cycle + "z." + product + ".3km.f" + fhr3 + ".conus.grib2";
         const auto subhUrl = (product == "2dfld")
-            ? baseDir + "/rrfs." + dateStr + "/" + cycle + "/rrfs.t" + cycle + "z.2dfld.3km.subh.f" + fhr3 + ".conus.grib2"
+            ? baseDir() + "/rrfs." + dateStr + "/" + cycle + "/rrfs.t" + cycle + "z.2dfld.3km.subh.f" + fhr3 + ".conus.grib2"
             : string{};
 
         auto resolveAgainst = [&] (const string& url, int stepHour, vector<const Field*>& stillWanted) {

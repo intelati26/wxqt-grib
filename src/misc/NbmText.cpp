@@ -4,6 +4,7 @@
 // *****************************************************************************
 
 #include "misc/NbmText.h"
+#include "gfs/Servers.h"
 #include <algorithm>
 #include <cmath>
 #include <future>
@@ -18,7 +19,9 @@
 
 namespace {
     constexpr long long window = 4096;
-    const char * const bucket = "https://noaa-nbm-grib2-pds.s3.amazonaws.com";
+    std::string bucket() {   // (the server table's `nbm-aws`: a moved bucket is a change of servers.json)
+        return Servers::first("nbm-aws", "https://noaa-nbm-grib2-pds.s3.amazonaws.com");
+    }
 
     std::string trim(const std::string& s) {
         const auto a = s.find_first_not_of(" \t\r");
@@ -261,10 +264,10 @@ namespace NbmText {
             const auto t = QDateTime::fromSecsSinceEpoch(now - back * 3600LL, QTimeZone::utc());
             const auto day = t.toString("yyyyMMdd").toStdString(), hour = t.toString("HH").toStdString();
             const auto prefix = "blend." + day + "/" + hour + "/text/blend_" + kind + ".t" + hour + "z";
-            const auto listing = URL::getText(std::string{bucket} + "/?list-type=2&max-keys=1&prefix=" + prefix);
+            const auto listing = URL::getText(bucket() + "/?list-type=2&max-keys=1&prefix=" + prefix);
             std::smatch m;
             if (std::regex_search(listing, m, entry) && m[1].str() == prefix) {
-                out.url = std::string{bucket} + "/" + prefix;
+                out.url = bucket() + "/" + prefix;
                 out.kind = kind.substr(0, 3);
                 std::transform(out.kind.begin(), out.kind.end(), out.kind.begin(), [] (unsigned char c) { return std::toupper(c); });
                 out.size = std::stoll(m[2]);

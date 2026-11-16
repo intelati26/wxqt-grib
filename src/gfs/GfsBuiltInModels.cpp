@@ -95,7 +95,7 @@ overlays = true
 id = NBM
 label = NOAA/NWS National Blend of Models v4, 2.5 km
 kind = grib
-url = https://noaa-nbm-grib2-pds.s3.amazonaws.com/blend.{date}/{cycle}/core/blend.t{cycle}z.core.f{hour3}.co.grib2
+url = {@nbm-aws}/blend.{date}/{cycle}/core/blend.t{cycle}z.core.f{hour3}.co.grib2
 cycle_hours = 1
 lag_hours = 1
 probe_hour = 1
@@ -114,9 +114,9 @@ alternate = IFS-ENS | ECMWF's ensemble, from ECMWF's server (a different model, 
 label = NOAA/NCEP GEFS 30 member ensemble, 0.5 degree
 source_label = NOAA/NCEP GEFS mean and spread, 0.5 degree
 kind = grib
-url = when file~"-s$" => https://noaa-gefs-pds.s3.amazonaws.com/gefs.{date}/{cycle}/atmos/pgrb2sp25/ge{file3}.t{cycle}z.pgrb2s.0p25.f{hour3}
-url = when file~"-b$" => https://noaa-gefs-pds.s3.amazonaws.com/gefs.{date}/{cycle}/atmos/pgrb2bp5/ge{file3}.t{cycle}z.pgrb2b.0p50.f{hour3}
-url = https://noaa-gefs-pds.s3.amazonaws.com/gefs.{date}/{cycle}/atmos/pgrb2ap5/ge{file3}.t{cycle}z.pgrb2a.0p50.f{hour3}
+url = when file~"-s$" => {@gefs-aws}/gefs.{date}/{cycle}/atmos/pgrb2sp25/ge{file3}.t{cycle}z.pgrb2s.0p25.f{hour3}
+url = when file~"-b$" => {@gefs-aws}/gefs.{date}/{cycle}/atmos/pgrb2bp5/ge{file3}.t{cycle}z.pgrb2b.0p50.f{hour3}
+url = {@gefs-aws}/gefs.{date}/{cycle}/atmos/pgrb2ap5/ge{file3}.t{cycle}z.pgrb2a.0p50.f{hour3}
 file_default = avg-a
 file = when variable=GUST,DPT,VIS,HLCY,MSLET stat~"^[cp][0-9][0-9]$" => {stat}-s
 file = when variable=GUST,DPT,VIS,HLCY,MSLET stat=spr => spr-s
@@ -183,10 +183,10 @@ label = NOAA/NCEP HAFS-A, 2 km storm-following grid
 source_label = NOAA/NCEP HAFS-A storm-following grid, 2 km
 kind = grib
 storm = true
-url = when file=swath => https://nomads.ncep.noaa.gov/pub/data/nccf/com/hafs/prod/hfsa.{date}/{cycle}/{storm}.{date}{cycle}.hfsa.parent.swath.grb2
-url = when file=trak => https://nomads.ncep.noaa.gov/pub/data/nccf/com/hafs/prod/hfsa.{date}/{cycle}/{storm}.{date}{cycle}.hfsa.trak.atcfunix
-url = when file=ww3 => https://nomads.ncep.noaa.gov/pub/data/nccf/com/hafs/prod/hfsa.{date}/{cycle}/{storm}.{date}{cycle}.hfsa.ww3.grb2
-url = https://nomads.ncep.noaa.gov/pub/data/nccf/com/hafs/prod/hfsa.{date}/{cycle}/{storm}.{date}{cycle}.hfsa.{file}.f{hour3}.grb2
+url = when file=swath => {@nomads}/hafs/prod/hfsa.{date}/{cycle}/{storm}.{date}{cycle}.hfsa.parent.swath.grb2
+url = when file=trak => {@nomads}/hafs/prod/hfsa.{date}/{cycle}/{storm}.{date}{cycle}.hfsa.trak.atcfunix
+url = when file=ww3 => {@nomads}/hafs/prod/hfsa.{date}/{cycle}/{storm}.{date}{cycle}.hfsa.ww3.grb2
+url = {@nomads}/hafs/prod/hfsa.{date}/{cycle}/{storm}.{date}{cycle}.hfsa.{file}.f{hour3}.grb2
 file_default = storm.atm
 file = when stat=swath => swath
 file = when stat=ww3 => ww3
@@ -213,10 +213,10 @@ label = NOAA/NCEP HAFS-B, 2 km storm-following grid
 source_label = NOAA/NCEP HAFS-B storm-following grid, 2 km
 kind = grib
 storm = true
-url = when file=swath => https://nomads.ncep.noaa.gov/pub/data/nccf/com/hafs/prod/hfsb.{date}/{cycle}/{storm}.{date}{cycle}.hfsb.parent.swath.grb2
-url = when file=trak => https://nomads.ncep.noaa.gov/pub/data/nccf/com/hafs/prod/hfsb.{date}/{cycle}/{storm}.{date}{cycle}.hfsb.trak.atcfunix
-url = when file=ww3 => https://nomads.ncep.noaa.gov/pub/data/nccf/com/hafs/prod/hfsb.{date}/{cycle}/{storm}.{date}{cycle}.hfsb.ww3.grb2
-url = https://nomads.ncep.noaa.gov/pub/data/nccf/com/hafs/prod/hfsb.{date}/{cycle}/{storm}.{date}{cycle}.hfsb.{file}.f{hour3}.grb2
+url = when file=swath => {@nomads}/hafs/prod/hfsb.{date}/{cycle}/{storm}.{date}{cycle}.hfsb.parent.swath.grb2
+url = when file=trak => {@nomads}/hafs/prod/hfsb.{date}/{cycle}/{storm}.{date}{cycle}.hfsb.trak.atcfunix
+url = when file=ww3 => {@nomads}/hafs/prod/hfsb.{date}/{cycle}/{storm}.{date}{cycle}.hfsb.ww3.grb2
+url = {@nomads}/hafs/prod/hfsb.{date}/{cycle}/{storm}.{date}{cycle}.hfsb.{file}.f{hour3}.grb2
 file_default = storm.atm
 file = when stat=swath => swath
 file = when stat=ww3 => ww3
@@ -242,7 +242,7 @@ id = CFS30
 label = NOAA/NCEP CFSv2 the next days against its normal (a week to 90 days; the mean of the four newest runs)
 source_label = NOAA/NCEP CFSv2, the next 30 days against the CFS normal
 kind = custom
-url = https://noaa-cfs-pds.s3.amazonaws.com/cfs.{date}/{cycle}/time_grib_01/{file}.01.{date}{cycle}.daily.grb2
+url = {@cfs-aws}/cfs.{date}/{cycle}/time_grib_01/{file}.01.{date}{cycle}.daily.grb2
 file_default = tmp2m
 probe_file = tmp2m
 probe_hour = 6
@@ -265,7 +265,7 @@ label = NSSL experimental MPAS-HTPO, 3 km (research output, not for forecasting)
 source_label = NOAA/NSSL experimental MPAS-HTPO (started from the HRRR), research output: not for forecasting
 group = Convection allowing
 kind = tar
-url = https://data.nssl.noaa.gov/thredds/fileServer/FRDD/NSSL-MPAS/{year}/{yy}{month}{day}{cycle}_mpasht2.tar
+url = {@nssl-thredds}/NSSL-MPAS/{year}/{yy}{month}{day}{cycle}_mpasht2.tar
 tar_member = mpasht2_nssl_{date}{cycle}f{hour2}.grib2.gz
 probe_hour = 0
 cycle_hours = 6
@@ -291,7 +291,7 @@ label = NSSL experimental MPAS-RN, 3 km, started from the RRFS (research output,
 source_label = NOAA/NSSL experimental MPAS-RN (started from the EMC RRFS), research output: not for forecasting
 group = Convection allowing
 kind = tar
-url = https://data.nssl.noaa.gov/thredds/fileServer/FRDD/NSSL-MPAS/{year}/{yy}{month}{day}{cycle}_mpasrn.tar
+url = {@nssl-thredds}/NSSL-MPAS/{year}/{yy}{month}{day}{cycle}_mpasrn.tar
 tar_member = mpasrn_nssl_{date}{cycle}f{hour2}.grib2.gz
 probe_hour = 0
 cycle_hours = 12
@@ -318,7 +318,7 @@ label = NOAA/WPC probabilistic precipitation portal (24 to 72 hour rain, snow an
 source_label = NOAA/NCEP WPC probabilistic precipitation portal
 group = Probabilistic precipitation
 kind = custom
-url = https://ftp-wpc.ncep.noaa.gov/prob_precip_portal/co/gis/ppp_gis_co_24hr_{date}{cycle}/ppp_co_24hr_expected_qpf_in_{date}{cycle}f{hour3}.zip
+url = {@wpc-ppp}/co/gis/ppp_gis_co_24hr_{date}{cycle}/ppp_co_24hr_expected_qpf_in_{date}{cycle}f{hour3}.zip
 probe_hour = 24
 cycle_hours = 1
 lag_hours = 1
@@ -337,7 +337,7 @@ id = EC46
 label = ECMWF EC46 extended range (weekly ensemble mean; data by Open-Meteo.com)
 source_label = ECMWF EC46 weekly ensemble mean, data by Open-Meteo.com
 kind = custom
-url = https://seasonal-api.open-meteo.com/v1/seasonal?latitude=40&longitude=-100&weekly=temperature_2m_mean&timezone=UTC
+url = {@openmeteo-seasonal}/v1/seasonal?latitude=40&longitude=-100&weekly=temperature_2m_mean&timezone=UTC
 # the run is found by reading this url (a reply that begins with "{"): its "index" is the url itself
 index_format = ecmwf
 index_suffix = &timezone=UTC
@@ -360,7 +360,7 @@ id = SEAS5
 label = ECMWF SEAS5 seasonal forecast (monthly ensemble mean; data by Open-Meteo.com)
 source_label = ECMWF SEAS5 monthly ensemble mean, data by Open-Meteo.com
 kind = custom
-url = https://seasonal-api.open-meteo.com/v1/seasonal?latitude=40&longitude=-100&weekly=temperature_2m_mean&timezone=UTC
+url = {@openmeteo-seasonal}/v1/seasonal?latitude=40&longitude=-100&weekly=temperature_2m_mean&timezone=UTC
 # the run is found by reading this url (a reply that begins with "{"): its "index" is the url itself
 index_format = ecmwf
 index_suffix = &timezone=UTC
@@ -382,7 +382,7 @@ id = SPCREFS
 alternate = REFS | the same ensemble from NOAA's AWS bucket (members and products)
 label = SPC REFS ensemble products (open Zarr data)
 kind = custom
-url = https://www.spc.noaa.gov/exper/refs/data/{year}/{month}/{day}/refs-spc_{date}_{cycle}00.zarr{/file}
+url = {@spc-refs}/{year}/{month}/{day}/refs-spc_{date}_{cycle}00.zarr{/file}
 probe_file = .zgroup
 probe_hour = 0
 cycle_hours = 6
@@ -402,7 +402,7 @@ alternate = AIFS | ECMWF's AI global model, from ECMWF's server (a different mod
 label = NOAA/NCEP AIGFS 0.25 degree (an AI model; experimental)
 source_label = NOAA/NCEP AIGFS 0.25 degree (an AI model)
 kind = grib
-url = https://noaa-nws-graphcastgfs-pds.s3.amazonaws.com/aigfs.{date}/{cycle}/model/atmos/grib2/aigfs.t{cycle}z.{file}.f{hour3}.grib2
+url = {@aigfs-aws}/aigfs.{date}/{cycle}/model/atmos/grib2/aigfs.t{cycle}z.{file}.f{hour3}.grib2
 file_default = pres
 file = when level~" mb$" => pres
 file = sfc
@@ -528,7 +528,7 @@ id = HRDPS
 alternate = RRFS-NA | NOAA's 3 km North America model, from NOAA's AWS bucket (a different model)
 label = ECCC HRDPS 2.5 km (Canada)
 kind = whole
-url = https://dd.weather.gc.ca/{date}/WXO-DD/model_hrdps/continental/2.5km/{cycle}/{hour3}/{date}T{cycle}Z_MSC_HRDPS_{file}_RLatLon0.0225_PT{hour3}H.grib2
+url = {@msc-datamart}/{date}/WXO-DD/model_hrdps/continental/2.5km/{cycle}/{hour3}/{date}T{cycle}Z_MSC_HRDPS_{file}_RLatLon0.0225_PT{hour3}H.grib2
 file = when level~"^[0-9]+ mb$" => {variable}_ISBL_{mb4}
 file = when variable=GUST => GUST_AGL-10m
 file = when level="2 m above ground" => {variable}_AGL-2m
@@ -560,7 +560,7 @@ clone_pieces = false
 id = ICON-D2
 label = DWD ICON-D2 2.2 km (Germany and central Europe)
 kind = whole
-url = https://opendata.dwd.de/weather/nwp/icon-d2/grib/{cycle}/{file}/icon-d2_germany_regular-lat-lon_single-level_{date}{cycle}_{hour3}_2d_{file}.grib2.bz2
+url = {@dwd-opendata}/icon-d2/grib/{cycle}/{file}/icon-d2_germany_regular-lat-lon_single-level_{date}{cycle}_{hour3}_2d_{file}.grib2.bz2
 file = when variable=TMP level="2 m above ground" => t_2m
 file = when variable=DPT level="2 m above ground" => td_2m
 file = when variable=RH level="2 m above ground" => relhum_2m
@@ -599,7 +599,7 @@ label = DWD ICON global 13 km (via Open-Meteo)
 source_label = DWD ICON global 13 km, data by Open-Meteo.com
 kind = om
 om_grid = regular
-url = https://openmeteo.s3.amazonaws.com/data_spatial/dwd_icon/{year}/{month}/{day}/{cycle}00Z/{valid_iso}.om
+url = {@openmeteo-s3}/dwd_icon/{year}/{month}/{day}/{cycle}00Z/{valid_iso}.om
 nc_variable = when variable=HGT level~"^[0-9]+ mb$" => geopotential_height_{mb}hPa
 nc_variable = when variable=TMP level~"^[0-9]+ mb$" => temperature_{mb}hPa
 nc_variable = when variable=RH level~"^[0-9]+ mb$" => relative_humidity_{mb}hPa
@@ -640,7 +640,7 @@ label = UK Met Office global 10 km (via Open-Meteo)
 source_label = UK Met Office global 10 km, data by Open-Meteo.com
 kind = om
 om_grid = regular
-url = https://openmeteo.s3.amazonaws.com/data_spatial/ukmo_global_deterministic_10km/{year}/{month}/{day}/{cycle}00Z/{valid_iso}.om
+url = {@openmeteo-s3}/ukmo_global_deterministic_10km/{year}/{month}/{day}/{cycle}00Z/{valid_iso}.om
 nc_variable = when variable=HGT level~"^[0-9]+ mb$" => geopotential_height_{mb}hPa
 nc_variable = when variable=TMP level~"^[0-9]+ mb$" => temperature_{mb}hPa
 nc_variable = when variable=RH level~"^[0-9]+ mb$" => relative_humidity_{mb}hPa
@@ -681,7 +681,7 @@ label = JMA GSM global 0.5 degree (via Open-Meteo)
 source_label = JMA GSM global 0.5 degree, data by Open-Meteo.com
 kind = om
 om_grid = regular
-url = https://openmeteo.s3.amazonaws.com/data_spatial/jma_gsm/{year}/{month}/{day}/{cycle}00Z/{valid_iso}.om
+url = {@openmeteo-s3}/jma_gsm/{year}/{month}/{day}/{cycle}00Z/{valid_iso}.om
 nc_variable = when variable=HGT level~"^[0-9]+ mb$" => geopotential_height_{mb}hPa
 nc_variable = when variable=TMP level~"^[0-9]+ mb$" => temperature_{mb}hPa
 nc_variable = when variable=RH level~"^[0-9]+ mb$" => relative_humidity_{mb}hPa
@@ -720,7 +720,7 @@ label = Meteo-France ARPEGE global 0.25 degree (via Open-Meteo)
 source_label = Meteo-France ARPEGE global 0.25 degree, data by Open-Meteo.com
 kind = om
 om_grid = regular
-url = https://openmeteo.s3.amazonaws.com/data_spatial/meteofrance_arpege_world025/{year}/{month}/{day}/{cycle}00Z/{valid_iso}.om
+url = {@openmeteo-s3}/meteofrance_arpege_world025/{year}/{month}/{day}/{cycle}00Z/{valid_iso}.om
 nc_variable = when variable=HGT level~"^[0-9]+ mb$" => geopotential_height_{mb}hPa
 nc_variable = when variable=TMP level~"^[0-9]+ mb$" => temperature_{mb}hPa
 nc_variable = when variable=RH level~"^[0-9]+ mb$" => relative_humidity_{mb}hPa
@@ -759,7 +759,7 @@ label = CMA GRAPES global 0.125 degree (via Open-Meteo)
 source_label = CMA GRAPES global 0.125 degree, data by Open-Meteo.com
 kind = om
 om_grid = regular
-url = https://openmeteo.s3.amazonaws.com/data_spatial/cma_grapes_global/{year}/{month}/{day}/{cycle}00Z/{valid_iso}.om
+url = {@openmeteo-s3}/cma_grapes_global/{year}/{month}/{day}/{cycle}00Z/{valid_iso}.om
 nc_variable = when variable=HGT level~"^[0-9]+ mb$" => geopotential_height_{mb}hPa
 nc_variable = when variable=TMP level~"^[0-9]+ mb$" => temperature_{mb}hPa
 nc_variable = when variable=RH level~"^[0-9]+ mb$" => relative_humidity_{mb}hPa
@@ -799,7 +799,7 @@ label = NOAA/NCEP Hybrid GEFS ensemble mean, 0.25 degree (via Open-Meteo)
 source_label = NOAA/NCEP Hybrid GEFS ensemble mean, data by Open-Meteo.com
 kind = om
 om_grid = regular
-url = https://openmeteo.s3.amazonaws.com/data_spatial/ncep_hgefs025_ensemble_mean/{year}/{month}/{day}/{cycle}00Z/{valid_iso}.om
+url = {@openmeteo-s3}/ncep_hgefs025_ensemble_mean/{year}/{month}/{day}/{cycle}00Z/{valid_iso}.om
 nc_variable = when variable=HGT level~"^[0-9]+ mb$" => geopotential_height_{mb}hPa
 nc_variable = when variable=TMP level~"^[0-9]+ mb$" => temperature_{mb}hPa
 nc_variable = when variable=RH level~"^[0-9]+ mb$" => relative_humidity_{mb}hPa
@@ -836,7 +836,7 @@ label = Meteo-France AROME France 2.5 km (via Open-Meteo)
 source_label = Meteo-France AROME France 2.5 km, data by Open-Meteo.com
 kind = om
 om_grid = regular
-url = https://openmeteo.s3.amazonaws.com/data_spatial/meteofrance_arome_france0025/{year}/{month}/{day}/{cycle}00Z/{valid_iso}.om
+url = {@openmeteo-s3}/meteofrance_arome_france0025/{year}/{month}/{day}/{cycle}00Z/{valid_iso}.om
 nc_variable = when variable=HGT level~"^[0-9]+ mb$" => geopotential_height_{mb}hPa
 nc_variable = when variable=TMP level~"^[0-9]+ mb$" => temperature_{mb}hPa
 nc_variable = when variable=RH level~"^[0-9]+ mb$" => relative_humidity_{mb}hPa
@@ -876,7 +876,7 @@ label = Meteo-France AROME France HD 1.3 km (via Open-Meteo)
 source_label = Meteo-France AROME France HD 1.3 km, data by Open-Meteo.com
 kind = om
 om_grid = regular
-url = https://openmeteo.s3.amazonaws.com/data_spatial/meteofrance_arome_france_hd/{year}/{month}/{day}/{cycle}00Z/{valid_iso}.om
+url = {@openmeteo-s3}/meteofrance_arome_france_hd/{year}/{month}/{day}/{cycle}00Z/{valid_iso}.om
 nc_variable = when variable=TMP level="2 m above ground" => temperature_2m
 nc_variable = when variable=RH level="2 m above ground" => relative_humidity_2m
 nc_variable = when variable=UGRD level="10 m above ground" => wind_u_component_10m
@@ -907,7 +907,7 @@ label = Meteo-France ARPEGE Europe 0.1 degree (via Open-Meteo)
 source_label = Meteo-France ARPEGE Europe, data by Open-Meteo.com
 kind = om
 om_grid = regular
-url = https://openmeteo.s3.amazonaws.com/data_spatial/meteofrance_arpege_europe/{year}/{month}/{day}/{cycle}00Z/{valid_iso}.om
+url = {@openmeteo-s3}/meteofrance_arpege_europe/{year}/{month}/{day}/{cycle}00Z/{valid_iso}.om
 nc_variable = when variable=TMP level="2 m above ground" => temperature_2m
 nc_variable = when variable=RH level="2 m above ground" => relative_humidity_2m
 nc_variable = when variable=UGRD level="10 m above ground" => wind_u_component_10m
@@ -942,8 +942,8 @@ label = CMC GDPS global 15 km (via Open-Meteo)
 source_label = CMC GDPS global 15 km, data by Open-Meteo.com
 kind = om
 om_grid = regular
-url = when file~"^upper$" => https://openmeteo.s3.amazonaws.com/data_spatial/cmc_gem_gdps_15km_upper_level/{year}/{month}/{day}/{cycle}00Z/{valid_iso}.om
-url = https://openmeteo.s3.amazonaws.com/data_spatial/cmc_gem_gdps_15km/{year}/{month}/{day}/{cycle}00Z/{valid_iso}.om
+url = when file~"^upper$" => {@openmeteo-s3}/cmc_gem_gdps_15km_upper_level/{year}/{month}/{day}/{cycle}00Z/{valid_iso}.om
+url = {@openmeteo-s3}/cmc_gem_gdps_15km/{year}/{month}/{day}/{cycle}00Z/{valid_iso}.om
 file = when level~"^[0-9]+ mb$" => upper
 nc_variable = when variable=HGT level~"^[0-9]+ mb$" => geopotential_height_{mb}hPa
 nc_variable = when variable=TMP level~"^[0-9]+ mb$" => temperature_{mb}hPa
@@ -984,7 +984,7 @@ label = Meteo-France MFWAM global waves 1/12 degree (via Open-Meteo)
 source_label = Meteo-France MFWAM waves, data by Open-Meteo.com
 kind = om
 om_grid = regular
-url = https://openmeteo.s3.amazonaws.com/data_spatial/meteofrance_wave/{year}/{month}/{day}/{cycle}00Z/{valid_iso}.om
+url = {@openmeteo-s3}/meteofrance_wave/{year}/{month}/{day}/{cycle}00Z/{valid_iso}.om
 nc_variable = when variable=HTSGW => wave_height
 nc_variable = when variable=PERPW => wave_period
 nc_variable = when variable=DIRPW => wave_direction
@@ -1019,7 +1019,7 @@ label = Meteo-France ocean currents and sea level 1/12 degree (via Open-Meteo)
 source_label = Meteo-France ocean currents, data by Open-Meteo.com
 kind = om
 om_grid = regular
-url = https://openmeteo.s3.amazonaws.com/data_spatial/meteofrance_currents/{year}/{month}/{day}/{cycle}00Z/{valid_iso}.om
+url = {@openmeteo-s3}/meteofrance_currents/{year}/{month}/{day}/{cycle}00Z/{valid_iso}.om
 nc_variable = when variable=UOGRD => ocean_u_current
 nc_variable = when variable=VOGRD => ocean_v_current
 nc_variable = when variable=SSHG => sea_level_height_msl
@@ -1046,7 +1046,7 @@ label = Meteo-France sea surface temperature 1/12 degree (via Open-Meteo)
 source_label = Meteo-France sea surface temperature, data by Open-Meteo.com
 kind = om
 om_grid = regular
-url = https://openmeteo.s3.amazonaws.com/data_spatial/meteofrance_sea_surface_temperature/{year}/{month}/{day}/{cycle}00Z/{valid_iso}.om
+url = {@openmeteo-s3}/meteofrance_sea_surface_temperature/{year}/{month}/{day}/{cycle}00Z/{valid_iso}.om
 nc_variable = when variable=WTMP level="surface" => sea_surface_temperature
 probe_hour = 0
 cycle_hours = 24
@@ -1071,7 +1071,7 @@ label = Copernicus atmosphere service (CAMS) global air quality and UV 0.4 degre
 source_label = Copernicus CAMS global atmospheric composition, data by Open-Meteo.com
 kind = om
 om_grid = regular
-url = https://openmeteo.s3.amazonaws.com/data_spatial/cams_global/{year}/{month}/{day}/{cycle}00Z/{valid_iso}.om
+url = {@openmeteo-s3}/cams_global/{year}/{month}/{day}/{cycle}00Z/{valid_iso}.om
 nc_variable = when variable=PM25 => pm2_5
 nc_variable = when variable=PM10 => pm10
 nc_variable = when variable=DUST => dust
@@ -1108,7 +1108,7 @@ label = JMA MSM 5 km Japan (via Open-Meteo)
 source_label = JMA MSM 5 km, data by Open-Meteo.com
 kind = om
 om_grid = regular
-url = https://openmeteo.s3.amazonaws.com/data_spatial/jma_msm/{year}/{month}/{day}/{cycle}00Z/{valid_iso}.om
+url = {@openmeteo-s3}/jma_msm/{year}/{month}/{day}/{cycle}00Z/{valid_iso}.om
 nc_variable = when variable=TMP level="2 m above ground" => temperature_2m
 nc_variable = when variable=RH level="2 m above ground" => relative_humidity_2m
 nc_variable = when variable=UGRD level="10 m above ground" => wind_u_component_10m
@@ -1142,7 +1142,7 @@ label = JMA MSM 5 km Japan, pressure levels (via Open-Meteo)
 source_label = JMA MSM 5 km upper air, data by Open-Meteo.com
 kind = om
 om_grid = regular
-url = https://openmeteo.s3.amazonaws.com/data_spatial/jma_msm_upper_level/{year}/{month}/{day}/{cycle}00Z/{valid_iso}.om
+url = {@openmeteo-s3}/jma_msm_upper_level/{year}/{month}/{day}/{cycle}00Z/{valid_iso}.om
 nc_variable = when variable=HGT level~"^[0-9]+ mb$" => geopotential_height_{mb}hPa
 nc_variable = when variable=TMP level~"^[0-9]+ mb$" => temperature_{mb}hPa
 nc_variable = when variable=RH level~"^[0-9]+ mb$" => relative_humidity_{mb}hPa
@@ -1174,7 +1174,7 @@ label = ARPAE ICON-2I 2.2 km Italy (via Open-Meteo)
 source_label = ARPAE ICON-2I 2.2 km (Italy), data by Open-Meteo.com
 kind = om
 om_grid = regular
-url = https://openmeteo.s3.amazonaws.com/data_spatial/italia_meteo_arpae_icon_2i/{year}/{month}/{day}/{cycle}00Z/{valid_iso}.om
+url = {@openmeteo-s3}/italia_meteo_arpae_icon_2i/{year}/{month}/{day}/{cycle}00Z/{valid_iso}.om
 nc_variable = when variable=HGT level~"^[0-9]+ mb$" => geopotential_height_{mb}hPa
 nc_variable = when variable=TMP level~"^[0-9]+ mb$" => temperature_{mb}hPa
 nc_variable = when variable=RH level~"^[0-9]+ mb$" => relative_humidity_{mb}hPa
@@ -1214,7 +1214,7 @@ label = GeoSphere AROME Austria 2.5 km (via Open-Meteo)
 source_label = GeoSphere AROME Austria 2.5 km, data by Open-Meteo.com
 kind = om
 om_grid = regular
-url = https://openmeteo.s3.amazonaws.com/data_spatial/geosphere_arome_austria/{year}/{month}/{day}/{cycle}00Z/{valid_iso}.om
+url = {@openmeteo-s3}/geosphere_arome_austria/{year}/{month}/{day}/{cycle}00Z/{valid_iso}.om
 nc_variable = when variable=TMP level="2 m above ground" => temperature_2m
 nc_variable = when variable=RH level="2 m above ground" => relative_humidity_2m
 nc_variable = when variable=UGRD level="10 m above ground" => wind_speed_10m/wind_direction_10m
@@ -1246,7 +1246,7 @@ id = GEPS
 alternate = GEFS | NOAA's ensemble, from NOAA's AWS bucket (a different model)
 label = ECCC GEPS 21 member ensemble, 0.5 degree
 kind = whole
-url = https://dd.weather.gc.ca/{date}/WXO-DD/ensemble/geps/grib2/raw/{cycle}/{hour3}/CMC_geps-raw_{file}_latlon0p5x0p5_{date}{cycle}_P{hour3}_allmbrs.grib2
+url = {@msc-datamart}/{date}/WXO-DD/ensemble/geps/grib2/raw/{cycle}/{hour3}/CMC_geps-raw_{file}_latlon0p5x0p5_{date}{cycle}_P{hour3}_allmbrs.grib2
 file = when level~"^[0-9]+ mb$" => {variable}_ISBL_{mb4}
 file = when variable=SPFH level="2 m above ground" => {variable}_TGL_2
 file = when level="2 m above ground" => {variable}_TGL_2m
@@ -1466,7 +1466,7 @@ clone_rename = PRMSL:MSLET
 id = CFS-ANL
 label = NOAA/NCEP CFS analysis (CDAS), 1 degree
 kind = grib
-url = https://noaa-cfs-pds.s3.amazonaws.com/cdas.{date}/cdas1.t{cycle}z.{file}.grib2
+url = {@cfs-aws}/cdas.{date}/cdas1.t{cycle}z.{file}.grib2
 file_default = pgrblanl
 file = when level="2 m above ground" => sfluxgrbf00
 file = when level="10 m above ground" => sfluxgrbf00
@@ -1497,7 +1497,7 @@ clone_specific_humidity = true
 id = CFS
 label = NOAA/NCEP CFSv2 seasonal forecast, member 1, 1 degree
 kind = grib
-url = https://noaa-cfs-pds.s3.amazonaws.com/cfs.{date}/{cycle}/time_grib_01/{file}.01.{date}{cycle}.daily.grb2
+url = {@cfs-aws}/cfs.{date}/{cycle}/time_grib_01/{file}.01.{date}{cycle}.daily.grb2
 forecast_text = {hour} hour fcst
 file_default = tmp2m
 file = when variable=TMP level="2 m above ground" => tmp2m
@@ -1540,7 +1540,7 @@ clone_specific_humidity = true
 id = HRRR-AK
 label = NOAA/NCEP HRRR Alaska 3 km
 kind = grib
-url = https://noaa-hrrr-bdp-pds.s3.amazonaws.com/hrrr.{date}/alaska/hrrr.t{cycle}z.wrf{file}f{hour2}.ak.grib2
+url = {@hrrr-aws}/hrrr.{date}/alaska/hrrr.t{cycle}z.wrf{file}f{hour2}.ak.grib2
 file_default = sfc
 file = when level~"^[0-9]+ mb$" => prs
 file = sfc
@@ -1570,8 +1570,8 @@ clone_rename = PRMSL:MSLMA
 id = ICON-EU
 label = DWD ICON-EU 6.5 km (Europe)
 kind = whole
-url = when file~"^[a-z]+/[0-9]+_" => https://opendata.dwd.de/weather/nwp/icon-eu/grib/{cycle}/{dir}/icon-eu_europe_regular-lat-lon_pressure-level_{date}{cycle}_{hour3}_{name}.grib2.bz2
-url = https://opendata.dwd.de/weather/nwp/icon-eu/grib/{cycle}/{dir}/icon-eu_europe_regular-lat-lon_single-level_{date}{cycle}_{hour3}_{name}.grib2.bz2
+url = when file~"^[a-z]+/[0-9]+_" => {@dwd-opendata}/icon-eu/grib/{cycle}/{dir}/icon-eu_europe_regular-lat-lon_pressure-level_{date}{cycle}_{hour3}_{name}.grib2.bz2
+url = {@dwd-opendata}/icon-eu/grib/{cycle}/{dir}/icon-eu_europe_regular-lat-lon_single-level_{date}{cycle}_{hour3}_{name}.grib2.bz2
 file = when variable=HGT level~"^[0-9]+ mb$" => fi/{mb}_FI
 file = when variable=TMP level~"^[0-9]+ mb$" => t/{mb}_T
 file = when variable=UGRD level~"^[0-9]+ mb$" => u/{mb}_U
@@ -1613,7 +1613,7 @@ id = HRRR
 alternate = SPCREFS | an ensemble that holds time-lagged HRRR members, from the Storm Prediction Center's server (ensemble products)
 label = NOAA/NCEP HRRR 3 km
 kind = grib
-url = https://noaa-hrrr-bdp-pds.s3.amazonaws.com/hrrr.{date}/conus/hrrr.t{cycle}z.wrf{file}f{hour2}.grib2
+url = {@hrrr-aws}/hrrr.{date}/conus/hrrr.t{cycle}z.wrf{file}f{hour2}.grib2
 file_default = sfc
 file = when level~"^[0-9]+ mb$" => prs
 file = sfc
@@ -1646,7 +1646,7 @@ check_run = 2020061512
 label = ECMWF ERA5 reanalysis (NCAR archive), 0.25 degree
 group = Archive
 kind = netcdf
-url = https://nsf-ncar-era5.s3.amazonaws.com/e5.oper.an.{file}.nc
+url = {@era5-ncar}/e5.oper.an.{file}.nc
 cycle_hours = 1
 lag_hours = 1
 probe_hour = 0
@@ -1670,7 +1670,7 @@ check_run = 2012061512
 label = NOAA/NCEP GFS analysis (NCEI archive), 0.5 degree
 group = Archive
 kind = grib
-url = https://www.ncei.noaa.gov/oa/prod-model/global-forecast-system/access/historical/analysis/{year}{month}/{date}/gfsanl_4_{date}_{cycle}00_000.grb2
+url = {@ncei-models}/global-forecast-system/access/historical/analysis/{year}{month}/{date}/gfsanl_4_{date}_{cycle}00_000.grb2
 index_replaces = .grb2
 index_suffix = .inv
 cycle_hours = 6
@@ -1695,7 +1695,7 @@ check_run = 2010061512
 label = NOAA/NCEP GFS analysis (NCEI archive), 1 degree
 group = Archive
 kind = grib
-url = https://www.ncei.noaa.gov/oa/prod-model/global-forecast-system/access/historical/analysis/{year}{month}/{date}/gfsanl_3_{date}_{cycle}00_{hour3}.grb
+url = {@ncei-models}/global-forecast-system/access/historical/analysis/{year}{month}/{date}/gfsanl_3_{date}_{cycle}00_{hour3}.grb
 index_replaces = .grb2|.grb
 index_suffix = .inv
 cycle_hours = 6
@@ -1783,7 +1783,7 @@ group = Convection allowing
 label = WOOF-NAM, the NAM's NMMB on a GPU (Recast, hosted), 12 km
 source_label = WOOF-NAM by Recast (hosted, CC BY 4.0)
 kind = grib
-url = https://woof-nam.recastsystems.com/woof-nam/12km/{date}/{cycle}z/woof-nam.t{cycle}z.awphys{hour2}.tm00.grib2
+url = {@woof-nam}/woof-nam/12km/{date}/{cycle}z/woof-nam.t{cycle}z.awphys{hour2}.tm00.grib2
 index_suffix = .idx
 cycle_hours = 6
 lag_hours = 4
@@ -1810,7 +1810,7 @@ group = Archive
 label = NOAA/NSSL MRMS observed composite reflectivity
 source_label = NOAA/NSSL MRMS observed composite reflectivity
 kind = custom
-url = https://noaa-mrms-pds.s3.amazonaws.com/CONUS/MergedReflectivityQCComposite_00.50/
+url = {@mrms-aws}/CONUS/MergedReflectivityQCComposite_00.50/
 probe_file = none
 cycle_hours = 1
 lag_hours = 1
@@ -1833,7 +1833,7 @@ id = RTMA
 label = NOAA/NCEP RTMA surface analysis, 2.5 km
 group = NWS analysis
 kind = grib
-url = https://noaa-rtma-pds.s3.amazonaws.com/rtma2p5.{date}/rtma2p5.t{cycle}z.2dvaranl_ndfd.grb2_wexp
+url = {@rtma-aws}/rtma2p5.{date}/rtma2p5.t{cycle}z.2dvaranl_ndfd.grb2_wexp
 index_suffix = .idx
 cycle_hours = 1
 lag_hours = 1
@@ -1853,7 +1853,7 @@ id = URMA
 label = NOAA/NCEP URMA surface analysis, 2.5 km
 group = NWS analysis
 kind = grib
-url = https://noaa-urma-pds.s3.amazonaws.com/urma2p5.{date}/urma2p5.t{cycle}z.2dvaranl_ndfd.grb2_wexp
+url = {@urma-aws}/urma2p5.{date}/urma2p5.t{cycle}z.2dvaranl_ndfd.grb2_wexp
 index_suffix = .idx
 cycle_hours = 1
 lag_hours = 6
@@ -1872,7 +1872,7 @@ id = RTMA-AK
 label = NOAA/NCEP RTMA Alaska surface analysis, 3 km
 group = NWS analysis
 kind = grib
-url = https://noaa-rtma-pds.s3.amazonaws.com/akrtma.{date}/akrtma.t{cycle}z.2dvaranl_ndfd_3p0.grb2
+url = {@rtma-aws}/akrtma.{date}/akrtma.t{cycle}z.2dvaranl_ndfd_3p0.grb2
 index_suffix = .idx
 cycle_hours = 1
 lag_hours = 1
@@ -1891,7 +1891,7 @@ id = URMA-AK
 label = NOAA/NCEP URMA Alaska surface analysis, 3 km
 group = NWS analysis
 kind = grib
-url = https://noaa-urma-pds.s3.amazonaws.com/akurma.{date}/akurma.t{cycle}z.2dvaranl_ndfd_3p0.grb2
+url = {@urma-aws}/akurma.{date}/akurma.t{cycle}z.2dvaranl_ndfd_3p0.grb2
 index_suffix = .idx
 cycle_hours = 1
 lag_hours = 6
@@ -1910,7 +1910,7 @@ id = RTMA-HI
 label = NOAA/NCEP RTMA Hawaii surface analysis, 2.5 km
 group = NWS analysis
 kind = grib
-url = https://noaa-rtma-pds.s3.amazonaws.com/hirtma.{date}/hirtma.t{cycle}z.2dvaranl_ndfd.grb2
+url = {@rtma-aws}/hirtma.{date}/hirtma.t{cycle}z.2dvaranl_ndfd.grb2
 index_suffix = .idx
 cycle_hours = 1
 lag_hours = 1
@@ -1929,7 +1929,7 @@ id = URMA-HI
 label = NOAA/NCEP URMA Hawaii surface analysis, 2.5 km
 group = NWS analysis
 kind = grib
-url = https://noaa-urma-pds.s3.amazonaws.com/hiurma.{date}/hiurma.t{cycle}z.2dvaranl_ndfd.grb2
+url = {@urma-aws}/hiurma.{date}/hiurma.t{cycle}z.2dvaranl_ndfd.grb2
 index_suffix = .idx
 cycle_hours = 1
 lag_hours = 6
@@ -1948,7 +1948,7 @@ id = RTMA-PR
 label = NOAA/NCEP RTMA Puerto Rico and the Virgin Islands surface analysis, 2.5 km
 group = NWS analysis
 kind = grib
-url = https://noaa-rtma-pds.s3.amazonaws.com/prrtma.{date}/prrtma.t{cycle}z.2dvaranl_ndfd.grb2
+url = {@rtma-aws}/prrtma.{date}/prrtma.t{cycle}z.2dvaranl_ndfd.grb2
 index_suffix = .idx
 cycle_hours = 1
 lag_hours = 1
@@ -1967,7 +1967,7 @@ id = URMA-PR
 label = NOAA/NCEP URMA Puerto Rico and the Virgin Islands surface analysis, 2.5 km
 group = NWS analysis
 kind = grib
-url = https://noaa-urma-pds.s3.amazonaws.com/prurma.{date}/prurma.t{cycle}z.2dvaranl_ndfd.grb2
+url = {@urma-aws}/prurma.{date}/prurma.t{cycle}z.2dvaranl_ndfd.grb2
 index_suffix = .idx
 cycle_hours = 1
 lag_hours = 6
@@ -1986,7 +1986,7 @@ id = RTMA-GU
 label = NOAA/NCEP RTMA Guam surface analysis, 2.5 km
 group = NWS analysis
 kind = grib
-url = https://noaa-rtma-pds.s3.amazonaws.com/gurtma.{date}/gurtma.t{cycle}z.2dvaranl_ndfd.grb2
+url = {@rtma-aws}/gurtma.{date}/gurtma.t{cycle}z.2dvaranl_ndfd.grb2
 index_suffix = .idx
 cycle_hours = 1
 lag_hours = 1
@@ -2007,7 +2007,7 @@ check_run = 2010061512
 label = NOAA/NCEP North American Regional Reanalysis (NCEI archive), 32 km
 group = Archive
 kind = grib
-url = https://www.ncei.noaa.gov/oa/prod-model/north-american-regional-reanalysis/access/3-hourly/{year}{month}/{date}/narr-a_221_{date}_{cycle}00_000.grb
+url = {@ncei-models}/north-american-regional-reanalysis/access/3-hourly/{year}{month}/{date}/narr-a_221_{date}_{cycle}00_000.grb
 index_replaces = .grb
 index_suffix = .inv
 cycle_hours = 3
@@ -2036,7 +2036,7 @@ check_run = 2015061512
 label = NOAA/NCEP NAM analysis (NCEI archive), 12 km
 group = Archive
 kind = grib
-url = https://www.ncei.noaa.gov/oa/prod-model/north-american-mesoscale-model/access/historical/analysis/{year}{month}/{date}/namanl_218_{date}_{cycle}00_{hour3}.grb
+url = {@ncei-models}/north-american-mesoscale-model/access/historical/analysis/{year}{month}/{date}/namanl_218_{date}_{cycle}00_{hour3}.grb
 index_replaces = .grb
 index_suffix = .inv
 cycle_hours = 6
@@ -2062,7 +2062,7 @@ check_run = 2015061512
 label = NOAA/NCEP RUC / RAP hourly analysis (NCEI archive), 13 km
 group = Archive
 kind = grib
-url = https://www.ncei.noaa.gov/oa/prod-model/rapid-refresh/access/historical/analysis/{year}{month}/{date}/rap_130_{date}_{cycle}00_000.grb2
+url = {@ncei-models}/rapid-refresh/access/historical/analysis/{year}{month}/{date}/rap_130_{date}_{cycle}00_000.grb2
 index_replaces = .grb2
 index_suffix = .inv
 cycle_hours = 1
@@ -2089,7 +2089,7 @@ alternate = REFS | its successor, the RRFS ensemble, from NOAA's AWS bucket
 label = NOAA/NCEP HREF, 10 member 3 km ensemble, retired Nov 2026
 group = Archive
 kind = grib
-url = https://nomads.ncep.noaa.gov/pub/data/nccf/com/href/prod/href.{date}/ensprod/href.t{cycle}z.conus.{file}.f{hour2}.grib2
+url = {@nomads}/href/prod/href.{date}/ensprod/href.t{cycle}z.conus.{file}.f{hour2}.grib2
 file_default = mean
 file = when stat= => mean
 file = {stat}
@@ -2111,7 +2111,7 @@ id = SPCPOST
 label = SPC post-processing of the REFS: calibrated thunder and severe guidance
 source_label = SPC post-processing of the REFS
 kind = whole
-url = https://nomads.ncep.noaa.gov/pub/data/nccf/com/spc_post/prod/spc_post.{date}/{dir}/spc_post.t{cycle}z.{name}.f{hour3}.grib2
+url = {@nomads}/spc_post/prod/spc_post.{date}/{dir}/spc_post.t{cycle}z.{name}.f{hour3}.grib2
 file = {level}
 member = b1-b9:1-9
 probe_file = refsct/refsct_1hr
@@ -2132,7 +2132,7 @@ id = SPCGEFS
 label = SPC post-processing of the GEFS: daily calibrated thunder, machine-learning severe
 source_label = SPC post-processing of the GEFS
 kind = whole
-url = https://nomads.ncep.noaa.gov/pub/data/nccf/com/spc_post/prod/spc_post.{date}/{dir}/spc_post.t{cycle}z.{name}.f{hour3}.grib2
+url = {@nomads}/spc_post/prod/spc_post.{date}/{dir}/spc_post.t{cycle}z.{name}.f{hour3}.grib2
 file = {level}
 member = b1-b9:1-9
 probe_file = gefsct/gefsct
@@ -2161,7 +2161,7 @@ list = true
 id = SFCOA
 label = SPC mesoanalysis (SFCOA-HRRR)
 include = spc_post
-url = https://nomads.ncep.noaa.gov/pub/data/nccf/com/spc_post/prod/spc_post.{date}/sfcoa-hrrr/spc_post.t{cycle}z.sfcoa_hrrr.final.nc
+url = {@nomads}/spc_post/prod/spc_post.{date}/sfcoa-hrrr/spc_post.t{cycle}z.sfcoa_hrrr.final.nc
 probe_hour = 0
 cycle_hours = 1
 lag_hours = 1
@@ -2175,7 +2175,7 @@ alternate = RRFS | the same RRFS, from NOAA's AWS bucket
 label = SPC severe weather fields from the RRFS (RRFSD)
 source_label = SPC severe weather fields from the RRFS
 include = spc_post
-url = https://nomads.ncep.noaa.gov/pub/data/nccf/com/spc_post/prod/spc_post.{date}/rrfsd/spc_post.t{cycle}z.rrfs_d.f{hour3}.nc
+url = {@nomads}/spc_post/prod/spc_post.{date}/rrfsd/spc_post.t{cycle}z.rrfs_d.f{hour3}.nc
 probe_hour = 1
 cycle_hours = 1
 lag_hours = 3
@@ -2205,7 +2205,7 @@ id = GEFS-WAVE
 alternate = MF-WAVE | Meteo-France's global wave model, via Open-Meteo (a different model)
 label = NOAA/NCEP GEFS-Wave, control member, 0.25 degree
 kind = grib
-url = https://noaa-gefs-pds.s3.amazonaws.com/gefs.{date}/{cycle}/wave/gridded/gefs.wave.t{cycle}z.c00.global.0p25.f{hour3}.grib2
+url = {@gefs-aws}/gefs.{date}/{cycle}/wave/gridded/gefs.wave.t{cycle}z.c00.global.0p25.f{hour3}.grib2
 cycle_hours = 6
 lag_hours = 7
 probe_hour = 384

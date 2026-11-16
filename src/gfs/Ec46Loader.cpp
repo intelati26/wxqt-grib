@@ -4,6 +4,7 @@
 // *****************************************************************************
 
 #include "gfs/Ec46Loader.h"
+#include "gfs/Servers.h"
 #include <cmath>
 #include <QDate>
 #include <QJsonArray>
@@ -35,10 +36,12 @@ namespace {
 
     // The weekly ensemble means from Open-Meteo's own files (open-meteo/om-file-format on their open bucket): one file of about 10 MB for each week, in which a field is read by byte ranges (a few hundred
     // kilobytes) and no call to the API is spent. The grid is ECMWF's O320 reduced Gaussian grid, interpolated onto the same half degree grid as the API's points are spread onto.
-    constexpr const char * bucket = "https://openmeteo.s3.amazonaws.com/data_spatial/ecmwf_ec46_weekly/";
+    std::string bucket() {
+        return Servers::first("openmeteo-s3", "https://openmeteo.s3.amazonaws.com/data_spatial") + "/ecmwf_ec46_weekly/";
+    }
 
     std::string runFolder(const QDate& day) {
-        return bucket + day.toString("yyyy/MM/dd").toStdString() + "/0000Z/";
+        return bucket() + day.toString("yyyy/MM/dd").toStdString() + "/0000Z/";
     }
 
     // the newest of the last few days' runs (one each day at 00Z) that has published its valid times, and those times

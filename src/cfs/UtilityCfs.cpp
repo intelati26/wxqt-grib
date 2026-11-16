@@ -4,6 +4,7 @@
 // *****************************************************************************
 
 #include "cfs/UtilityCfs.h"
+#include "gfs/Servers.h"
 #include "cfs/CfsArchiveIndex.h"
 #include <algorithm>
 #include <cmath>
@@ -19,7 +20,9 @@
 #include "objects/URL.h"
 
 namespace {
-    const std::string bucket = "https://noaa-cfs-pds.s3.amazonaws.com/";
+    std::string bucket() {
+        return Servers::first("cfs-aws", "https://noaa-cfs-pds.s3.amazonaws.com") + "/";
+    }
 
     std::string member2(int member) {
         return std::string{member < 10 ? "0" : ""} + std::to_string(member);
@@ -50,7 +53,7 @@ namespace {
         s.lagHours = 4;
         s.cyclesToTry = 6;
         s.fileUrl = [member, monthly] (const GfsData::Run& run, int, const std::string& file) {
-            const std::string base = bucket + "cfs." + run.date + "/" + run.cycle + "/";
+            const std::string base = bucket() + "cfs." + run.date + "/" + run.cycle + "/";
             const auto m = member2(member);
             if (monthly) {
                 const auto dot = file.find('.');

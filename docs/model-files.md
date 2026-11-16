@@ -77,6 +77,29 @@ Open-Meteo keeps the output of many weather services on an open bucket (`openmet
 - A model with surface fields only sets `clone_levels = 1 mb` (no level of the GFS charts matches) and lists the variables it has.
 - The EC46 weekly map reads these files (`Ec46Loader`), the API only when they have no such run, week or field; the plume at a point stays on the API.
 
+## Changing a built-in model (an override file)
+
+A `.model` file whose first line is `override = GFS` (the id of a model that comes with the program) does not make a model of its own: it **changes only the
+lines it lists** and leaves the rest of the built-in definition. Use it when a server moved, a lag changed or a file was renamed and you do not want to wait for a
+new version of the program:
+
+    # gfs-mine.model: try my mirror first, and say the files take 5 hours to appear
+    override = GFS
+    url_prepend = {@my-mirror}/gfs.{date}/{cycle}/atmos/gfs.t{cycle}z.pgrb2.0p25.f{hour3}
+    lag_hours = 5
+
+- **A key you list replaces that key's lines in the built-in model, as a set** (`lag_hours`, `cycle_hours`, `hours`, `file`, `url` ...: the built-in ones are gone and yours
+  take their place). A key the built-in model does not have is added.
+- **`url_prepend` / `url_append`** put your places before / after the built-in `url` lines (the places are tried in order: "try this server first", "fall back to this one").
+- **A `when` rule** (`url = when file=x => ...`) whose condition the built-in model has replaces **that rule only**.
+- **Not allowed**: `id`, `kind`, `label` (the credit follows the data's real source), `include` and every `clone` rule (which charts exist). A file that is not allowed,
+  names a model that does not come with the program, or leaves a definition that does not parse, is **not used** (the model stays as it is) and the reason is in the list of
+  model problems.
+- The built-in lines are in the program's text; the Help page of a model and the sources check say **"read with your file"** when an override is in use.
+- The registry is made once when the program starts: **an override takes a restart**.
+- For a server that moved, the easier way is usually the server table (`servers.json`, [server-file.md](server-file.md)): one line moves every model that reads from it. An
+  override is for one model, or for a key the table cannot change.
+
 ## Help pages
 
 The words about a built-in model are a Markdown page, `help/models/<id>.md`, bundled by `help/help.qrc` and shown by the Help window (`setMarkdown`; the program adds the charts, hours and

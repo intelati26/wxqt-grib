@@ -4,6 +4,7 @@
 // *****************************************************************************
 
 #include "gfs/GfsRender.h"
+#include "gfs/Servers.h"
 #include "gfs/ServerStatus.h"
 #include "gfs/NceiInventory.h"
 #include "models/PaletteStore.h"
@@ -1548,7 +1549,7 @@ std::vector<std::string> GfsRender::hafsStorms(const std::string& model, std::st
     auto t = QDateTime::currentDateTimeUtc();
     t = QDateTime{t.date(), QTime{t.time().hour() / 6 * 6, 0}, QTimeZone::utc()};
     for (int back = 0; back < 6 && storms.empty(); back++, t = t.addSecs(-6 * 3600)) {   // the newest cycle that has any
-        const auto folder = "https://nomads.ncep.noaa.gov/pub/data/nccf/com/hafs/prod/hfs" + letter + "." + t.toString("yyyyMMdd").toStdString() + "/" + t.toString("HH").toStdString() + "/";
+        const auto folder = Servers::first("nomads", "https://nomads.ncep.noaa.gov/pub/data/nccf/com") + "/hafs/prod/hfs" + letter + "." + t.toString("yyyyMMdd").toStdString() + "/" + t.toString("HH").toStdString() + "/";
         const auto text = QString::fromUtf8(URL::getBytes(folder));
         std::set<std::string> found;
         const QRegularExpression pattern{"href=\"([0-9]{2}[lecwsa])\\." + QString::fromStdString(t.toString("yyyyMMddHH").toStdString()) + "\\.hfs" + QString::fromStdString(letter) + "\\.storm\\.atm\\.f126\\.grb2\""};

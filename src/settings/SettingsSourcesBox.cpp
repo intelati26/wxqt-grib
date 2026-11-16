@@ -228,7 +228,7 @@ SettingsSourcesBox::SettingsSourcesBox(QWidget * parent)
         table->setItem(index, 3, new QTableWidgetItem);
         table->setItem(index, 4, new QTableWidgetItem);
         table->setItem(index, 5, new QTableWidgetItem);
-        table->setItem(index, 6, new QTableWidgetItem{QString::fromStdString(def.label)});
+        table->setItem(index, 6, new QTableWidgetItem{QString::fromStdString(def.label + (def.overriddenBy.empty() ? std::string{} : "  [read with your file " + def.overriddenBy + "]"))});
         showState(index, def.id);   // (what the last checks found, before this one)
         index++;
     }

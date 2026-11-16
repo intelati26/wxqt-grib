@@ -4,6 +4,7 @@
 // *****************************************************************************
 
 #include "hurricane/HurricaneData.h"
+#include "gfs/Servers.h"
 #include "hurricane/UtilityWeatherLab.h"
 #include "util/PermanentCache.h"
 #include <algorithm>
@@ -385,7 +386,7 @@ bool HurricaneData::loadEcmwfModel(const string& model, const string& stream, ve
         std::snprintf(hh, sizeof hh, "%02d", hour);
         for (const int steps : {360, 144}) {
             // the open data is replicated on Google Cloud (about ten times quicker to answer than ECMWF's own server, which limits its connections); URL.cpp falls back to ECMWF's when Google does not answer
-            const string url = string{"https://storage.googleapis.com/ecmwf-open-data/"} + day + "/" + hh + "z/" + model + "/0p25/" + stream + "/" + day + hh +
+            const string url = (string{Servers::first("ecmwf-gcs", "https://storage.googleapis.com/ecmwf-open-data")} + "/") + day + "/" + hh + "z/" + model + "/0p25/" + stream + "/" + day + hh +
                 "0000-" + std::to_string(steps) + "h-" + stream + "-tf.bufr";
             bytes = cachedDownload(url);
             if (!bytes.empty()) {

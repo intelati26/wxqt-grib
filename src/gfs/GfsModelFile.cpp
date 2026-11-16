@@ -12,6 +12,7 @@
 #include <cmath>
 #include <cstdlib>
 #include <map>
+#include <set>
 #include <memory>
 #include <mutex>
 #include <sstream>
@@ -1145,7 +1146,176 @@ std::vector<GfsModelFile::Parsed> GfsModelFile::loadFolder(const std::string& fo
             out.push_back(bad);
             continue;
         }
-        out.push_back(parse(file.readAll().toStdString(), info.fileName().toStdString()));
+        const auto text = file.readAll().toStdString();
+        if (const auto target = overrideTarget(text); !target.empty()) {
+            Parsed over;
+            over.origin = info.fileName().toStdString();
+            over.overrideId = target;
+            over.text = text;
+            out.push_back(over);
+            continue;
+        }
+        out.push_back(parse(text, info.fileName().toStdString()));
     }
     return out;
+}
+
+namespace {
+    struct TextLine {
+        std::string raw, key, value;
+        bool data{false};   // a `key = value` line (not a comment or a blank)
+    };
+    std::vector<TextLine> lines(const std::string& text) {
+        std::vector<TextLine> out;
+        std::istringstream in{text};
+        std::string raw;
+        while (std::getline(in, raw)) {
+            TextLine l;
+            l.raw = raw;
+            const auto t = trim(raw);
+            const auto eq = t.find('=');
+            if (!t.empty() && t[0] != '#' && eq != std::string::npos) {
+                l.data = true;
+                l.key = trim(t.substr(0, eq));
+                std::transform(l.key.begin(), l.key.end(), l.key.begin(), [] (unsigned char c) { return static_cast<char>(std::tolower(c)); });
+                l.value = trim(t.substr(eq + 1));
+            }
+            out.push_back(std::move(l));
+        }
+        return out;
+    }
+    // "when <condition> => pattern": the condition ("" when the value has none)
+    std::string conditionOf(const std::string& value) {
+        if (value.compare(0, 5, "when ") != 0) {
+            return {};
+        }
+        const auto arrow = value.find("=>");
+        return arrow == std::string::npos ? std::string{} : trim(value.substr(5, arrow - 5));
+    }
+}
+
+std::string GfsModelFile::overrideTarget(const std::string& text) {
+    for (const auto& l : lines(text)) {
+        if (l.data && l.key == "override") {
+            return l.value;
+        }
+    }
+    return {};
+}
+
+std::string GfsModelFile::builtInText(const std::string& id) {
+    for (const auto& [name, text] : builtIn()) {
+        if (name == id) {
+            return withIncludes(text);
+        }
+    }
+    return {};
+}
+
+bool GfsModelFile::mergeOverride(const std::string& base, const std::string& over, std::string& merged, std::string& why) {
+    static const std::set<std::string> forbidden{"id", "kind", "label", "include", "override"};
+    auto baseLines = lines(base);
+    std::map<std::string, std::vector<std::string>> replace;   // key -> the override's values, in order
+    std::vector<std::string> order;
+    std::vector<std::string> prepend, append;
+    int number = 0;
+    for (const auto& l : lines(over)) {
+        number++;
+        if (!l.data || l.key == "override") {
+            continue;
+        }
+        if (forbidden.count(l.key) > 0 || l.key.compare(0, 5, "clone") == 0) {
+            why = "line " + std::to_string(number) + ": `" + l.key + "` cannot be overridden (the id, kind, label and the clone rules belong to the built-in model)";
+            return false;
+        }
+        if (l.key == "url_prepend") {
+            prepend.push_back(l.value);
+        } else if (l.key == "url_append") {
+            append.push_back(l.value);
+        } else {
+            if (replace.find(l.key) == replace.end()) {
+                order.push_back(l.key);
+            }
+            replace[l.key].push_back(l.value);
+        }
+    }
+    std::vector<std::string> out;
+    const auto put = [&out] (const std::string& key, const std::string& value) { out.push_back(key + " = " + value); };
+    std::set<std::string> done;
+    // keys whose every override line is a `when` rule with a condition the built-in text has: those lines are replaced one by one
+    std::map<std::string, std::map<std::string, std::string>> perRule;   // key -> condition -> new value
+    for (const auto& key : order) {
+        bool all = true;
+        for (const auto& v : replace[key]) {
+            const auto c = conditionOf(v);
+            bool known = false;
+            for (const auto& b : baseLines) {
+                known = known || (b.data && b.key == key && !c.empty() && conditionOf(b.value) == c);
+            }
+            all = all && known;
+        }
+        if (all) {
+            for (const auto& v : replace[key]) {
+                perRule[key][conditionOf(v)] = v;
+            }
+        }
+    }
+    bool urlSeen = false;
+    size_t lastUrl = 0;
+    for (size_t i = 0; i < baseLines.size(); i++) {
+        if (baseLines[i].data && baseLines[i].key == "url") {
+            lastUrl = i;
+        }
+    }
+    for (size_t i = 0; i < baseLines.size(); i++) {
+        const auto& b = baseLines[i];
+        if (!b.data) {
+            out.push_back(b.raw);
+            continue;
+        }
+        if (b.key == "url" && !urlSeen) {   // the places to try first go before the first url
+            urlSeen = true;
+            for (const auto& v : prepend) {
+                put("url", v);
+            }
+        }
+        const auto pr = perRule.find(b.key);
+        if (pr != perRule.end()) {
+            const auto found = pr->second.find(conditionOf(b.value));
+            out.push_back(found != pr->second.end() && !conditionOf(b.value).empty() ? b.key + " = " + found->second : b.raw);
+        } else if (replace.count(b.key) > 0) {   // the key is replaced as a set: its lines go in the place of the first one
+            if (done.insert(b.key).second) {
+                for (const auto& v : replace[b.key]) {
+                    put(b.key, v);
+                }
+            }
+        } else {
+            out.push_back(b.raw);
+        }
+        if (i == lastUrl) {
+            for (const auto& v : append) {
+                put("url", v);
+            }
+        }
+    }
+    for (const auto& key : order) {   // a key the built-in text does not have is added at the end
+        if (perRule.count(key) == 0 && done.insert(key).second) {
+            for (const auto& v : replace[key]) {
+                put(key, v);
+            }
+        }
+    }
+    if (!baseLines.empty() && !urlSeen && (!prepend.empty() || !append.empty())) {   // no url in the model: the places are its first
+        for (const auto& v : prepend) {
+            put("url", v);
+        }
+        for (const auto& v : append) {
+            put("url", v);
+        }
+    }
+    merged.clear();
+    for (const auto& l : out) {
+        merged += l + "\n";
+    }
+    return true;
 }

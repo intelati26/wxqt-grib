@@ -352,3 +352,9 @@ std::string Servers::nameOfUrl(const std::string& url) {
     }
     return {};
 }
+
+std::string Servers::first(const std::string& name, const std::string& fallback) {
+    const auto all = table();
+    const auto found = all.find(name);
+    return found == all.end() || found->second.bases.empty() ? fallback : found->second.bases.front();
+}

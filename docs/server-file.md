@@ -57,3 +57,10 @@ file (`docs/model-files.md`); see the plan's section on alerts for such changes.
 Built-in models that use `{@name}` today: `rrfs-ops` (RRFS, REFS, the RRFS ensemble, the fire-weather RRFS), `gfs-aws` (GFS),
 `ecmwf-gcs` (IFS, IFS-ENS, AIFS), `geos-nccs` (GEOS-FP). Other models still carry their hosts in their own `url` lines, and a few
 addresses are still in code (`URL.cpp`, `HurricaneData.cpp`, `UtilityGrib.cpp`): converting them is the same one-line change.
+
+## The servers the program knows
+
+`rrfs-ops`, `gfs-aws`, `gefs-aws`, `nbm-aws`, `cfs-aws`, `hrrr-aws`, `aigfs-aws`, `mrms-aws`, `rtma-aws`, `urma-aws`, `era5-ncar`, `nomads` (NOAA's operational server: HAFS, HREF,
+SPC post-processing and the older RRFS paths), `ncei-models` (the archives), `ecmwf-gcs`, `dwd-opendata`, `msc-datamart` (Environment Canada), `openmeteo-s3` (the `.om` files),
+`openmeteo-seasonal`, `nssl-thredds`, `spc-refs`, `wpc-ppp`, `woof-nam` and `geos-nccs`. Every model's `url` begins with one of them, and so do the few addresses the program builds in code
+(the observation and bulletin readers, the radar mosaic listings, the older RRFS viewers): moving a server is one entry. The Settings > Model Sources > Servers table lists them with their state.

@@ -4,6 +4,7 @@
 // *****************************************************************************
 
 #include "objects/RenderLock.h"
+#include "gfs/Servers.h"
 #include "models/UtilityRefs.h"
 #include <algorithm>
 #include <cctype>
@@ -391,11 +392,11 @@ bool UtilityRefs::fetchFieldGrib(const UtilityGrib::Field& field, const string& 
     // Member rows come from the sibling rrfsens.* tree (com/rrfs/, 3-digit
     // forecast hour); ensprod rows from com/refs/refs.* (2-digit hour).
     const auto url = isMemberProduct(field.product)
-        ? "https://nomads.ncep.noaa.gov/pub/data/nccf/com/rrfs/" + UtilityGrib::dataStream() +
+        ? Servers::first("nomads", "https://nomads.ncep.noaa.gov/pub/data/nccf/com") + "/rrfs/" + UtilityGrib::dataStream() +
             "/rrfsens." + dateStr + "/" + cycle + "/" + field.product + "/rrfs.t" + cycle + "z." +
             field.product + ".2dfldnomads.3km.f" + WString::fixedLengthStringPad0(To::string(forecastHourInt), 3) +
             ".conus.grib2"
-        : "https://nomads.ncep.noaa.gov/pub/data/nccf/com/refs/" + UtilityGrib::dataStream() +
+        : Servers::first("nomads", "https://nomads.ncep.noaa.gov/pub/data/nccf/com") + "/refs/" + UtilityGrib::dataStream() +
             "/refs." + dateStr + "/" + cycle + "/ensprod/refs.t" + cycle + "z." + field.product + ".f" + fhr2 +
             ".conus.grib2";
     const auto gribPath = dir + QString::fromStdString("/g_" + runKey + "_" + field.key + "_" + fhr2 + ".grib2");
