@@ -8,12 +8,14 @@
 #include <cmath>
 #include <thread>
 #include <QDateTime>
+#include <QMouseEvent>
 #include <QPainter>
 #include <QPainterPath>
 #include <QPointer>
 #include <QTimeZone>
 #include <QVBoxLayout>
 #include "cfs/EnsemblePercentiles.h"
+#include "cfs/ModelCompareViewer.h"
 #include "settings/Location.h"
 #include "ui/ChartExport.h"
 #include "ui/FlowBox.h"
@@ -52,10 +54,40 @@ public:
     void set(const Result& r) {
         result = r;
         have = true;
+        picked = 0.0;
         update();
     }
+    // the day picked (its midnight, unix seconds), or the day where the two models' errors were furthest apart at the lead of the lower chart
+    double pickedDay() const { return picked; }
+    double widestDay() const {
+        double best = -1.0, at = 0.0;
+        const auto& a = result.statA[result.lead];
+        const auto& b = result.statB[result.lead];
+        for (size_t i = 0; i < a.dayStart.size(); i++) {
+            for (size_t j = 0; j < b.dayStart.size(); j++) {
+                if (a.dayStart[i] == b.dayStart[j] && std::fabs(static_cast<double>(a.dayError[i] - b.dayError[j])) > best) {
+                    best = std::fabs(static_cast<double>(a.dayError[i] - b.dayError[j]));
+                    at = a.dayStart[i];
+                }
+            }
+        }
+        return at;
+    }
+    int utcOffset() const { return result.utcOffset; }
+    std::function<void()> changed;
 
 protected:
+    void mousePressEvent(QMouseEvent * event) override {
+        if (!have || lowerRect.width() <= 0 || event->position().x() < lowerRect.left() || event->position().x() > lowerRect.right() || event->position().y() < lowerRect.top() || event->position().y() > lowerRect.bottom()) {
+            return;
+        }
+        const double t = lowT0 + (event->position().x() - lowerRect.left()) / lowerRect.width() * (lowT1 - lowT0);
+        picked = std::floor((t + result.utcOffset) / 86400.0) * 86400.0 - result.utcOffset;
+        update();
+        if (changed) {
+            changed();
+        }
+    }
     void paintEvent(QPaintEvent *) override {
         QPainter p{this};
         p.setRenderHint(QPainter::Antialiasing, true);
@@ -91,6 +123,7 @@ protected:
         plotWidth = width() - left - right;
         const double room = height() - top - bottom - gap;
         const QRectF upper{left, top, plotWidth, room * 0.5}, lower{left, upper.bottom() + gap, plotWidth, room * 0.5};
+        lowerRect = lower;
         // ---- upper: by lead
         double top1 = 0.0, bottom1 = 0.0;
         for (int k = 1; k <= 7; k++) {
@@ -155,6 +188,8 @@ protected:
             p.drawText(lower, Qt::AlignCenter, "no day has both a forecast and what happened");
             return;
         }
+        lowT0 = t0;
+        lowT1 = t1;
         const auto y2 = [&] (double v) { return lower.bottom() - (v - a2.low) / (a2.high - a2.low) * lower.height(); };
         const auto x2 = [&] (double t) { return lower.left() + (t - t0) / std::max(1.0, t1 - t0) * lower.width(); };
         p.setPen(QPen{QColor{90, 90, 90}, 1.0});
@@ -207,11 +242,22 @@ protected:
             p.setPen(QPen{color, 3.0});
             p.drawPath(mean);
         }
+        highlight(p, lower);
         p.setPen(Qt::black);
         p.drawText(QRectF{left, lower.bottom() + 20, plotWidth, 16}, Qt::AlignRight | Qt::AlignVCenter, "points: each day; thick line: the mean of the last five days; the place's own days");
     }
 
 private:
+    void highlight(QPainter& p, const QRectF& lower) {
+        if (picked == 0.0 || lowT1 <= lowT0) {
+            return;
+        }
+        const double x0 = lower.left() + (picked - lowT0) / (lowT1 - lowT0) * lower.width(), x1 = lower.left() + (picked + 86400.0 - lowT0) / (lowT1 - lowT0) * lower.width();
+        p.setPen(Qt::NoPen);
+        p.setBrush(QColor{255, 220, 60, 70});
+        p.drawRect(QRectF{x0, lower.top(), x1 - x0, lower.height()});
+        p.setBrush(Qt::NoBrush);
+    }
     // the forecast for each day at every lead, 7 days ahead (pale) to the day itself (dark), the two models side by side, and what happened between them
     void drawEvolution(QPainter& p, const QRectF& lower) {
         const auto shown = [&] (float v) { return E::display(result.variable, static_cast<double>(v)); };
@@ -236,6 +282,8 @@ private:
             return;
         }
         Axis a2 = axis(hi, lo);
+        lowT0 = t0;
+        lowT1 = t1;
         frame(p, lower, a2, QString{"How the forecast for each day changed, 7 days ahead (pale) to the day itself (dark), and what happened (black) (%1)"}.arg(QString::fromStdString(E::unitLabel(result.variable))));
         const auto y2 = [&] (double v) { return lower.bottom() - (v - a2.low) / (a2.high - a2.low) * lower.height(); };
         const auto x2 = [&] (double t) { return lower.left() + (t - t0) / std::max(1.0, t1 - t0) * lower.width(); };
@@ -290,6 +338,7 @@ private:
                 p.drawPolygon(QPolygonF{{cx, y2(shown(v)) - 4}, {cx + 4, y2(shown(v))}, {cx, y2(shown(v)) + 4}, {cx - 4, y2(shown(v))}});
             }
         }
+        highlight(p, lower);
         p.setPen(Qt::black);
         p.drawText(QRectF{left, lower.bottom() + 20, plotWidth, 16}, Qt::AlignRight | Qt::AlignVCenter, "left of each day: the first model, right: the second; diamond: what happened; the place's own days");
     }
@@ -332,6 +381,8 @@ private:
     QString message;
     Result result;
     double left{62}, plotWidth{0};
+    QRectF lowerRect;
+    double lowT0{0}, lowT1{0}, picked{0};
 };
 
 ModelBiasViewer::ModelBiasViewer(Window * parent, double lat, double lon, const std::string& idA, const std::string& idB, const std::string& variable, int days, int leadDays) : Window{parent} {
@@ -379,6 +430,8 @@ ModelBiasViewer::ModelBiasViewer(Window * parent, double lat, double lon, const 
     }
     lead->setCurrentIndex(std::clamp(leadDays, 1, 7) - 1);
     go = UiStandards::button(body, "Load");
+    whyButton = UiStandards::button(body, "Why? Show the maps");
+    whyButton->setToolTip("Click a day on the lower chart, then this opens the Model Viewer on that day (noon, local time): the first model's 500 mb chart with the second model's height lines over it. With no day picked, the day where the two models' errors were furthest apart.");
     lowerView = UiStandards::combo(body);
     lowerView->addItem("Lower chart: the error of each day", 0);
     lowerView->addItem("Lower chart: how each day's forecast changed", 1);
@@ -404,6 +457,7 @@ ModelBiasViewer::ModelBiasViewer(Window * parent, double lat, double lon, const 
     top->addWidget(lead);
     top->addWidget(lowerView);
     top->addWidget(go);
+    top->addWidget(whyButton);
     column->addLayout(top);
     column->addWidget(status);
     chart = new BiasChart{body};
@@ -421,6 +475,7 @@ ModelBiasViewer::ModelBiasViewer(Window * parent, double lat, double lon, const 
         QObject::connect(box, &QComboBox::currentIndexChanged, this, [this] (int) { load(); });
     }
     QObject::connect(go, &QPushButton::clicked, this, [this] { load(); });
+    QObject::connect(whyButton, &QPushButton::clicked, this, [this] { why(); });
     setSize(1100, 820);
     QWidget::show();
     load();
@@ -516,13 +571,39 @@ void ModelBiasViewer::load() {
                 }
                 const double v = E::display(variable, static_cast<double>(s.bias), true);
                 const QString unit = QString::fromStdString(E::unitLabel(variable)) + (variable.accumulate ? " per day" : "");
-                return QString{"%1: %2 %3 %4 (misses by %5)"}.arg(name.section(" (", 0, 0), QString::number(std::fabs(v), 'f', variable.digits), unit,
-                                                                  std::fabs(v) < std::pow(10.0, -variable.digits) ? "(no bias)" : v > 0 ? "too high" : "too low").arg(QString::number(E::display(variable, static_cast<double>(s.mae), true), 'f', variable.digits));
+                const auto size = QString::number(std::fabs(v), 'f', variable.digits), miss = QString::number(E::display(variable, static_cast<double>(s.mae), true), 'f', variable.digits);
+                if (std::fabs(static_cast<double>(s.bias)) < 0.25 * static_cast<double>(s.mae)) {   // the bias is small beside the misses: no clear direction
+                    return QString{"%1: no clear bias (%2 %3 %4; misses by %5)"}.arg(name.section(" (", 0, 0), size, unit, v > 0 ? "too high" : "too low", miss);
+                }
+                return QString{"%1: %2 %3 %4 (misses by %5)"}.arg(name.section(" (", 0, 0), size, unit, v > 0 ? "too high" : "too low", miss);
             };
             self->status->setText(QString{"At %1 day%2 ahead over the last %3 days, %4;  %5.  %6"}
                                       .arg(result.lead).arg(result.lead == 1 ? "" : "s").arg(result.days).arg(sentence(result.nameA, a), sentence(result.nameB, b), result.station ? "What happened is " + result.truthName + ": the days are the observers' own (usually midnight to midnight, local standard time)." : QString{"What happened is ERA5, about five days behind: the newest days are left out."}));
         }, Qt::QueuedConnection);
     }}.detach();
+}
+
+ModelViewer * ModelBiasViewer::why() {
+    double day = chart->pickedDay();
+    if (day == 0.0) {
+        day = chart->widestDay();
+    }
+    if (day == 0.0) {
+        status->setText("Load a result first.");
+        return nullptr;
+    }
+    const auto mapOf = [] (const std::string& id) {
+        for (const auto& m : ModelBias::models()) {
+            if (m.id == id) {
+                return m.map;
+            }
+        }
+        return std::string{};
+    };
+    QString message;
+    auto * viewer = ModelCompareViewer::showMaps(this, mapOf(modelA->currentData().toString().toStdString()), mapOf(modelB->currentData().toString().toStdString()), "500_wnd_ht", QDateTime::fromSecsSinceEpoch(static_cast<qint64>(day + 12 * 3600), QTimeZone::utc()), message);
+    status->setText(message);
+    return viewer;
 }
 
 QPixmap ModelBiasViewer::picture() const {

@@ -14,6 +14,7 @@
 #include "ui/Window.h"
 
 class BiasChart;
+class ModelViewer;
 
 // How wrong two models have been at a place, and in which direction (docs/plans.md, "Model comparison at a place", the second step): for each lead time (1 to 7 days ahead) the bias (forecast minus what
 // happened, the bars) and the size of the miss (the ticks), over the last 14, 30 or 45 days; and below, the error of each day at the lead chosen, so that a drift ("the Euro has gone cold this week")
@@ -23,6 +24,7 @@ class ModelBiasViewer : public Window {
 public:
     ModelBiasViewer(Window * parent, double lat = 39.1, double lon = -94.6, const std::string& modelA = "ecmwf_ifs025", const std::string& modelB = "gfs_global", const std::string& variable = "temperature_2m", int days = 30, int lead = 3);
     void load();
+    ModelViewer * why();   // the maps of the day picked on the lower chart (or the day the two errors were furthest apart); null when there is nothing to show
     void setLowerView(int how) { lowerView->setCurrentIndex(how); }   // 0 the error of each day, 1 how each day's forecast changed
     void setJudge(int how) { judge->setCurrentIndex(how); }   // 0 ERA5, 1 a station's highs, 2 lows, 3 rain
     QPixmap picture() const;
@@ -40,6 +42,7 @@ private:
     QComboBox * period{};
     QComboBox * lead{};
     QPushButton * go{};
+    QPushButton * whyButton{};
     QLabel * status{};
     BiasChart * chart{};
     int generation{0};

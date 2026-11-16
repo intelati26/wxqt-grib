@@ -720,30 +720,17 @@ void ModelCompareViewer::load() {
     }}.detach();
 }
 
-ModelViewer * ModelCompareViewer::why() {
-    double t = chart->pickedTime();
-    if (t == 0.0) {
-        t = chart->biggestTime();
-    }
-    if (t == 0.0) {
-        status->setText("Load a comparison first.");
-        return nullptr;
-    }
-    const auto mainModel = mapModel(modelA->currentData().toString().toStdString());
-    const auto otherModel = mapModel(modelB->currentData().toString().toStdString());
+// The Model Viewer on the maps of a time: the first model's chart (the one asked for, then the plain 500 mb chart, then the ensemble mean and spread of the 500 mb height) with the other model's height
+// lines over it; on the first model that has one of these charts (so when the first has none, the second is drawn and the first is the overlay).
+ModelViewer * ModelCompareViewer::showMaps(Window * parent, const std::string& mainModel, const std::string& otherModel, const std::string& asked, const QDateTime& when, QString& message) {
     if (mainModel.empty() || otherModel.empty()) {
-        status->setText("The program has no map of one of these models.");
+        message = "The program has no map of one of these models.";
         return nullptr;
     }
-    // the map time: the six hours at or before the time picked
-    auto valid = QDateTime::fromSecsSinceEpoch(static_cast<qint64>(t), QTimeZone::utc());
-    valid.setTime(QTime{valid.time().hour() / 6 * 6, 0});
-    // the chart: the one asked for, then the plain 500 mb chart, then the ensemble mean and spread of the 500 mb height (the IFS ensemble has no wind chart); on the first model that has one, the other's
-    // height lines over it (so when the first has none of these, the second is drawn and the first is the overlay)
-    const auto asked = mapChoice->currentData().toString().toStdString();
+    auto valid = when.toUTC();
+    valid.setTime(QTime{valid.time().hour() / 6 * 6, 0});   // the six hours at or before the time
     std::vector<std::string> wanted{asked, "500_wnd_ht", "spread_500_ht"};
     ChartSelection selection;
-    selection.valid = valid;
     bool found = false;
     std::string shown, over, note;
     for (const auto& id : wanted) {   // (the chart asked for on either model before a fallback chart on the first)
@@ -771,12 +758,28 @@ ModelViewer * ModelCompareViewer::why() {
         }
     }
     if (!found) {
-        status->setText(QString::fromStdString("Neither " + mainModel + " nor " + otherModel + " has a 500 mb or 250 mb chart."));
+        message = QString::fromStdString("Neither " + mainModel + " nor " + otherModel + " has a 500 mb or 250 mb chart.");
         return nullptr;
     }
-    auto * viewer = new ModelViewer{this, "NCEP"};   // (the model screen; the model is chosen by the selection)
+    auto * viewer = new ModelViewer{parent, "NCEP"};   // (the model screen; the model is chosen by the selection)
     viewer->applySelection(selection);
-    status->setText(QString::fromStdString(shown + " " + selection.param + " for " + valid.toString("ddd d MMM HH 'UTC'").toStdString() + ", with " + over + "'s height lines over it." + note));
+    message = QString::fromStdString(shown + " " + selection.param + " for " + valid.toString("ddd d MMM HH 'UTC'").toStdString() + ", with " + over + "'s height lines over it." + note);
+    return viewer;
+}
+
+ModelViewer * ModelCompareViewer::why() {
+    double t = chart->pickedTime();
+    if (t == 0.0) {
+        t = chart->biggestTime();
+    }
+    if (t == 0.0) {
+        status->setText("Load a comparison first.");
+        return nullptr;
+    }
+    QString message;
+    auto * viewer = showMaps(this, mapModel(modelA->currentData().toString().toStdString()), mapModel(modelB->currentData().toString().toStdString()), mapChoice->currentData().toString().toStdString(),
+                             QDateTime::fromSecsSinceEpoch(static_cast<qint64>(t), QTimeZone::utc()), message);
+    status->setText(message);
     return viewer;
 }
 

@@ -1331,7 +1331,13 @@ int main(int argc, char * argv[]) {
                             viewer->picture().save(out);
                             fprintf(stderr, "modelbias: %s\n", qPrintable(text));
                             timer->stop();
-                            QTimer::singleShot(200, qApp, &QCoreApplication::quit);
+                            if (qEnvironmentVariableIsSet("WXQT_WHY")) {   // WXQT_WHY=1: the maps of the day where the two errors were furthest apart (the status line says which), after a few seconds
+                                viewer->why();
+                                fprintf(stderr, "modelbias: %s\n", qPrintable(viewer->statusText()));
+                                QTimer::singleShot(5000, qApp, &QCoreApplication::quit);
+                            } else {
+                                QTimer::singleShot(200, qApp, &QCoreApplication::quit);
+                            }
                         }
                     });
                     timer->start();

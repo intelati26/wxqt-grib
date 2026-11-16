@@ -160,14 +160,14 @@ std::string ModelBias::truthUrl(double lat, double lon, const std::string& varia
 
 const std::vector<ModelBias::Model>& ModelBias::models() {
     static const std::vector<Model> list{
-        {"ecmwf_ifs025", "ECMWF IFS (the Euro)"},
-        {"gfs_global", "NOAA GFS"},
-        {"ecmwf_aifs025_single", "ECMWF AIFS (AI)"},
-        {"gem_global", "Canadian GDPS"},
-        {"icon_global", "DWD ICON"},
-        {"ukmo_global_deterministic_10km", "UK Met Office"},
-        {"meteofrance_arpege_world", "Meteo-France ARPEGE"},
-        {"jma_gsm", "JMA GSM"},
+        {"ecmwf_ifs025", "ECMWF IFS (the Euro)", "IFS"},
+        {"gfs_global", "NOAA GFS", "GFS"},
+        {"ecmwf_aifs025_single", "ECMWF AIFS (AI)", "AIFS"},
+        {"gem_global", "Canadian GDPS", ""},
+        {"icon_global", "DWD ICON", "ICON"},
+        {"ukmo_global_deterministic_10km", "UK Met Office", "UKMO"},
+        {"meteofrance_arpege_world", "Meteo-France ARPEGE", "ARPEGE"},
+        {"jma_gsm", "JMA GSM", ""},
     };
     return list;
 }

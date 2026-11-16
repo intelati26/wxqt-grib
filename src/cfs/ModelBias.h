@@ -64,7 +64,7 @@ namespace ModelBias {
     enum class Aggregate { Mean, High, Low, Sum };
     std::map<double, float> dailyOf(const std::vector<double>& times, int utcOffset, const std::vector<float>& values, Aggregate how);
     // The models that keep past runs: id, what it is.
-    struct Model { std::string id, label; };
+    struct Model { std::string id, label, map; };   // map: the program's own model for the same system ("GFS"), "" when it has none
     const std::vector<Model>& models();
     // Both models' forecasts and the truth for a place over the last `days` days (7 to 60). Blocking; kept 20 minutes.
     bool fetch(double lat, double lon, const std::string& variable, const std::string& modelA, const std::string& modelB, int days, Forecasts& forecasts, Truth& truth, std::string& why);
