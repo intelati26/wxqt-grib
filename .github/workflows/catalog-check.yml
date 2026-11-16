@@ -3,6 +3,9 @@
 #   - fails the run and opens (or updates) ONE issue when a field the charts ask for is GONE: it was in the model's files at the last
 #     check and is not now (a renamed variable, a dropped level). The failure and the issue are the maintainer's alert;
 #   - closes that issue when nothing is gone any more;
+#   - first asks every model's server the question of Settings > Model Sources (WXQT_OPEN=sourcecheck:*): the state of each source (OK, Late, Moved,
+#     Failing, Down, Retired); Moved, Down and Retired open (or update, or close) a second issue, label source-status. The history of the checks
+#     (the run of failures) is kept in the cache with the last catalogue check, so "Down" and "Retired" mean what they say across days;
 #   - keeps the full result (the lists of "never found" and "not cataloged" fields too) as an artifact and in the run's summary, with the field catalogue
 #     (tools/catalog_report.py: families, which models have which, as CSV and Markdown).
 # The last check's found fields are kept between runs in the Actions cache: the first run has nothing to compare with (nothing is gone then).
@@ -69,10 +72,20 @@ jobs:
         id: last
         uses: actions/cache/restore@v5
         with:
-          path: .xdg-data/wxqt/servers/catalog-status.json
+          path: |
+            .xdg-data/wxqt/servers/catalog-status.json
+            .xdg-data/wxqt/servers/servers-status.json
           key: catalog-status-none
           restore-keys: |
             catalog-status-
+
+      - name: Ask every model's server (the state of each source)
+        run: |
+          mkdir -p .xdg-data/wxqt/servers .xdg-config
+          timeout 1500 build/release/wxqt 2>sources.log || true
+          ls -la sources.json || true
+        env:
+          WXQT_OPEN: 'sourcecheck:*:sources.json'
 
       - name: Check every model
         run: |
@@ -82,6 +95,39 @@ jobs:
           ls -la catalog.json || true
         env:
           WXQT_OPEN: 'catalogcheck:*:catalog.json'
+
+      - name: Read the states
+        id: states
+        run: |
+          python3 - <<'PY'
+          import json, os
+          try:
+              data = json.load(open('sources.json'))
+          except Exception as e:
+              print('::warning::the source check wrote no result:', e)
+              open(os.environ['GITHUB_OUTPUT'], 'a').write('trouble=0\n')
+              raise SystemExit(0)
+          # the catalogue check runs after this one and may add "Changed"; the state read here is the source's own
+          trouble = [m for m in data if m['state'] in ('Moved', 'Down', 'Retired')]
+          counts = {}
+          for m in data:
+              if not m['skipped']:
+                  counts[m['state'] or 'Unknown'] = counts.get(m['state'] or 'Unknown', 0) + 1
+          lines = ['## Sources', '', ', '.join(f'{n} {k}' for k, n in sorted(counts.items())) + '.', '']
+          if trouble:
+              lines += ['| model | state | server | answered by | what was found |', '|---|---|---|---|---|']
+              for m in trouble:
+                  lines.append(f"| {m['model']} | {m['state']} | {m['server']} | {m['moved_to']} | {m['detail'][:120]} |")
+          body = ['These models\' sources are Moved (the first place of the server did not answer and a fallback did), Down (the last checks failed) or Retired (down, and last OK over a week ago):', '']
+          for m in trouble:
+              body.append(f"- **{m['model']}** ({m['state']}): server `{m['server'] or 'none'}`" + (f", answered by `{m['moved_to']}`" if m['moved_to'] else '') + f": {m['detail'][:160]}")
+          body += ['', 'A moved server is one line in servers/servers.json (the base the model\'s url names with {@name}); see docs/server-file.md.',
+                   '', f"Run: {os.environ['GITHUB_SERVER_URL']}/{os.environ['GITHUB_REPOSITORY']}/actions/runs/{os.environ['GITHUB_RUN_ID']}"]
+          open('sources.md', 'w').write('\n'.join(lines) + '\n')
+          open('sources-issue.md', 'w').write('\n'.join(body) + '\n')
+          open(os.environ['GITHUB_OUTPUT'], 'a').write(f'trouble={len(trouble)}\n')
+          PY
+          [ -f sources.md ] && cat sources.md >> "$GITHUB_STEP_SUMMARY" || true
 
       - name: Read the result
         id: result
@@ -122,7 +168,9 @@ jobs:
         if: always() && hashFiles('.xdg-data/wxqt/servers/catalog-status.json') != ''
         uses: actions/cache/save@v5
         with:
-          path: .xdg-data/wxqt/servers/catalog-status.json
+          path: |
+            .xdg-data/wxqt/servers/catalog-status.json
+            .xdg-data/wxqt/servers/servers-status.json
           key: catalog-status-${{ github.run_id }}
 
       - name: Keep the full result
@@ -133,6 +181,8 @@ jobs:
           path: |
             catalog.json
             catalog.log
+            sources.json
+            sources.log
             catalog-report/
           retention-days: 30
           if-no-files-found: warn
@@ -154,6 +204,26 @@ jobs:
             fi
           elif [ -n "$number" ]; then
             gh issue close "$number" --comment "Nothing is gone from any model's files at $(date -u +%F)."
+          fi
+
+      - name: Open, update or close the source-status issue
+        if: always() && steps.states.outputs.trouble != ''
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TROUBLE: ${{ steps.states.outputs.trouble }}
+        run: |
+          title="Model sources: a server moved, is down or is retired"
+          number="$(gh issue list --label source-status --state open --json number --jq '.[0].number // empty')"
+          gh label create source-status --description "The daily source check found a server that moved, is down or is retired" --color FBCA04 2>/dev/null || true
+          if [ "${TROUBLE:-0}" -gt 0 ]; then
+            if [ -n "$number" ]; then
+              gh issue edit "$number" --body-file sources-issue.md
+              gh issue comment "$number" --body "Still so at $(date -u +%F): ${TROUBLE} model(s)."
+            else
+              gh issue create --title "$title" --label source-status --body-file sources-issue.md
+            fi
+          elif [ -n "$number" ]; then
+            gh issue close "$number" --comment "Every source answers at its first place at $(date -u +%F)."
           fi
 
       - name: Fail when a field is gone

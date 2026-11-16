@@ -4,6 +4,7 @@
 // *****************************************************************************
 
 #include "gfs/CatalogCheck.h"
+#include "gfs/ServerStatus.h"
 #include <algorithm>
 #include <set>
 #include <QDateTime>
@@ -118,6 +119,13 @@ std::vector<std::string> CatalogCheck::keptFound(const std::string& model, bool&
 void CatalogCheck::keep(const Report& r) {
     if (!r.checked) {
         return;   // (a check that could not be made keeps what the last one found)
+    }
+    {   // the state "Changed" of Model Sources: fields that were there and are gone (a first check has nothing to compare with, so nothing is gone)
+        std::string list;
+        for (size_t i = 0; i < r.gone.size() && i < 5; i++) {
+            list += (list.empty() ? "" : ", ") + r.gone[i].variable + "@" + r.gone[i].level;
+        }
+        ServerStatus::setChanged(r.model, static_cast<int>(r.gone.size()), list);
     }
     QJsonObject root;
     {

@@ -113,7 +113,7 @@ namespace {
         return "<h2>Model sources</h2><p>Models and analyses change: files move, products are retired and replaced. Settings &gt; Model Sources asks each model's server for its newest run "
                "and whether that run lists the fields of the model's first chart, when you open the tab. Nothing is downloaded and nothing runs in the background.</p>"
                "<p>Each check is remembered, so a model has a <b>State</b> and a <b>Last OK</b> time: <b>OK</b> (the newest run is as recent as that model's runs should be), <b>Late</b> (found, but behind: a delay or a skipped cycle), "
-               "<b>Failing</b> (the last check failed: it may be your connection), <b>Down</b> (two checks or more failed, ten minutes or more apart) and <b>Retired</b> (down for over a week: the files moved or the product was retired). "
+               "<b>Moved</b> (the first place of its server did not answer and a fallback did: the fallback is used until the program restarts), <b>Changed</b> (the catalogue check found fields the charts ask for that were in the files and are gone), <b>Failing</b> (the last check failed: it may be your connection), <b>Down</b> (two checks or more failed, ten minutes or more apart) and <b>Retired</b> (down for over a week: the files moved or the product was retired). "
                "A state shows when the tab opens, from the checks made before.</p>"
                "<p>A <b>PROBLEM</b> there means the server did not answer, or the files are no longer where the program looks. The model's page here has the people who run it, "
                "which is where a notice of a change is usually found.</p>"

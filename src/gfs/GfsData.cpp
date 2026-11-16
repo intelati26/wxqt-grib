@@ -11,6 +11,8 @@
 #include "gfs/TarReader.h"
 #include "gfs/GfsModels.h"
 #include "gfs/OmFile.h"
+#include "gfs/Servers.h"
+#include <QUrl>
 #include "gfs/OmGrid.h"
 #include "gfs/WrfGrid.h"
 #include "util/NetPriority.h"
@@ -276,7 +278,78 @@ bool GfsData::wrfDomain(const std::string& gdalBin, const std::vector<std::strin
     return true;
 }
 
+void GfsData::placesOf(const Run& run, std::string& server, std::string& movedTo) const {
+    server.clear();
+    movedTo.clear();
+    if (source.wrf.enabled || (source.custom && source.probeFile == "none")) {
+        return;
+    }
+    const auto urls = urlsFor(run, source.probeHour, source.probeFile);
+    if (urls.empty()) {
+        return;
+    }
+    server = Servers::nameOfUrl(urls.front());
+    const auto hostOf = [] (const std::string& url) {
+        return QUrl{QString::fromStdString(url)}.host().toStdString();
+    };
+    if (!server.empty() && !Servers::demotedBase(server).empty()) {   // a fallback was put first this run: the first place did not answer
+        movedTo = hostOf(urls.front());
+        return;
+    }
+    if (urls.size() < 2) {
+        return;
+    }
+    const auto answers = [&] (const std::string& url) {
+        const auto resolved = resolveUrl(url);
+        if (resolved.empty()) {
+            return false;
+        }
+        const auto head = config.bytes(resolved, 0, 3);
+        return !head.isEmpty() && !head.startsWith("<");
+    };
+    if (answers(urls.front())) {
+        return;
+    }
+    for (size_t i = 1; i < urls.size(); i++) {
+        if (hostOf(urls[i]) != hostOf(urls.front()) && answers(urls[i])) {
+            movedTo = hostOf(urls[i]);
+            return;
+        }
+    }
+}
+
+// A run was not found: the server's first place may be the one that is down. The probe file of the recent cycles is asked for at each of the other places of the model's server (the first of them that
+// answers, at a host other than the first's) and, if one does, that place goes first for the rest of the run of the program (Servers::promote), and the look is made again.
 bool GfsData::latestRun(Run& run) const {
+    if (latestRunAt(run)) {
+        return true;
+    }
+    if (source.wrf.enabled || (source.custom && source.probeFile == "none")) {
+        return false;
+    }
+    const auto now = QDateTime::currentDateTimeUtc();
+    auto start = now.addSecs(-static_cast<qint64>(source.lagHours) * 3600);
+    start.setTime(QTime{start.time().hour() / source.cycleHours * source.cycleHours, 0});
+    bool promoted = false;
+    for (int back = 0; back < std::min(source.cyclesToTry, 3) && !promoted; back++) {
+        const auto t = start.addSecs(-static_cast<qint64>(back) * source.cycleHours * 3600);
+        const Run candidate{t.toString("yyyyMMdd").toStdString(), pad(t.time().hour(), 2)};
+        const auto urls = urlsFor(candidate, source.probeHour, source.probeFile);
+        for (size_t i = 1; i < urls.size() && !promoted; i++) {
+            if (QUrl{QString::fromStdString(urls[i])}.host() == QUrl{QString::fromStdString(urls.front())}.host()) {
+                continue;
+            }
+            const auto resolved = resolveUrl(urls[i]);
+            const auto head = resolved.empty() ? QByteArray{} : config.bytes(resolved, 0, 3);
+            if (!head.isEmpty() && !head.startsWith("<")) {
+                promoted = Servers::promote(urls[i]);
+            }
+        }
+    }
+    return promoted && latestRunAt(run);
+}
+
+bool GfsData::latestRunAt(Run& run) const {
     if (source.wrf.enabled) {   // the newest run the folders have
         const WrfRunFiles * newest = nullptr;
         const auto runs = wrfRuns(source.wrf.folders);

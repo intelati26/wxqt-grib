@@ -56,6 +56,7 @@
 #include <QJsonDocument>
 #include <QJsonArray>
 #include "gfs/CatalogCheck.h"
+#include "gfs/ServerStatus.h"
 #include "settings/SettingsSourcesBox.h"
 #include <QDir>
 #include <QStandardPaths>
@@ -1356,6 +1357,55 @@ int main(int argc, char * argv[]) {
                         QJsonArray all;
                         for (const auto& r : reports) {
                             all.append(CatalogCheck::toJson(r));
+                        }
+                        QFile file{out};
+                        if (file.open(QIODevice::WriteOnly)) {
+                            file.write(QJsonDocument{all}.toJson());
+                        }
+                        QMetaObject::invokeMethod(&a, [&a] { QTimer::singleShot(200, &a, &QCoreApplication::quit); }, Qt::QueuedConnection);
+                    }}.detach();
+                });
+            } else if (route.startsWith("sourcecheck:")) {   // WXQT_OPEN=sourcecheck:<model, or * for every one>:<out.json>: Settings' source check without the page (the state of each model's source: OK, Late, Moved, Changed, Failing, Down, Retired), kept in servers-status.json, then quits
+                const auto parts = route.split(':');
+                const auto wanted = parts.value(1).toStdString();
+                const auto out = parts.value(2);
+                std::vector<std::string> models;
+                for (const auto& def : GfsModels::all()) {
+                    if (wanted == "*" ? !def.storm : def.id == wanted) {
+                        models.push_back(def.id);
+                    }
+                }
+                QTimer::singleShot(500, &a, [models, out, &a] {
+                    std::thread{[models, out, &a] {
+                        std::vector<GfsRender::SourceCheck> checks(models.size());
+                        std::atomic<size_t> next{0};
+                        std::vector<std::thread> workers;
+                        for (int w = 0; w < 4; w++) {
+                            workers.emplace_back([&] {
+                                GfsRender::Session session;
+                                for (size_t i = next++; i < models.size(); i = next++) {
+                                    checks[i] = GfsRender::checkSource(session, models[i]);
+                                    const auto entry = ServerStatus::entry(models[i]);
+                                    fprintf(stderr, "source %-14s %-8s %s\n", models[i].c_str(), ServerStatus::name(ServerStatus::stateOf(entry, QDateTime::currentDateTimeUtc())).c_str(), checks[i].detail.c_str());
+                                }
+                            });
+                        }
+                        for (auto& t : workers) {
+                            t.join();
+                        }
+                        QJsonArray all;
+                        for (const auto& c : checks) {
+                            const auto entry = ServerStatus::entry(c.model);
+                            QJsonObject o;
+                            o["model"] = QString::fromStdString(c.model);
+                            o["ok"] = c.ok;
+                            o["skipped"] = c.skipped;
+                            o["run"] = QString::fromStdString(c.run);
+                            o["detail"] = QString::fromStdString(c.detail);
+                            o["state"] = QString::fromStdString(ServerStatus::name(ServerStatus::stateOf(entry, QDateTime::currentDateTimeUtc())));
+                            o["server"] = QString::fromStdString(entry.server);
+                            o["moved_to"] = QString::fromStdString(entry.movedTo);
+                            all.append(o);
                         }
                         QFile file{out};
                         if (file.open(QIODevice::WriteOnly)) {

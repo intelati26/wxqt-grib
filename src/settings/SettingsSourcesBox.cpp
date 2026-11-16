@@ -71,8 +71,8 @@ SettingsSourcesBox::SettingsSourcesBox(QWidget * parent)
                                     "(so a server that moves is fixed without a new version); a <code>servers.json</code> in your models folder, or a base typed here, goes over both.", this};
         heading->setWordWrap(true);
         layout->addWidget(heading);
-        serversTable = new QTableWidget{0, 4, this};
-        serversTable->setHorizontalHeaderLabels({"Server", "Places (the first is tried first)", "From", "What it is"});
+        serversTable = new QTableWidget{0, 5, this};
+        serversTable->setHorizontalHeaderLabels({"Server", "Places (the first is tried first)", "State", "From", "What it is"});
         serversTable->horizontalHeader()->setSectionResizeMode(QHeaderView::ResizeToContents);
         serversTable->horizontalHeader()->setStretchLastSection(true);
         serversTable->verticalHeader()->setVisible(false);
@@ -215,6 +215,67 @@ SettingsSourcesBox::~SettingsSourcesBox() {
     generation->fetch_add(1);   // answers of a look in progress go nowhere
 }
 
+namespace {
+    QColor colorOf(ServerStatus::State state) {
+        switch (state) {
+            case ServerStatus::State::Ok: return QColor{30, 140, 60};
+            case ServerStatus::State::Late:
+            case ServerStatus::State::Failing:
+            case ServerStatus::State::Moved:
+            case ServerStatus::State::Changed: return QColor{200, 130, 20};
+            case ServerStatus::State::Down:
+            case ServerStatus::State::Retired: return QColor{200, 40, 40};
+            default: return QColor{Qt::gray};
+        }
+    }
+    int severity(ServerStatus::State state) {
+        switch (state) {
+            case ServerStatus::State::Retired: return 7;
+            case ServerStatus::State::Down: return 6;
+            case ServerStatus::State::Failing: return 5;
+            case ServerStatus::State::Moved: return 4;
+            case ServerStatus::State::Changed: return 3;
+            case ServerStatus::State::Late: return 2;
+            case ServerStatus::State::Ok: return 1;
+            default: return 0;
+        }
+    }
+}
+
+// The state of a server by name: the worst of the models that read from it, from what the checks of Model Sources kept (a server none of the checked models read from has none).
+QTableWidgetItem * SettingsSourcesBox::serverState(const std::string& name) {
+    auto * item = new QTableWidgetItem;
+    item->setFlags(item->flags() & ~Qt::ItemIsEditable);
+    const auto now = QDateTime::currentDateTimeUtc();
+    auto worst = ServerStatus::State::Unknown;
+    int models = 0, bad = 0;
+    QStringList notes;
+    for (const auto& def : GfsModels::all()) {
+        const auto entry = ServerStatus::entry(def.id);
+        if (entry.server != name) {
+            continue;
+        }
+        const auto state = ServerStatus::stateOf(entry, now);
+        models++;
+        if (severity(state) > 1) {
+            bad++;
+            notes << QString::fromStdString(def.id + ": " + ServerStatus::name(state) + (entry.movedTo.empty() ? "" : " (answered by " + entry.movedTo + ")") + (entry.goneList.empty() ? "" : " (gone: " + entry.goneList + ")"));
+        }
+        if (severity(state) > severity(worst)) {
+            worst = state;
+        }
+    }
+    if (models == 0) {
+        item->setText("-");
+        item->setToolTip("None of the models checked so far reads from this server (the check is under Model sources, below).");
+        return item;
+    }
+    item->setText(QString::fromStdString(ServerStatus::name(worst)) + QString{" (%1 model%2)"}.arg(models).arg(models == 1 ? "" : "s"));
+    item->setForeground(QBrush{colorOf(worst)});
+    item->setToolTip(notes.isEmpty() ? "Every model that reads from it was found at its first place." : notes.join('\n'));
+    return item;
+}
+
 void SettingsSourcesBox::refreshServers() {
     const QSignalBlocker blocker{serversTable};
     serversTable->setRowCount(0);
@@ -233,8 +294,9 @@ void SettingsSourcesBox::refreshServers() {
         note->setFlags(note->flags() & ~Qt::ItemIsEditable);
         serversTable->setItem(r, 0, nameItem);
         serversTable->setItem(r, 1, new QTableWidgetItem{places});
-        serversTable->setItem(r, 2, from);
-        serversTable->setItem(r, 3, note);
+        serversTable->setItem(r, 2, serverState(name));
+        serversTable->setItem(r, 3, from);
+        serversTable->setItem(r, 4, note);
         r++;
     }
     serversTable->setMinimumHeight(serversTable->horizontalHeader()->height() + std::max(r, 1) * 28 + 6);
@@ -300,14 +362,9 @@ void SettingsSourcesBox::showState(int row, const std::string& model) {
     const auto state = ServerStatus::stateOf(entry, QDateTime::currentDateTimeUtc());
     auto * item = table->item(row, 2);
     item->setText(QString::fromStdString(ServerStatus::name(state)));
-    switch (state) {
-        case ServerStatus::State::Ok: item->setForeground(QBrush{QColor{30, 140, 60}}); break;
-        case ServerStatus::State::Late: item->setForeground(QBrush{QColor{200, 130, 20}}); break;
-        case ServerStatus::State::Failing: item->setForeground(QBrush{QColor{200, 130, 20}}); break;
-        case ServerStatus::State::Down:
-        case ServerStatus::State::Retired: item->setForeground(QBrush{QColor{200, 40, 40}}); break;
-        default: item->setForeground(QBrush{Qt::gray}); break;
-    }
+    item->setForeground(QBrush{colorOf(state)});
+    item->setToolTip(state == ServerStatus::State::Moved ? QString::fromStdString("The first place did not answer; " + entry.movedTo + " did (a fallback of the server).")
+                     : state == ServerStatus::State::Changed ? QString::fromStdString("Fields the charts ask for that were in the files and are gone: " + entry.goneList) : QString{});
     table->item(row, 5)->setText(QString::fromStdString(ServerStatus::ago(entry.lastOk)));
     if (table->item(row, 3)->text().isEmpty() && !entry.newestRun.empty()) {
         table->item(row, 3)->setText(QString::fromStdString(entry.newestRun) + " (last check)");
@@ -366,6 +423,7 @@ void SettingsSourcesBox::start() {
             if (self && gen->load() == mine) {
                 self->running = false;
                 self->again->setEnabled(true);
+                self->refreshServers();   // (the states of the servers by name come from the checks just made)
                 self->summary->setText(QString::number(ok) + " models answer, " + QString::number(bad) + (bad == 1 ? " has a problem." : " have problems."));
             }
         }, Qt::QueuedConnection);

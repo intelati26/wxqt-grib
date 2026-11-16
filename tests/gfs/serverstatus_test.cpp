@@ -52,6 +52,25 @@ int main(int argc, char ** argv) {
     ServerStatus::record("GFS", true, false, "2026112400", "found", 6, 4, true, at("2026-11-24T04:00:00Z"));
     e = ServerStatus::entry("GFS");
     CHECK(e.failsInRow == 0 && e.lastWasOk && !e.firstFail.isValid() && ServerStatus::stateOf(e, at("2026-11-24T05:00:00Z")) == S::Ok);
+    // Moved: found, but a fallback answered; ends when the first place answers again. Changed: the catalogue check found fields gone; ends when none is
+    ServerStatus::setPlaces("GFS", "gfs-aws", "noaa-gfs-bdp-pds.s3.us-east-1.amazonaws.com");
+    e = ServerStatus::entry("GFS");
+    CHECK(e.server == "gfs-aws" && ServerStatus::stateOf(e, at("2026-11-24T05:00:00Z")) == S::Moved);
+    ServerStatus::setPlaces("GFS", "gfs-aws", "");
+    ServerStatus::setChanged("GFS", 2, "TMP@2 m, RH@300 mb");
+    e = ServerStatus::entry("GFS");
+    CHECK(e.goneFields == 2 && e.goneList.find("RH@300 mb") != std::string::npos && ServerStatus::stateOf(e, at("2026-11-24T05:00:00Z")) == S::Changed);
+    ServerStatus::setPlaces("GFS", "gfs-aws", "other.example.org");
+    CHECK(ServerStatus::stateOf(ServerStatus::entry("GFS"), at("2026-11-24T05:00:00Z")) == S::Moved);   // (moved comes before changed: the server is the thing to look at first)
+    ServerStatus::setPlaces("GFS", "gfs-aws", "");
+    ServerStatus::setChanged("GFS", 0, "");
+    CHECK(ServerStatus::stateOf(ServerStatus::entry("GFS"), at("2026-11-24T05:00:00Z")) == S::Ok);
+    // a failure comes before both
+    ServerStatus::setChanged("GFS", 1, "X@y");
+    ServerStatus::record("GFS", false, false, "", "no run", 6, 4, true, at("2026-11-24T06:00:00Z"));
+    CHECK(ServerStatus::stateOf(ServerStatus::entry("GFS"), at("2026-11-24T06:00:00Z")) == S::Failing);
+    ServerStatus::record("GFS", true, false, "2026112406", "found", 6, 4, true, at("2026-11-24T07:00:00Z"));
+    ServerStatus::setChanged("GFS", 0, "");
     // a skipped check (a model that needs a storm) records nothing
     ServerStatus::record("HAFSA", false, true, "", "needs a storm", 6, 4, true, at("2026-11-15T13:00:00Z"));
     CHECK(ServerStatus::stateOf(ServerStatus::entry("HAFSA"), at("2026-11-15T13:00:00Z")) == S::Unknown);

@@ -15,6 +15,7 @@
 class QLabel;
 class QPushButton;
 class QTableWidget;
+class QTableWidgetItem;
 class QTimer;
 
 // The "Model sources" tab of the settings: for each model the Model Viewer draws, whether the server still has a run and lists the first chart's fields (the data moves and
@@ -30,6 +31,7 @@ private:
     void setRow(int row, const GfsRender::SourceCheck&);
     void refreshClimate();   // the climatology rows: stored, or how far the background work is
     void showState(int row, const std::string& model);   // the state and the last OK of a model's source (ServerStatus), from what the checks kept
+    QTableWidgetItem * serverState(const std::string& name);   // the State cell of a server: the worst state of the models that read from it
     void refreshServers();   // the table of servers by name (Servers::table) and the state of the project's file
     QTableWidget * serversTable{};
     QLabel * serversStatus{};

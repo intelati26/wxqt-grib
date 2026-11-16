@@ -37,6 +37,8 @@ std::string ServerStatus::name(State state) {
     switch (state) {
         case State::Ok: return "OK";
         case State::Late: return "Late";
+        case State::Moved: return "Moved";
+        case State::Changed: return "Changed";
         case State::Failing: return "Failing";
         case State::Down: return "Down";
         case State::Retired: return "Retired";
@@ -56,6 +58,12 @@ ServerStatus::State ServerStatus::stateOf(const Entry& e, const QDateTime& now) 
             return State::Down;
         }
         return State::Failing;
+    }
+    if (!e.movedTo.empty()) {
+        return State::Moved;
+    }
+    if (e.goneFields > 0) {
+        return State::Changed;
     }
     if (e.expectRecent && e.newestRun.size() == 10) {
         auto run = QDateTime::fromString(QString::fromStdString(e.newestRun), "yyyyMMddHH");
@@ -104,6 +112,44 @@ void ServerStatus::record(const std::string& model, bool ok, bool skipped, const
     }
 }
 
+void ServerStatus::setPlaces(const std::string& model, const std::string& server, const std::string& movedTo) {
+    if (model.empty()) {
+        return;
+    }
+    const std::lock_guard<std::mutex> guard{lock};
+    auto root = load();
+    const auto key = QString::fromStdString(model);
+    auto o = root.value(key).toObject();
+    o["server"] = QString::fromStdString(server);
+    o["moved_to"] = QString::fromStdString(movedTo);
+    root[key] = o;
+    QDir{}.mkpath(QString::fromStdString(file()).section('/', 0, -2));
+    QSaveFile out{QString::fromStdString(file())};
+    if (out.open(QIODevice::WriteOnly)) {
+        out.write(QJsonDocument{root}.toJson(QJsonDocument::Compact));
+        out.commit();
+    }
+}
+
+void ServerStatus::setChanged(const std::string& model, int gone, const std::string& list) {
+    if (model.empty()) {
+        return;
+    }
+    const std::lock_guard<std::mutex> guard{lock};
+    auto root = load();
+    const auto key = QString::fromStdString(model);
+    auto o = root.value(key).toObject();
+    o["gone_fields"] = gone;
+    o["gone_list"] = QString::fromStdString(list).left(300);
+    root[key] = o;
+    QDir{}.mkpath(QString::fromStdString(file()).section('/', 0, -2));
+    QSaveFile out{QString::fromStdString(file())};
+    if (out.open(QIODevice::WriteOnly)) {
+        out.write(QJsonDocument{root}.toJson(QJsonDocument::Compact));
+        out.commit();
+    }
+}
+
 ServerStatus::Entry ServerStatus::entry(const std::string& model) {
     const std::lock_guard<std::mutex> guard{lock};
     const auto o = load().value(QString::fromStdString(model)).toObject();
@@ -122,6 +168,10 @@ ServerStatus::Entry ServerStatus::entry(const std::string& model) {
     e.cycleHours = o.value("cycle_hours").toInt(6);
     e.lagHours = o.value("lag_hours").toInt(0);
     e.expectRecent = o.value("expect_recent").toBool(true);
+    e.server = o.value("server").toString().toStdString();
+    e.movedTo = o.value("moved_to").toString().toStdString();
+    e.goneFields = o.value("gone_fields").toInt();
+    e.goneList = o.value("gone_list").toString().toStdString();
     return e;
 }
 

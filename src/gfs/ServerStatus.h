@@ -16,9 +16,11 @@
 //   Failing  the last check failed (the first one: it may be the connection)
 //   Down     the last two checks or more failed, ten minutes or more apart
 //   Retired  down, and last OK more than seven days ago: the files moved or the product was retired (the sign of a server change, section 20)
+//   Moved    found, but not at the first place of its server: a fallback answered (the first base failed; section 20)
+//   Changed  found, but the last catalogue check listed fields the charts ask for that were in the files before and are not now (CatalogCheck: Gone)
 //   Unknown  never checked
 namespace ServerStatus {
-    enum class State { Unknown, Ok, Late, Failing, Down, Retired };
+    enum class State { Unknown, Ok, Late, Moved, Changed, Failing, Down, Retired };
     struct Entry {
         std::string model;
         std::string newestRun;       // "2026111500" at the last check that found one
@@ -27,6 +29,10 @@ namespace ServerStatus {
         int failsInRow{0};
         bool lastWasOk{false};
         int cycleHours{6}, lagHours{0};   // what the model's runs are like, as the check saw them
+        std::string server;          // the name of the server (Servers) the model reads from, "" for one that has none
+        std::string movedTo;         // the host that answered when the first place did not, "" when the first did
+        int goneFields{0};           // fields at the last catalogue check that were found before and are gone
+        std::string goneList;        // the first few of them, as "variable@level"
         bool expectRecent{true};          // false for an archive (its newest run is old by design: never Late)
     };
     // The state from what is kept: a pure function of the entry and the time.
@@ -34,6 +40,9 @@ namespace ServerStatus {
     std::string name(State state);
     // One check's result: a failure adds to the run of failures, a success ends it. `skipped` (a model that needs a storm) records nothing.
     void record(const std::string& model, bool ok, bool skipped, const std::string& run, const std::string& detail, int cycleHours, int lagHours, bool expectRecent, const QDateTime& now = QDateTime::currentDateTimeUtc());
+    // What the check found out about the places (`server`, `movedTo`), kept with the next record; and what the catalogue check found gone.
+    void setPlaces(const std::string& model, const std::string& server, const std::string& movedTo);
+    void setChanged(const std::string& model, int gone, const std::string& list);
     // What is kept for a model (an entry with no checks when there is none).
     Entry entry(const std::string& model);
     // "3 h ago", "2 days ago", "never"

@@ -23,6 +23,8 @@ namespace {
     constexpr int maxBytes = 64 * 1024;
 
     std::mutex lock;
+    std::map<std::string, std::string> promoted;   // name -> the base that answered when the first did not (this run of the program), put first in what table() gives
+    std::map<std::string, std::string> demoted;    // name -> the base it was put before
     bool loaded{false};
     Servers::Table cached;
     Servers::FetchStatus status;
@@ -154,11 +156,51 @@ Servers::Table Servers::table() {
     if (!loaded) {
         loadLayers();
     }
-    return cached;
+    auto out = cached;
+    for (const auto& [name, base] : promoted) {   // a fallback that answered while the first did not stays first until the program restarts (or the table is read again: reload)
+        const auto found = out.find(name);
+        if (found == out.end()) {
+            continue;
+        }
+        auto& bases = found->second.bases;
+        const auto at = std::find(bases.begin(), bases.end(), base);
+        if (at != bases.end() && at != bases.begin()) {
+            std::rotate(bases.begin(), at, at + 1);
+        }
+    }
+    return out;
+}
+
+bool Servers::promote(const std::string& url) {
+    const auto name = nameOfUrl(url);
+    if (name.empty()) {
+        return false;
+    }
+    const auto all = table();
+    const auto& bases = all.at(name).bases;
+    for (size_t i = 1; i < bases.size(); i++) {
+        if (url.rfind(bases[i], 0) == 0) {
+            const std::lock_guard<std::mutex> guard{lock};
+            if (demoted.find(name) == demoted.end()) {
+                demoted[name] = bases.front();
+            }
+            promoted[name] = bases[i];
+            return true;
+        }
+    }
+    return false;
+}
+
+std::string Servers::demotedBase(const std::string& name) {
+    const std::lock_guard<std::mutex> guard{lock};
+    const auto found = demoted.find(name);
+    return found == demoted.end() ? std::string{} : found->second;
 }
 
 void Servers::reload() {
     const std::lock_guard<std::mutex> guard{lock};
+    promoted.clear();   // (a table read again starts from what the files say)
+    demoted.clear();
     loadLayers();
 }
 
@@ -248,4 +290,15 @@ void Servers::refreshIfDue() {
         return;
     }
     std::thread{[] { refreshFromProject(nullptr); }}.detach();
+}
+
+std::string Servers::nameOfUrl(const std::string& url) {
+    for (const auto& [name, entry] : table()) {
+        for (const auto& base : entry.bases) {
+            if (url.rfind(base, 0) == 0) {
+                return name;
+            }
+        }
+    }
+    return {};
 }

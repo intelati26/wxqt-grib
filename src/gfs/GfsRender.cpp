@@ -186,10 +186,12 @@ GfsRender::SourceCheck GfsRender::checkSource(Session& session, const std::strin
     result.model = model;
     const auto started = std::chrono::steady_clock::now();
     int cycleHours = 6, lagHours = 0;
+    std::string server, movedTo;
     bool expectRecent = true, remember = false;   // remember: the result says something about the server (not that GDAL is missing here)
     const auto finish = [&] {
         result.seconds = std::chrono::duration<double>(std::chrono::steady_clock::now() - started).count();
         if (remember) {
+            ServerStatus::setPlaces(model, server, movedTo);   // (before the record: the record's state reads them)
             ServerStatus::record(model, result.ok, result.skipped, result.run, result.detail, cycleHours, lagHours, expectRecent);
         }
         return result;
@@ -235,6 +237,7 @@ GfsRender::SourceCheck GfsRender::checkSource(Session& session, const std::strin
         return finish();
     }
     result.run = run.id();
+    gfs.placesOf(run, server, movedTo);
     const GfsChart::Product * product = nullptr;
     for (const auto& p : GfsChart::products()) {
         if (p.source == model) {

@@ -147,7 +147,11 @@ public:
         boxSet = true;
     }
     // the newest cycle whose probe hour has been published (tries the last few cycles back from now)
-    bool latestRun(Run& run) const;
+    bool latestRun(Run& run) const;   // (when none is found, a fallback place of the model's server that answers is put first, see Servers::promote, and the look is made again)
+    bool latestRunAt(Run& run) const;
+    // Which place answers for the model's probe file: `server` is the name of the server the first place belongs to ("" when none), `movedTo` the host that answered when the first place did not ("" when the
+    // first did, or nothing did, or there is only one place). The state "Moved" of Model Sources.
+    void placesOf(const Run& run, std::string& server, std::string& movedTo) const;
     const Source& model() const { return source; }
     // The forecast hours the run has published (the .idx of f000 .. f384 exist): a 3 hour step to 240, then 6
     static std::vector<int> forecastHours();
