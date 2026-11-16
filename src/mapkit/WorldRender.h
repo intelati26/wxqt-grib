@@ -35,7 +35,12 @@ namespace WorldRender {
     std::vector<Source> loadSources(const std::string& chart, const std::vector<std::string>& names, const QDateTime& when);
     // the world on one of the export projections painted from the grids themselves, at their own resolution (any width): each pixel samples the finest model that has a value; coastlines and
     // borders over it. Threads work on bands of rows; `done` counts the rows made.
-    QImage renderWorld(const std::vector<Source>& sources, int projection, double centerLon, int width, std::atomic<int> * done, bool whiteGround = false);   // whiteGround: where no model has a value it is white (the pictures made to keep), else the map's own background
+    // over: another model's field laid over the chart (section 10 of the plan: the map's "Another model's field"), each source's ramp already made translucent by overRamp;
+    // fadeBase: the chart's own fill pale under it (the "Fade" box)
+    QImage renderWorld(const std::vector<Source>& sources, int projection, double centerLon, int width, std::atomic<int> * done, bool whiteGround = false,   // whiteGround: where no model has a value it is white (the pictures made to keep), else the map's own background
+                       const std::vector<Source> * over = nullptr, bool fadeBase = false);
+    // the other model's scale as the picture draws it over a chart (GfsRender's cross fill): translucent (alpha at most 215) and clear under the lowest sixth of the scale
+    GfsChart::Ramp overRamp(const GfsChart::Ramp& ramp);
 }
 
 #endif  // WORLDRENDER_H

@@ -2,26 +2,49 @@
 
 What was planned and what is left. Check the code before acting on a line.
 
-**Contents**
+**Contents** (status as of 2026-11-16)
 
 - 1. Fold the NSSL tar loader into the main GRIB path (done)
 - 2. NetCDF sources: what could be combined (SFCOA / RRFSD done)
 - 3. One GDAL raster reader for the NetCDF (and tar) flows (done, but the GOES layer)
 - 4. Model verification against MRMS (reflectivity)
 - 5. Open-Meteo's `.om` files on S3: grids with no API calls (done 2026-11-05, `d864da8`)
-- 6. One model screen over two canvases (the Model Viewer and the master map)
-- 7. WOOF-NAM from its own site (a hosted source for the model that is already a local one)
-- 8. Extended point view: a saved place's 11-day forecast from the NBM text bulletins (plan, 2026-11-12; nothing written)
-- 9. Charts as presets of the checks (plan, 2026-11-13; nothing written)
-- 10. One model's field over another model's chart (idea, 2026-11-13; nothing written)
-- 11. Taking `render()` apart, and one rule for where things are drawn (plan, 2026-11-13; steps 1 to 4 are done, 2026-11-14)
-- 12. Android build (APK) and GDAL - notes (2026-10-30)
-- 13. Derived severe-weather indices (SHIP, SIGTOR/STP) — plan
-- 14. GFS charts: what is missing, and how anomalies could work
-- 15. History: an archive tier and one fetch path (plan, outline)
-- 16. REFS Ensemble Viewer — plan
-- 17. Sounding viewer: remaining SPC panels (sketch, 2026-10-01)
-- 18. Tropical Hub - idea and sketch (2026-10-02)
+- 6. One model screen over two canvases (step 6 closed 2026-11-10: the picture stays its own screen; small items left)
+- 7. WOOF-NAM from its own site (done 2026-11-11 as `WOOF-NAM-HOSTED`; status.json and the hindcasts left)
+- 8. Extended point view from the NBM text bulletins (built 2026-11-12, polished 11-15; RRFS smoke+dust line 11-16; left: precipitation type colors, a thumbnail map, the NBH, a station per place)
+- 9. Charts as presets of the checks (the Checks picker and the alias table built 2026-11-13 to 15)
+- 10. One model's field over another model's chart (built on the picture and in the map layer 2026-11-15; left: the world export, the history dialog, the compare tiles' second field)
+- 11. Taking `render()` apart (steps 1 to 4 done 2026-11-14; the rest, in its order, is in the section's "Next")
+- 12. Android build (APK) and GDAL - notes (2026-10-30; **kept as a reminder only, no work planned**, the user 2026-11-16)
+- 13. Derived severe-weather indices (SHIP, SIGTOR/STP) (**done**: segments 1 to 6, then moved into the model screen's charts: `ship` with the model's own hail size as lines, `stp` fixed layer for the HRRR, RRFS and MPAS runs, `stp_eff` / `scp` from SFCOA and RRFSD, both in the sounding indices; deferred by choice: effective-layer STP worked out from the HRRR/RRFS fields)
+- 14. GFS charts: what is missing, and how anomalies could work (much built since the 2026-10-08 table: trends, MSLP and PWAT, anomalies, isentropic PV ...; the table is not checked row by row)
+- 15. History: an archive tier and one fetch path (the events screen and the history cursor built 2026-10-15 to 16; the archive tier and one fetch path not built)
+- 16. REFS Ensemble Viewer (done 2026-10-01, see the section)
+- 17. Sounding viewer: remaining SPC panels (**complete** 2026-11-16: every panel drawn, checked against SPC's OUN 12Z picture and text; one known difference noted, the advection column's lowest layer)
+- 18. Tropical Hub (built 2026-10-08: storm cards, outlook, recon plan, season tallies; its model screens open on a selection since 11-10)
+- 19. The polar vortex: initial states since a date (built 2026-11-14 to 15; home tiles 11-16; left: the analysis models' own levels)
+- 20. Servers in one place (finished 2026-11-15; left: "Copy as override file", the run menu's note, overrides without a restart)
+- 21. The product catalogue as data (chart files, the Catalogue page and "Make a chart" built 2026-11-15)
+- 22. Ensemble percentiles at a place (built 2026-11-15)
+- 23. Model comparison at a place (built 2026-11-15: bands, members, boxes, all models, bias, evolution; left: a station the person picks, the maps opened at the place, wind and other stations)
+- 24. The RRFS aerosols, and what else the files had (finished 2026-11-16: smoke and dust, emissions, haze, runoff, PLPL, ceiling, cloud by height on 26 models; seen on the map; checked against AirNow on a clean day, a smoky day still to try)
+
+**Next (2026-11-16), in this order:**
+1. (Section 24: done 2026-11-16; on a smoky day, repeat the AirNow comparison.)
+2. Section 10's left items: the second field in the whole-world export and the history dialog (they draw through `WorldRender`, which can be checked headless), then the compare tiles.
+3. The nice weather outlook: one rain rule for every day (the NBM 12 hour daytime chance fit his levels as well as the rest on 7 days of a dry week; not decided), and a daily collector of his files with our 06Z run, so the marks are fitted on many days and tested on others. His day 8 does not exist; ours does.
+4. Section 23's left items, then section 8's.
+5. A first build of `f1ae9b5` on GitHub when wanted (not built yet: the last green build is `ae807f2`).
+
+**The older, larger sections (11 to 18), what is left in each:**
+- 11. `render()` apart: the remaining steps in the section's own "Next" list (one commit each, the golden test green after each).
+- 12. Android: a reminder only (the user, 2026-11-16: keep the notes, no future work).
+- 13. Severe indices: done (the dual contour with the model's hail size is in the `ship` chart). Only effective-layer STP from the HRRR/RRFS fields themselves was deferred, by choice.
+- 14. GFS charts against Tropical Tidbits' menu: go through the 2026-10-08 table row by row and mark what is built; then the rest (frontogenesis, Okubo-Weiss, Q-divergence, simulated IR, ...).
+- 15. History: the archive tier (keep a run, a loop or a day for research) and the one fetch path; the screen and cursor exist.
+- 16. REFS viewer: done.
+- 17. Sounding panels: complete (2026-11-16). Known difference, kept as a note: the inferred advection column's lowest layer.
+- 18. Tropical Hub: built; the idea's later parts (the ocean conditions round a storm, historical seasons by basin) not checked against it.
 
 **Done (2026-11-02):** items 1 and 3 and the SFCOA / RRFSD piece of item 2, see the notes in each. Left: the `oneWhole` split and the SPC REFS Zarr question of item 2, and the GOES history layer's own GDAL steps (item 3).
 
@@ -300,7 +323,7 @@ Result: GFS ~62 -> about 12 "base charts" and 4 to 6 built-in presets (500 wind 
 
 
 
-## 10. One model's field over another model's chart (scoped 2026-11-15 from the code; nothing written)
+## 10. One model's field over another model's chart (built 2026-11-15 on the picture and the map layer; see the notes for what is left)
 
 Asked while drawing §9: a SPC REFS product (a probability, a paintball, an ensemble max, the updraft helicity) drawn over an upper-air chart (500 mb heights and barbs) from another model. Out of the scope of §9, which keeps every picker inside one model, but §9 leaves the room for it. **Read from the code on 2026-11-15 (not run): most of the questions below are already answered by what the program does today, and the real work is smaller than the first guess and in other places.**
 
@@ -392,6 +415,8 @@ Found in it: (1) the width of a number's box is guessed (`text.size() * 8`), whe
 
 ## 12. Android build (APK) and GDAL - notes (2026-10-30)
 
+**Sunset (2026-11-16, the user):** kept as a reminder; no work is planned on it.
+
 _(Was `docs/%s`, folded in here on 2026-11-14.)_
 
 Status: **on hold, nothing implemented.** Written down so the question stops costing thinking time.
@@ -433,6 +458,8 @@ Only `arm64-v8a` at first; each extra ABI multiplies the build.
 ## 13. Derived severe-weather indices (SHIP, SIGTOR/STP) — plan
 
 _(Was `docs/%s`, folded in here on 2026-11-14.)_
+
+**Updated 2026-11-16:** built: SHIP and STP (fixed and effective) are in `SoundingIndices` and are map charts (`ship`, `stp`) of the HRRR, HRRR-AK, RRFS and MPAS runs. The text below is the plan as written.
 
 Status: **planning**, 2026-09-12. Continues a conversation the user had
 elsewhere that produced a working Python/MetPy/xarray prototype for **SHIP**
@@ -988,6 +1015,8 @@ The long-term-mean files are NetCDF-4 (HDF5, deflate), 15-260 MB each, but every
 _(Was `docs/%s`, folded in here on 2026-11-14.)_
 
 Raised 2026-10-15 ("history is something I think about; relates to the cache as research / redownloading the same files").
+**Updated 2026-11-16:** the History events screen (`EventsViewer`, 2026-10-15) and the history cursor (`HistoryCursor`: the master map and the Model Viewer follow the History page's time, 2026-10-16) are built; the archive tier and the one fetch path are not.
+
 Status: **plan only**; nothing here is built except the pieces listed under "Already in place".
 
 ### 1. Why
@@ -1670,7 +1699,13 @@ Verified by rendering every row live (37 rows; one member stands for the five): 
 - **Still open**: `eas`/`ffri` (blocked on what the published thresholds mean); change maps for paintball and
   member-probability panels (derived per member - they say so on screen); a user-chosen comparison run.
 
-## 17. Sounding viewer: remaining SPC panels (sketch, 2026-10-01)
+## 17. Sounding viewer: remaining SPC panels (**complete**, 2026-11-16)
+
+**Done (checked 2026-11-16, `WXQT_OPEN=raobsound:OUN:2026111612`):** every panel below is drawn: the inferred advection column, theta-e with TEI, storm-relative winds with the classic-supercell envelope, the effective-layer STP and SHIP box plots, SARS (supercell and significant hail), and the SPC tables (MU parcel, K index, mid and low RH, ESP, MMP, WNDG, SigSvr, NCAPE, Corfidi, MPL), with the tornado-chance box and the possible hazard type besides. What follows is the plan as written.
+
+**Known difference, noted (2026-11-16): the inferred temperature advection column's lowest layer.** On OUN 12Z of 16 Nov 2026 ours is +1.8 C/hr in the surface-to-890 mb layer where SPC has -0.1, from the same levels (the surface wind calm in both); the seven layers above agree with SPC to a few tenths (-0.1/-0.1, -0.9/-1.1, -0.7/-0.8, -0.1/-0.1, -0.8/-0.4, -0.0/-0.1, +0.3/+0.4). The port follows SHARPpy's `inferred_temp_adv` line by line; a calm wind is taken as 0 degrees as SHARPpy does (that did not change it). Likely SHARPpy's wind interpolation at the surface (it may skip a calm report or the levels with no wind) differs from ours; worth a look if a case with a calm surface wind and a stronger lowest-layer signal comes up. Not a blocker: the section is complete.
+
+**Checked against SPC's own picture and text (2026-11-16, OUN 12Z, `spc.noaa.gov/exper/soundings/26111612_OBS/OUN.gif` and `.txt`; the same levels and values as our feed, the calm surface included):** the SB, ML and forecast-surface parcels, PW, K, DCAPE, DownT, WBZ, freezing level, MaxT, the mean mixing ratio, the shear, the BRN shear, the 4-6 km SR wind, the Corfidi vectors and the effective-STP probability lines all agree; SRH, mean winds and SR winds within 1-4 degrees or 1 unit. Done: the 850-500 mb lapse rate is in the table now (4.1, as SPC); the sounding test builds again (`tests/sounding/run.sh` lacked the SARS files) and its "3-6 km" check compares the sea level layer, which is what SPC's text product means (its 4.7 against the picture's "3-6 km AGL" 5.5): 518 comparisons over 13 soundings, all within tolerance. **Differences left, understood or small:** (1) SPC's picture prints the MU row as the surface parcel ("MU (990 mb)") while SPC's text lifts it from 562 mb (LCL 6409 m, LI 5); ours lifts from about 603 mb (LCL 5752 m, LI 5.6) because the search stops 400 mb over the surface (590 mb) as SPC says it does, and 562 mb is 428 mb up: not explained (SPC's text kept in the scratchpad, not a fixture, so CI stays green). (2) The advection column's lowest layer: +1.8 against SPC's -0.1 on the same calm surface wind (a calm wind is now 0 degrees, as SHARPpy's; that was not it); the other seven layers agree within a few tenths. (3) TEI 23 against 25, the steepest lapse rate 6.4 against 6.2, mid and low RH 64/95 against 66/96, Bunkers 1-2 degrees: the formulas are SHARPpy's; the interpolation or the theta-e routine differs in detail.
 
 _(Was `docs/%s`, folded in here on 2026-11-14.)_
 
@@ -1707,6 +1742,8 @@ Each panel is one commit: port, draw, headless screenshot (`WXQT_OPEN=spcsoundin
 ## 18. Tropical Hub - idea and sketch (2026-10-02)
 
 _(Was `docs/%s`, folded in here on 2026-11-14.)_
+
+**Updated 2026-11-16:** built 2026-10-08 (`src/dashboard/TropicalHub.*`: storm cards, the outlook, the recon plan, season tallies); its model screens open on a `ChartSelection` since 2026-11-10. What is below is the idea as written.
 
 Status: **idea, nothing started.** Written down so it can be read again and decided on. Part of the ideas list in
 `outstanding-work.md` (status board).
@@ -1981,7 +2018,7 @@ day (more when changed), text only.
 **Open questions:** the start date to default to (1 October?) and whether the history is of the GFS only or compared with ERA5 for the same dates (the reanalysis is the better truth, a few days behind); the levels (10 and 50 mb first, then the rest); whether the history player is its own screen or a mode of the Model Viewer's loop.
 
 
-## 20. Servers in one place: overrides, a server table and a status page (sketch, 2026-11-15; hypothetical, nothing written)
+## 20. Servers in one place: overrides, a server table and a status page (built 2026-11-15)
 
 Raised while thinking about portability: NOAA's RRFS moved from `para` to `prod`, the IFS 0.1 degree set replaced the 0.25 degree one on 2026-10-20, a bucket can be renamed. Today each of those is an edit and a release. This sketches how a change of server could be made by the person, quickly, with the program saying which server it is reading and when one fails.
 
@@ -2065,7 +2102,7 @@ What the published file may contain is deliberately small and checked, because i
 
 **Open points:** (0) the fifth state's threshold: Changed on any want gone since the last check, or only when a share of a model's wants (and one chart's whole set) is gone; (0b) whether the project's published check result should also gate the published `servers.json` (a server entry is not applied when the project's own check says the model is Changed there: no); (1) whether the registry can be reloaded without a restart (it is made once, `static`; the Model Viewer holds `Def` pointers); (2) whether a changed server should change the cache key of what was read from it (the same run on another server is the same data, so no; a different product under the same name, para against prod, is a different run and the run id already differs by date, but a model that keeps its date and changes its numbers is not covered: an override can add `cache_tag`); (3) how much of the status is shown without being asked (a banner for Down and Gone only, the rest in the Settings table); (4) whether the sources check should run on its own once a day and write the status (a handful of HEAD requests for each server) or only when asked.
 
-## 21. The product catalogue as data you can read and edit (sketch, 2026-11-15; nothing written beyond the check)
+## 21. The product catalogue as data you can read and edit (chart files, the Catalogue page and "Make a chart" built 2026-11-15)
 
 The maintainer: the catalogue should be **editable and accessible**, not only code. Today the catalogue is C++ (`GfsProducts*.cpp`, 19 families of functions, about 5,580 chart entries after the clones), with a read-only dump (`docs/presets/charts-dump.txt`, a test compares it) and the alias table (§9, generated). Section 11 already named the wish (a data file over definitions in code). The catalogue check built on 2026-11-15 (`CatalogCheck`, `GfsData::inventory`, `WXQT_OPEN=catalogcheck:`) is the first thing that reads the catalogue as data (the wants of every chart), and its "Not cataloged" list is the natural place to start adding to it.
 
@@ -2129,7 +2166,7 @@ Asked: "like for like trends of model bias" ("the Euro is cooler than the GEFS. 
 
 **The polar vortex on the home screen (2026-11-16, the user: "a constant 10mb/isentropic view of the North polar"):** two home thumbnails, off by default (`HomeThumbnails`: `VORTEX_10MB`, the GFS 10 mb wind and height, and `VORTEX_THETA`, the 850 K isentropic potential vorticity, wind and pressure, 850 K being near 10 mb), each the north pole to 30 N on the polar projection, painted from the grids themselves by `WorldRender` (the master map's export code: `loadSources` and `renderWorld`, no widget needed) for the newest initial state (six hours back, at a six hourly time, so the run has it), with the run, hour and time written above; a click opens the master map on the same chart over the pole (`MasterMapViewer::openModels(..., "POLAR")`). Headless: `WXQT_OPEN=thumb:VORTEX_10MB:<out.png>`. Seen: the 16 Nov 06Z vortex displaced toward Scandinavia in both. **Not yet:** a legend (the picture is the map only: the master map has it), the other models (the Euro's IFS has the 10 mb chart too: a choice of model in the tile's settings), the south pole, the history strip as a tile, the refresh schedule is the home screen's own (the picture is made when the tile is, not every six hours on its own).
 
-## 24. The RRFS aerosols the app does not read yet (noted 2026-11-16)
+## 24. The RRFS aerosols, and what else the files had (noted and built 2026-11-16)
 
 The RRFS's `2dfld` files (`rrfs.t<HH>z.2dfld.3km.f<FFF>.conus.grib2`, every hour, also `ak`, `hi`, `pr` and the 13 km `na`) carry the smoke and dust model's fields. The app reads only one of them: `MASSDEN` at 8 m, "Total aerosol", for the nice weather outlook's smoke cap (`GfsProductsNbm.cpp`). None of these is a chart, and none is used anywhere else (checked in the 06Z run of 16 Nov 2026, f012):
 
@@ -2158,3 +2195,5 @@ Left: a picture of the charts on the master map, colour keys for the fires on th
 - **Found, not fixed: ERA5's surface fields do not load** ("ERA5 does not have TCWV / LCC for ..." on 2022 and 2024 dates, no request is made; the monthly files are in the bucket). Its pressure level charts were not tried. The existing `mslp_pwat` fails the same way, so this is older than the cloud layers.
 - **Fixed (2026-11-16): the models whose address is made in code ignored it.** Since the server names (section 20), a model file whose url names a server gets a list of candidate addresses (`GfsModelFile`: `candidates`, for falling back from one server to the next), and `GfsData::urlsFor` asks that list before `fileUrl`. Six models make or change their address in code (`GfsModels.cpp`), so the code was never asked: ERA5 and CFS-ANL asked for addresses that do not exist (no field at all: "ERA5 does not have TCWV"), RAP-ANL lost the newer NCEI folder (May 2020 on), RTMA and URMA lost the older file endings (before May 2017), GFS1-ANL lost the GRIB2 ending (April 2017 on), and the RRFS runs between the 3 hourly ones lost their 15 minute files. Now the four that make the whole address drop the list (`candidates = nullptr`), and the two that change it (GFS1-ANL, the RRFS) change every candidate the same way, so the servers still fall back. Drawn: ERA5 MSLP and precipitable water and 500 mb (2022), the cloud layers (2024), CFS-ANL 500 mb (2010 and 2026), RAP-ANL (2015, 2021), GFS1-ANL (2019), RTMA (2015), RRFS 07Z f003. No automatic test of it yet (every case reads the network).
 - **(2026-11-16, after):** the decoded-grid cache names carry the scale in the whole-file reader (Open-Meteo, NetCDF, MSC, DWD) and the GFS box reader too (`x<factor>`), as in the indexed path; ICON's sea level pressure (x100) read again through it (102,510 Pa). `tests/gfs/models_test.cpp` checks, for every model with a candidate list and runs of 2010 to 2026, that the first candidate is `fileUrl`'s address, and pins the ERA5, CFS-ANL, GFS1-ANL and RRFS in-between addresses (it fails on ERA5 with the fix undone). **The HRRR's smoke** (HRRR and HRRR-AK, the HRRR-Smoke fields of `wrfsfc`: MASSDEN at 8 m, COLMD, AOTK; no dust, no emission flux): `smoke_sfc`, `smoke_column`, `aod` (06Z f012: a plume aloft over Idaho and Montana, 13 mg/m2; near-surface smoke to 34). Section 24 left: the picture on the master map, AirNow against the RRFS PM2.5.
+- **Section 24 finished (2026-11-16):** (1) **seen on the master map:** `mcexport` with the RRFS `smoke_column` and `pm25_sfc` (a private settings folder, the 06Z run pinned with `MM_MODELCHART_RUN`): the map draws them, the fires over the smoke with the "fires" row in the legend (the export route works when the run is pinned; it did not find a run by itself before). (2) **The RRFS PM2.5 against AirNow:** the hourly observation file (`files.airnowtech.org/airnow/today/HourlyData_2026111614.dat`, 814 PM2.5 monitors in the contiguous states, with `Monitoring_Site_Locations_V2.dat`) against the RRFS 12Z f003 and 06Z f009 hour means and GEOS-FP's all-species PM2.5: on this clean morning the monitors read a median of 4.6 (70 over 12, 2 over 35: Missouri, Indiana, Illinois, morning inversions and local sources), **the RRFS 0.01** (bias -5.9, r 0.01, rank r 0.3: it models fire smoke and dust only, so outside smoke it says nothing about the air), GEOS-FP 4.6 (bias -1.0 but r 0.07: the level right, not the places). So: the RRFS number is a smoke and dust signal, as labeled ("Smoke+dust"), not the air quality; the nice weather cap is right to use it only as a smoke cap, with AirNow's own forecasts for the cities. **Not tested:** a day with smoke (the only case where the RRFS should match); worth repeating on one. The comparison is a scratch script, not in the app.
+- **Section 10, the world export (2026-11-16, built, not yet seen):** `WorldRender::renderWorld` takes `over` (another model's sources, their ramps made by `WorldRender::overRamp`: alpha at most 215, clear under the lowest sixth, as GfsRender's cross fill) and `fadeBase` (the chart's own fill at three tenths); `MasterMapViewer::exportWorldTo` loads the model layer's `crossFill` chart for the same time, passes it, names it in the runs line and adds its legend row; the history pictures go through the same export. **Left:** a headless check (the `modelat` route resets the cross fill through `openModels`' `ChartSelection`: give the route a `WXQT_CROSS` that builds a selection with it), then the compare tiles.

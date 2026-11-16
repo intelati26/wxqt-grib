@@ -146,7 +146,9 @@ int main(int argc, char** argv) {
                 return std::strtod(end + 2, nullptr);
             };
             check("lapse 0-3 km", a.lapse03, rate("0-3 km      "), 0.1);
-            check("lapse 3-6 km MSL", a.lapse36, rate("3-6 km      "), 0.2);
+            // the text product's "3-6 km" is above sea level (OUN 16 Nov 2026 12Z: its 4.7 is the 3000-6000 m MSL rate, while SPC's picture and our table, "3-6 km AGL",
+            // give 5.5); a.lapse36 is the AGL one the table shows, so the line is compared with the sea level layer worked out here
+            check("lapse 3-6 km MSL", SoundingIndices::lapseRateAgl(profile, profile.toAgl(3000.0), profile.toAgl(6000.0)), rate("3-6 km      "), 0.2);
             check("lapse 700-500", a.lapse700500, rate("700-500mb   "), 0.1);
         }
         // composites: SCP / STP follow SPC to a small absolute error (SHIP is known to differ, see the notice)

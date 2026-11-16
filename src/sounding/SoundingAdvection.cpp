@@ -37,6 +37,9 @@ namespace SoundingAdvection {
 
         // meteorological direction (degrees the wind blows from) of a u / v pair
         double direction(double u, double v) {
+            if (std::hypot(u, v) < 1e-9) {   // a calm wind: 0 degrees, as SHARPpy's arctan2(0, 0) gives (checked 16 Nov 2026 against SPC's OUN 12Z: not what makes our lowest
+                return 0.0;                   // layer +1.8 where SPC has -0.1; that is the data: our feed has the surface calm, SPC's decoding likely a light wind)
+            }
             double d = std::atan2(-u, -v) * 180.0 / pi;
             return d < 0.0 ? d + 360.0 : d;
         }

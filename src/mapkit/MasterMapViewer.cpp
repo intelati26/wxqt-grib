@@ -2335,6 +2335,7 @@ void MasterMapViewer::exportWorldTo(const QString& path, GlobeMapView::Projectio
     status("drawing the world ...");
     QCoreApplication::processEvents();
     vector<MapLegendRow> changeRows;
+    vector<MapLegendRow> crossRows;   // the other model's field laid over the chart, when there is one
     QImage world;
     string highNote;
     {   // a polar map with a model chart on the map is always painted from the model's grid (the Mercator picture stops at 85 degrees, short of the pole)
@@ -2459,6 +2460,37 @@ void MasterMapViewer::exportWorldTo(const QString& path, GlobeMapView::Projectio
             }
             changeRows.push_back(row);
         }
+        // another model's field over the chart (section 10 of the plan: the layer's "Another model's field ..."), for the same valid time, painted as the picture paints it
+        std::vector<WorldRender::Source> overSources;
+        bool fadeBase = false;
+        if (const auto * layer = modelLayer(); layer != nullptr && !layer->selection().crossFill.empty()) {
+            const auto cross = layer->selection().crossFill;
+            const auto colon = cross.find(':');
+            if (colon != string::npos) {
+                const string overModel = cross.substr(0, colon), overChart = cross.substr(colon + 1);
+                QEventLoop loop;
+                status("reading " + overModel + "'s field ...");
+                new FutureVoid{this, [&] { overSources = WorldRender::loadSources(overChart, {overModel}, when); }, [&loop] { loop.quit(); }};
+                loop.exec();
+                fadeBase = layer->selection().fadeFill;
+                for (auto& o : overSources) {
+                    o.ramp = WorldRender::overRamp(o.ramp);
+                    highNote += (highNote.empty() ? "" : ", ") + o.model + " " + o.run.substr(4) + "Z F" + std::to_string(o.hour) + " (over)";
+                    MapLegendRow row;
+                    const auto * product = GfsChart::product(overChart, overModel);
+                    row.title = QString::fromStdString(overModel + " " + (product != nullptr ? product->label : overChart) + " (over):");
+                    for (const auto& [value, color] : o.ramp.stops) {
+                        if (color.alpha() > 0) {
+                            row.entries.push_back({MapLegendEntry::Square, color, QString::number(value, 'g', 3)});
+                        }
+                    }
+                    crossRows.push_back(row);
+                }
+                if (overSources.empty()) {
+                    highNote += (highNote.empty() ? "" : ", ") + overModel + " " + overChart + ": no field for this time";
+                }
+            }
+        }
         std::atomic<int> rows{0};
         double halfW, halfH;
         GlobeMapView::extent(projection, halfW, halfH);
@@ -2468,7 +2500,7 @@ void MasterMapViewer::exportWorldTo(const QString& path, GlobeMapView::Projectio
             QTimer ticker;
             QObject::connect(&ticker, &QTimer::timeout, [&] { status("painting the world: " + std::to_string(rows.load() * 100 / std::max(1, totalRows)) + " %"); });
             ticker.start(500);
-            new FutureVoid{this, [&] { world = WorldRender::renderWorld(sources, static_cast<int>(projection), centre, width, &rows, true); }, [&loop] { loop.quit(); }};
+            new FutureVoid{this, [&] { world = WorldRender::renderWorld(sources, static_cast<int>(projection), centre, width, &rows, true, overSources.empty() ? nullptr : &overSources, fadeBase); }, [&loop] { loop.quit(); }};
             loop.exec();
         }
         for (const auto& s : sources) {
@@ -2558,6 +2590,7 @@ void MasterMapViewer::exportWorldTo(const QString& path, GlobeMapView::Projectio
     if (!changeRows.empty()) {   // a change: its own scale instead of the chart's
         rows = changeRows;
     }
+    rows.insert(rows.end(), crossRows.begin(), crossRows.end());
     const double scale = std::min(width / 1000.0, 2.6);   // the header, legend and credits keep one size on the picture whatever its width (a 16000 pixel picture does not get letters six times as large as a 2400 pixel one)
     const bool combo = std::any_of(layers.begin(), layers.end(), [] (const auto& layer) { return layer->enabled() && layer->id() == "model/combo"; });
     const int more = combo ? static_cast<int>(18 * scale) : 0;   // (a line for the models the picture rests on)

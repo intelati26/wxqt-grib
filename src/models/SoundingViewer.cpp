@@ -1147,8 +1147,8 @@ private:
                               num(a.convectiveTemp, 1), num(a.surfaceRh, 0)}},
                             false});
 
-        sections.push_back({{"", "0-3", "3-6 AGL", "700-500"},
-                            {{"Lapse C/km", num(a.lapse03, 1), num(a.lapse36, 1), num(a.lapse700500, 1)}},
+        sections.push_back({{"", "0-3", "3-6 AGL", "850-500", "700-500"},   // (SPC's four lapse rates; 850-500 was worked out and not shown)
+                            {{"Lapse C/km", num(a.lapse03, 1), num(a.lapse36, 1), num(a.lapse850500, 1), num(a.lapse700500, 1)}},
                             true});
 
         sections.push_back({{"", "low 100 mb", "0-3 km"},

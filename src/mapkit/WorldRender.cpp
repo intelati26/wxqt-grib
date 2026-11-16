@@ -40,6 +40,12 @@ namespace {
         }
         return v;
     }
+
+    // a color laid over another at a share (0 to 1) of its own strength
+    QRgb blend(QRgb under, QRgb over, double share) {
+        const auto mix = [share] (int a, int b) { return static_cast<int>(std::lround(a + (b - a) * share)); };
+        return qRgb(mix(qRed(under), qRed(over)), mix(qGreen(under), qGreen(over)), mix(qBlue(under), qBlue(over)));
+    }
 }
 
 
@@ -98,10 +104,20 @@ std::vector<WorldRender::Source> WorldRender::loadSources(const std::string& cha
     return std::move(*result);
 }
 
-// the fill grid of each model for the valid time: its own run and hour
+GfsChart::Ramp WorldRender::overRamp(const GfsChart::Ramp& ramp) {
+    auto out = ramp;
+    if (out.stops.size() >= 2) {
+        const double clearBelow = out.stops.front().first + (out.stops.back().first - out.stops.front().first) / 6.0;
+        for (auto& stop : out.stops) {
+            stop.second.setAlpha(stop.first < clearBelow ? 0 : std::min(stop.second.alpha(), 215));
+        }
+    }
+    return out;
+}
 
 // the world on an export projection, painted from the grids at their own resolution
-QImage WorldRender::renderWorld(const std::vector<Source>& sources, int projectionId, double centerLon, int width, std::atomic<int> * done, bool whiteGround) {
+QImage WorldRender::renderWorld(const std::vector<Source>& sources, int projectionId, double centerLon, int width, std::atomic<int> * done, bool whiteGround,
+                                const std::vector<Source> * over, bool fadeBase) {
     const auto projection = static_cast<GlobeMapView::Projection>(projectionId);
     double halfW, halfH;
     GlobeMapView::extent(projection, halfW, halfH);
@@ -129,7 +145,19 @@ QImage WorldRender::renderWorld(const std::vector<Source>& sources, int projecti
                         if (!std::isnan(v)) {
                             const QRgb c = sources[i - 1].ramp.at(v);
                             if (qAlpha(c) > 0) {
-                                color = c;
+                                color = fadeBase ? blend(land, c, 0.3) : c;   // (faded: three tenths of the chart's color over the ground, as the picture's fade)
+                                break;
+                            }
+                        }
+                    }
+                    if (over != nullptr) {   // the other model's field over it, its own translucency
+                        for (size_t i = over->size(); i > 0; i--) {
+                            const float v = sampleAt((*over)[i - 1].grid, lon, lat);
+                            if (!std::isnan(v)) {
+                                const QRgb c = (*over)[i - 1].ramp.at(v);
+                                if (qAlpha(c) > 0) {
+                                    color = blend(color, c, qAlpha(c) / 255.0);
+                                }
                                 break;
                             }
                         }
