@@ -1329,7 +1329,15 @@ int main(int argc, char * argv[]) {
                             viewer->picture().save(out);
                             fprintf(stderr, "modelcompare: %s\n", qPrintable(text));
                             timer->stop();
-                            if (opensMaps) {
+                            if (qEnvironmentVariableIsSet("WXQT_ALL")) {   // WXQT_ALL=1: then the window of every ensemble at the time picked (the day with the largest difference), saved as <out>.all.png
+                                viewer->allShown = [out] (QWidget * window) {
+                                    QTimer::singleShot(800, window, [window, out] {
+                                        window->grab().save(out + ".all.png");
+                                        QCoreApplication::quit();
+                                    });
+                                };
+                                viewer->allModels();
+                            } else if (opensMaps) {
                                 auto * maps = viewer->why();
                                 fprintf(stderr, "modelcompare: %s\n", qPrintable(viewer->statusText()));
                                 QTimer::singleShot(70000, qApp, [maps, out] {

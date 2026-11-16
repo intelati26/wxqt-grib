@@ -28,6 +28,125 @@ namespace {
     const QColor colorA{30, 90, 200}, colorB{220, 120, 20};
 }
 
+// Each model's members at one hour: a box (whiskers the lowest and highest, a thicker whisker 10 to 90 percent, the box 25 to 75, a bar for the median) and every member as a dot beside it.
+class AllModelsChart : public QWidget {
+public:
+    struct Row {
+        QString name;
+        std::vector<float> values;   // the members at the hour (native units)
+    };
+    AllModelsChart(QWidget * parent, const QString& title, bool temperature, std::vector<Row> rows) : QWidget{parent}, titleText{title}, isTemperature{temperature}, rows{std::move(rows)} {
+        setMinimumSize(560, 420);
+        ChartExport::install(this, "Ensembles at one time");
+        std::sort(this->rows.begin(), this->rows.end(), [] (const Row& x, const Row& y) { return EnsemblePercentiles::percentile(x.values, 50) < EnsemblePercentiles::percentile(y.values, 50); });
+    }
+
+protected:
+    void paintEvent(QPaintEvent *) override {
+        QPainter p{this};
+        p.setRenderHint(QPainter::Antialiasing, true);
+        p.fillRect(rect(), Qt::white);
+        p.setPen(Qt::black);
+        QFont bold = p.font();
+        bold.setBold(true);
+        const QFont base = p.font();
+        p.setFont(bold);
+        p.drawText(QRectF{10, 4, width() - 20.0, 22}, Qt::AlignLeft | Qt::AlignVCenter, titleText);
+        p.setFont(base);
+        p.drawText(QPointF{10, 40}, "whisker: lowest to highest; thick: 10 to 90 percent; box: 25 to 75 percent; bar: median; dots: each member");
+        const std::string unit = isTemperature ? "deg C" : "mm";
+        const auto show = [&] (float v) { return DisplayUnits::value(static_cast<double>(v), unit); };
+        double lo = 1e18, hi = -1e18;
+        for (const auto& row : rows) {
+            for (const float v : row.values) {
+                if (!std::isnan(v)) {
+                    lo = std::min(lo, show(v));
+                    hi = std::max(hi, show(v));
+                }
+            }
+        }
+        if (lo > hi) {
+            p.drawText(rect(), Qt::AlignCenter, "no values at this time");
+            return;
+        }
+        if (!isTemperature) {
+            lo = 0.0;
+        }
+        const double rough = std::max(hi - lo, 1e-6) / 6.0, mag = std::pow(10.0, std::floor(std::log10(rough)));
+        double step = mag;
+        for (const double m : {1.0, 2.0, 2.5, 5.0, 10.0}) {
+            if (mag * m >= rough) {
+                step = mag * m;
+                break;
+            }
+        }
+        const double axisLow = isTemperature ? std::floor(lo / step) * step : 0.0, axisHigh = std::max(std::ceil(hi / step) * step, axisLow + step);
+        const QRectF box{62, 78, width() - 62.0 - 20, height() - 78.0 - 96};
+        p.setPen(QPen{QColor{150, 150, 150}, 1.0});
+        p.drawRect(box);
+        const auto yOf = [&] (double v) { return box.bottom() - (v - axisLow) / (axisHigh - axisLow) * box.height(); };
+        for (double v = axisLow; v <= axisHigh + step * 0.01; v += step) {
+            p.setPen(QPen{QColor{230, 230, 230}, 1.0});
+            p.drawLine(QPointF{box.left(), yOf(v)}, QPointF{box.right(), yOf(v)});
+            p.setPen(Qt::black);
+            p.drawText(QRectF{box.left() - 58, yOf(v) - 8, 52, 16}, Qt::AlignRight | Qt::AlignVCenter, QString::number(v, 'f', step < 1.0 ? 2 : (std::fabs(step - std::round(step)) > 1e-6 ? 1 : 0)));
+        }
+        p.drawText(QRectF{4, box.top() - 20, 200, 16}, Qt::AlignLeft | Qt::AlignVCenter, QString::fromStdString(DisplayUnits::label(unit)));
+        const double slot = box.width() / std::max<size_t>(1, rows.size()), half = std::min(28.0, slot * 0.22);
+        static const QColor palette[] = {QColor{30, 90, 200}, QColor{220, 120, 20}, QColor{40, 150, 80}, QColor{160, 50, 160}, QColor{200, 50, 50}, QColor{90, 90, 90}};
+        for (size_t r = 0; r < rows.size(); r++) {
+            const auto& v = rows[r].values;
+            const double cx = box.left() + slot * (static_cast<double>(r) + 0.5);
+            const QColor color = palette[r % 6];
+            const auto q = [&] (double level) { return yOf(show(EnsemblePercentiles::percentile(v, level))); };
+            if (std::isnan(EnsemblePercentiles::percentile(v, 50))) {
+                continue;
+            }
+            p.setPen(QPen{color, 1.0});
+            p.drawLine(QPointF{cx, q(0)}, QPointF{cx, q(100)});
+            p.drawLine(QPointF{cx - half * 0.4, q(0)}, QPointF{cx + half * 0.4, q(0)});
+            p.drawLine(QPointF{cx - half * 0.4, q(100)}, QPointF{cx + half * 0.4, q(100)});
+            p.setPen(QPen{color, 3.0});
+            p.drawLine(QPointF{cx, q(10)}, QPointF{cx, q(90)});
+            QColor fill = color;
+            fill.setAlpha(90);
+            p.setBrush(fill);
+            p.setPen(QPen{color, 1.2});
+            p.drawRect(QRectF{cx - half, q(75), 2 * half, std::max(1.0, q(25) - q(75))});
+            p.setPen(QPen{color.darker(170), 2.8});
+            p.drawLine(QPointF{cx - half, q(50)}, QPointF{cx + half, q(50)});
+            // the members, as dots beside the box (spread out sideways so that they do not stack)
+            p.setPen(Qt::NoPen);
+            QColor dot = color;
+            dot.setAlpha(150);
+            p.setBrush(dot);
+            std::vector<float> sorted = v;
+            std::sort(sorted.begin(), sorted.end());
+            double lastY = -1e9;
+            int run = 0;
+            for (const float value : sorted) {
+                if (std::isnan(value)) {
+                    continue;
+                }
+                const double y = yOf(show(value));
+                run = std::fabs(y - lastY) < 4.0 ? run + 1 : 0;
+                lastY = y;
+                p.drawEllipse(QPointF{cx + half + 8 + (run % 6) * 4.5, y}, 2.0, 2.0);
+            }
+            p.setBrush(Qt::NoBrush);
+            p.setPen(Qt::black);
+            const auto name = rows[r].name;
+            p.drawText(QRectF{cx - slot / 2, box.bottom() + 6, slot, 44}, Qt::AlignHCenter | Qt::AlignTop | Qt::TextWordWrap, name);
+            p.drawText(QRectF{cx - slot / 2, box.bottom() + 52, slot, 16}, Qt::AlignHCenter | Qt::AlignTop, QString{"median %1"}.arg(show(EnsemblePercentiles::percentile(v, 50)), 0, 'f', isTemperature ? 1 : 2));
+        }
+    }
+
+private:
+    QString titleText;
+    bool isTemperature;
+    std::vector<Row> rows;
+};
+
 std::string ModelCompareViewer::mapModel(const std::string& id) {
     static const std::vector<std::pair<std::string, std::string>> map{{"gfs025", "GEFS"}, {"ecmwf_ifs025", "IFS-ENS"}, {"ecmwf_aifs025", "AIFS"}, {"gem_global", "GEPS"}, {"icon_seamless", "ICON"}, {"ukmo_global_ensemble_20km", "UKMO"}};
     for (const auto& [openMeteo, program] : map) {
@@ -482,6 +601,8 @@ ModelCompareViewer::ModelCompareViewer(Window * parent, double lat, double lon, 
     mapChoice->addItem("250 mb jet stream", "250_wnd_ht");
     mapChoice->setToolTip("What Why? shows on the map: this model's chart with the other model's height lines over it");
     go = UiStandards::button(body, "Load");
+    allButton = UiStandards::button(body, "All models at this time");
+    allButton->setToolTip("The members of every ensemble of the list at the time picked (or the day with the largest difference), side by side");
     whyButton = UiStandards::button(body, "Why? Show the maps");
     whyButton->setToolTip("Opens the Model Viewer on the time picked (or on the day with the largest difference): the first model's chart with the second model's height lines over it");
     status = new QLabel{"", body};
@@ -498,6 +619,7 @@ ModelCompareViewer::ModelCompareViewer(Window * parent, double lat, double lon, 
     top->addWidget(go);
     top->addWidget(mapChoice);
     top->addWidget(whyButton);
+    top->addWidget(allButton);
     column->addLayout(top);
     column->addWidget(status);
     chart = new CompareChart{body};
@@ -517,6 +639,7 @@ ModelCompareViewer::ModelCompareViewer(Window * parent, double lat, double lon, 
     QObject::connect(spread, &QComboBox::currentIndexChanged, this, [this] (int index) { chart->showMembers(index == 0 || index == 2, index == 1 || index == 2, index == 3); });
     QObject::connect(go, &QPushButton::clicked, this, [this] { load(); });
     QObject::connect(whyButton, &QPushButton::clicked, this, [this] { why(); });
+    QObject::connect(allButton, &QPushButton::clicked, this, [this] { allModels(); });
     setSize(1100, 800);
     QWidget::show();
     load();
@@ -635,6 +758,78 @@ ModelViewer * ModelCompareViewer::why() {
     viewer->applySelection(selection);
     status->setText(QString::fromStdString(shown + " " + selection.param + " for " + valid.toString("ddd d MMM HH 'UTC'").toStdString() + ", with " + over + "'s height lines over it." + note));
     return viewer;
+}
+
+void ModelCompareViewer::allModels() {
+    double t = chart->pickedTime();
+    if (t == 0.0) {
+        t = chart->biggestTime();
+    }
+    if (t == 0.0) {
+        status->setText("Load a comparison first.");
+        return;
+    }
+    const double lat = latBox->value(), lon = lonBox->value();
+    const bool temperature = field->currentData().toString() == "temperature";
+    status->setText("reading every ensemble...");
+    allButton->setEnabled(false);
+    QPointer<ModelCompareViewer> self{this};
+    std::thread{[self, lat, lon, temperature, t] {
+        std::vector<std::future<std::pair<bool, AllModelsChart::Row>>> reads;
+        for (const auto& m : EnsemblePercentiles::models()) {
+            reads.push_back(std::async(std::launch::async, [m, lat, lon, temperature, t] {
+                AllModelsChart::Row row;
+                row.name = QString::fromStdString(m.label).section(" (", 0, 0);
+                EnsemblePercentiles::Series a, r;
+                std::string why;
+                if (!EnsemblePercentiles::fetch(lat, lon, m.id, a, r, why)) {
+                    return std::pair{false, row};
+                }
+                const auto series = temperature ? a : EnsemblePercentiles::accumulated(r);
+                size_t at = series.times.size();
+                for (size_t i = 0; i < series.times.size(); i++) {
+                    if (series.times[i] == t) {
+                        at = i;
+                    }
+                }
+                if (at == series.times.size()) {
+                    return std::pair{false, row};
+                }
+                for (const auto& member : series.members) {
+                    row.values.push_back(at < member.size() ? member[at] : std::nanf(""));
+                }
+                const bool any = std::any_of(row.values.begin(), row.values.end(), [] (float v) { return !std::isnan(v); });
+                return std::pair{any, row};
+            }));
+        }
+        std::vector<AllModelsChart::Row> rows;
+        QStringList left;
+        for (auto& f : reads) {
+            auto got = f.get();
+            (got.first ? rows.push_back(got.second) : (void) left.push_back(got.second.name));
+        }
+        QMetaObject::invokeMethod(QCoreApplication::instance(), [self, rows, left, temperature, t, lat, lon] {
+            if (!self) {
+                return;
+            }
+            self->allButton->setEnabled(true);
+            if (rows.empty()) {
+                self->status->setText("no ensemble has this time");
+                return;
+            }
+            const auto when = QDateTime::fromSecsSinceEpoch(static_cast<qint64>(t), QTimeZone::utc()).toString("ddd d MMM HH:mm 'UTC'");
+            auto * window = new Window{self.data()};
+            window->setAttribute(Qt::WA_DeleteOnClose);
+            window->setTitle("Ensembles at one time");
+            window->setCentralWidget(new AllModelsChart{window, QString{"%1 at %2, %3: every ensemble, %4"}.arg(temperature ? "2 m temperature" : "Precipitation added up").arg(lat, 0, 'f', 2).arg(lon, 0, 'f', 2).arg(when), temperature, rows});
+            window->setSize(1000, 640);
+            window->QWidget::show();
+            if (self->allShown) {
+                self->allShown(window);
+            }
+            self->status->setText(left.isEmpty() ? QString{"%1 ensembles at %2"}.arg(rows.size()).arg(when) : QString{"%1 ensembles at %2 (no value at this time from: %3)"}.arg(rows.size()).arg(when, left.join(", ")));
+        }, Qt::QueuedConnection);
+    }}.detach();
 }
 
 QPixmap ModelCompareViewer::picture() const {

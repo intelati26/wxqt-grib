@@ -6,6 +6,7 @@
 #ifndef MODELCOMPAREVIEWER_H
 #define MODELCOMPAREVIEWER_H
 
+#include <functional>
 #include <QComboBox>
 #include <QDoubleSpinBox>
 #include <QLabel>
@@ -28,6 +29,10 @@ public:
     QPixmap picture() const;
     QString statusText() const;
     // the maps of the time picked (or the first hour with a difference when none is picked): the Model Viewer, as "Why?" does
+    // Every ensemble of the list at the time picked (or the day with the largest difference): a box for each model's members at that hour, with the members as dots, in a window of its own. Blocking reads go
+    // on a thread; the window opens when they are in.
+    void allModels();
+    std::function<void(QWidget *)> allShown;   // called with the window of allModels() once it is up (a development aid)
     ModelViewer * why();   // (null when there is nothing to show)
     // the program's model for an Open-Meteo ensemble id ("gfs025" -> "GEFS"); "" when the program has none
     static std::string mapModel(const std::string& id);
@@ -43,6 +48,7 @@ private:
     QComboBox * spread{};
     QPushButton * go{};
     QPushButton * whyButton{};
+    QPushButton * allButton{};
     QLabel * status{};
     CompareChart * chart{};
     int generation{0};
