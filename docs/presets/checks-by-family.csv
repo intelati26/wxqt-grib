@@ -127,7 +127,8 @@ mean_pwat,Mean Precipitable Water,Precipitation and moisture,1,1,Value,Mean prec
 mean_snow_#h,Mean #-hour Snow (# to # ratio),Precipitation and moisture,1,2,Value,2 fields in one dropdown,,,,,,,,,,,,,,,,,,1/3,,,one scale per field,
 mean_snow_total,Mean Total Snow (10 to 1 ratio),Precipitation and moisture,1,1,Value,"Mean snowfall since the start of the run, from the water at # to #",,,,,,,,,,,,,,,,,,,,,"Mean snowfall since the start of the run, from the water at # to #",
 mslp_pwat,MSLP and Precipitable Water,Precipitation and moisture,23,1,Value,Precipitable water,,yes,,,,,,,,,,,,,,,,,,,Precipitable water,
-nice_weather,Nice Weather Outlook (hour 24 = day 1),Precipitation and moisture,1,1,Value,"Nice weather in the daytime: # Decent, # Fair, # Nice, # Beautiful, Perfect #/#",,,,,,,,,,,,,,,,,,,,,"Nice weather in the daytime: # Decent, # Fair, # Nice, # Beautiful, Perfect #/#",
+nice_gross_weather,Nice and Gross Weather Outlook (hour 24 = day 1),Precipitation and moisture,1,1,Value,"# Fair, # Nice, # Beautiful, # Perfect; -# Gross, -# Nasty, -# Miserable; blank: meh",,,,,,,,,,,,,,,,,,,,"Decent, not gross","# Fair, # Nice, # Beautiful, # Perfect; -# Gross, -# Nasty, -# Miserable; blank: meh",
+nice_weather,Nice Weather Outlook (hour 24 = day 1),Precipitation and moisture,1,1,Value,"Nice weather in the daytime: # none (rain likely), # Decent, # Fair, # Nice, # Beautiful, Perfect #/#",,,,,,,,,,,,,,,,,,,,,"Nice weather in the daytime: # none (rain likely), # Decent, # Fair, # Nice, # Beautiful, Perfect #/#",
 precip_duration,Precipitation duration,Precipitation and moisture,1,1,Value,Hours with precipitation in the last #,,,,,,,,,,,,,,,,,,,,0.01 in or more in the hour,Hours with precipitation in the last #,
 precip_p#,Total Precipitation every # hours,Precipitation and moisture,16,8,Value,3 fields in one dropdown,,yes,,yes,,,,,,,,,,,,,,01/03/06/12/24/36/48/60,,,one scale per field,yes
 precip_ptot,Total Accumulated Precipitation of Period,Precipitation and moisture,16,1,Value,2 fields in one dropdown,,yes,,,,,,,,,,,,,,,,,,,one scale per field,yes
@@ -380,7 +381,7 @@ sim_radar_comp,Composite Reflectivity with Updraft Helicity of 40 or more,Severe
 sim_radar_max,Maximum Simulated Radar of the last hour,Severe: storm structure,10,1,Value,Maximum reflectivity of the last hour,,,,,,,,,,,,,,,,,,,,dBZ,Maximum reflectivity of the last hour,
 ppp_#h_sn_expected,"# hr Snow, expected amount","Snow: amount in the period (expected, percentiles)",1,4,Amount: expected / percentile,"WPC # hour snow, expected amount",,,,,,,,,,,,,,,,,,24/36/48/72,,,"WPC # hour snow, expected amount",
 ppp_#h_sn_p#,"# hr Snow, #th percentile","Snow: amount in the period (expected, percentiles)",1,28,Amount: expected / percentile,"WPC # hour snow, #th percentile of the members",,,,,,,,,,,,,,,,,,24/36/48/72,05/10/25/50/75/90/95,,"WPC # hour snow, #th percentile of the members",
-ppp_#h_sn_prob_#p#,"# hr Snow, chance of # in or more",Snow: chance of an amount,1,32,Chance of a limit,WPC # hour snow: chance of # in or more,above the limit,,,,,,,,,,,,,,,,,24/36/48/72,0/1/2/4/6/8/12/18 | 0/00/10,%,WPC # hour snow: chance of # in or more,
+ppp_#h_sn_prob_#p#,"# hr Snow, chance of # in or more",Snow: chance of an amount,1,32,Chance of a limit,WPC # hour snow: chance of # in or more,above the limit,,,,,,,,,,,,,,,,,24/36/48/72,0/1/2/4/6/8/12/18 | 00/0/10,%,WPC # hour snow: chance of # in or more,
 #K_isen,"# K Isentropic Relative Humidity, Wind and Pressure",Surface,1,2,Value,Relative humidity on the surface,,yes,,,,,,,,,,,,yes,,290/300,,,,%,Relative humidity on the surface,
 #K_pv,"# K Isentropic Potential Vorticity, Wind and Pressure",Surface,9,6,Value,Potential vorticity on the surface,,yes,,,,,,,,,,,,yes,,330/500/530/600/650/850,,,,PVU,Potential vorticity on the surface,
 #_frontogenesis,"#mb Frontogenesis, Height and Wind",Surface,2,2,Value,Frontogenesis,,,yes,,,,,,,,,,,yes,,,700 mb/850 mb,,,K per 100 km per 3 hours; the potential temperature's gradient strengthening,Frontogenesis,
@@ -417,6 +418,7 @@ ens_#m_temp,Mean 2m Temperature,Surface,1,1,Ensemble: members / spread,Mean # m 
 ens_#m_wind,Mean 10m Winds,Surface,1,1,Ensemble: members / spread,Mean # m wind speed,,,,,,,,,,,,,,yes,,,,,,kt,Mean # m wind speed,
 ens_mslp,Mean Sea Level Pressure and Spread,Surface,1,1,Ensemble: members / spread,Spread of the sea level pressure,,yes,,,,,,,,,,,,,,,,,,mb,Spread of the sea level pressure,
 fzl,Freezing Level Height,Surface,2,1,Value,Freezing level above ground,,,,,,,,,,,,,,,,,,,,m,Freezing level above ground,
+gross_weather,Gross to Miserable Weather Outlook (hour 24 = day 1),Surface,1,1,Value,"Gross to Miserable in the daytime: -# Gross, -# Nasty, -# Miserable",,,,,,,,,,,,,,,,,,,,0 Mild: clear,"Gross to Miserable in the daytime: -# Gross, -# Nasty, -# Miserable",
 inverse_barometer,Sea Level Lift from Air Pressure,Surface,1,1,Value,Sea surface height the air pressure makes,,,,,,,,,,,,,,,,,,,,a low pressure of 10 mb lifts the sea by 10 cm,Sea surface height the air pressure makes,
 mean_#m_dewp,Mean 2 m Dew Point,Surface,1,1,Value,Mean # m dew point,,,,,,,,,,,,,,,,,,,,,Mean # m dew point,
 mean_#m_temp,Mean 2 m Temperature,Surface,2,1,Value,Mean # m temperature,,,,,,,,,,,,,,,,,,,,,Mean # m temperature,

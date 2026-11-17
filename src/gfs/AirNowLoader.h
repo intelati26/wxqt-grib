@@ -19,7 +19,7 @@ namespace AirNow {
         double aqi{-1.0};     // the index where the file has it (the observations of today); -1: only the category is known
     };
     // The worst of the day's forecasts and (for today) observations of each reporting area, for the date given (the local date of the place: the file's own). Empty when the file could not be read or has
-    // nothing for the date. The file is kept for twenty minutes.
+    // nothing for the date. The file of today is kept for twenty minutes; a day that has passed reads its own file, kept on disk (AirNow keeps one per day).
     std::vector<Point> points(const QDate& date);
     // The category of an index (0 up to 50 Good ...)
     int categoryOf(double aqi);

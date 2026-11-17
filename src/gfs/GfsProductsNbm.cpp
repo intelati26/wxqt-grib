@@ -8,6 +8,7 @@
 #include <array>
 #include <QTimeZone>
 #include "gfs/AirNowLoader.h"
+#include "gfs/GrossScore.h"
 #include "gfs/GfsNormals.h"
 #include <regex>
 
@@ -103,6 +104,10 @@ for (const std::string source : {"NBM"}) {
                 needs.push_back({f, nbmWant("p" + at, "APCP", "surface", window(f, f <= 36 ? 1 : 6, "acc"), "prob >0.254")});
             }
         }
+        if (blend) {   // the blend's 12 hour maximum temperature of the day (12Z to 00Z: the afternoon of the country), made into the record of the run where the run is known (GfsData: only the 00Z to 12Z runs have it)
+            needs.push_back({24 * day, nbmWant("tx", "TMAX", "2 m above ground", "tmax-day:" + std::to_string(day))});
+            needs.push_back({24 * day, nbmWant("pp", "APCP", "surface", "pop12-day:" + std::to_string(day), "prob >0.254")});   // the blend's 12 hour chance of precipitation of the same window (like the 12 hour chance of the forecasts)
+        }
         return needs;
     };
     x.derive = [=] (Grids& g, const Context& context) {
@@ -130,12 +135,23 @@ for (const std::string source : {"NBM"}) {
         };
         static const Curve skyCurve{{0, 1.0}, {12, 1.0}, {16, 0.994}, {20, 0.967}, {24, 0.94}, {28, 0.913}, {32, 0.88}, {36, 0.84}, {40, 0.80}, {44, 0.76}, {48, 0.72}, {52, 0.66}, {56, 0.58}, {60, 0.50}, {64, 0.421}, {68, 0.34}, {72, 0.274}, {76, 0.22}, {80, 0.167}, {84, 0.113}, {88, 0.08}, {92, 0.053}, {96, 0.027}, {100, 0.0}};   // by the cloud cover, % (read off his scores: one curve for every city, 100 to 12% cloud, 50 at 60%, 0 at 100%)
         static const Curve rainCurve{{0, 1.0}, {4, 1.0}, {6, 0.90}, {8, 0.72}, {10, 0.55}, {13, 0.33}, {15, 0.23}, {18, 0.13}, {22, 0.05}, {28, 0.0}};                           // by the chance of rain, %
+        // the rain score of the day from its chance (his scale, smoothed first: a step is not smoothed into a ramp): a step from 5 to 11% (the user, 2026-11-17: "a change from 5% to 10% is large"; his
+        // score is 60 there on average, 96 below, over 15 states and 7 days), then the curve above. Held out a day at a time the rain score is 0.5 closer to his (error 18.9 to 18.4), 5 to 30% has no bias (+6.7 before)
+        const auto rainScore = [&] (float chance) -> double {
+            if (std::isnan(chance)) {
+                return std::numeric_limits<double>::quiet_NaN();
+            }
+            return chance < 5.0f ? 1.0 : chance < 11.0f ? 0.60 : std::min(0.60, static_cast<double>(along(rainCurve, chance)));
+        };
         static const Curve dewCurve{{0, 0.5}, {30, 0.5}, {40, 0.90}, {50, 1.0}, {60, 1.0}, {61, 0.939}, {62, 0.884}, {63, 0.824}, {64, 0.765}, {65, 0.708}, {66, 0.637}, {67, 0.563}, {68, 0.5}, {69, 0.423}, {70, 0.351}, {71, 0.306}, {72, 0.251}, {73, 0.194}, {74, 0.171}, {80, 0.05}, {84, 0.0}};   // by the dewpoint, F (read off his scores: nothing under 30 F is 50, 90 at 40, 100 from 50 to 60, then 6 points a degree to 50 at 68; the same at every city)
         static const Curve sustainedCurve{{0, 1.0}, {8, 1.0}, {9, 0.981}, {10, 0.959}, {11, 0.939}, {12, 0.917}, {13, 0.895}, {14, 0.875}, {15, 0.857}, {16, 0.80}, {17, 0.732}, {18, 0.684}, {19, 0.633}, {20, 0.582}, {21, 0.52}, {22, 0.454}, {23, 0.388}, {24, 0.329}, {25, 0.268}, {26, 0.20}, {27, 0.141}, {28, 0.065}, {29, 0.016}, {30, 0.0}};   // by the sustained wind, mph (read off his scores)
         static const Curve gustCurve{{0, 1.0}, {19.9, 1.0}, {20.5, 0.78}, {29.9, 0.78}, {30.6, 0.565}, {60, 0.545}};   // times, by the gust, mph: his two steps, the gust factor 0.78 from 20 mph and 0.57 from 31
         static const Curve coldCurve{{0, 0.0}, {10, 0.06}, {20, 0.17}, {23, 0.23}, {29, 0.375}, {35, 0.51}, {41, 0.68}, {46, 0.84}, {50, 0.91}, {56.5, 1.0}};   // by the apparent temperature of a cold day, F (his: 23 F is 23 of 100, 35 F 51, 41 F 68, 47 F 83, whatever is normal for the place)
         // the cold side, relative: his score against his high under the normal high (the 5 km NCEI normal is his), where the cold of the day itself does not bind (the south: 82 of 100 at 8 F under, 56 at 14, 32 at 20)
         static const Curve coldBelowCurve{{-40, 0.0}, {-26, 0.08}, {-22.5, 0.22}, {-19.5, 0.32}, {-16.5, 0.44}, {-13.5, 0.56}, {-10.5, 0.70}, {-7.5, 0.82}, {-4.5, 0.93}, {-2, 1.0}};
+        // what his temperature score is over ours (points of 100), by the day's high over the place's normal high: the two curves above were read off flat states, and the same table for his 24,000 city days of 15
+        // states over three days (leave one day out: the error 10.3 / 10.3 / 11.9 down to 9.7 / 9.5 / 11.1) shows his very cold days 15-30 points lower than ours and his warm days (over by 6 or more) 6-10 higher
+        static const Curve normalFix{{-30, -34}, {-23.8, -34}, {-21.2, -23}, {-18.8, -16}, {-16.2, -14}, {-13.8, -8}, {-11.2, -4}, {-8.8, -1}, {-6.2, 1}, {-3.8, 3}, {-1.2, 3.5}, {1.2, 3}, {3.8, 3}, {6.2, 4.4}, {8.8, 6}, {11.2, 9.7}, {13.8, 10}, {30, 10}};
         static const Curve warmCurve{{-20, 0.94}, {1, 0.92}, {4, 0.88}, {7, 0.84}, {7.3, 0.56}, {10, 0.47}, {13, 0.36}, {16, 0.20}, {22, 0.0}};   // by the day's high over the normal high, F (his, in the flat states: 90 of 100 at the normal, 84 at 7 F over, then a step to 56 within a third of a degree, 47 at 10 over and 20 at 16)
         // his normal high less ours (degrees F), what his temperature scores imply at 14,000 of his cities, interpolated to a 1 degree grid (latitude 24 to 50 north, longitude 125 to 66 west): his normals run
         // 3 F over ours on the whole and differ by state (5 to 6 in the south east, 1 to 2 in the plains, -3 in Minnesota); cities held out are placed to 1.4 F by their neighbours' offsets
@@ -201,7 +217,8 @@ for (const std::string source : {"NBM"}) {
         // the ingredients of each cell, which are smoothed over a radius of 50 miles before the levels are made of them (a map of the weather people can plan by, not of every ridge and valley)
         const float none = std::numeric_limits<float>::quiet_NaN();
         const size_t cells = shape.values.size();
-        std::vector<float> cHt(cells, none), cT(cells, none), cR(cells, none), cD(cells, none), cC(cells, none), cW(cells, none), cA(cells, none), cS(cells, none), cG(cells, none);
+        std::vector<float> cHt(cells, none), cT(cells, none), cR(cells, none), cD(cells, none), cC(cells, none), cW(cells, none), cA(cells, none), cS(cells, none), cG(cells, none), cHi(cells, none), cTx(cells, none), cTr(cells, none), cRc(cells, none), cPp(cells, none), cRm(cells, none);   // (cHi: the day's high of the apparent temperature, F, to set against his)
+        std::vector<float> cN(cells, none);   // the place's normal high (degrees F), for the gross index's hot and cold lines
         for (int row = 0; row < shape.rows; row++) {
             const double lat = shape.lat0 - row * shape.step;
             for (int column = 0; column < shape.columns; column++) {
@@ -232,7 +249,7 @@ for (const std::string source : {"NBM"}) {
                 const double hourNow = nowLocal - 24.0 * std::floor(nowLocal / 24.0);
                 const double target = std::floor(runHours / 24.0) + (day - 1);   // the day by the date of the run (UTC): the local daytime of that date
                 (void) hourNow;
-                double wWorst = 1.0, tScore = 0, dScore = 0, cScore = 0, wScore = 0, pMax = 0, pSum = 0, smoke = 0, smokeWeight = 0, aSum = 0, high = -1000.0, gustMax = 0;
+                double pHourMax = 0, wWorst = 1.0, tScore = 0, dScore = 0, cScore = 0, wScore = 0, pMax = 0, pSum = 0, smoke = 0, smokeWeight = 0, aSum = 0, high = -1000.0, gustMax = 0;
                 double count = 0;   // the weight of the hours (an hour counts fully from 10 to 18 o'clock and less towards 8 and 20, so that the cells where the hours fall differently do not make a line)
                 for (const int f : hours) {
                     const double local = runHours + f + zone;
@@ -282,6 +299,7 @@ for (const std::string source : {"NBM"}) {
                         wWorst = std::min(wWorst, windNow);   // (the windiest hour counts as much as the day's mean: a breezy afternoon is what people feel)
                     }   // (his Topeka, 12 mph, is Fair; a 7.8 mph day with 12.7 mph gusts scores 96.7: the sustained wind counts from 8 mph, nothing at 26)
                     pMax = std::max(pMax, weight * rain);
+                    pHourMax = std::max(pHourMax, rain);
                     pSum += weight * rain;
                     count += weight;
                 }
@@ -294,14 +312,28 @@ for (const std::string source : {"NBM"}) {
                 const double highShift = middle - 64.0;   // (the day's high is judged by the same range, moved with it)
                 high -= highShift;
                 // (his day high against the normal: Dayton, 59 F with a 57 F normal, is 92 of 100; a high 12 F over the normal scores 70, 4 F over 90: 2.4 points a degree over, half that under)
-                const double highScore = !std::isnan(normalHigh) ? (rawHigh < -500.0 || rawHigh >= 95.0 ? 0.0 : std::min({rawHigh - 5.5 < 56.5 ? along(coldCurve, rawHigh - 5.5) : 1.0, along(warmCurve, rawHigh - 1.5 - normalHigh), along(coldBelowCurve, rawHigh - 1.5 - normalHigh)})) : high < -500.0 ? 0.0 : high >= 95.0 ? 0.0 : high > 80.0 ? 1.0 - 0.05 * (high - 80.0) : high >= 70.0 ? 1.0 : std::max(0.0, 1.0 - 0.0054 * (70.0 - high) * (70.0 - high));   // (our apparent high is 5.5 F over his apparent and 1.5 F over his 2 m high; his normals are in the offset map)
+                double txF = std::numeric_limits<double>::quiet_NaN();   // the blend's high of the day (F)
+                if (const auto found = g.find("tx"); found != g.end() && !found->second.values.empty() && !std::isnan(found->second.values[at])) {
+                    txF = found->second.values[at] * 1.8 + 32.0;
+                }
+                const double over = rawHigh - 1.5 - normalHigh;   // the day's high over the normal high (the apparent high less 1.5 F: the score is calibrated on it; the blend's TMAX, `tmax_day`, measures his high better but does not predict his score better)
+                const double highScore = !std::isnan(normalHigh) ? (rawHigh < -500.0 || rawHigh >= 95.0 ? 0.0 : std::min({rawHigh - 5.5 < 56.5 ? along(coldCurve, rawHigh - 5.5) : 1.0, std::clamp(std::min(along(warmCurve, over), along(coldBelowCurve, over)) + along(normalFix, over) / 75.0, 0.0, 1.0)})) : high < -500.0 ? 0.0 : high >= 95.0 ? 0.0 : high > 80.0 ? 1.0 - 0.05 * (high - 80.0) : high >= 70.0 ? 1.0 : std::max(0.0, 1.0 - 0.0054 * (70.0 - high) * (70.0 - high));   // (our apparent high is 5.5 F over his apparent and 1.5 F over his 2 m high; his normals are in the offset map)
                 cT[at] = static_cast<float>(0.25 * tScore / count + 0.75 * highScore);
                 cD[at] = static_cast<float>(dScore / count);
                 cC[at] = static_cast<float>(cScore / count);
                 cW[at] = static_cast<float>(0.5 * wScore / count + 0.5 * wWorst);
                 cR[at] = static_cast<float>(along(rainCurve, rain));
+                cRc[at] = static_cast<float>(rain);
+                cRm[at] = static_cast<float>(pHourMax);
+                if (const auto found = g.find("pp"); found != g.end() && !found->second.values.empty()) {
+                    cPp[at] = found->second.values[at];
+                }
                 cHt[at] = static_cast<float>(along(heatCurve, rawHigh));   // (a moderate chance pulls the score down a good bit)
+                cHi[at] = rawHigh < -500.0 ? none : static_cast<float>(rawHigh);
+                cTx[at] = static_cast<float>(txF);
+                cTr[at] = static_cast<float>(tScore / count);
                 cA[at] = static_cast<float>(aSum / count);   // (the top levels are for a day that is warm in itself)
+                cN[at] = static_cast<float>(normalHigh);
                 cS[at] = static_cast<float>(smokeWeight >= 0.5 ? smoke / smokeWeight : 0.0);   // (no particles forecast, no cap)
                 cG[at] = gustMax > 35.0 ? 1.0f : 0.0f;   // a gust over 35 mph at some hour: the share of the area around that has one is what caps
             }
@@ -310,7 +342,7 @@ for (const std::string source : {"NBM"}) {
             const double radiusKm = 80.5;
             const int rows = shape.rows, columns = shape.columns;
             const int ry = std::max(1, static_cast<int>(std::lround(radiusKm / (111.32 * shape.step))));
-            for (auto * v : {&cT, &cR, &cD, &cC, &cW, &cA, &cS, &cG, &cHt}) {
+            for (auto * v : {&cT, &cR, &cD, &cC, &cW, &cA, &cS, &cG, &cHt, &cHi, &cTx, &cTr, &cRc, &cPp, &cRm}) {
                 std::vector<float> across(cells, none);
                 std::vector<double> sum(static_cast<size_t>(std::max(rows, columns)) + 1), number(static_cast<size_t>(std::max(rows, columns)) + 1);
                 for (int row = 0; row < rows; row++) {
@@ -361,7 +393,9 @@ for (const std::string source : {"NBM"}) {
             const auto points = AirNow::points(QDate{1970, 1, 1}.addDays(dayCount));
             const double radiusKm = 80.5;
             for (const auto& point : points) {
-                const int cap = point.category >= 3 ? 0 : point.category == 2 ? 2 : point.category == 1 ? 4 : point.aqi > 35.0 ? 4 : 5;
+                // an hour's reading (it has an index) is not the day: it keeps a day from Perfect or Beautiful, no more (the user, 2026-11-17: "Pennsylvania feels like air quality": the Mon Valley's 172 at noon
+                // blanked 311 Pennsylvania cities within 50 miles on day 1, where he says Fair); the forecast of the day (a category only) caps as it did
+                const int cap = point.aqi >= 0.0 ? (point.aqi > 35.0 ? 4 : 5) : point.category >= 3 ? 0 : point.category == 2 ? 2 : point.category == 1 ? 4 : 5;
                 if (cap >= 5) {
                     continue;
                 }
@@ -402,7 +436,7 @@ for (const std::string source : {"NBM"}) {
                 }
                 continue;
             }
-            const double tScore = cT[at], rScore = cR[at], dScore = cD[at], cScore = cC[at], wScore = cW[at], apparentMean = cA[at], smoke = cS[at], gusty = cG[at];
+            const double tScore = cT[at], rScore = rainScore(cRc[at]), dScore = cD[at], cScore = cC[at], wScore = cW[at], apparentMean = cA[at], smoke = cS[at], gusty = cG[at];
             // his score reads as 100 less a penalty for each ingredient, the temperature by far the heaviest (fitted to nine of his city scores: 90 points for a whole unit short on the temperature, 50 on the dewpoint,
             // 25 on the sky; rain and wind lighter, from his zone texts)
             const double heatScore = cHt[at];
@@ -410,7 +444,7 @@ for (const std::string source : {"NBM"}) {
             // each ingredient allows a level up to the one its score reaches (the weakest of them rules: a level needs all of the ingredients at its mark, whatever the others are). The marks were
             // fitted to how the reference outlook's levels follow his ingredient scores (about 77% of 21,000 cities at the same level, against 69% for a cutoff on the weighted score)
             static const double marks[6][4] = {   // Decent, Fair, Nice, Beautiful (of 100): temperature, rain, heat, dewpoint, sky, wind
-                {0, 18, 68, 91}, {0, 34, 89, 100}, {0, 50, 78, 100}, {17, 39, 67, 92}, {0, 25, 76, 89}, {0, 38, 75, 82}};   // (refitted on the blend's inputs on his scale, shares of the levels matched to his: 76% of his day 1 and 80% of his day 2 at the same level at 21,000 cities, 98% within one)
+                {0, 18, 68, 91}, {0, 34, 89, 100}, {0, 50, 78, 100}, {17, 39, 67, 92}, {0, 25, 76, 89}, {0, 38, 75, 94}};   // (the wind mark of Beautiful 82 to 94, 2026-11-17, the user: "96 wind": his Beautiful cities have a wind score of 96 or more in three of four; the only mark that gained on both days, +0.3 on 17 Nov and +0.2 on 16 Nov, all of his cities, Beautiful 1,271 to 753, right 543 to 431 of his 2,040)   // (refitted on the blend's inputs on his scale, shares of the levels matched to his: 76% of his day 1 and 80% of his day 2 at the same level at 21,000 cities, 98% within one)
             const double scores[6] = {tScore * 100.0, rScore * 100.0, heatScore * 100.0, dScore * 100.0, cScore * 100.0, wScore * 100.0};
             // what sets the level, for the hover: the ingredient (0 temperature ... 5 wind) with the fewest marks reached, or the cap that took the level down last, or 10: nothing holds it back
             int value = 4;
@@ -454,6 +488,12 @@ for (const std::string source : {"NBM"}) {
             // 150 (55.4), and over that no level at all (Unhealthy)
             cap(smoke <= 8.4 ? 5 : smoke <= 14.0 ? 4 : smoke <= 35.4 ? 3 : smoke <= 55.4 ? 2 : 0, 7);
             cap(airCap[at], 8);
+            // his files leave a day without a level where rain is likely (8 to 37% of his cities over 7 days, a mean chance of rain of 65%, a score but no category: a step under Decent): the day has
+            // no level here when the chance of rain is 30% or over (the user, 2026-11-17: "30% or more should be blank or worse"; on the combined map blank is Meh, and the gross tiers are the worse).
+            // On all of his cities, same level on days 1 to 7: 63.0 / 58.8 / 52.6 / 55.0 / 55.7 / 45.5 / 57.6% to 68.4 / 68.6 / 61.6 / 64.2 / 68.1 / 49.3 / 60.4% (20 to 25% is better on days 1 to 5, worse on 6)
+            if (!std::isnan(cRc[at]) && cRc[at] >= 30.0f) {
+                cap(0, 1);
+            }
             if (wScore < 0.2 || gusty >= 0.05) {   // gusts over 35 mph in the area around (or a mean gust past about 31 mph) hold a place at Decent whatever its score
                 cap(1, 9);
             }
@@ -465,6 +505,31 @@ for (const std::string source : {"NBM"}) {
             gate.values[at] = static_cast<float>(gateCode);
             gateValue.values[at] = static_cast<float>(gateScore);
             level.values[at] = static_cast<float>(value);
+        }
+        {
+            auto normalHighGrid = level;
+            normalHighGrid.values.assign(cN.begin(), cN.end());
+            g["normal_high"] = std::move(normalHighGrid);
+            auto highGrid = level, meanGrid = level;
+            highGrid.values.assign(cHi.begin(), cHi.end());
+            meanGrid.values.assign(cA.begin(), cA.end());
+            g["apparent_high"] = std::move(highGrid);
+            auto tmaxGrid = level;
+            tmaxGrid.values.assign(cTx.begin(), cTx.end());
+            g["tmax_day"] = std::move(tmaxGrid);
+            auto rangeGrid = level;
+            rangeGrid.values.assign(cTr.begin(), cTr.end());
+            g["t_range"] = std::move(rangeGrid);
+            auto chanceGrid = level;
+            chanceGrid.values.assign(cRc.begin(), cRc.end());
+            g["rain_chance"] = std::move(chanceGrid);
+            auto popGrid = level;
+            popGrid.values.assign(cPp.begin(), cPp.end());
+            g["pop12"] = std::move(popGrid);
+            auto maxGrid = level;
+            maxGrid.values.assign(cRm.begin(), cRm.end());
+            g["rain_max"] = std::move(maxGrid);
+            g["apparent_mean"] = std::move(meanGrid);
         }
         g["level"] = std::move(level);
         g["gate"] = std::move(gate);
@@ -484,11 +549,151 @@ for (const std::string source : {"NBM"}) {
     x.hoverValues = {{"gate", "Limited by", {"Temperature", "Chance of rain", "Heat", "Dewpoint (humidity)", "Cloud cover (sky)", "Wind", "How far off the day is (a later day is held to a lower level)", "Smoke (fine particles)", "Air quality (AirNow)",
                                             "Gusts over 35 mph nearby", "Nothing: every ingredient allows the level"}},
                      {"gatescore", "Its score (of 100)", {}}, {"s_temp", "Temperature score (of 100)", {}}, {"s_rain", "Rain score (of 100)", {}}, {"s_heat", "Heat score (of 100)", {}}, {"s_dew", "Dewpoint score (of 100)", {}},
-                     {"s_sky", "Sky score (of 100)", {}}, {"s_wind", "Wind score (of 100)", {}}, {"s_base", "Weighted base (of 100)", {}}, {"s_smoke", "Smoke (micrograms a cubic meter)", {}}};
+                     {"s_sky", "Sky score (of 100)", {}}, {"s_wind", "Wind score (of 100)", {}}, {"s_base", "Weighted base (of 100)", {}}, {"s_smoke", "Smoke (micrograms a cubic meter)", {}}, {"normal_high", "Normal high of the place (F)", {}}, {"apparent_high", "Day's high, feels like (F)", {}}, {"apparent_mean", "Daytime mean, feels like (F)", {}}, {"tmax_day", "Day's high from the blend (F)", {}}, {"t_range", "Temperature score of the hours (of 1)", {}}, {"rain_chance", "Chance of rain of the day, his scale (%)", {}}, {"pop12", "12 hour chance of precipitation of the day, the blend's (%)", {}}, {"rain_max", "Highest chance of the daytime hours (%)", {}}};
     x.ramp = Ramp{{{1.0, QColor{"#d6e7a3"}}, {2.0, QColor{"#9fd486"}}, {3.0, QColor{"#4fb868"}}, {4.0, QColor{"#1a8c9a"}}, {5.0, QColor{"#f5b800"}}}, true};   // each level starts at its whole number; the scale ends at 5
-    x.fillTitle = "Nice weather in the daytime: 1 Decent, 2 Fair, 3 Nice, 4 Beautiful, Perfect 5/5";
+    x.fillTitle = "Nice weather in the daytime: 0 none (rain likely), 1 Decent, 2 Fair, 3 Nice, 4 Beautiful, Perfect 5/5";
     x.legendStep = 1;
     p.push_back(x);
+    // ---- the Gross to Miserable index (the user's specification, 2026-11-16): the nice outlook turned over, a score of the day's discomfort from 0 up, in four tiers (1 Mild, 2 Gross from
+    // 20, 3 Nasty from 45, 4 Miserable from 70). Each daytime hour (8 to 20 by the sun, the hours the nice outlook reads) is scored and the day takes its worst hour:
+    //   feels like (the blend's apparent temperature): 1.5 a degree F over 85 or under 45; dewpoint: 2.5 a degree over 65; precipitation likely (the hour's chance 50% or more): 15, or 40 when
+    //   freezing rain or sleet is the likely type (PTYPE's chances); chilly dampness (under 50 F with RH over 85%): 15; sustained wind: 1.2 a mph over 15; feels like 105 F or more, or -10 or
+    //   less: 50. The day: the smoke's daytime mean over 55.4 micrograms (AQI over 150): 35. (Severe weather warnings are the spec's too, but a forecast day has none: left out.)
+    // Two charts: the index alone (Mild left clear) and the two outlooks in one map where a place is either a nice level or a gross tier, never both (a Gross day or worse shows its tier).
+    // The colors keep clear of the nice ones (greens, teal, and Perfect's gold): Gross peach, Nasty orange-red, Miserable deep red (the spec's yellow would sit beside Perfect's gold).
+    {
+        const auto niceNeeds = x.needs;
+        const auto niceDerive = x.derive;
+        const auto grossNeeds = [niceNeeds, sampleHours, lastDay, nbmWant, atHour] (int hour) {
+            auto needs = niceNeeds(hour);
+            for (const int f : sampleHours(std::clamp(hour / 24, 1, lastDay))) {
+                const std::string at = std::to_string(f);
+                needs.push_back({f, nbmWant("t" + at, "TMP", "2 m above ground", atHour(f))});
+                needs.push_back({f, nbmWant("h" + at, "RH", "2 m above ground", atHour(f))});
+                needs.push_back({f, nbmWant("zr" + at, "PTYPE", "surface", atHour(f), "prob >=3 <4")});   // freezing rain, if it falls
+                needs.push_back({f, nbmWant("ip" + at, "PTYPE", "surface", atHour(f), "prob >=8 <9")});   // ice pellets (sleet), if it falls
+            }
+            return needs;
+        };
+        const auto grossDerive = [niceDerive, sampleHours, lastDay] (Grids& g, const Context& context) {
+            niceDerive(g, context);   // the nice levels (and the map's mask: NaN off the land of the United States), the daytime smoke
+            if (!g.count("level")) {
+                return;
+            }
+            const auto& level = g.at("level");
+            const int day = std::clamp(context.hour / 24, 1, lastDay);
+            const QDate runDate = QDate::fromString(QString::fromStdString(context.run.date), "yyyyMMdd");
+            const double runHours = QDate{1970, 1, 1}.daysTo(runDate) * 24.0 + std::atoi(context.run.cycle.c_str());
+            const double target = std::floor(runHours / 24.0) + (day - 1);   // (the day as the nice outlook takes it)
+            const auto hours = sampleHours(day);
+            auto score = level;
+            for (int row = 0; row < level.rows; row++) {
+                for (int column = 0; column < level.columns; column++) {
+                    const size_t at = static_cast<size_t>(row) * static_cast<size_t>(level.columns) + static_cast<size_t>(column);
+                    if (std::isnan(level.values[at])) {
+                        score.values[at] = std::nanf("");
+                        continue;
+                    }
+                    double lon = level.lon0 + column * level.step;
+                    if (lon > 180.0) {
+                        lon -= 360.0;
+                    }
+                    const double zone = lon / 15.0;
+                    // the hot and cold lines moved half as far as the place's normal high is from 70 F (a little of the normal: the user, 2026-11-16); feels like over 100 is
+                    // always hot, whatever is normal (the hot line never above 100)
+                    const double normal = g.count("normal_high") ? static_cast<double>(g.at("normal_high").values[at]) : std::nan("");
+                    double coldLine = 45.0, hotLine = 85.0;
+                    GrossScore::lines(normal, coldLine, hotLine);
+                    double worst = -1.0;
+                    for (const int f : hours) {
+                        const double local = runHours + f + zone;
+                        const double dayIndex = std::floor(local / 24.0), hourOfDay = local - 24.0 * dayIndex;
+                        if (dayIndex != target || hourOfDay < 9.0 || hourOfDay > 19.0) {
+                            continue;
+                        }
+                        const std::string n = std::to_string(f);
+                        const auto value = [&] (const std::string& key) { const auto found = g.find(key + n); return found == g.end() || found->second.values.empty() ? std::nan("") : static_cast<double>(found->second.values[at]); };
+                        const double feels = value("a") * 1.8 + 32.0, dew = value("d") * 1.8 + 32.0, temp = value("t") * 1.8 + 32.0, rh = value("h");
+                        const double wind = value("u") * 2.23694, chance = value("p");
+                        const double icy = (std::isnan(value("zr")) ? 0.0 : value("zr")) + (std::isnan(value("ip")) ? 0.0 : value("ip"));
+                        if (std::isnan(feels) || std::isnan(dew)) {
+                            continue;
+                        }
+                        GrossScore::Hour hour;
+                        hour.feels = feels;
+                        hour.dew = dew;
+                        hour.temp = temp;
+                        hour.humidity = rh;
+                        hour.wind = wind;
+                        hour.rainChance = chance;
+                        hour.icyChance = icy;
+                        const double s = GrossScore::score(hour, coldLine, hotLine);
+                        worst = std::max(worst, s);
+                    }
+                    if (worst < 0.0) {
+                        score.values[at] = std::nanf("");
+                        continue;
+                    }
+                    if (g.count("s_smoke") && g.at("s_smoke").values[at] > 55.4f) {   // AQI over 150
+                        worst += 35.0;
+                    }
+                    score.values[at] = static_cast<float>(worst);
+                }
+            }
+            score = GfsGrid::smoothed(score, 2);   // (a little, as the nice ingredients are)
+            auto tier = score, both = score, named = score;
+            for (size_t i = 0; i < score.values.size(); i++) {
+                const float v = score.values[i];
+                if (std::isnan(v) || std::isnan(level.values[i])) {
+                    tier.values[i] = both.values[i] = named.values[i] = std::nanf("");
+                    continue;
+                }
+                const int t = GrossScore::tier(v);
+                tier.values[i] = t >= 2 ? -static_cast<float>(t - 1) : 0.0f;   // Gross -1, Nasty -2, Miserable -3; Mild 0 (the user, 2026-11-17: the gross side as negatives)
+                // 6 Gross, 7 Nasty, 8 Miserable; else the nice level from Fair (2 to 5); else 1, "meh": a Decent day (or no level) that is not Gross either, left blank
+                // (the user, 2026-11-16: meh days blank, Decent only; Fair stays a nice level)
+                named.values[i] = t >= 2 ? static_cast<float>(4 + t) : level.values[i] >= 2.0f ? level.values[i] : 1.0f;   // for the name in the hover (0 to 8)
+                both.values[i] = t >= 2 ? -static_cast<float>(t - 1) : level.values[i] >= 2.0f ? level.values[i] : 1.0f;   // the one scale: -3 Miserable, -2 Nasty, -1 Gross, 1 meh (blank), 2 Fair to 5 Perfect
+            }
+            for (auto& v : score.values) {
+                v = -v;   // the discomfort as a negative number, 0 down: the other side of the nice levels
+            }
+            g["gross"] = std::move(score);
+            g["nice_gross_name"] = std::move(named);
+            g["gross_tier"] = std::move(tier);
+            g["nice_gross"] = std::move(both);
+        };
+        static const QColor gross{"#f3c6a5"}, nasty{"#e8603c"}, miserable{"#a8141c"};
+        {
+            auto gx = x;
+            gx.id = "gross_weather";
+            gx.label = "Gross to Miserable Weather Outlook (hour 24 = day 1)";
+            gx.needs = grossNeeds;
+            gx.derive = grossDerive;
+            gx.fill = [] (const Grids& g) { return pick(g, "gross_tier"); };
+            gx.ramp = Ramp{{{-3.0, miserable}, {-2.0, nasty}, {-1.0, gross}, {0.0, QColor{0, 0, 0, 0}}}, true};   // (0, Mild: clear; a block for each stop)
+            gx.fillTitle = "Gross to Miserable in the daytime: -1 Gross, -2 Nasty, -3 Miserable (0 Mild: clear)";
+            gx.hoverValues = {{"gross", "Gross score, negative (the day's worst hour)", {}}};
+            gx.legendStep = 1;
+            p.push_back(gx);
+        }
+        {
+            auto cx = x;
+            cx.id = "nice_gross_weather";
+            cx.label = "Nice and Gross Weather Outlook (hour 24 = day 1)";
+            cx.needs = grossNeeds;
+            cx.derive = grossDerive;
+            cx.fill = [] (const Grids& g) { return pick(g, "nice_gross"); };
+            cx.ramp = Ramp{{{-3.0, miserable}, {-2.0, nasty}, {-1.0, gross}, {0.0, QColor{0, 0, 0, 0}}, {2.0, QColor{"#9fd486"}}, {3.0, QColor{"#4fb868"}}, {4.0, QColor{"#1a8c9a"}},
+                                {5.0, QColor{"#f5b800"}}}, true};   // (0 up to 2: the meh days, 1, are left clear)
+            cx.fillTitle = "2 Fair, 3 Nice, 4 Beautiful, 5 Perfect; -1 Gross, -2 Nasty, -3 Miserable; blank: meh (Decent, not gross)";
+            cx.hoverValues.push_back({"nice_gross_name", "Day", {"", "Meh (Decent or no level, not gross)", "Fair", "Nice", "Beautiful", "Perfect", "Gross", "Nasty", "Miserable"}});
+            cx.hoverValues.push_back({"level", "Nice level (without the gross side)", {"None", "Decent", "Fair", "Nice", "Beautiful", "Perfect"}});
+            cx.hoverValues.push_back({"gross", "Gross score, negative (the day's worst hour)", {}});
+            cx.legendStep = 1;
+            p.push_back(cx);
+        }
+    }
 }
 // ---- the RTMA and URMA surface analyses (2.5 km, the hour of the analysis only): the blend's surface charts made from the analysis's own fields
 for (const char * source : {"RTMA", "URMA", "RTMA-AK", "URMA-AK", "RTMA-HI", "URMA-HI", "RTMA-PR", "URMA-PR", "RTMA-GU"}) {

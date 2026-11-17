@@ -1627,7 +1627,8 @@ CHART NBM|Precipitation and moisture|1hour_precip_chance|1-hour Chance of Precip
 CHART NBM|Precipitation and moisture|50th_percentile_1hr_snow|50th Percentile Hourly Snowfall|50th percentile of the snow in the hour||||0
 CHART NBM|Precipitation and moisture|6hour_precip_chance|6-hour Chance of Precipitation|Chance of 0.01 in or more of precipitation in 6 hours (%)||||0
 CHART NBM|Precipitation and moisture|90th_percentile_1hr_snow|90th Percentile Hourly Snowfall|90th percentile of the snow in the hour||||0
-CHART NBM|Precipitation and moisture|nice_weather|Nice Weather Outlook (hour 24 = day 1)|Nice weather in the daytime: 1 Decent, 2 Fair, 3 Nice, 4 Beautiful, Perfect 5/5||||0
+CHART NBM|Precipitation and moisture|nice_gross_weather|Nice and Gross Weather Outlook (hour 24 = day 1)|2 Fair, 3 Nice, 4 Beautiful, 5 Perfect; -1 Gross, -2 Nasty, -3 Miserable; blank: meh (Decent, not gross)||||0
+CHART NBM|Precipitation and moisture|nice_weather|Nice Weather Outlook (hour 24 = day 1)|Nice weather in the daytime: 0 none (rain likely), 1 Decent, 2 Fair, 3 Nice, 4 Beautiful, Perfect 5/5||||0
 CHART NBM|Precipitation and moisture|precip_duration|Precipitation duration|Hours with precipitation in the last 12 (0.01 in or more in the hour)||||0
 CHART NBM|Precipitation and moisture|precip_p01|Total Precipitation|Total Precipitation, the 1 hours ending at hour 12||||0
 CHART NBM|Precipitation and moisture|precip_p06|Total Precipitation|Total Precipitation, the 6 hours ending at hour 12||||0
@@ -1667,6 +1668,7 @@ CHART NBM|Surface|2m_max_temp|2 m Maximum Temperature (12 hours ending)|2 m temp
 CHART NBM|Surface|2m_min_temp|2 m Minimum Temperature (12 hours ending)|2 m temperature extreme||||0
 CHART NBM|Surface|2m_relh_10m_wnd|2 m Relative Humidity and 10 m Wind|2 m relative humidity (%)||own||0
 CHART NBM|Surface|2m_temp_10m_wnd|2 m Temperature and 10 m Wind|2 m temperature||own||0
+CHART NBM|Surface|gross_weather|Gross to Miserable Weather Outlook (hour 24 = day 1)|Gross to Miserable in the daytime: -1 Gross, -2 Nasty, -3 Miserable (0 Mild: clear)||||0
 CHART NBM|Surface|total_cloud_cover|Total Cloud Cover and 10 m Wind|Total cloud cover (%)||own||0
 CHART NBM|Surface|tstm_coverage|Thunderstorm Coverage|Thunderstorm coverage in the hour: isolated, scattered, numerous||||0
 CHART RAP-ANL|Changes and trends|z500_trend|500mb Height and 48-hour Change|500mb height change (dam)|Height (dam)|||0
@@ -4597,6 +4599,8 @@ LEVELS NBM|90th_percentile_1hr_snow|||
 LEVELS NBM|cape|||
 LEVELS NBM|ceiling|||
 LEVELS NBM|echo_top|||
+LEVELS NBM|gross_weather|||
+LEVELS NBM|nice_gross_weather|||
 LEVELS NBM|nice_weather|||
 LEVELS NBM|precip_duration|||
 LEVELS NBM|precip_p01|||

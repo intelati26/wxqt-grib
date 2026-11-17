@@ -62,6 +62,31 @@ std::vector<int> GfsData::forecastHours() {
 }
 
 namespace {
+    // A want whose forecast is "tmax-day:<n>" is the blend's 12 hour maximum temperature of the n-th day of the run, which ends at 00Z after that day: its window is 12 hours that end 24 n less the run's hour
+    // from the run (0-12 for a 12Z run, 12-24 for a 00Z run, 4-16 for 08Z), and only the runs from 00Z to 12Z have it. It is made into that record here, where the run is known, and left out for a run that has none
+    bool runRelative(const std::vector<GfsData::Need>& needs) {
+        return std::any_of(needs.begin(), needs.end(), [] (const GfsData::Need& n) { return n.want.forecast.rfind("tmax-day:", 0) == 0 || n.want.forecast.rfind("pop12-day:", 0) == 0; });
+    }
+    std::vector<GfsData::Need> resolvedNeeds(const GfsData::Run& run, const std::vector<GfsData::Need>& needs) {
+        std::vector<GfsData::Need> out;
+        const int cycle = std::atoi(run.cycle.c_str());
+        for (auto need : needs) {
+            const bool tmax = need.want.forecast.rfind("tmax-day:", 0) == 0, pop = need.want.forecast.rfind("pop12-day:", 0) == 0;   // (pop12-day: the 12 hour chance of precipitation of the same window)
+            if (tmax || pop) {
+                const int end = 24 * std::atoi(need.want.forecast.c_str() + (tmax ? 9 : 10)) - cycle;
+                if (cycle > 12 || end < 12) {
+                    continue;
+                }
+                need.hour = end;
+                need.want.forecast = std::to_string(end - 12) + "-" + std::to_string(end) + (tmax ? " hour max fcst" : " hour acc fcst");
+            }
+            out.push_back(std::move(need));
+        }
+        return out;
+    }
+}
+
+namespace {
     // What to tell a person when a run has no index for an hour: which model, which run and hour (and the time it is valid), and the likely reason and the way on, not file names
     std::string notAvailable(const GfsData::Source& source, const GfsData::Run& run, int hour) {
         auto start = QDateTime::fromString(QString::fromStdString(run.id()), "yyyyMMddHH");
@@ -1328,6 +1353,9 @@ void GfsData::setLoader(const std::string& sourceId, Loader loader) {
 }
 
 bool GfsData::check(const Run& run, const std::vector<Need>& needs, std::string& detail) const {
+    if (runRelative(needs)) {
+        return check(run, resolvedNeeds(run, needs), detail);
+    }
     if (source.wrf.enabled) {
         const auto runs = wrfRuns(source.wrf.folders);
         const auto * found = wrfFind(runs, run);
@@ -1421,6 +1449,9 @@ bool GfsData::check(const Run& run, const std::vector<Need>& needs, std::string&
 }
 
 GfsData::Inventory GfsData::inventory(const Run& run, const std::vector<Need>& needs) const {
+    if (runRelative(needs)) {
+        return inventory(run, resolvedNeeds(run, needs));
+    }
     Inventory out;
     if (needs.empty()) {
         out.note = "no chart asks for anything";
@@ -1727,6 +1758,9 @@ namespace {
 // The fields of one forecast hour from a box request. Every field must be one that can be named to the server (an instantaneous field at a level GDAL names the same way); the file that
 // comes back holds the messages of every variable x level asked for, and each field is picked out by its variable and level. false: the caller goes the usual way for all of them.
 bool GfsData::loadBox(const Run& run, const std::vector<Need>& needs, std::map<std::string, GfsGrid::Grid>& out) const {
+    if (runRelative(needs)) {
+        return loadBox(run, resolvedNeeds(run, needs), out);
+    }
     if (!boxEnabled || needs.empty()) {
         return false;
     }
@@ -1852,6 +1886,9 @@ namespace {
 }
 
 bool GfsData::load(const Run& run, const std::vector<Need>& needs, std::map<std::string, GfsGrid::Grid>& out, std::string& error) const {
+    if (runRelative(needs)) {
+        return load(run, resolvedNeeds(run, needs), out, error);
+    }
     if (!source.forecastText.empty() && std::any_of(needs.begin(), needs.end(), [] (const Need& n) { return n.want.forecast.empty(); })) {   // the hour is a record of the file, not a file
         auto fixed = needs;
         for (auto& n : fixed) {

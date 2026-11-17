@@ -1185,7 +1185,8 @@ NBM,Ceiling,Aviation and visibility,Value,Ceiling,,,,,,1,ceiling
 NBM,2-meter Visibility,Aviation and visibility,Value,Visibility,,,,,,1,visibility
 NBM,1-hour accumulated snow,Precipitation and moisture,Value,"#-hour accumulated snow, the # hours ending at hour #",,,,,,1,1hour_accu_snow
 NBM,1-hour Chance of Precipitation,Precipitation and moisture,Chance of a limit,Chance of # in or more of precipitation in the hour,,,,,,1,1hour_precip_chance
-NBM,Nice Weather Outlook (hour 24 = day 1),Precipitation and moisture,Value,"Nice weather in the daytime: # Decent, # Fair, # Nice, # Beautiful, Perfect #/#",,,,,,1,nice_weather
+NBM,Nice and Gross Weather Outlook (hour 24 = day 1),Precipitation and moisture,Value,"# Fair, # Nice, # Beautiful, # Perfect; -# Gross, -# Nasty, -# Miserable; blank: meh",,,,,,1,nice_gross_weather
+NBM,Nice Weather Outlook (hour 24 = day 1),Precipitation and moisture,Value,"Nice weather in the daytime: # none (rain likely), # Decent, # Fair, # Nice, # Beautiful, Perfect #/#",,,,,,1,nice_weather
 NBM,Precipitation duration,Precipitation and moisture,Value,Hours with precipitation in the last #,,,,,,1,precip_duration
 NBM,Accumulated Precipitation,Precipitation and moisture,Value,"Accumulated Precipitation, from the start to hour #",,,,,,1,precip_ptot
 NBM,Snow Liquid Ratio,Precipitation and moisture,Value,Inches of snow for an inch of water,,,,,,1,snow_liquid_ratio
@@ -1206,6 +1207,7 @@ NBM,2 m Maximum Temperature (12 hours ending),Surface,Value,# m temperature extr
 NBM,2 m Minimum Temperature (12 hours ending),Surface,Value,# m temperature extreme,,,,,,1,2m_min_temp
 NBM,2 m Relative Humidity and 10 m Wind,Surface,Value,# m relative humidity,,yes,,,,1,2m_relh_10m_wnd
 NBM,2 m Temperature and 10 m Wind,Surface,Value,# m temperature,,yes,,,,1,2m_temp_10m_wnd
+NBM,Gross to Miserable Weather Outlook (hour 24 = day 1),Surface,Value,"Gross to Miserable in the daytime: -# Gross, -# Nasty, -# Miserable",,,,,,1,gross_weather
 NBM,Total Cloud Cover and 10 m Wind,Surface,Value,Total cloud cover,,yes,,,,1,total_cloud_cover
 NBM,Thunderstorm Coverage,Surface,Value,"Thunderstorm coverage in the hour: isolated, scattered, numerous",,,,,,1,tstm_coverage
 RAP-ANL,#mb Wind and Height,Upper air,Value,Wind speed,Heights,,,,200/250/300,3,200_wnd_ht 250_wnd_ht 300_wnd_ht
@@ -2057,7 +2059,7 @@ WOOF-NAM-HOSTED,"850mb Height, Precipitable Water and Wind",Upper air,Value,Prec
 WOOF-NAM-HOSTED,"700-300mb Mean Relative Humidity, 500mb Height and Wind",Upper air,Value,"Mean relative humidity, #mb",Heights,yes,,,,1,rh_700_300
 WPC-PPP,"# hr Rain, chance of # in or more",Rain: chance of an amount,Chance of a limit,WPC # hour liquid: chance of # in or more,,,,,24/36/48/72 | 0/1/2/3/4/6/8/12 | 0/00/01/10/25/50,44,ppp_24h_qpf_prob_0p01 ppp_24h_qpf_prob_0p10 ppp_24h_qpf_prob_0p25 ppp_24h_qpf_prob_0p50 ppp_24h_qpf_prob_12p0 ...
 WPC-PPP,"# hr Ice, chance of # in or more",Ice: chance of an amount,Chance of a limit,WPC # hour freezing rain: chance of # in or more,,,,,24/36/48/72 | 0/1/2 | 00/01/10/25/50/75,36,ppp_24h_zr_prob_0p01 ppp_24h_zr_prob_0p10 ppp_24h_zr_prob_0p25 ppp_24h_zr_prob_0p50 ppp_24h_zr_prob_0p75 ...
-WPC-PPP,"# hr Snow, chance of # in or more",Snow: chance of an amount,Chance of a limit,WPC # hour snow: chance of # in or more,,,,,24/36/48/72 | 0/1/2/4/6/8/12/18 | 0/00/10,32,ppp_24h_sn_prob_0p10 ppp_24h_sn_prob_12p0 ppp_24h_sn_prob_18p0 ppp_24h_sn_prob_1p00 ppp_24h_sn_prob_2p00 ...
+WPC-PPP,"# hr Snow, chance of # in or more",Snow: chance of an amount,Chance of a limit,WPC # hour snow: chance of # in or more,,,,,24/36/48/72 | 0/1/2/4/6/8/12/18 | 00/0/10,32,ppp_24h_sn_prob_0p10 ppp_24h_sn_prob_12p0 ppp_24h_sn_prob_18p0 ppp_24h_sn_prob_1p00 ppp_24h_sn_prob_2p00 ...
 WPC-PPP,"# hr Ice, #th percentile","Ice: amount in the period (expected, percentiles)",Amount: expected / percentile,"WPC # hour freezing rain, #th percentile of the members",,,,,24/36/48/72 | 05/10/25/50/75/90/95,28,ppp_24h_zr_p05 ppp_24h_zr_p10 ppp_24h_zr_p25 ppp_24h_zr_p50 ppp_24h_zr_p75 ...
 WPC-PPP,"# hr Rain, #th percentile","Rain: amount in the period (expected, percentiles)",Amount: expected / percentile,"WPC # hour liquid, #th percentile of the members",,,,,24/36/48/72 | 05/10/25/50/75/90/95,28,ppp_24h_qpf_p05 ppp_24h_qpf_p10 ppp_24h_qpf_p25 ppp_24h_qpf_p50 ppp_24h_qpf_p75 ...
 WPC-PPP,"# hr Snow, #th percentile","Snow: amount in the period (expected, percentiles)",Amount: expected / percentile,"WPC # hour snow, #th percentile of the members",,,,,24/36/48/72 | 05/10/25/50/75/90/95,28,ppp_24h_sn_p05 ppp_24h_sn_p10 ppp_24h_sn_p25 ppp_24h_sn_p50 ppp_24h_sn_p75 ...

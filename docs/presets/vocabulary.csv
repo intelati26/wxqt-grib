@@ -300,7 +300,8 @@ fill field,Surface current speed (m/s); lines: where it flows,1,1,ocean_current
 fill field,Sea surface height above the mean,1,1,sea_level_height
 fill field,"#-hour accumulated snow, the # hours ending at hour #",1,1,1hour_accu_snow
 fill field,Chance of # in or more of precipitation in the hour,1,1,1hour_precip_chance
-fill field,"Nice weather in the daytime: # Decent, # Fair, # Nice, # Beautiful, Perfect #/#",1,1,nice_weather
+fill field,"# Fair, # Nice, # Beautiful, # Perfect; -# Gross, -# Nasty, -# Miserable; blank: meh",1,1,nice_gross_weather
+fill field,"Nice weather in the daytime: # none (rain likely), # Decent, # Fair, # Nice, # Beautiful, Perfect #/#",1,1,nice_weather
 fill field,Hours with precipitation in the last #,1,1,precip_duration
 fill field,"Accumulated Precipitation, from the start to hour #",1,1,precip_ptot
 fill field,Inches of snow for an inch of water,1,1,snow_liquid_ratio
@@ -310,6 +311,7 @@ fill field,Chance of a thunderstorm in the hour,1,1,prob_tstm
 fill field,Chance of a thunderstorm,1,1,tstm_prob
 fill field,# m wind gust,1,10,10m_wnd_gust
 fill field,# m apparent temperature,1,1,2m_apparent_temp
+fill field,"Gross to Miserable in the daytime: -# Gross, -# Nasty, -# Miserable",1,1,gross_weather
 fill field,Total cloud cover,1,10,total_cloud_cover
 fill field,"Thunderstorm coverage in the hour: isolated, scattered, numerous",1,1,tstm_coverage
 fill field,Surface CAPE,1,1,member_cape
@@ -439,7 +441,7 @@ line family,Ensemble mean / spread,17,4,500_vort_ht 700_vort_ht 850_vort_ht all_
 line family,Other lines,6,30,best_cape_cin cfs30_t2m_precip sbcape_crossover sfc_cape_cin
 line family,Omega,1,20,700_rh_ht
 line family,Waves,1,2,waves
-mode,Value,392,72,1000_500_thick 1000_850_thick 1000_850_thick_type 100_pv_ht
+mode,Value,394,72,1000_500_thick 1000_850_thick 1000_850_thick_type 100_pv_ht
 mode,Chance of a limit,322,11,12hour_precip_chance 1hour_precip_chance 6hour_precip_chance all_prob_24h_0.01in
 mode,Amount: expected / percentile,113,4,10th_percentile_1hr_snow 50th_percentile_1hr_snow 90th_percentile_1hr_snow efi_10m_wnd
 mode,Ensemble: members / spread,87,5,200_1176_ht 200_1188_ht 200_1200_ht 200_1212_ht

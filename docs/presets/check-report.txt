@@ -1,4 +1,4 @@
-FORWARD 1: 2962 chart entries, 925 distinct ids; ids whose mode, line families or barbs differ between models: 29
+FORWARD 1: 2964 chart entries, 927 distinct ids; ids whose mode, line families or barbs differ between models: 29
    precip_p06: AIFS=Precipitation, hours #/Pressure,Thickness; AIGFS=Precipitation, hours #/Pressure,Thickness; GEFS=Mean precipitation, # hours/Ensemble mean / spread; GEPS=P
    precip_p12: AIFS=Precipitation, hours #/Pressure,Thickness; AIGFS=Precipitation, hours #/Pressure,Thickness; GEFS=Precipitation, hours #/; GEPS=Precipitation, hours #/Press
    precip_p24: AIFS=Precipitation, hours #/Pressure,Thickness; AIGFS=Precipitation, hours #/Pressure,Thickness; GEFS=Mean precipitation, # hours/Ensemble mean / spread; GEPS=P
@@ -25,7 +25,7 @@ BACKWARD 1: expanding every preset with its dropdown values: ids lost 0; combina
    RRFS: 5 gaps, e.g. ['1000_700_thick', '1000_700_thick_type', '850_500_thick']
    RRFS-AK: 5 gaps, e.g. ['1000_700_thick', '1000_700_thick_type', '850_500_thick']
 BACKWARD 2: vocabulary entries no chart uses: 0
-VOCABULARY: barbs 1, extra fills 1, fill field 405, level 23, line family 10, mode 6, streamlines 1
-PRESETS: 2066 presets for 2962 chart entries across 76 models (largest: SPCREFS 113 of 168, RRFS 89 of 108, HRRR 81 of 100, HRRR-AK 81 of 100, RRFS-AK 78 of 97, RRFS-FIREWX 78 of 97)
+VOCABULARY: barbs 1, extra fills 1, fill field 407, level 23, line family 10, mode 6, streamlines 1
+PRESETS: 2068 presets for 2964 chart entries across 76 models (largest: SPCREFS 113 of 168, RRFS 89 of 108, HRRR 81 of 100, HRRR-AK 81 of 100, RRFS-AK 78 of 97, RRFS-FIREWX 78 of 97)
 CORE: 48 distinct combinations of mode + line families + barbs + streamlines + bands when the fill field and the level are dropdowns
-SHORT LIST: 606 presets for 2962 chart entries; per model: GEFS 31/133, GFS 21/105, IFS 20/66, RRFS 20/108, HRRR 19/100, HRRR-AK 19/100, RRFS-AK 19/97, RRFS-FIREWX 19/97, RRFS-HI 19/97, RRFS-NA 19/97, RRFS-PR 19/97, GEPS 15/57
+SHORT LIST: 606 presets for 2964 chart entries; per model: GEFS 31/133, GFS 21/105, IFS 20/66, RRFS 20/108, HRRR 19/100, HRRR-AK 19/100, RRFS-AK 19/97, RRFS-FIREWX 19/97, RRFS-HI 19/97, RRFS-NA 19/97, RRFS-PR 19/97, GEPS 15/57

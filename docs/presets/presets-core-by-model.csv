@@ -412,7 +412,7 @@ NARR,Value,Pressure,,,,1,1,,mslp_pwat
 NARR,Value,Other lines,yes,,,1,1,850-500 mb,sbcape_crossover
 NARR,Value,,,,,1,1,850-700 mb,850_700_rh
 NBM,Chance of a limit,,,,,24,12,,12hour_precip_chance 1hour_precip_chance 6hour_precip_chance prob_ceil_1000ft
-NBM,Value,,,,,18,14,2 m,ceiling visibility 1hour_accu_snow nice_weather
+NBM,Value,,,,,20,16,2 m,ceiling visibility 1hour_accu_snow nice_gross_weather
 NBM,Value,,yes,,,6,6,10 m,10m_wnd_gust 2m_apparent_temp 2m_dewp_10m_wnd 2m_relh_10m_wnd
 NBM,Amount: expected / percentile,,,,,3,1,,10th_percentile_1hr_snow 50th_percentile_1hr_snow 90th_percentile_1hr_snow
 RAP-ANL,Value,Heights,yes,,,13,9,200 mb 500 mb 700-300 mb 850 mb 925 mb,200_div_wnd 500_vort_ht 850_thetae_ht 850vor_500ht_200wd

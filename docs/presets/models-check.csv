@@ -2,7 +2,7 @@ model,chart entries,read by a family,percent read,ids shared with GFS,ids not in
 SPCGEFS,9,0,0,0,9,0,0,9,0,0,0,0,9 x no limit (fixed definition)
 SPCPOST,9,0,0,0,9,0,0,9,0,0,0,0,9 x no limit (fixed definition)
 HREF,71,55,77,0,71,9,6,56,0,0,0,0,9 x no limit (fixed definition); 7 x not a chance (a probability-matched mean amount)
-NBM,51,42,82,4,47,19,5,24,3,0,0,0,9 x no limit (fixed definition)
+NBM,53,44,83,4,49,21,5,24,3,0,0,0,9 x no limit (fixed definition)
 REFS,66,56,85,0,66,2,2,31,0,31,0,0,8 x statistic not read; 2 x not a chance family (chance contour over a base chart)
 CFS30,7,6,86,0,7,5,2,0,0,0,0,0,1 x line family outside the list: Other lines
 GEFS,133,114,86,64,69,52,20,8,10,34,4,5,18 x statistic not read; 1 x line family outside the list: Other lines
