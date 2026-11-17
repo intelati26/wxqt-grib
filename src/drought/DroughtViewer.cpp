@@ -12,6 +12,8 @@
 #include "hurricane/Coast.h"
 #include "climate/UtilityAcisClimate.h"
 #include <algorithm>
+#include <cstring>
+#include <QTimeZone>
 #include <atomic>
 #include <functional>
 #include <cmath>
