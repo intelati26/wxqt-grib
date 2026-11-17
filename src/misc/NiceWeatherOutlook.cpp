@@ -111,7 +111,7 @@ namespace {
         }
         out += "\nThe levels are made from the National Blend of Models' apparent temperature, dewpoint, cloud cover, wind gusts and chance of rain through the hours of the local daytime, smoothed over 50 miles, "
                "and the air quality: the near-surface fine particles of the RRFS (days 1 to 3) and GEOS-FP, and EPA's AirNow forecasts and observations for the cities (about five days out). A top level needs every one of them to be good; the further the day, the lower the level the forecast can reach (a day 3 map stops at Beautiful, "
-               "day 4 and later at Nice). The levels are the reference outlook's idea; the scoring is our own, a work in progress.";
+               "day 4 and later at Nice). The levels follow the idea of a published city outlook; the scoring is our own, a work in progress.";
         return out;
     }
 

@@ -63,7 +63,7 @@ p.push_back(nbmSurface("total_cloud_cover", "Total Cloud Cover and 10 m Wind", "
     p.push_back(x);
 }
 // ---- the nice weather outlook (a work in progress): where the daytime weather of a day is the best for being outside, in five levels (Decent, Fair, Nice, Beautiful, Perfect). The idea and the
-// levels are the reference outlook's; the scoring is our own and is meant to be tuned. A frame is a day: the forecast hour 24 is day 1, 48 day 2 ... 168 day 7. The apparent temperature, dewpoint,
+// levels are those of a published city outlook (not named here); the scoring is our own and is meant to be tuned. A frame is a day: the forecast hour 24 is day 1, 48 day 2 ... 168 day 7. The apparent temperature, dewpoint,
 // cloud cover, gusts and chance of rain at the hours of the local daytime (9 to 19 o'clock by the sun, worked out for each cell from its longitude) are scored and put together; a top level also
 // needs every ingredient to be good (the gates), and the further the day the lower the level it can reach. The RRFS version (days 1 to 3) also has the near-surface smoke (PM2.5), which can
 // cap or remove a level.
@@ -118,7 +118,7 @@ for (const std::string source : {"NBM"}) {
         const QDate runDate = QDate::fromString(QString::fromStdString(context.run.date), "yyyyMMdd");
         const double runHours = QDate{1970, 1, 1}.daysTo(runDate) * 24.0 + std::atoi(context.run.cycle.c_str());
         const auto ramp = [] (double v, double good, double bad) { return std::clamp((bad - v) / (bad - good), 0.0, 1.0); };   // 1 at `good`, 0 at `bad` (either way round)
-        // the curves of the ingredients' scores (0 to 1): a flat top where the weather is no bother, a steepening loss, and a floor or an end. Shaped by what the reference outlook's published city scores show of
+        // the curves of the ingredients' scores (0 to 1): a flat top where the weather is no bother, a steepening loss, and a floor or an end. Shaped by what a published city outlook's scores show of
         // how people take each (their numbers, read as curves, not copied rules).
         using Curve = std::vector<std::pair<double, double>>;
         const auto along = [] (const Curve& curve, double v) {
@@ -442,7 +442,7 @@ for (const std::string source : {"NBM"}) {
             const double heatScore = cHt[at];
             const double base = (0.35 * tScore + 0.25 * rScore + 0.06 * heatScore + 0.06 * dScore + 0.10 * cScore + 0.11 * wScore) / 0.93;
             // each ingredient allows a level up to the one its score reaches (the weakest of them rules: a level needs all of the ingredients at its mark, whatever the others are). The marks were
-            // fitted to how the reference outlook's levels follow his ingredient scores (about 77% of 21,000 cities at the same level, against 69% for a cutoff on the weighted score)
+            // fitted to how the reference outlook's levels follow its ingredient scores (about 77% of 21,000 cities at the same level, against 69% for a cutoff on the weighted score)
             static const double marks[6][4] = {   // Decent, Fair, Nice, Beautiful (of 100): temperature, rain, heat, dewpoint, sky, wind
                 {0, 18, 68, 91}, {0, 34, 89, 100}, {0, 50, 78, 100}, {17, 39, 67, 92}, {0, 25, 76, 89}, {0, 38, 75, 94}};   // (the wind mark of Beautiful 82 to 94, 2026-11-17, the user: "96 wind": his Beautiful cities have a wind score of 96 or more in three of four; the only mark that gained on both days, +0.3 on 17 Nov and +0.2 on 16 Nov, all of his cities, Beautiful 1,271 to 753, right 543 to 431 of his 2,040)   // (refitted on the blend's inputs on his scale, shares of the levels matched to his: 76% of his day 1 and 80% of his day 2 at the same level at 21,000 cities, 98% within one)
             const double scores[6] = {tScore * 100.0, rScore * 100.0, heatScore * 100.0, dScore * 100.0, cScore * 100.0, wScore * 100.0};
