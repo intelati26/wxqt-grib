@@ -21,6 +21,7 @@ namespace GfsGrid {
         std::string level;          // "500 mb"
         std::string forecast;       // "anl", "6 hour fcst", "0-6 hour acc fcst"
         std::string detail;         // what follows (the blend's "prob >0.254", "50% level", "ens std dev"); empty for the plain field
+        std::string codes;          // the record is a class field read as a yes or no: the codes of its values that count as yes, "1,11" (the IFS's precipitation type is one field of codes; the flags of rain, snow ... are made of it)
         std::string more;           // the field after that (the RRFS's "aerosol_size <2.5e-06"): a want's detail "<detail>|<more>" asks for both
     };
     // "12:5483620:d=2026100800:HGT:500 mb:6 hour fcst:" per line

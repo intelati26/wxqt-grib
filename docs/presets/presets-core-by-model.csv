@@ -328,6 +328,7 @@ ICON-EU,Value,,,,,1,1,850-700 mb,850_700_rh
 IFS,Value,Heights,yes,,,20,10,10 mb 100 mb 200 mb 50 mb 500 mb 700-300 mb 850 mb 925 mb,200_div_wnd 500_vort_ht 850_thetae_ht 850vor_500ht_200wd
 IFS,Value,"Pressure, Thickness",,,,10,1,1000-500 mb 1000-850 mb 850-700 mb,1000_500_thick 1000_850_thick 850_700_thick precip_p03
 IFS,Value,Pressure,yes,,,10,10,10 m 700 mb 850-200 mb,10m_wnd_precip sbcape_wind 10m_wnd_2m_temp 2m_dewpoint
+IFS,Value,"Pressure, Thickness",,,yes,4,2,1000-500 mb 1000-850 mb 850-700 mb,1000_850_thick_type 850_700_thick_type precip_rate_type precip_type
 IFS,Value,Heights,,,,4,2,200 mb 250 mb 300 mb,300_qvector_div 200_wnd_ht 250_wnd_ht 300_wnd_ht
 IFS,Anomaly,Pressure,yes,,,2,2,10 m,2m_temp_anom mslp_anom
 IFS,Value,Pressure,,,,2,2,,mslp_pwat precip_ptot
@@ -336,7 +337,9 @@ IFS,Anomaly,Heights,yes,,,1,1,500 mb,500_hgt_anom
 IFS,Anomaly,Pressure,,,,1,1,,pwat_anom
 IFS,Change,Pressure,,,,1,1,,mslp_trend
 IFS,Change,Heights,,,,1,1,500 mb,z500_trend
+IFS,Value,Pressure,yes,,yes,1,1,10 m,10m_wnd_precip_type
 IFS,Value,"Pressure, Temperature",,,,1,1,850 mb,850_temp_mslp_precip
+IFS,Value,"Pressure, Temperature",,,yes,1,1,850 mb,850_temp_mslp_precip_type
 IFS,Value,Other lines,yes,,,1,1,850-500 mb,sbcape_crossover
 IFS,Value,,,,yes,1,1,,cloud_layers
 IFS,Value,,yes,,,1,1,200 mb,200_velocity_potential

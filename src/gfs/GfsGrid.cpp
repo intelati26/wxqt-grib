@@ -75,6 +75,22 @@ std::vector<IdxRecord> parseEcmwfIndex(const std::string& text, const std::strin
         if (member.empty() ? type == "pf" : jsonValue(line, "number") != member) {   // a plain field is the unperturbed one; a member is by its number
             continue;
         }
+        if (param == "ptype" && jsonValue(line, "levtype") == "sfc") {   // the precipitation type (codes of the ECMWF table: 1 rain, 2 thunderstorm, 3 freezing rain, 4 mixed or ice, 5 snow, 6 wet snow, 7 rain and snow, 8 ice pellets,
+                                                                       // 9 graupel, 10 hail, 11 drizzle, 12 freezing drizzle) as the four flags NOAA's files have, so the charts of the flags read it
+            const auto step = jsonValue(line, "step");
+            for (const auto& [variable, codes] : {std::pair<const char *, const char *>{"CRAIN", "1,2,10,11"}, {"CSNOW", "5,6"}, {"CFRZR", "3,12"}, {"CICEP", "4,7,8,9"}}) {
+                IdxRecord r;
+                r.number = number;
+                r.start = std::atoll(jsonValue(line, "_offset").c_str());
+                r.end = r.start + std::atoll(jsonValue(line, "_length").c_str()) - 1;
+                r.variable = variable;
+                r.level = "surface";
+                r.forecast = step + " hour fcst";
+                r.codes = codes;
+                records.push_back(std::move(r));
+            }
+            continue;
+        }
         const Name * name = nullptr;
         for (const auto& n : names) {
             if (param == n.param) {

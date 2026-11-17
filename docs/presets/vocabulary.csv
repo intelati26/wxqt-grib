@@ -25,7 +25,7 @@ fill field,Potential vorticity,6,3,100_pv_ht 10_pv_ht 20_pv_ht 30_pv_ht
 fill field,"Chance of a ceiling under #,# ft",6,2,ens_prob_ceil_1000ft ens_prob_ceil_2000ft ens_prob_ceil_3000ft prob_ceil_1000ft
 fill field,#-h QPF > # in (ensemble probability),6,1,qpf_01h_acc_prob_t>001 qpf_01h_acc_prob_t>0p010 qpf_06h_acc_prob_t>001 qpf_06h_acc_prob_t>002
 fill field,Relative vorticity,5,39,500_vort_ht 850_stream_vort 850_vort_ht max_relv_0_1km
-fill field,"Precipitation (green rain, blue snow, pink mixed), hours #",5,10,1000_850_thick_type 10m_wnd_precip_type 850_700_thick_type 850_temp_mslp_precip_type
+fill field,"Precipitation (green rain, blue snow, pink mixed), hours #",5,11,1000_850_thick_type 10m_wnd_precip_type 850_700_thick_type 850_temp_mslp_precip_type
 fill field,Spread of the # mb wind speed,5,1,250_wnd 500_wnd 700_wnd 850_wnd
 fill field,Chance of more than # in of rain in # hours,5,2,ens_prob_precip_6h_0.25in ens_prob_precip_6h_0.5in ens_prob_precip_6h_1in prob_3h_rain_0.5in
 fill field,#-h QPF (ensemble mean),5,1,qpf_01h_acc_mean qpf_03h_acc_mean qpf_06h_acc_mean qpf_24h_acc_overlap12h_mean
@@ -227,7 +227,7 @@ fill field,Okubo-Weiss number,1,2,850_okubo_weiss
 fill field,Chance of # F or hotter,1,1,prob_2m_temp_90f
 fill field,Chance of # C or colder,1,1,prob_2m_temp_freezing
 fill field,# mb temperature anomaly from the # mean,1,1,850_temp_anom
-fill field,Precipitation rate per hour,1,9,precip_rate_type
+fill field,Precipitation rate per hour,1,10,precip_rate_type
 fill field,Pressure of the # PVU surface,1,1,dt_pressure
 fill field,Potential temperature on the # PVU surface,1,1,dt_theta
 fill field,"Brightness temperature (C) of the outgoing longwave, the mean of the last hours",1,1,sim_ir

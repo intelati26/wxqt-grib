@@ -1326,9 +1326,13 @@ CHART IFS-ENS|Probability: precipitation|ens_prob_total_1in|Probability of total
 CHART IFS-ENS|Probability: precipitation|ens_prob_total_2in|Probability of total precipitation of 2.00 in or more (since the start of the run)|Chance of 2.00 in or more of precipitation in total since the start of the run (% of the 50 members)||||0
 CHART IFS|Precipitation and moisture|1000_500_thick|MSLP, 1000-500mb thickness and precipitation|Precipitation, hours 9-12|Sea level pressure (mb);1000-500mb thickness (dam)|||0
 CHART IFS|Precipitation and moisture|1000_850_thick|MSLP, 1000-850mb thickness and precipitation|Precipitation, hours 9-12|Sea level pressure (mb);1000-850mb thickness (dam)|||0
+CHART IFS|Precipitation and moisture|1000_850_thick_type|MSLP, 1000-850mb thickness and precipitation type|Precipitation (green rain, blue snow, pink mixed), hours 9-12|Sea level pressure (mb);1000-850mb thickness (dam)|||2
 CHART IFS|Precipitation and moisture|10m_wnd_precip|MSLP, 10m wind and precipitation|Precipitation, hours 9-12|Sea level pressure (mb)|own||0
+CHART IFS|Precipitation and moisture|10m_wnd_precip_type|MSLP, 10m wind and precipitation type|Precipitation (green rain, blue snow, pink mixed), hours 9-12|Sea level pressure (mb)|own||2
 CHART IFS|Precipitation and moisture|850_700_thick|MSLP, 850-700mb thickness and precipitation|Precipitation, hours 9-12|Sea level pressure (mb);850-700mb thickness (dam)|||0
+CHART IFS|Precipitation and moisture|850_700_thick_type|MSLP, 850-700mb thickness and precipitation type|Precipitation (green rain, blue snow, pink mixed), hours 9-12|Sea level pressure (mb);850-700mb thickness (dam)|||2
 CHART IFS|Precipitation and moisture|850_temp_mslp_precip|MSLP, 850mb temperature and precipitation|Precipitation, hours 9-12|Sea level pressure (mb);850mb temperature (C)|||0
+CHART IFS|Precipitation and moisture|850_temp_mslp_precip_type|MSLP, 850mb temperature and precipitation type|Precipitation (green rain, blue snow, pink mixed), hours 9-12|Sea level pressure (mb);850mb temperature (C)|||2
 CHART IFS|Precipitation and moisture|mslp_pwat|MSLP and Precipitable Water|Precipitable water|Sea level pressure (mb)|||0
 CHART IFS|Precipitation and moisture|precip_p03|Total Precipitation every 3 hours|Precipitation, hours 9-12|Sea level pressure (mb);1000-500mb thickness (dam)|||0
 CHART IFS|Precipitation and moisture|precip_p06|Total Precipitation every 6 hours|Precipitation, hours 6-12|Sea level pressure (mb);1000-500mb thickness (dam)|||0
@@ -1338,6 +1342,8 @@ CHART IFS|Precipitation and moisture|precip_p36|Total Precipitation every 36 hou
 CHART IFS|Precipitation and moisture|precip_p48|Total Precipitation every 48 hours|Precipitation, hours 0-12|Sea level pressure (mb);1000-500mb thickness (dam)|||0
 CHART IFS|Precipitation and moisture|precip_p60|Total Precipitation every 60 hours|Precipitation, hours 0-12|Sea level pressure (mb);1000-500mb thickness (dam)|||0
 CHART IFS|Precipitation and moisture|precip_ptot|Total Accumulated Precipitation of Period|Precipitation, hours 0-12|Sea level pressure (mb)|||0
+CHART IFS|Precipitation and moisture|precip_rate_type|MSLP, 1000-500mb thickness and Precipitation Rate (Rain / Snow / Mixed)|Precipitation rate per hour (green rain, blue snow, pink mixed)|Sea level pressure (mb);1000-500mb thickness (dam)|||2
+CHART IFS|Precipitation and moisture|precip_type|MSLP and Precipitation (Rain / Snow / Mixed)|Precipitation (green rain, blue snow, pink mixed), hours 9-12|Sea level pressure (mb);1000-500mb thickness (dam)|||2
 CHART IFS|Severe: instability|sbcape_crossover|Surface-Based CAPE and the 850-500mb Wind Crossover|Surface-based CAPE (J/kg)|Veering 850-500 mb (degrees, from 45; where CAPE is 100 J/kg or more)|own||0
 CHART IFS|Severe: instability|sbcape_wind|Surface-Based CAPE, MSLP and 10m Wind|Surface-based CAPE (J/kg)|Sea level pressure (mb)|own||0
 CHART IFS|Surface|10m_wnd_2m_temp|MSLP, 10m wind, 2m temperature|2 m temperature|Sea level pressure (mb)|own||0
@@ -4255,10 +4261,12 @@ LEVELS ICON|steering_850_200|u0=UGRD@850 mb,v0=VGRD@850 mb,u1=UGRD@700 mb,v1=VGR
 LEVELS ICON|z500_trend|||
 LEVELS IFS|1000_500_thick|||
 LEVELS IFS|1000_850_thick|||
+LEVELS IFS|1000_850_thick_type|||
 LEVELS IFS|100_temp_ht|z=HGT@100 mb,u=UGRD@100 mb,v=VGRD@100 mb,t=TMP@100 mb|HGT@100 mb|UGRD@100 mb
 LEVELS IFS|100_wnd_ht|z=HGT@100 mb,u=UGRD@100 mb,v=VGRD@100 mb|HGT@100 mb|UGRD@100 mb
 LEVELS IFS|10m_wnd_2m_temp|t=TMP@2 m above ground,u=UGRD@10 m above ground,v=VGRD@10 m above ground,p=PRMSL@mean sea level|PRMSL@mean sea level|UGRD@10 m above ground
 LEVELS IFS|10m_wnd_precip|||
+LEVELS IFS|10m_wnd_precip_type|||
 LEVELS IFS|10_pv_ht|z=HGT@10 mb,u=UGRD@10 mb,v=VGRD@10 mb,ta=TMP@10 mb,tb=TMP@50 mb|HGT@10 mb|UGRD@10 mb
 LEVELS IFS|10_temp_ht|z=HGT@10 mb,u=UGRD@10 mb,v=VGRD@10 mb,t=TMP@10 mb|HGT@10 mb|UGRD@10 mb
 LEVELS IFS|10_wnd_ht|z=HGT@10 mb,u=UGRD@10 mb,v=VGRD@10 mb|HGT@10 mb|UGRD@10 mb
@@ -4283,11 +4291,13 @@ LEVELS IFS|700_rh_ht|z=HGT@700 mb,rh=RH@700 mb,o=VVEL@700 mb,u=UGRD@700 mb,v=VGR
 LEVELS IFS|700_temp_mslp|t=TMP@700 mb,u=UGRD@700 mb,v=VGRD@700 mb,p=PRMSL@mean sea level|PRMSL@mean sea level|UGRD@700 mb
 LEVELS IFS|850_700_rh|r8=RH@850 mb,r7=RH@700 mb||
 LEVELS IFS|850_700_thick|||
+LEVELS IFS|850_700_thick_type|||
 LEVELS IFS|850_pw_ht|z=HGT@850 mb,u=UGRD@850 mb,v=VGRD@850 mb,pw=PWAT@entire atmosphere (considered as a single layer)|HGT@850 mb|UGRD@850 mb
 LEVELS IFS|850_rh_ht|z=HGT@850 mb,rh=RH@850 mb,u=UGRD@850 mb,v=VGRD@850 mb|HGT@850 mb|UGRD@850 mb
 LEVELS IFS|850_stream_vort|z=HGT@850 mb,u=UGRD@850 mb,v=VGRD@850 mb||
 LEVELS IFS|850_temp_ht|z=HGT@850 mb,u=UGRD@850 mb,v=VGRD@850 mb,t=TMP@850 mb|HGT@850 mb|UGRD@850 mb
 LEVELS IFS|850_temp_mslp_precip|||
+LEVELS IFS|850_temp_mslp_precip_type|||
 LEVELS IFS|850_thetae_ht|z=HGT@850 mb,u=UGRD@850 mb,v=VGRD@850 mb,t=TMP@850 mb,rh=RH@850 mb|HGT@850 mb|UGRD@850 mb
 LEVELS IFS|850vor_500ht_200wd|z=HGT@500 mb,u=UGRD@850 mb,v=VGRD@850 mb,u2=UGRD@200 mb,v2=VGRD@200 mb|HGT@500 mb|UGRD@200 mb
 LEVELS IFS|850_vort_ht|z=HGT@850 mb,u=UGRD@850 mb,v=VGRD@850 mb|HGT@850 mb|UGRD@850 mb
@@ -4327,6 +4337,8 @@ LEVELS IFS|precip_p36|||
 LEVELS IFS|precip_p48|||
 LEVELS IFS|precip_p60|||
 LEVELS IFS|precip_ptot|||
+LEVELS IFS|precip_rate_type|||
+LEVELS IFS|precip_type|||
 LEVELS IFS|pwat_anom|f=PWAT@entire atmosphere (considered as a single layer),p=PRMSL@mean sea level|PRMSL@mean sea level|
 LEVELS IFS|rh_700_300|r7=RH@700 mb,r5=RH@500 mb,r3=RH@300 mb,z=HGT@500 mb,u=UGRD@500 mb,v=VGRD@500 mb|HGT@500 mb|UGRD@500 mb
 LEVELS IFS|sbcape_crossover|c=CAPE@surface,u=UGRD@850 mb,v=VGRD@850 mb,u5=UGRD@500 mb,v5=VGRD@500 mb||UGRD@850 mb

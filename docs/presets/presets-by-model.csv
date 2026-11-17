@@ -922,6 +922,7 @@ IFS,"#mb Temperature, Wind and Height",Upper air,Value,Temperature,Heights,yes,,
 IFS,#mb Wind and Height,Upper air,Value,Wind speed,Heights,yes,,,10/50/100/500/850,5,100_wnd_ht 10_wnd_ht 500_wnd_ht 50_wnd_ht 850_wnd_ht
 IFS,"MSLP, #-#mb thickness and precipitation",Precipitation and moisture,Value,"Precipitation, hours #","Pressure,Thickness",,,,850/1000 | 500/700/850,3,1000_500_thick 1000_850_thick 850_700_thick
 IFS,#mb Wind and Height,Upper air,Value,Wind speed,Heights,,,,200/250/300,3,200_wnd_ht 250_wnd_ht 300_wnd_ht
+IFS,"MSLP, #-#mb thickness and precipitation type",Precipitation and moisture,Value,"Precipitation (green rain, blue snow, pink mixed), hours #","Pressure,Thickness",,,yes,850/1000 | 700/850,2,1000_850_thick_type 850_700_thick_type
 IFS,"#mb Vorticity, Wind, and Height",Tropical and dynamics,Value,Relative vorticity,Heights,yes,,,500/850,2,500_vort_ht 850_vort_ht
 IFS,#mb Relative Humidity and Height,Upper air,Value,Relative humidity,Heights,yes,,,500/850,2,500_rh_ht 850_rh_ht
 IFS,"2m Temperature Anomaly, MSLP and 10m Wind",Anomalies,Anomaly,# m temperature against the # daily mean near the surface,Pressure,yes,,,,1,2m_temp_anom
@@ -931,9 +932,13 @@ IFS,Precipitable Water Anomaly and MSLP,Anomalies,Anomaly,Precipitable water ano
 IFS,MSLP and 48-hour Change,Changes and trends,Change,Sea level pressure change,Pressure,,,,,1,mslp_trend
 IFS,500mb Height and 48-hour Change,Changes and trends,Change,#mb height change,Heights,,,,,1,z500_trend
 IFS,"MSLP, 10m wind and precipitation",Precipitation and moisture,Value,"Precipitation, hours #",Pressure,yes,,,,1,10m_wnd_precip
+IFS,"MSLP, 10m wind and precipitation type",Precipitation and moisture,Value,"Precipitation (green rain, blue snow, pink mixed), hours #",Pressure,yes,,yes,,1,10m_wnd_precip_type
 IFS,"MSLP, 850mb temperature and precipitation",Precipitation and moisture,Value,"Precipitation, hours #","Pressure,Temperature",,,,,1,850_temp_mslp_precip
+IFS,"MSLP, 850mb temperature and precipitation type",Precipitation and moisture,Value,"Precipitation (green rain, blue snow, pink mixed), hours #","Pressure,Temperature",,,yes,,1,850_temp_mslp_precip_type
 IFS,MSLP and Precipitable Water,Precipitation and moisture,Value,Precipitable water,Pressure,,,,,1,mslp_pwat
 IFS,Total Accumulated Precipitation of Period,Precipitation and moisture,Value,"Precipitation, hours #",Pressure,,,,,1,precip_ptot
+IFS,"MSLP, 1000-500mb thickness and Precipitation Rate (Rain / Snow / Mixed)",Precipitation and moisture,Value,Precipitation rate per hour,"Pressure,Thickness",,,yes,,1,precip_rate_type
+IFS,MSLP and Precipitation (Rain / Snow / Mixed),Precipitation and moisture,Value,"Precipitation (green rain, blue snow, pink mixed), hours #","Pressure,Thickness",,,yes,,1,precip_type
 IFS,Surface-Based CAPE and the 850-500mb Wind Crossover,Severe: instability,Value,Surface-based CAPE,Other lines,yes,,,,1,sbcape_crossover
 IFS,"Surface-Based CAPE, MSLP and 10m Wind",Severe: instability,Value,Surface-based CAPE,Pressure,yes,,,,1,sbcape_wind
 IFS,"MSLP, 10m wind, 2m temperature",Surface,Value,# m temperature,Pressure,yes,,,,1,10m_wnd_2m_temp

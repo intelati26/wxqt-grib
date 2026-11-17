@@ -542,6 +542,17 @@ bool GfsData::one(const Run& run, int hour, const std::string& file, const std::
         return false;
     }
     g.values.assign(all.begin() + static_cast<std::ptrdiff_t>(skip), all.begin() + static_cast<std::ptrdiff_t>(skip + cells));
+    if (!record->codes.empty()) {   // a field of classes read as a yes or no (the precipitation type: is it snow?)
+        std::vector<int> yes;
+        for (const auto& piece : QString::fromStdString(record->codes).split(',')) {
+            yes.push_back(piece.toInt());
+        }
+        for (auto& value : g.values) {
+            if (std::abs(value) <= 1e19f && !std::isnan(value)) {
+                value = std::find(yes.begin(), yes.end(), static_cast<int>(std::lround(value))) != yes.end() ? 1.0f : 0.0f;
+            }
+        }
+    }
     const double factor = source.valueScale ? source.valueScale(want) : 1.0;
     const double shift = source.valueOffset ? source.valueOffset(want) : 0.0;
     for (auto& value : g.values) {

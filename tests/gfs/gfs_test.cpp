@@ -174,6 +174,25 @@ int main() {
 
     const auto soft = smoothed(h, 2);
     CHECK(soft.at(40, 40) < h.at(40, 40) && soft.at(40, 40) > 95.0f);
+    {   // the IFS's precipitation type: one field of codes, read as the four flags of NOAA's files (CRAIN, CSNOW, CFRZR, CICEP), each with the codes that count
+        const auto ifs = parseEcmwfIndex(
+            "{\"param\": \"ptype\", \"levtype\": \"sfc\", \"step\": \"24\", \"type\": \"fc\", \"_offset\": 1000, \"_length\": 500}\n"
+            "{\"param\": \"2t\", \"levtype\": \"sfc\", \"step\": \"24\", \"type\": \"fc\", \"_offset\": 2000, \"_length\": 300}\n", "");
+        int flags = 0;
+        std::string snow, freezing, rain;
+        for (const auto& r : ifs) {
+            if (r.level == "surface" && !r.codes.empty()) {
+                flags++;
+                CHECK(r.start == 1000 && r.end == 1499 && r.forecast == "24 hour fcst");
+                if (r.variable == "CSNOW") snow = r.codes;
+                if (r.variable == "CFRZR") freezing = r.codes;
+                if (r.variable == "CRAIN") rain = r.codes;
+            }
+        }
+        CHECK(flags == 4);
+        CHECK(snow == "5,6" && freezing == "3,12" && rain == "1,2,10,11");
+        CHECK(ifs.size() == 5);   // the four flags and the 2 m temperature
+    }
     std::printf(failures ? "%d failures\n" : "all GFS tests passed\n", failures);
     return failures ? 1 : 0;
 }
