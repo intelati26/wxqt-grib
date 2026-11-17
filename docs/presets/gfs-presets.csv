@@ -1,6 +1,9 @@
 preset,category,mode,fill (light),fill (dark / highlight),value dropdown(s),contours,barbs,streamlines,type bands,charts covered,chart ids
 #mb Height and Anomaly,Anomalies,Anomaly,Height anomaly from the # mean,,Level (mb): 500/700,Heights 500 mb (checked),barbs @ 500 mb (checked),,,2,500_hgt_anom 700_hgt_anom
+"2m Temperature Anomaly, MSLP and 10m Wind",Anomalies,Anomaly,# m temperature against the # daily mean near the surface,,,Pressure MSLP (checked),barbs @ 10 m (checked),,,1,2m_temp_anom
+"850mb Temperature Anomaly, Height and Wind",Anomalies,Anomaly,# mb temperature anomaly from the # mean,,,Heights 850 mb (checked),barbs @ 850 mb (checked),,,1,850_temp_anom
 MSLP and Anomaly,Anomalies,Anomaly,Pressure anomaly from the # mean,,,Pressure MSLP (checked),barbs @ 10 m (checked),,,1,mslp_anom
+Precipitable Water Anomaly and MSLP,Anomalies,Anomaly,Precipitable water anomaly from the # mean,,,Pressure MSLP (checked),,,,1,pwat_anom
 MSLP and 48-hour Change,Changes and trends,Change,Sea level pressure change,,,Pressure derived field,,,,1,mslp_trend
 Snow Depth Change from F00,Changes and trends,Change,Snow depth change,,,,,,,1,snodpth_chng
 500mb Height and 48-hour Change,Changes and trends,Change,#mb height change,,,Heights derived field,,,,1,z500_trend
@@ -15,17 +18,27 @@ MSLP and Precipitable Water,Precipitation and moisture,Value,Precipitable water,
 Total Accumulated Precipitation of Period,Precipitation and moisture,Value,"Precipitation, hours #",,,Pressure derived field,,,,1,precip_ptot
 "MSLP, 1000-500mb thickness and Precipitation Rate (Rain / Snow / Mixed)",Precipitation and moisture,Value,Precipitation rate per hour,bands: rain / snow / mixed,,Pressure derived field + Thickness 1000-500mb thickness,,,yes,1,precip_rate_type
 MSLP and Precipitation (Rain / Snow / Mixed),Precipitation and moisture,Value,"Precipitation (green rain, blue snow, pink mixed), hours #",bands: rain / snow / mixed,,Pressure derived field + Thickness 1000-500mb thickness,,,yes,1,precip_type
+Snowfall in 24 hours (10:1),Precipitation and moisture,Value,"Snowfall at #:#, hours #",,,,,,,1,snow_24h
+Total Snowfall (10:1),Precipitation and moisture,Value,"Snowfall at #:#, hours #",,,,,,,1,snow_total
+Surface-Based CAPE and the 850-500mb Wind Crossover,Severe: instability,Value,Surface-based CAPE,,,Other lines derived field + Other lines derived field,barbs @ 850 mb (checked),,,1,sbcape_crossover
 "Surface-Based CAPE, MSLP and 10m Wind",Severe: instability,Value,Surface-based CAPE,,,Pressure MSLP (checked),barbs @ 10 m (checked),,,1,sbcape_wind
 Simulated Composite Radar Reflectivity,Severe: storm structure,Value,Composite reflectivity,,,,,,,1,sim_radar_comp
-"# K Isentropic Potential Vorticity, Wind and Pressure",Surface,Value,Potential vorticity on the surface,,Number: 500/530/600/650/850,Pressure derived field,"barbs @ derived wind, not in the files (no level in the label)",,,5,530K_pv 650K_pv 850K_pv 500K_pv 600K_pv
+"# K Isentropic Potential Vorticity, Wind and Pressure",Surface,Value,Potential vorticity on the surface,,Number: 330/500/530/600/650/850,Pressure derived field,"barbs @ derived wind, not in the files (no level in the label)",,,6,330K_pv 530K_pv 650K_pv 850K_pv 500K_pv 600K_pv
+"# K Isentropic Relative Humidity, Wind and Pressure",Surface,Value,Relative humidity on the surface,,Number: 290/300,Pressure derived field,"barbs @ derived wind, not in the files (no level in the label)",,,2,290K_isen 300K_isen
+"#mb Frontogenesis, Height and Wind",Surface,Value,Frontogenesis,,Level (mb): 700/850,Heights 850 mb (checked),barbs @ 850 mb (checked),,,2,850_frontogenesis 700_frontogenesis
 "MSLP, 10m wind, 2m temperature",Surface,Value,# m temperature,,,Pressure MSLP (checked),barbs @ 10 m (checked),,,1,10m_wnd_2m_temp
 "MSLP, 10m wind, 2m dewpoint",Surface,Value,# m dewpoint,,,Pressure MSLP (checked),barbs @ 10 m (checked),,,1,2m_dewpoint
 "2 m Relative Humidity (from temperature and dewpoint), MSLP and 10m Wind",Surface,Value,# m relative humidity,,,Pressure MSLP (checked),barbs @ 10 m (checked),,,1,2m_rh_10m_wnd_derived
+850mb Okubo-Weiss (strain against rotation) and Streamlines,Surface,Value,Okubo-Weiss number,,,,,yes,,1,850_okubo_weiss
 "Cloud Cover by Height (low, middle, high)",Surface,Value,Low cloud (%): each place in the color of its layer with the most cover,bands: rain / snow / mixed,,,,,yes,1,cloud_layers
+Dynamic Tropopause (2 PVU) Pressure and Wind,Surface,Value,Pressure of the # PVU surface,,,,"barbs @ derived wind, not in the files (no level in the label)",,,1,dt_pressure
+Dynamic Tropopause (2 PVU) Potential Temperature and Wind,Surface,Value,Potential temperature on the # PVU surface,,,,"barbs @ derived wind, not in the files (no level in the label)",,,1,dt_theta
 MSLP and 10m Wind,Surface,Value,# m wind speed,,,Pressure MSLP (checked),barbs @ 10 m (checked),,,1,mslp_10m_wind
+Simulated Infrared (outgoing longwave as brightness temperature),Surface,Value,"Brightness temperature (C) of the outgoing longwave, the mean of the last hours",,,,,,,1,sim_ir
 "#mb Vorticity, Wind, and Height",Tropical and dynamics,Value,Relative vorticity,,Level (mb): 500/850,Heights 500 mb (checked),barbs @ 500 mb (checked),,,2,500_vort_ht 850_vort_ht
 "200mb Divergence, Wind and Height",Tropical and dynamics,Value,Divergence,,,Heights 200 mb (checked),barbs @ 200 mb (checked),,,1,200_div_wnd
 200mb Divergence and Streamlines,Tropical and dynamics,Value,Divergence,,,,,yes,,1,200_stream_div
+300mb Q-Vector Divergence (QG forcing for vertical motion) and Height,Tropical and dynamics,Value,-# div Q,,,Heights 300 mb (checked),,,,1,300_qvector_div
 850mb Vorticity and Streamlines,Tropical and dynamics,Value,Relative vorticity,,,,,yes,,1,850_stream_vort
 "850mb Equivalent Potential Temperature, Wind and Height",Tropical and dynamics,Value,Equivalent potential temperature,,,Heights 850 mb (checked),barbs @ 850 mb (checked),,,1,850_thetae_ht
 "850mb Vorticity, 500mb Height, 200mb Wind",Tropical and dynamics,Value,#mb relative vorticity,,,Heights 500 mb (checked),barbs @ 200 mb (checked),,,1,850vor_500ht_200wd
@@ -36,6 +49,8 @@ MSLP and 10m Wind,Surface,Value,# m wind speed,,,Pressure MSLP (checked),barbs @
 "#mb Potential Vorticity, Wind and Height",Upper air,Value,Potential vorticity,,Level (mb): 10/20/30/50/70/100,Heights 100 mb (checked),barbs @ 100 mb (checked),,,6,100_pv_ht 10_pv_ht 20_pv_ht 30_pv_ht 50_pv_ht 70_pv_ht
 #mb Wind and Height,Upper air,Value,Wind speed,,Level (mb): 200/250/300,Heights 200 mb (checked),,,,3,200_wnd_ht 250_wnd_ht 300_wnd_ht
 #mb Relative Humidity and Height,Upper air,Value,Relative humidity,,Level (mb): 500/850,Heights 500 mb (checked),barbs @ 500 mb (checked),,,2,500_rh_ht 850_rh_ht
+"#mb Temperature Advection, Height and Wind",Upper air,Value,Temperature advection,,Level (mb): 700/850,Heights 700 mb (checked),barbs @ 700 mb (checked),,,2,700_temp_adv 850_temp_adv
+200mb Velocity Potential and Irrotational Wind,Upper air,Value,Velocity potential (#^# m^#/s: green the divergent outflow over rising air); barbs: the irrotational wind,,,,barbs @ 200 mb,,,1,200_velocity_potential
 "700mb Relative Humidity, Height and Omega",Upper air,Value,Relative humidity,,,Heights 700 mb (checked) + Omega 700 mb (checked),barbs @ 700 mb (checked),,,1,700_rh_ht
 "700mb Temperature, Wind and MSLP",Upper air,Value,#mb temperature,,,Pressure MSLP (checked),barbs @ 700 mb (checked),,,1,700_temp_mslp
 850-700mb Mean Relative Humidity,Upper air,Value,Mean relative humidity of # and # mb,,,,,,,1,850_700_rh

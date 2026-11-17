@@ -63,6 +63,41 @@ int main() {
     CHECK(!find(rrfs, "MASSDEN", "8 m above ground", "", "aerosol=Total aerosol|aerosol_size <5e-06"));
     CHECK(find(rrfs, "AEMFLX", "entire atmosphere", "", "aerosol=Dust dry|aerosol_size <1e-05")->number == 3);
 
+    {   // the gradient on the sphere and the velocity potential (section 14 of the plan): fields whose derivatives are known
+        const double a = 6371000.0, rad = 3.14159265358979323846 / 180.0;
+        auto f = make(101, 61, -130.0, 60.0, 0.5);   // a regional grid (no wrap in x)
+        auto h = f;
+        for (int r = 0; r < f.rows; r++) {
+            for (int c = 0; c < f.columns; c++) {
+                const double lat = 60.0 - 0.5 * r, lon = -130.0 + 0.5 * c;
+                f.values[static_cast<size_t>(r) * 101 + static_cast<size_t>(c)] = static_cast<float>(a * lat * rad);                       // d/dy = 1
+                h.values[static_cast<size_t>(r) * 101 + static_cast<size_t>(c)] = static_cast<float>(a * std::cos(lat * rad) * lon * rad);  // d/dx = 1
+            }
+        }
+        Grid fx, fy, hx, hy;
+        gradient(f, fx, fy);
+        gradient(h, hx, hy);
+        CHECK(std::fabs(fy.at(50, 30) - 1.0f) < 1e-3f && std::fabs(fx.at(50, 30)) < 1e-6f);
+        CHECK(std::fabs(hx.at(50, 30) - 1.0f) < 1e-2f);   // (the cosine changes along the row: centred differences are exact for the longitude, 1% for the rest)
+        // chi = C sin(lat): laplacian = -2 C sin(lat) / a^2; the solver given that divergence gives chi back, up to a constant
+        const double C = 1.0e6;
+        auto div = make(360, 181, 0.0, 90.0, 1.0);
+        for (int r = 0; r < div.rows; r++) {
+            for (int c = 0; c < div.columns; c++) {
+                div.values[static_cast<size_t>(r) * 360 + static_cast<size_t>(c)] = static_cast<float>(-2.0 * C * std::sin((90.0 - r) * rad) / (a * a));
+            }
+        }
+        const auto chi = velocityPotential(div, 3000);
+        CHECK(!chi.empty());
+        if (!chi.empty()) {
+            const double offset = chi.at(10, 90);   // the equator: sin = 0
+            const double at45 = chi.at(10, 45) - offset, atMinus30 = chi.at(10, 120) - offset;
+            CHECK(std::fabs(at45 - C * std::sin(45.0 * rad)) < 0.05 * C);
+            CHECK(std::fabs(atMinus30 - C * std::sin(-30.0 * rad)) < 0.05 * C);
+            std::printf("velocity potential: 45N %.0f (want %.0f), 30S %.0f (want %.0f)\n", at45, C * std::sin(45.0 * rad), atMinus30, C * std::sin(-30.0 * rad));
+        }
+    }
+
     // sampling: a field equal to the longitude, wrapping on a global grid
     auto g = make(1440, 721, 0.0, 90.0, 0.25);
     for (int r = 0; r < g.rows; r++) {

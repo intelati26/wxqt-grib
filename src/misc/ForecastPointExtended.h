@@ -16,6 +16,7 @@
 #include "misc/NbmText.h"
 #include "misc/UtilityForecastPoint.h"
 
+class ClickableLabel;
 class ExtendedCanvas;
 class ExtendedLabels;
 class Window;
@@ -28,6 +29,7 @@ public:
     void setPoint(const std::shared_ptr<UtilityForecastPoint::Data>& data);   // a new place: the page is reloaded the next time it is shown
     void showing();                                                            // the page came to the front: loaded now when it is out of date (more than 30 minutes, or another place)
     std::function<void(const QDateTime&)> openSynoptic;                        // the button: the valid time (UTC)
+    void pickColumn(int column) { picked(column); }                            // a click on a column (a development aid)
 
 private:
     void load();
@@ -41,6 +43,8 @@ private:
     ExtendedCanvas * canvas;
     QLabel * pickText;
     QPushButton * pickButton;
+    ClickableLabel * thumb;   // the picked time's map beside the table (the GFS's sea level pressure, wind and precipitation type round the place); a click opens the heights and winds
+    int thumbGeneration{0};
     std::shared_ptr<UtilityForecastPoint::Data> data;
     std::shared_ptr<NbmText::Table> table;
     qint64 loadedAt{0};

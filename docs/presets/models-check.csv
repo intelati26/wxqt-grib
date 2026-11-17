@@ -5,60 +5,62 @@ HREF,71,55,77,0,71,9,6,56,0,0,0,0,9 x no limit (fixed definition); 7 x not a cha
 NBM,51,42,82,4,47,19,5,24,3,0,0,0,9 x no limit (fixed definition)
 REFS,66,56,85,0,66,2,2,31,0,31,0,0,8 x statistic not read; 2 x not a chance family (chance contour over a base chart)
 CFS30,7,6,86,0,7,5,2,0,0,0,0,0,1 x line family outside the list: Other lines
-GEFS,128,110,86,59,69,49,20,8,10,34,2,5,18 x statistic not read
+GEFS,133,114,86,64,69,52,20,8,10,34,4,5,18 x statistic not read; 1 x line family outside the list: Other lines
 HAFSA,13,12,92,2,11,13,0,0,0,0,0,0,1 x line family outside the list: Waves
 HAFSB,13,12,92,2,11,13,0,0,0,0,0,0,1 x line family outside the list: Waves
-MPAS-HT,65,61,94,24,41,62,1,0,0,0,0,2,4 x line family outside the list: Other lines
-MPAS-RN,65,61,94,24,41,62,1,0,0,0,0,2,4 x line family outside the list: Other lines
-HRRR,98,94,96,54,44,74,21,0,0,0,0,3,4 x line family outside the list: Other lines
-HRRR-AK,98,94,96,54,44,74,21,0,0,0,0,3,4 x line family outside the list: Other lines
-RRFS,106,102,96,54,52,82,21,0,0,0,0,3,4 x line family outside the list: Other lines
-RRFS-AK,95,91,96,54,41,71,21,0,0,0,0,3,4 x line family outside the list: Other lines
-RRFS-FIREWX,95,91,96,54,41,71,21,0,0,0,0,3,4 x line family outside the list: Other lines
-RRFS-HI,95,91,96,54,41,71,21,0,0,0,0,3,4 x line family outside the list: Other lines
-RRFS-NA,95,91,96,54,41,71,21,0,0,0,0,3,4 x line family outside the list: Other lines
-RRFS-PR,95,91,96,54,41,71,21,0,0,0,0,3,4 x line family outside the list: Other lines
+MPAS-HT,66,61,92,26,40,63,1,0,0,0,0,2,5 x line family outside the list: Other lines
+MPAS-RN,66,61,92,26,40,63,1,0,0,0,0,2,5 x line family outside the list: Other lines
+HRRR,100,95,95,57,43,76,21,0,0,0,0,3,5 x line family outside the list: Other lines
+HRRR-AK,100,95,95,57,43,76,21,0,0,0,0,3,5 x line family outside the list: Other lines
+ICON-2I,20,19,95,20,0,18,0,0,0,0,0,2,1 x line family outside the list: Other lines
+RRFS,108,103,95,57,51,84,21,0,0,0,0,3,5 x line family outside the list: Other lines
+RRFS-AK,97,92,95,57,40,73,21,0,0,0,0,3,5 x line family outside the list: Other lines
+RRFS-FIREWX,97,92,95,57,40,73,21,0,0,0,0,3,5 x line family outside the list: Other lines
+RRFS-HI,97,92,95,57,40,73,21,0,0,0,0,3,5 x line family outside the list: Other lines
+RRFS-NA,97,92,95,57,40,73,21,0,0,0,0,3,5 x line family outside the list: Other lines
+RRFS-PR,97,92,95,57,40,73,21,0,0,0,0,3,5 x line family outside the list: Other lines
+NARR,28,27,96,28,0,26,0,0,0,0,0,2,1 x line family outside the list: Other lines
+RAP-ANL,23,22,96,23,0,22,0,0,0,0,0,1,1 x line family outside the list: Other lines
+AROME,32,31,97,32,0,30,0,0,0,0,0,2,1 x line family outside the list: Other lines
+ARPEGE,34,33,97,34,0,32,0,0,0,0,0,2,1 x line family outside the list: Other lines
+GFS-ANL,36,35,97,36,0,34,0,0,0,0,0,2,1 x line family outside the list: Other lines
+GFS1-ANL,36,35,97,36,0,34,0,0,0,0,0,2,1 x line family outside the list: Other lines
+GRAPES,34,33,97,34,0,32,0,0,0,0,0,2,1 x line family outside the list: Other lines
+HRDPS,30,29,97,30,0,28,0,0,0,0,0,2,1 x line family outside the list: Other lines
+ICON,34,33,97,34,0,32,0,0,0,0,0,2,1 x line family outside the list: Other lines
+ICON-EU,32,31,97,32,0,30,0,0,0,0,0,2,1 x line family outside the list: Other lines
+NAM-ANL,34,33,97,34,0,32,0,0,0,0,0,2,1 x line family outside the list: Other lines
+UKMO,34,33,97,34,0,32,0,0,0,0,0,2,1 x line family outside the list: Other lines
+ERA5,43,42,98,43,0,41,0,0,0,0,0,2,1 x line family outside the list: Other lines
+GEPS,57,56,98,45,12,29,13,8,0,4,0,3,1 x line family outside the list: Other lines
+IFS,60,59,98,60,0,41,13,0,0,0,4,2,1 x line family outside the list: Other lines
 SPCREFS,168,165,98,0,168,101,0,63,4,0,0,0,3 x two or more limits
-AIFS,42,42,100,42,0,31,7,0,0,0,2,2,
-AIGFS,46,46,100,46,0,30,12,0,0,0,2,2,
-AROME,29,29,100,29,0,27,0,0,0,0,0,2,
+WOOF-NAM-HOSTED,47,46,98,47,0,31,14,0,0,0,0,2,1 x line family outside the list: Other lines
+GFS,105,104,99,105,0,76,20,0,0,0,6,3,1 x line family outside the list: Other lines
+AIFS,46,46,100,46,0,34,7,0,0,0,3,2,
+AIGFS,50,50,100,50,0,33,12,0,0,0,3,2,
 AROME-HD,1,1,100,1,0,1,0,0,0,0,0,0,
-ARPEGE,31,31,100,31,0,29,0,0,0,0,0,2,
 ARPEGE-EU,4,4,100,4,0,3,0,0,0,0,0,1,
 ARWEN,4,4,100,4,0,3,0,0,0,0,0,1,
-CFS,17,17,100,17,0,13,0,0,0,0,2,2,
-CFS-ANL,17,17,100,17,0,13,0,0,0,0,2,2,
+CFS,19,19,100,19,0,13,0,0,0,0,4,2,
+CFS-ANL,19,19,100,19,0,13,0,0,0,0,4,2,
 COPERNICUS,15,15,100,0,15,15,0,0,0,0,0,0,
 EC46,6,6,100,0,6,4,2,0,0,0,0,0,
 ENS-ALL,18,18,100,0,18,0,0,6,0,12,0,0,
-ERA5,40,40,100,40,0,38,0,0,0,0,0,2,
-GDPS,29,29,100,29,0,27,0,0,0,0,0,2,
+GDPS,32,32,100,32,0,30,0,0,0,0,0,2,
 GEFS-WAVE,10,10,100,0,10,10,0,0,0,0,0,0,
-GEOS-FP,57,57,100,48,9,55,0,0,0,0,0,2,
-GEPS,55,55,100,43,12,27,13,8,0,4,0,3,
-GFS,86,86,100,86,0,60,20,0,0,0,3,3,
-GFS-ANL,33,33,100,33,0,31,0,0,0,0,0,2,
+GEOS-FP,64,64,100,55,9,62,0,0,0,0,0,2,
 GFS-WAVE,10,10,100,0,10,10,0,0,0,0,0,0,
-GFS1-ANL,33,33,100,33,0,31,0,0,0,0,0,2,
-GRAPES,31,31,100,31,0,29,0,0,0,0,0,2,
-GSM,28,28,100,28,0,26,0,0,0,0,0,2,
-HGEFS,30,30,100,30,0,28,0,0,0,0,0,2,
-HRDPS,28,28,100,28,0,26,0,0,0,0,0,2,
-ICON,31,31,100,31,0,29,0,0,0,0,0,2,
-ICON-2I,19,19,100,19,0,17,0,0,0,0,0,2,
+GSM,31,31,100,31,0,29,0,0,0,0,0,2,
+HGEFS,33,33,100,33,0,31,0,0,0,0,0,2,
 ICON-D2,7,7,100,7,0,6,0,0,0,0,0,1,
-ICON-EU,30,30,100,30,0,28,0,0,0,0,0,2,
-IFS,54,54,100,54,0,37,13,0,0,0,2,2,
 IFS-ENS,21,21,100,0,21,0,0,6,0,15,0,0,
 MF-CURRENT,3,3,100,0,3,3,0,0,0,0,0,0,
 MF-SST,1,1,100,0,1,1,0,0,0,0,0,0,
 MF-WAVE,8,8,100,0,8,8,0,0,0,0,0,0,
 MRMS,1,1,100,1,0,1,0,0,0,0,0,0,
 MSM,4,4,100,4,0,3,0,0,0,0,0,1,
-MSM-UL,21,21,100,21,0,20,0,0,0,0,0,1,
-NAM-ANL,32,32,100,32,0,30,0,0,0,0,0,2,
-NARR,26,26,100,26,0,24,0,0,0,0,0,2,
-RAP-ANL,21,21,100,21,0,20,0,0,0,0,0,1,
+MSM-UL,23,23,100,23,0,22,0,0,0,0,0,1,
 RRFSD,33,33,100,0,33,33,0,0,0,0,0,0,
 RTMA,6,6,100,0,6,6,0,0,0,0,0,0,
 RTMA-AK,6,6,100,0,6,6,0,0,0,0,0,0,
@@ -67,11 +69,9 @@ RTMA-HI,6,6,100,0,6,6,0,0,0,0,0,0,
 RTMA-PR,6,6,100,0,6,6,0,0,0,0,0,0,
 SEAS5,6,6,100,0,6,4,2,0,0,0,0,0,
 SFCOA,33,33,100,0,33,33,0,0,0,0,0,0,
-UKMO,31,31,100,31,0,29,0,0,0,0,0,2,
 URMA,6,6,100,0,6,6,0,0,0,0,0,0,
 URMA-AK,6,6,100,0,6,6,0,0,0,0,0,0,
 URMA-HI,6,6,100,0,6,6,0,0,0,0,0,0,
 URMA-PR,6,6,100,0,6,6,0,0,0,0,0,0,
 WOOF-NAM,4,4,100,4,0,3,0,0,0,0,0,1,
-WOOF-NAM-HOSTED,45,45,100,45,0,29,14,0,0,0,0,2,
 WPC-PPP,212,212,100,0,212,4,0,112,96,0,0,0,

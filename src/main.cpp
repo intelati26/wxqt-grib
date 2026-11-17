@@ -48,6 +48,7 @@
 #include <QDialog>
 #include <QTimer>
 #include "models/MrmsVerifyViewer.h"
+#include "misc/ForecastPointExtended.h"
 #include "misc/NwsNoticesViewer.h"
 #include <QThread>
 #include "common/GlobalVariables.h"
@@ -413,6 +414,18 @@ int main(int argc, char * argv[]) {
                 auto data = std::make_shared<UtilityForecastPoint::Data>(UtilityForecastPoint::fetch(parts.value(1).toDouble(), parts.value(2).toDouble()));
                 auto * viewer = new ForecastPointViewer{&w, data};
                 QTimer::singleShot(1500, viewer, [viewer] { viewer->showExtended(); });
+                if (qEnvironmentVariableIsSet("WXQT_EXTCOLUMN")) {   // WXQT_EXTCOLUMN=<n>: 40 s in, the n-th column of the Extended tab is clicked (its map beside the table)
+                    const int columnWanted = qEnvironmentVariableIntValue("WXQT_EXTCOLUMN");
+                    QTimer::singleShot(qEnvironmentVariableIntValue("WXQT_EXTCOLUMN_MS") > 0 ? qEnvironmentVariableIntValue("WXQT_EXTCOLUMN_MS") : 40000, viewer, [viewer, columnWanted] {
+                        for (auto * widget : viewer->findChildren<QWidget *>()) {   // (the page has no Q_OBJECT: found by a cast)
+                            if (auto * page = dynamic_cast<ForecastPointExtended *>(widget)) {
+                                page->pickColumn(columnWanted);
+                                fprintf(stderr, "extpoint: column %d picked\n", columnWanted);
+                                break;
+                            }
+                        }
+                    });
+                }
                 if (const auto pick = qEnvironmentVariable("WXQT_EXTPICK"); !pick.isEmpty()) {   // WXQT_EXTPICK=<yyyyMMddHH UTC>: then the button for that time
                     auto when = QDateTime::fromString(pick, "yyyyMMddHH");
                     when.setTimeZone(QTimeZone::utc());
@@ -1353,8 +1366,18 @@ int main(int argc, char * argv[]) {
                     auto * timer = new QTimer{viewer};
                     timer->setInterval(500);
                     int waited = 0;
-                    QObject::connect(timer, &QTimer::timeout, viewer, [viewer, out, timer, waited]() mutable {
+                    int pick = qEnvironmentVariableIsSet("WXQT_STATION_PICK") ? qEnvironmentVariableIntValue("WXQT_STATION_PICK") : -1;   // WXQT_STATION_PICK=<n>: after the first result, the n-th station of the menu
+                    QObject::connect(timer, &QTimer::timeout, viewer, [viewer, out, timer, waited, pick]() mutable {
                         const auto text = viewer->statusText();
+                        if (pick >= 0 && !text.isEmpty() && !text.startsWith("reading")) {
+                            fprintf(stderr, "modelbias: %s\nmodelbias stations: %s\n", qPrintable(text), qPrintable(viewer->stationMenu()));
+                            if (!viewer->pickStation(pick)) {
+                                fprintf(stderr, "modelbias: no station %d in the menu\n", pick);
+                            }
+                            pick = -1;
+                            waited = 0;
+                            return;
+                        }
                         if ((!text.isEmpty() && !text.startsWith("reading")) || ++waited > 80) {
                             viewer->picture().save(out);
                             fprintf(stderr, "modelbias: %s\n", qPrintable(text));

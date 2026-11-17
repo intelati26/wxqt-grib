@@ -27,6 +27,8 @@ public:
     ModelViewer * why();   // the maps of the day picked on the lower chart (or the day the two errors were furthest apart); null when there is nothing to show
     void setLowerView(int how) { lowerView->setCurrentIndex(how); }   // 0 the error of each day, 1 how each day's forecast changed
     void setJudge(int how) { judge->setCurrentIndex(how); }   // 0 ERA5, 1 a station's highs, 2 lows, 3 rain
+    bool pickStation(int index) { if (index < 0 || index >= stationPick->count()) return false; stationPick->setCurrentIndex(index); return true; }   // 0 the nearest with the days, then the menu's stations
+    QString stationMenu() const { QStringList all; for (int i = 0; i < stationPick->count(); i++) all << QString::number(i) + " " + stationPick->itemText(i); return all.join("; "); }
     QPixmap picture() const;
     QString statusText() const;
 
@@ -38,6 +40,7 @@ private:
     QComboBox * modelB{};
     QComboBox * field{};
     QComboBox * judge{};
+    QComboBox * stationPick{};   // with a station as the judge: the nearest that has the days, or one of the stations near the place
     QComboBox * lowerView{};
     QComboBox * period{};
     QComboBox * lead{};

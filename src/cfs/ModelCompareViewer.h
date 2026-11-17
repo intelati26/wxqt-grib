@@ -6,6 +6,7 @@
 #ifndef MODELCOMPAREVIEWER_H
 #define MODELCOMPAREVIEWER_H
 
+#include <cmath>
 #include <functional>
 #include <QComboBox>
 #include <QDateTime>
@@ -36,7 +37,7 @@ public:
     std::function<void(QWidget *)> allShown;   // called with the window of allModels() once it is up (a development aid)
     ModelViewer * why();
     // The Model Viewer on the maps of a time (also used by the bias window): `main` and `other` are the program's models ("GFS", "IFS-ENS"), `chart` the chart asked for; `message` says what was opened or why not
-    static ModelViewer * showMaps(Window * parent, const std::string& main, const std::string& other, const std::string& chart, const QDateTime& when, QString& message);   // (null when there is nothing to show)
+    static ModelViewer * showMaps(Window * parent, const std::string& main, const std::string& other, const std::string& chart, const QDateTime& when, QString& message, double lat = std::nan(""), double lon = std::nan(""));   // (null when there is nothing to show)
     // the program's model for an Open-Meteo ensemble id ("gfs025" -> "GEFS"); "" when the program has none
     static std::string mapModel(const std::string& id);
 

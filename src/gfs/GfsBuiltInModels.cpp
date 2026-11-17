@@ -78,7 +78,7 @@ clone_variables = HGT, TMP, UGRD, VGRD, SPFH, VVEL, PRMSL, PWAT, PRES, RH, LCDC,
 clone_fields = HGT|1000 mb, HGT|850 mb, HGT|500 mb, HGT|250 mb, TMP|850 mb, TMP|500 mb, TMP|250 mb, UGRD|850 mb, UGRD|500 mb, UGRD|250 mb, VGRD|850 mb, VGRD|500 mb, VGRD|250 mb, SPFH|850 mb, SPFH|500 mb, SPFH|250 mb, VVEL|500 mb, RH|850 mb, RH|500 mb, RH|250 mb, HGT|925 mb, TMP|925 mb, UGRD|925 mb, VGRD|925 mb, HGT|700 mb, TMP|700 mb, UGRD|700 mb, VGRD|700 mb, HGT|300 mb, TMP|300 mb, UGRD|300 mb, VGRD|300 mb, HGT|200 mb, TMP|200 mb, UGRD|200 mb, VGRD|200 mb, HGT|100 mb, TMP|100 mb, UGRD|100 mb, VGRD|100 mb, HGT|70 mb, TMP|70 mb, UGRD|70 mb, VGRD|70 mb, HGT|50 mb, TMP|50 mb, UGRD|50 mb, VGRD|50 mb, HGT|30 mb, TMP|30 mb, UGRD|30 mb, VGRD|30 mb, HGT|20 mb, TMP|20 mb, UGRD|20 mb, VGRD|20 mb, HGT|10 mb, TMP|10 mb, UGRD|10 mb, VGRD|10 mb, HGT|5 mb, TMP|5 mb, UGRD|5 mb, VGRD|5 mb, HGT|2 mb, TMP|2 mb, UGRD|2 mb, VGRD|2 mb, HGT|1 mb, TMP|1 mb, UGRD|1 mb, VGRD|1 mb
 clone_pieces = false
 clone_specific_humidity = true
-clone_skip = anom, precip, thick, 850_vort_ht, 500_vort_ht, pv_ht
+clone_skip = anom, precip, thick, 850_vort_ht, 500_vort_ht, pv_ht, dt_
 )MODEL"},
         {"GFS", R"MODEL(
 # the GFS: the charts everything else is made from; NOMADS can cut a box of the fields out of a file, which is what a regional chart fetches

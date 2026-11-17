@@ -46,6 +46,7 @@ namespace ModelBias {
     struct Station {
         std::string uid, name;
         double km{0};
+        double lat{0}, lon{0};
     };
     // the nearest station of a StnMeta answer ({"meta":[{"ll":[lon,lat],"name":..,"uid":..}]}) to the place; false when there is none
     // the stations of the answer, nearest first (at most `count`); false when there is none
@@ -58,7 +59,10 @@ namespace ModelBias {
     // place's midnight (unix seconds), `dayError` forecast minus station.
     Stat evaluateDaily(const std::vector<double>& times, int utcOffset, const std::vector<float>& forecast, const std::map<std::string, float>& station, Judge judge);
     // The place against a station: both models' forecasts, the station's days and the station found. Blocking; kept 20 minutes.
-    bool fetchStation(double lat, double lon, Judge judge, const std::string& modelA, const std::string& modelB, int days, Forecasts& forecasts, std::map<std::string, float>& station, Station& found, std::string& why);
+    // `wanted`: a station's uid the person picked (judged on that station only, the forecasts read at its own place); "" the nearest that has the days. `nearby`: the stations near the place,
+    // nearest first, for the person to pick from
+    bool fetchStation(double lat, double lon, Judge judge, const std::string& modelA, const std::string& modelB, int days, Forecasts& forecasts, std::map<std::string, float>& station, Station& found, std::string& why,
+                      const std::string& wanted = {}, std::vector<Station> * nearby = nullptr);
     // One value for each of the place's own days from hourly values: the mean, the highest, the lowest or the total of a day with at least 20 hours (24 for a total). Keyed by the day's midnight
     // (unix seconds). Used for the forecast evolution: what each lead said for each day, and what happened.
     enum class Aggregate { Mean, High, Low, Sum };

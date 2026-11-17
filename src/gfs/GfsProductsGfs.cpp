@@ -105,7 +105,7 @@ for (const auto& [level, above, below, top, interval] : {std::tuple{100, 70, 150
 // at the levels round it, the pressure where the potential temperature crosses theta0 found in each column (linear in theta against ln p between two levels), and the PV, the wind and the pressure
 // put on it the same way. This is the form the polar vortex is usually shown in (the air does not cross these surfaces, so the PV follows the air). `levels` are the pressures (mb, the top first)
 // whose temperature is read; PV is made at every one that has a level on each side; the wind is read at those.
-for (const auto& [theta0, levels, top, name] : {std::tuple{850.0, std::vector<int>{3, 5, 7, 10, 20, 30}, 900.0, "850 K"}, {650.0, std::vector<int>{7, 10, 20, 30, 40, 50}, 400.0, "650 K"}, {600.0, std::vector<int>{7, 10, 20, 30, 40, 50, 70}, 250.0, "600 K"}, {530.0, std::vector<int>{20, 30, 40, 50, 70, 100}, 130.0, "530 K"}, {500.0, std::vector<int>{20, 30, 40, 50, 70, 100}, 70.0, "500 K"}}) {
+for (const auto& [theta0, levels, top, name] : {std::tuple{850.0, std::vector<int>{3, 5, 7, 10, 20, 30}, 900.0, "850 K"}, {650.0, std::vector<int>{7, 10, 20, 30, 40, 50}, 400.0, "650 K"}, {600.0, std::vector<int>{7, 10, 20, 30, 40, 50, 70}, 250.0, "600 K"}, {530.0, std::vector<int>{20, 30, 40, 50, 70, 100}, 130.0, "530 K"}, {500.0, std::vector<int>{20, 30, 40, 50, 70, 100}, 70.0, "500 K"}, {330.0, std::vector<int>{100, 150, 200, 250, 300, 400, 500, 600, 700, 850}, 10.0, "330 K"}}) {
     Product x;
     const std::string tag = std::to_string(static_cast<int>(theta0)) + "K";
     x.id = tag + "_pv";
@@ -174,7 +174,7 @@ for (const auto& [theta0, levels, top, name] : {std::tuple{850.0, std::vector<in
     ContourSet c;
     c.key = "ip";
     c.scale = 1.0;
-    c.interval = theta0 > 800 ? 1.0 : theta0 > 620 ? 2.0 : 5.0;
+    c.interval = theta0 > 800 ? 1.0 : theta0 > 620 ? 2.0 : theta0 < 400 ? 25.0 : 5.0;   // (330 K crosses 150 to 500 mb: lines every 25)
     c.title = "Pressure of the " + std::string{name} + " surface (mb)";
     x.contours = {c};
     x.barbU = "iu";
@@ -520,6 +520,95 @@ for (const auto& [id, label, level, interval] : {std::tuple{"500_hgt_anom", "500
     x.barbV = "v";
     p.push_back(x);
 }
+// the temperature and precipitable water anomalies from the 1991-2020 reanalysis normal (section 14 of the plan), with the view in standard deviations (the normalized anomaly) as the height
+// ones have. The 2 m one is against the reanalysis' daily mean near the surface, so the time of day is in it (a warm afternoon reads warmer than the day as a whole).
+{
+    struct Spec {
+        const char * id, * label, * variable, * level, * title;
+        GfsClimate::Field (*field)();
+        double kelvin;   // added to the file's value to be in the normal's unit (degrees C -> K), 0 for precipitable water
+        bool mslp;       // the lines: the sea level pressure (else the 850 mb heights)
+    };
+    static const Spec specs[] = {
+        {"850_temp_anom", "850mb Temperature Anomaly, Height and Wind", "TMP", "850 mb", "850 mb temperature anomaly from the 1991-2020 mean (C)", [] { return GfsClimate::temperature(850); }, 273.15, false},
+        {"2m_temp_anom", "2m Temperature Anomaly, MSLP and 10m Wind", "TMP", "2 m above ground", "2 m temperature against the 1991-2020 daily mean near the surface (C)", &GfsClimate::surfaceTemperature, 273.15, true},
+        {"pwat_anom", "Precipitable Water Anomaly and MSLP", "PWAT", "entire atmosphere (considered as a single layer)", "Precipitable water anomaly from the 1991-2020 mean (mm)", &GfsClimate::precipitableWater, 0.0, true},
+    };
+    for (const auto& spec : specs) {
+        Product x;
+        x.id = spec.id;
+        x.label = spec.label;
+        x.wants = {want("f", spec.variable, spec.level)};
+        if (spec.mslp) {
+            x.wants.push_back(want("p", "PRMSL", "mean sea level"));
+            if (std::string{spec.variable} == "TMP") {
+                x.wants.push_back(want("u", "UGRD", "10 m above ground"));
+                x.wants.push_back(want("v", "VGRD", "10 m above ground"));
+            }
+        } else {
+            x.wants.push_back(want("z", "HGT", "850 mb"));
+            x.wants.push_back(want("u", "UGRD", "850 mb"));
+            x.wants.push_back(want("v", "VGRD", "850 mb"));
+            x.wants.push_back(want("ps", "PRES", "surface"));   // where the ground is above 850 mb the level is underground
+        }
+        const auto field = spec.field();
+        const double kelvin = spec.kelvin;
+        const bool masked = !spec.mslp;
+        const auto inNormalUnit = [kelvin] (const GfsGrid::Grid& g) {
+            auto out = g;
+            for (auto& v : out.values) {
+                v = static_cast<float>(v + kelvin);
+            }
+            return out;
+        };
+        x.derive = [validDay, field, inNormalUnit, masked] (Grids& g, const Context& context) {
+            GfsGrid::Grid normal;
+            std::string error;
+            if (!g.count("f") || !context.climate || !context.climate->at(field, validDay(context), normal, error)) {
+                return;
+            }
+            auto anom = GfsGrid::anomaly(inNormalUnit(g.at("f")), normal);   // (a difference: kelvin and degrees C alike)
+            if (masked && g.count("ps")) {
+                for (size_t i = 0; i < anom.values.size() && i < g.at("ps").values.size(); i++) {
+                    if (g.at("ps").values[i] < 85000.0f) {
+                        anom.values[i] = std::nanf("");
+                    }
+                }
+            }
+            g["anom"] = std::move(anom);
+        };
+        x.fill = [] (const Grids& g) { return pick(g, "anom"); };
+        x.ramp = spec.kelvin > 0.0 ? temperatureDeparture() : precipitationDeparture();
+        x.fillTitle = spec.title;
+        x.legendStep = 0;
+        x.sigma = [sigma = sigmaOf(field, 1.0, false, nullptr, 1.0), inNormalUnit] (Grids& g, const Context& context) {   // (the helper reads its field as "z": the heights wait aside)
+            const bool heights = g.count("z") > 0;
+            GfsGrid::Grid kept;
+            if (heights) {
+                kept = g.at("z");
+            }
+            g["z"] = inNormalUnit(g.at("f"));
+            sigma(g, context);
+            if (heights) {
+                g["z"] = std::move(kept);
+            } else {
+                g.erase("z");
+            }
+        };
+        x.sigmaUnit = spec.kelvin > 0.0 ? "C" : "mm";
+        x.sigmaSizeKey = "sd_size";
+        x.sigmaReadKey = "anom_unit";
+        x.sigmaInterval = spec.kelvin > 0.0 ? 2.0 : 5.0;
+        x.contours = {spec.mslp ? pressure() : heights(3.0)};
+        for (const auto& w : x.wants) {
+            if (w.key == "u") {
+                x.barbU = "u";
+                x.barbV = "v";
+            }
+        }
+        p.push_back(x);
+    }
+}
 // precipitation: the running total from the start of the run is in every file, so a period is the total at its end less the total at its start
 const auto lastHourOk = [] (int h) { return h <= 120 || (h <= 240 && h % 3 == 0) || h % 6 == 0; };
 const auto startOf = [lastHourOk] (int hour, int period) {
@@ -634,6 +723,353 @@ const auto thickness = [&] (const char * id, const char * label, const char * lo
     x.contours = {pressure(), t};
     return x;
 };
+// ---- section 14 of the plan: the rest of Tropical Tidbits' GFS menu
+{   // snowfall at 10:1: in 6 hour pieces, each piece's precipitation (the running totals' difference) times the percent of it that is frozen at the piece's end (CPOFP), as
+    // centimeters of snow (1 mm of water is 1 cm of snow at 10:1)
+    for (const auto& [id, label, period] : {std::tuple{"snow_24h", "Snowfall in 24 hours (10:1)", 24}, {"snow_total", "Total Snowfall (10:1)", 0}}) {
+        Product x;
+        x.id = id;
+        x.label = label;
+        const int span = period;
+        const auto bounds = [span] (int hour) {   // the pieces' ends, the last first, back to the start of the period
+            std::vector<int> ends;
+            const int from = span > 0 ? std::max(0, hour - span) : 0;
+            for (int e = hour; e > from; e -= 6) {
+                ends.push_back(e);
+            }
+            return std::make_pair(ends, from);
+        };
+        x.needs = [bounds] (int hour) {
+            std::vector<GfsData::Need> needs;
+            const auto [ends, from] = bounds(hour);
+            for (const int e : ends) {
+                needs.push_back({e, {"a" + std::to_string(e), "APCP", "surface", "0-*"}});
+                needs.push_back({e, {"f" + std::to_string(e), "CPOFP", "surface", ""}});
+            }
+            if (from > 0) {
+                needs.push_back({from, {"a" + std::to_string(from), "APCP", "surface", "0-*"}});
+            }
+            return needs;
+        };
+        x.derive = [bounds] (Grids& g, const Context& context) {
+            const auto [ends, from] = bounds(context.hour);
+            GfsGrid::Grid total;
+            for (const int e : ends) {
+                const int start = std::max(from, e - 6);
+                const auto endKey = "a" + std::to_string(e), startKey = "a" + std::to_string(start), fracKey = "f" + std::to_string(e);
+                if (!g.count(endKey) || !g.count(fracKey) || (start > 0 && !g.count(startKey))) {
+                    continue;
+                }
+                const auto& a1 = g.at(endKey);
+                if (total.empty()) {
+                    total = a1;
+                    std::fill(total.values.begin(), total.values.end(), 0.0f);
+                }
+                for (size_t i = 0; i < total.values.size(); i++) {
+                    const double water = a1.values[i] - (start > 0 ? g.at(startKey).values[i] : 0.0f);
+                    const double frozen = std::clamp(static_cast<double>(g.at(fracKey).values[i]), 0.0, 100.0) / 100.0;   // (-50 where no precipitation: none)
+                    if (water > 0.0 && std::isfinite(frozen)) {
+                        total.values[i] += static_cast<float>(water * frozen);   // mm of water = cm of snow at 10:1
+                    }
+                }
+            }
+            g["snow"] = std::move(total);
+        };
+        x.fill = [] (const Grids& g) { return pick(g, "snow"); };
+        x.ramp = snowfall();
+        x.quantity = Quantity::Centimeters;
+        x.fillTitleFor = [span] (int hour) { return std::string{"Snowfall at 10:1, hours "} + std::to_string(span > 0 ? std::max(0, hour - span) : 0) + "-" + std::to_string(hour); };
+        x.legendStep = 0;
+        p.push_back(x);
+    }
+}
+{   // temperature advection and frontogenesis at 850 and 700 mb (horizontal, on the pressure surface; the frontogenesis is the 2-D kinematic one of Petterssen: the change of the
+    // potential temperature gradient's size by the wind's deformation and convergence)
+    for (const int level : {850, 700}) {
+        for (const bool front : {false, true}) {
+            Product x;
+            const std::string L = std::to_string(level);
+            x.id = L + (front ? "_frontogenesis" : "_temp_adv");
+            x.label = L + "mb " + (front ? "Frontogenesis, Height and Wind" : "Temperature Advection, Height and Wind");
+            const std::string lt = L + " mb";
+            x.wants = {want("t", "TMP", lt.c_str()), want("u", "UGRD", lt.c_str()), want("v", "VGRD", lt.c_str()), want("z", "HGT", lt.c_str()), want("ps", "PRES", "surface")};
+            const double pLevel = level;
+            x.derive = [front, pLevel] (Grids& g, const Context&) {
+                if (!g.count("t") || !g.count("u") || !g.count("v")) {
+                    return;
+                }
+                const auto t = GfsGrid::smoothed(g.at("t"), 2), u = GfsGrid::smoothed(g.at("u"), 2), v = GfsGrid::smoothed(g.at("v"), 2);
+                GfsGrid::Grid tx, ty;
+                GfsGrid::gradient(t, tx, ty);
+                auto out = t;
+                if (!front) {
+                    for (size_t i = 0; i < out.values.size(); i++) {
+                        out.values[i] = static_cast<float>(-(u.values[i] * tx.values[i] + v.values[i] * ty.values[i]) * 10800.0);   // C per 3 hours
+                    }
+                } else {
+                    GfsGrid::Grid ux, uy, vx, vy;
+                    GfsGrid::gradient(u, ux, uy);
+                    GfsGrid::gradient(v, vx, vy);
+                    const double toTheta = std::pow(1000.0 / pLevel, 0.2857);   // (the gradient of theta is the temperature's times this on a pressure surface)
+                    for (size_t i = 0; i < out.values.size(); i++) {
+                        const double thx = tx.values[i] * toTheta, thy = ty.values[i] * toTheta;
+                        const double size = std::hypot(thx, thy);
+                        const double f = size > 1e-12 ? -(thx * thx * ux.values[i] + thx * thy * (vx.values[i] + uy.values[i]) + thy * thy * vy.values[i]) / size : 0.0;
+                        out.values[i] = static_cast<float>(f * 1e5 * 10800.0);   // K per 100 km per 3 hours
+                    }
+                }
+                if (g.count("ps")) {   // under the ground: nothing
+                    for (size_t i = 0; i < out.values.size() && i < g.at("ps").values.size(); i++) {
+                        if (g.at("ps").values[i] < pLevel * 100.0) {
+                            out.values[i] = std::nanf("");
+                        }
+                    }
+                }
+                g["f"] = std::move(out);
+            };
+            x.fill = [] (const Grids& g) { return pick(g, "f"); };
+            x.ramp = front ? Ramp{{{0, QColor{255, 220, 120, 0}}, {0.5, QColor{255, 220, 120, 0}}, {1, QColor{"#ffe08a"}}, {2, QColor{"#ffb347"}}, {4, QColor{"#f46d43"}}, {8, QColor{"#d73027"}}, {16, QColor{"#7f0026"}}}}
+                           : temperatureDeparture();
+            x.fillTitle = front ? "Frontogenesis (K per 100 km per 3 hours; the potential temperature's gradient strengthening)" : "Temperature advection (C per 3 hours: warm red, cold blue)";
+            x.legendStep = 0;
+            x.contours = {heights(3.0)};
+            x.barbU = "u";
+            x.barbV = "v";
+            p.push_back(x);
+        }
+    }
+}
+{   // the Okubo-Weiss number at 850 mb: the strain (stretching and shearing deformation) squared less the vorticity squared: strain-dominated flow (fronts, the dilatation axes) red,
+    // rotation-dominated (the eddies, a tropical wave's pouch) blue; streamlines over it
+    Product x;
+    x.id = "850_okubo_weiss";
+    x.label = "850mb Okubo-Weiss (strain against rotation) and Streamlines";
+    x.wants = {want("u", "UGRD", "850 mb"), want("v", "VGRD", "850 mb"), want("ps", "PRES", "surface")};
+    x.derive = [] (Grids& g, const Context&) {
+        if (!g.count("u") || !g.count("v")) {
+            return;
+        }
+        const auto u = GfsGrid::smoothed(g.at("u"), 10), v = GfsGrid::smoothed(g.at("v"), 10);   // (the synoptic scale: at 0.25 degrees the strain and the vorticity of small eddies swamp it)
+        GfsGrid::Grid ux, uy, vx, vy;
+        GfsGrid::gradient(u, ux, uy);
+        GfsGrid::gradient(v, vx, vy);
+        auto out = u;
+        for (size_t i = 0; i < out.values.size(); i++) {
+            const double sn = ux.values[i] - vy.values[i], ss = vx.values[i] + uy.values[i], zeta = vx.values[i] - uy.values[i];
+            out.values[i] = static_cast<float>((sn * sn + ss * ss - zeta * zeta) * 1e10);
+            if (g.count("ps") && i < g.at("ps").values.size() && g.at("ps").values[i] < 85000.0f) {
+                out.values[i] = std::nanf("");
+            }
+        }
+        g["ow"] = std::move(out);
+    };
+    x.fill = [] (const Grids& g) { return pick(g, "ow"); };
+    x.ramp = Ramp{{{-200, QColor{"#2c3e9c"}}, {-60, QColor{"#5a8fd0"}}, {-15, QColor{"#b8d6ee"}}, {-5, QColor{184, 214, 238, 0}}, {5, QColor{248, 200, 180, 0}}, {15, QColor{"#f8c8b4"}},
+                   {60, QColor{"#e8724e"}}, {200, QColor{"#a01e1e"}}}};
+    x.fillTitle = "Okubo-Weiss number (10^-10 per s^2, the wind smoothed to the synoptic scale: strain red, rotation blue)";
+    x.legendStep = 0;
+    x.streamU = "u";
+    x.streamV = "v";
+    p.push_back(x);
+}
+{   // Q-vector divergence at 300 mb (the 200-400 mb layer's middle), the geostrophic wind from the heights (no Q within 10 degrees of the equator): -2 div Q is the forcing for rising
+    // air (red) and sinking (blue) of the quasi-geostrophic omega equation; the fields smoothed first, as such charts are
+    Product x;
+    x.id = "300_qvector_div";
+    x.label = "300mb Q-Vector Divergence (QG forcing for vertical motion) and Height";
+    x.wants = {want("t", "TMP", "300 mb"), want("z", "HGT", "300 mb")};
+    x.derive = [] (Grids& g, const Context&) {
+        if (!g.count("t") || !g.count("z")) {
+            return;
+        }
+        // on a 1 degree grid: Q is made of second derivatives, which at 0.25 degrees are the grid's noise, not the synoptic forcing
+        const auto coarse = [] (const GfsGrid::Grid& in) {
+            const double step = std::max(1.0, in.step);
+            GfsGrid::Grid out;
+            out.step = step;
+            out.lon0 = in.lon0;
+            out.lat0 = in.lat0;
+            out.columns = std::max(2, static_cast<int>(std::lround(in.columns * in.step / step)));
+            out.rows = std::max(2, static_cast<int>(std::lround((in.rows - 1) * in.step / step)) + 1);
+            out.values.resize(static_cast<size_t>(out.columns) * static_cast<size_t>(out.rows));
+            for (int r = 0; r < out.rows; r++) {
+                for (int c = 0; c < out.columns; c++) {
+                    out.values[static_cast<size_t>(r) * static_cast<size_t>(out.columns) + static_cast<size_t>(c)] = in.sample(out.lon0 + c * step, out.lat0 - r * step);
+                }
+            }
+            return GfsGrid::smoothed(out, 2);
+        };
+        const auto t = coarse(g.at("t")), z = coarse(g.at("z"));
+        GfsGrid::Grid zx, zy, tx, ty;
+        GfsGrid::gradient(z, zx, zy);
+        GfsGrid::gradient(t, tx, ty);
+        auto ug = z, vg = z;
+        for (int r = 0; r < z.rows; r++) {
+            const double lat = z.lat0 - r * z.step;
+            const double f = 2.0 * 7.292e-5 * std::sin(lat * M_PI / 180.0);
+            for (int c = 0; c < z.columns; c++) {
+                const size_t i = static_cast<size_t>(r) * static_cast<size_t>(z.columns) + static_cast<size_t>(c);
+                const bool tropics = std::fabs(lat) < 10.0;
+                ug.values[i] = tropics ? std::nanf("") : static_cast<float>(-9.80665 / f * zy.values[i]);
+                vg.values[i] = tropics ? std::nanf("") : static_cast<float>(9.80665 / f * zx.values[i]);
+            }
+        }
+        GfsGrid::Grid ugx, ugy, vgx, vgy;
+        GfsGrid::gradient(ug, ugx, ugy);
+        GfsGrid::gradient(vg, vgx, vgy);
+        auto q1 = z, q2 = z;
+        const double rp = 287.04 / 30000.0;
+        for (size_t i = 0; i < q1.values.size(); i++) {
+            q1.values[i] = static_cast<float>(-rp * (ugx.values[i] * tx.values[i] + vgx.values[i] * ty.values[i]));
+            q2.values[i] = static_cast<float>(-rp * (ugy.values[i] * tx.values[i] + vgy.values[i] * ty.values[i]));
+        }
+        auto div = GfsGrid::divergence(q1, q2);
+        for (auto& v : div.values) {
+            v = static_cast<float>(-2.0 * v * 1e17);
+        }
+        g["qd"] = GfsGrid::smoothed(div, 1);
+    };
+    x.fill = [] (const Grids& g) { return pick(g, "qd"); };
+    x.ramp = Ramp{{{-20, QColor{"#2c3e9c"}}, {-8, QColor{"#5a8fd0"}}, {-2, QColor{"#b8d6ee"}}, {-0.6, QColor{184, 214, 238, 0}}, {0.6, QColor{248, 200, 180, 0}}, {2, QColor{"#f8c8b4"}},
+                   {8, QColor{"#e8724e"}}, {20, QColor{"#a01e1e"}}}};
+    x.fillTitle = "-2 div Q (10^-17 K per m^2 per s: forcing for rising red, sinking blue)";
+    x.legendStep = 0;
+    x.contours = {heights(12.0)};
+    p.push_back(x);
+}
+{   // the irrotational (divergent) wind at 200 mb and its velocity potential: the divergence put through laplacian(chi) = div on the globe; the outflow of the big ascent (the MJO, the
+    // monsoons) from the minima of chi
+    Product x;
+    x.id = "200_velocity_potential";
+    x.label = "200mb Velocity Potential and Irrotational Wind";
+    x.wants = {want("u", "UGRD", "200 mb"), want("v", "VGRD", "200 mb")};
+    x.derive = [] (Grids& g, const Context&) {
+        if (!g.count("u") || !g.count("v")) {
+            return;
+        }
+        auto chi = GfsGrid::velocityPotential(GfsGrid::divergence(g.at("u"), g.at("v")));
+        if (chi.empty()) {
+            return;
+        }
+        GfsGrid::Grid cx, cy;
+        GfsGrid::gradient(chi, cx, cy);
+        g["iu"] = std::move(cx);
+        g["iv"] = std::move(cy);
+        g["chi"] = GfsGrid::scaled(chi, 1e-6);
+    };
+    x.fill = [] (const Grids& g) { return pick(g, "chi"); };
+    x.ramp = Ramp{{{-15, QColor{"#1a7a3a"}}, {-8, QColor{"#5cb85c"}}, {-3, QColor{"#c4e6b8"}}, {-1, QColor{196, 230, 184, 0}}, {1, QColor{230, 200, 230, 0}}, {3, QColor{"#e6c4e6"}},
+                   {8, QColor{"#a05ab0"}}, {15, QColor{"#5a1a6e"}}}};   // (rising air's outflow: chi low, green, as the MJO maps)
+    x.fillTitle = "Velocity potential (10^6 m^2/s: green the divergent outflow over rising air); barbs: the irrotational wind";
+    x.legendStep = 0;
+    x.barbU = "iu";
+    x.barbV = "iv";
+    x.cloneTo = [] (const std::string& model) {   // (the whole globe is needed: the global models and analyses only)
+        static const std::set<std::string> global{"GEFS", "IFS", "AIFS", "AIGFS", "ICON", "UKMO", "GSM", "ARPEGE", "GRAPES", "GDPS", "GEPS", "HGEFS", "ERA5", "GEOS-FP", "GFS-ANL", "GFS1-ANL", "CFS", "CFS-ANL"};
+        return global.count(model) > 0;
+    };
+    p.push_back(x);
+}
+{   // surface-based CAPE and the wind crossover: how far the wind turns from 850 to 500 mb (veering, clockwise, positive), drawn as lines from 45 degrees; barbs at 850 mb
+    Product x;
+    x.id = "sbcape_crossover";
+    x.label = "Surface-Based CAPE and the 850-500mb Wind Crossover";
+    x.wants = {want("c", "CAPE", "surface"), want("u", "UGRD", "850 mb"), want("v", "VGRD", "850 mb"), want("u5", "UGRD", "500 mb"), want("v5", "VGRD", "500 mb")};
+    x.derive = [] (Grids& g, const Context&) {
+        if (!g.count("u") || !g.count("u5")) {
+            return;
+        }
+        auto turn = g.at("u");
+        for (size_t i = 0; i < turn.values.size(); i++) {
+            const double a8 = std::atan2(g.at("v").values[i], g.at("u").values[i]), a5 = std::atan2(g.at("v5").values[i], g.at("u5").values[i]);
+            double d = (a8 - a5) * 180.0 / M_PI;   // (the direction the wind blows toward, counterclockwise from east: veering is a clockwise turn, so 850 less 500)
+            while (d > 180.0) d -= 360.0;
+            while (d < -180.0) d += 360.0;
+            const bool unstable = g.count("c") && i < g.at("c").values.size() && g.at("c").values[i] >= 100.0f;   // (a crossover matters where there is something to lift)
+            turn.values[i] = !unstable || std::hypot(g.at("u5").values[i], g.at("v5").values[i]) < 5.0 ? std::nanf("") : static_cast<float>(d);   // (a light 500 mb wind has no direction to speak of)
+        }
+        g["turn"] = GfsGrid::smoothed(turn, 2);
+    };
+    x.fill = [] (const Grids& g) { return pick(g, "c"); };
+    x.ramp = capeRamp();
+    x.fillTitle = "Surface-based CAPE (J/kg)";
+    x.legendStep = 500;
+    ContourSet c;
+    c.key = "turn";
+    c.interval = 45.0;
+    c.minimum = 44.0;
+    c.title = "Veering 850-500 mb (degrees, from 45; where CAPE is 100 J/kg or more)";
+    c.color = QColor{120, 30, 160};
+    c.width = 1.4;
+    x.contours = {c};
+    x.barbU = "u";
+    x.barbV = "v";
+    p.push_back(x);
+}
+{   // the isentropic analysis of the lower troposphere at 300 K and 290 K: the relative humidity, the wind and the pressure on the surface (the air rides up a surface where the pressure
+    // falls along the wind: the lift of the warm conveyor), from the pressure levels (theta against ln p between two levels); underground where the surface's pressure is over the ground's
+    for (const double theta0 : {300.0, 290.0}) {
+        Product x;
+        const std::string tag = std::to_string(static_cast<int>(theta0));
+        x.id = tag + "K_isen";
+        x.label = tag + " K Isentropic Relative Humidity, Wind and Pressure";
+        static const std::vector<int> levels{400, 500, 600, 700, 850, 925, 1000};
+        for (const int mb : levels) {
+            const auto l = std::to_string(mb) + " mb";
+            x.wants.push_back(want("t" + std::to_string(mb), "TMP", l));
+            x.wants.push_back(want("r" + std::to_string(mb), "RH", l));
+            x.wants.push_back(want("u" + std::to_string(mb), "UGRD", l));
+            x.wants.push_back(want("v" + std::to_string(mb), "VGRD", l));
+        }
+        x.wants.push_back(want("ps", "PRES", "surface"));
+        x.derive = [theta0] (Grids& g, const Context&) {
+            const auto key = [] (char c, int mb) { return std::string{c} + std::to_string(mb); };
+            if (!g.count(key('t', 500))) {
+                return;
+            }
+            auto rh = g.at(key('t', 500)), pr = rh, uu = rh, vv = rh;
+            const size_t n = levels.size();
+            for (size_t at = 0; at < rh.values.size(); at++) {
+                rh.values[at] = pr.values[at] = uu.values[at] = vv.values[at] = std::nanf("");
+                for (size_t i = 0; i + 1 < n; i++) {   // the top first: theta falls with the index
+                    const int a = levels[i], b = levels[i + 1];
+                    const double ta = (g.at(key('t', a)).values[at] + 273.15) * std::pow(1000.0 / a, 0.2857), tb = (g.at(key('t', b)).values[at] + 273.15) * std::pow(1000.0 / b, 0.2857);
+                    if (!std::isfinite(ta) || !std::isfinite(tb) || (ta - theta0) * (tb - theta0) > 0.0 || ta == tb) {
+                        continue;
+                    }
+                    const double f = (theta0 - ta) / (tb - ta);
+                    const double p = std::exp(std::log(static_cast<double>(a)) + f * (std::log(static_cast<double>(b)) - std::log(static_cast<double>(a))));
+                    if (g.count("ps") && p * 100.0 > g.at("ps").values[at]) {   // underground
+                        break;
+                    }
+                    const auto lerp = [&] (char c) { return static_cast<float>(g.at(key(c, a)).values[at] + f * (g.at(key(c, b)).values[at] - g.at(key(c, a)).values[at])); };
+                    rh.values[at] = lerp('r');
+                    uu.values[at] = lerp('u');
+                    vv.values[at] = lerp('v');
+                    pr.values[at] = static_cast<float>(p);
+                    break;
+                }
+            }
+            g["irh"] = std::move(rh);
+            g["ip"] = std::move(pr);
+            g["iu"] = std::move(uu);
+            g["iv"] = std::move(vv);
+        };
+        x.fill = [] (const Grids& g) { return pick(g, "irh"); };
+        x.ramp = humidity();
+        x.palette = "rh";
+        x.fillTitle = "Relative humidity on the surface (%)";
+        x.legendStep = 10;
+        ContourSet c;
+        c.key = "ip";
+        c.interval = 50.0;
+        c.title = "Pressure of the " + tag + " K surface (mb)";
+        x.contours = {c};
+        x.barbU = "iu";
+        x.barbV = "iv";
+        p.push_back(x);
+    }
+}
 p.push_back(thickness("1000_500_thick", "MSLP, 1000-500mb thickness and precipitation", "1000 mb", "500 mb", 6, 540, "1000-500mb thickness (dam)"));
 p.push_back(thickness("1000_850_thick", "MSLP, 1000-850mb thickness and precipitation", "1000 mb", "850 mb", 3, 130, "1000-850mb thickness (dam)"));
 p.push_back(thickness("850_700_thick", "MSLP, 850-700mb thickness and precipitation", "850 mb", "700 mb", 3, 154, "850-700mb thickness (dam)"));
@@ -786,6 +1222,84 @@ for (auto& chart : p) {
     x.quantity = Quantity::Millimeters;
     x.legendStep = 0.5;
     x.contours = {pressure()};
+    p.push_back(x);
+}
+{   // the dynamic tropopause (the 2 PVU surface, section 14 of the plan): its pressure or its potential temperature, and the wind on it; each hemisphere its own surface (+2 PVU in the
+    // north, -2 in the south). Troughs show as the tropopause folded down (high pressure, low theta) from the pole.
+    for (const bool theta : {false, true}) {
+        Product x;
+        x.id = theta ? "dt_theta" : "dt_pressure";
+        x.label = theta ? "Dynamic Tropopause (2 PVU) Potential Temperature and Wind" : "Dynamic Tropopause (2 PVU) Pressure and Wind";
+        const char * north = "PV=2e-06 (Km^2/kg/s) surface";
+        const char * south = "PV=-2e-06 (Km^2/kg/s) surface";
+        x.wants = {want("pn", "PRES", north), want("ps", "PRES", south), want("un", "UGRD", north), want("us", "UGRD", south), want("vn", "VGRD", north), want("vs", "VGRD", south)};
+        if (theta) {
+            x.wants.push_back(want("tn", "TMP", north));
+            x.wants.push_back(want("ts", "TMP", south));
+        }
+        x.derive = [theta] (Grids& g, const Context&) {
+            if (!g.count("pn") || !g.count("ps")) {
+                return;
+            }
+            const auto& pn = g.at("pn");
+            auto field = pn, u = pn, v = pn;
+            for (int r = 0; r < pn.rows; r++) {
+                const bool northern = pn.lat0 - r * pn.step >= 0.0;
+                const auto& pr = g.at(northern ? "pn" : "ps");
+                const auto& ur = g.at(northern ? "un" : "us");
+                const auto& vr = g.at(northern ? "vn" : "vs");
+                for (int c = 0; c < pn.columns; c++) {
+                    const size_t i = static_cast<size_t>(r) * static_cast<size_t>(pn.columns) + static_cast<size_t>(c);
+                    const double mb = pr.values[i] * 0.01;
+                    u.values[i] = ur.values[i];
+                    v.values[i] = vr.values[i];
+                    if (theta) {
+                        const double t = g.at(northern ? "tn" : "ts").values[i];   // (degrees C)
+                        field.values[i] = static_cast<float>((t + 273.15) * std::pow(1000.0 / mb, 0.2857));
+                    } else {
+                        field.values[i] = static_cast<float>(mb);
+                    }
+                }
+            }
+            g["dt"] = std::move(field);
+            g["u"] = std::move(u);
+            g["v"] = std::move(v);
+        };
+        x.fill = [] (const Grids& g) { return pick(g, "dt"); };
+        x.ramp = theta ? Ramp{{{270, QColor{"#3b0f70"}}, {290, QColor{"#2c5fa8"}}, {305, QColor{"#3e9bcd"}}, {315, QColor{"#6fc9a8"}}, {325, QColor{"#b8e186"}}, {335, QColor{"#f6e46b"}},
+                                {345, QColor{"#f9a54a"}}, {360, QColor{"#e4552c"}}, {380, QColor{"#a51f2c"}}}}
+                       : Ramp{{{100, QColor{"#a51f2c"}}, {150, QColor{"#e4552c"}}, {200, QColor{"#f9a54a"}}, {250, QColor{"#f6e46b"}}, {300, QColor{"#b8e186"}}, {350, QColor{"#6fc9a8"}},
+                               {400, QColor{"#3e9bcd"}}, {500, QColor{"#2c5fa8"}}, {650, QColor{"#3b0f70"}}}};   // (a low tropopause, high pressure, in the cold colors: the troughs)
+        x.fillTitle = theta ? "Potential temperature on the 2 PVU surface (K)" : "Pressure of the 2 PVU surface (mb)";
+        x.legendStep = 0;
+        x.barbU = "u";
+        x.barbV = "v";
+        p.push_back(x);
+    }
+}
+{   // a simulated infrared picture: the outgoing longwave at the top of the atmosphere as a brightness temperature, (OLR / sigma)^(1/4); the file has it as the mean of the last 3 to 6
+    // hours, not an instant (section 14 of the plan)
+    Product x;
+    x.id = "sim_ir";
+    x.label = "Simulated Infrared (outgoing longwave as brightness temperature)";
+    x.wants = {want("olr", "ULWRF", "top of atmosphere")};
+    x.derive = [] (Grids& g, const Context&) {
+        if (!g.count("olr")) {
+            return;
+        }
+        auto t = g.at("olr");
+        for (auto& v : t.values) {
+            v = v > 0.0f ? static_cast<float>(std::pow(v / 5.670374e-8, 0.25) - 273.15) : std::nanf("");
+        }
+        g["tb"] = std::move(t);
+    };
+    x.fill = [] (const Grids& g) { return pick(g, "tb"); };
+    // (enhanced IR on the scale of this brightness temperature: the outgoing longwave of clear air is already -25 to 0 C (the water vapor takes some), so the clear ground is the darker greys,
+    // white from -40, the cold tops in colors from -50)
+    x.ramp = Ramp{{{-85, QColor{"#5a1a6e"}}, {-75, QColor{"#b02a8f"}}, {-68, QColor{"#e0302a"}}, {-62, QColor{"#f2c330"}}, {-56, QColor{"#3fae49"}}, {-50, QColor{"#2f7fd0"}},
+                   {-42, QColor{"#ffffff"}}, {-32, QColor{"#bdbdbd"}}, {-20, QColor{"#7a7a7a"}}, {-8, QColor{"#454545"}}, {10, QColor{"#141414"}}}};
+    x.fillTitle = "Brightness temperature (C) of the outgoing longwave, the mean of the last hours";
+    x.legendStep = 0;
     p.push_back(x);
 }
 {

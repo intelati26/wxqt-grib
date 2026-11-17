@@ -233,6 +233,8 @@ bool ModelBias::parseStationList(const QByteArray& json, double lat, double lon,
         s.uid = QString::number(o.value("uid").toInt()).toStdString();
         s.name = o.value("name").toString().toStdString();
         s.km = 2.0 * 6371.0 * std::asin(std::min(1.0, std::sqrt(a)));
+        s.lat = la;
+        s.lon = lo;
         found.push_back(s);
     }
     if (found.empty()) {
@@ -329,7 +331,8 @@ ModelBias::Stat ModelBias::evaluateDaily(const std::vector<double>& times, int u
     return out;
 }
 
-bool ModelBias::fetchStation(double lat, double lon, Judge judge, const std::string& modelA, const std::string& modelB, int days, Forecasts& forecasts, std::map<std::string, float>& station, Station& found, std::string& why) {
+bool ModelBias::fetchStation(double lat, double lon, Judge judge, const std::string& modelA, const std::string& modelB, int days, Forecasts& forecasts, std::map<std::string, float>& station, Station& found, std::string& why,
+                             const std::string& wanted, std::vector<Station> * nearbyOut) {
     static std::mutex lock;
     static std::map<std::string, std::pair<std::chrono::steady_clock::time_point, QByteArray>> kept;
     const auto get = [&] (const std::string& address, QByteArray& bytes) {
@@ -367,6 +370,20 @@ bool ModelBias::fetchStation(double lat, double lon, Judge judge, const std::str
     if (!parseStationList(metaBytes, lat, lon, 8, nearby, why)) {
         return false;
     }
+    if (nearbyOut != nullptr) {
+        *nearbyOut = nearby;
+    }
+    if (!wanted.empty()) {   // the station the person picked: that one only, the forecasts at its own place
+        const auto picked = std::find_if(nearby.begin(), nearby.end(), [&wanted] (const Station& s) { return s.uid == wanted; });
+        if (picked == nearby.end()) {
+            why = "the station picked is not among the stations near this place any more: pick another";
+            return false;
+        }
+        const Station chosen = *picked;
+        nearby = {chosen};
+        lat = chosen.lat;
+        lon = chosen.lon;
+    }
     QJsonArray elems;
     for (const char * e : {"maxt", "mint", "pcpn"}) {
         QJsonObject o;
@@ -400,7 +417,7 @@ bool ModelBias::fetchStation(double lat, double lon, Judge judge, const std::str
         }
     }
     if (!haveStation) {
-        why = "none of the nearest weather stations has these days (the stations are the United States')";
+        why = wanted.empty() ? "none of the nearest weather stations has these days (the stations are the United States')" : "that station has too few of these days (it needs 60% of them): pick another";
         return false;
     }
     Forecasts fc;

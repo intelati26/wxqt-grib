@@ -56,6 +56,11 @@ namespace GfsGrid {
     Grid vorticity(const Grid& u, const Grid& v);
     // horizontal divergence du/dx + dv/dy on the sphere, in 1/s (the poles' rows are left NaN)
     Grid divergence(const Grid& u, const Grid& v);
+    // the gradient of a field on the sphere, per meter: east (dx) and north (dy), centred differences (one-sided at a regional grid's edge); NaN within about a degree of a pole
+    void gradient(const Grid& f, Grid& dx, Grid& dy);
+    // the velocity potential chi (m2/s) of a divergence field (1/s): the solution of laplacian(chi) = divergence on a global grid (exact: zonal wavenumbers, a tridiagonal system in latitude for each); its gradient is the
+    // irrotational (divergent) wind. A grid that is not global gets an empty one.
+    Grid velocityPotential(const Grid& divergence, int iterations = 1500);
     // model minus a coarser reference field (a climatology), the reference taken smoothly at each model cell; NaN where either is missing
     Grid anomaly(const Grid& model, const Grid& reference);
     // a - b

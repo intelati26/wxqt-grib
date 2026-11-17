@@ -723,7 +723,7 @@ void ModelCompareViewer::load() {
 
 // The Model Viewer on the maps of a time: the first model's chart (the one asked for, then the plain 500 mb chart, then the ensemble mean and spread of the 500 mb height) with the other model's height
 // lines over it; on the first model that has one of these charts (so when the first has none, the second is drawn and the first is the overlay).
-ModelViewer * ModelCompareViewer::showMaps(Window * parent, const std::string& mainModel, const std::string& otherModel, const std::string& asked, const QDateTime& when, QString& message) {
+ModelViewer * ModelCompareViewer::showMaps(Window * parent, const std::string& mainModel, const std::string& otherModel, const std::string& asked, const QDateTime& when, QString& message, double lat, double lon) {
     if (mainModel.empty() || otherModel.empty()) {
         message = "The program has no map of one of these models.";
         return nullptr;
@@ -762,6 +762,9 @@ ModelViewer * ModelCompareViewer::showMaps(Window * parent, const std::string& m
         message = QString::fromStdString("Neither " + mainModel + " nor " + otherModel + " has a 500 mb or 250 mb chart.");
         return nullptr;
     }
+    if (!std::isnan(lat) && !std::isnan(lon)) {   // the maps on an area round the place, about 3000 km across (the troughs and the jet that make the difference), not the screen's last area
+        selection.sector = GfsChart::localId(lat, lon, 3000.0, "the place");
+    }
     auto * viewer = new ModelViewer{parent, "NCEP"};   // (the model screen; the model is chosen by the selection)
     viewer->applySelection(selection);
     message = QString::fromStdString(shown + " " + selection.param + " for " + valid.toString("ddd d MMM HH 'UTC'").toStdString() + ", with " + over + "'s height lines over it." + note);
@@ -779,7 +782,7 @@ ModelViewer * ModelCompareViewer::why() {
     }
     QString message;
     auto * viewer = showMaps(this, mapModel(modelA->currentData().toString().toStdString()), mapModel(modelB->currentData().toString().toStdString()), mapChoice->currentData().toString().toStdString(),
-                             QDateTime::fromSecsSinceEpoch(static_cast<qint64>(t), QTimeZone::utc()), message);
+                             QDateTime::fromSecsSinceEpoch(static_cast<qint64>(t), QTimeZone::utc()), message, latBox->value(), lonBox->value());
     status->setText(message);
     return viewer;
 }

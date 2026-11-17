@@ -5,6 +5,7 @@ AIFS,#mb Wind and Height,Upper air,Value,Wind speed,Heights,yes,,,50/100/500/850
 AIFS,#mb Wind and Height,Upper air,Value,Wind speed,Heights,,,,200/250/300,3,200_wnd_ht 250_wnd_ht 300_wnd_ht
 AIFS,"#mb Vorticity, Wind, and Height",Tropical and dynamics,Value,Relative vorticity,Heights,yes,,,500/850,2,500_vort_ht 850_vort_ht
 AIFS,#mb Relative Humidity and Height,Upper air,Value,Relative humidity,Heights,yes,,,500/850,2,500_rh_ht 850_rh_ht
+AIFS,"2m Temperature Anomaly, MSLP and 10m Wind",Anomalies,Anomaly,# m temperature against the # daily mean near the surface,Pressure,yes,,,,1,2m_temp_anom
 AIFS,500mb Height and Anomaly,Anomalies,Anomaly,Height anomaly from the # mean,Heights,yes,,,,1,500_hgt_anom
 AIFS,MSLP and Anomaly,Anomalies,Anomaly,Pressure anomaly from the # mean,Pressure,yes,,,,1,mslp_anom
 AIFS,MSLP and 48-hour Change,Changes and trends,Change,Sea level pressure change,Pressure,,,,,1,mslp_trend
@@ -13,15 +14,18 @@ AIFS,Total Accumulated Precipitation of Period,Precipitation and moisture,Value,
 AIFS,"MSLP, 10m wind, 2m temperature",Surface,Value,# m temperature,Pressure,yes,,,,1,10m_wnd_2m_temp
 AIFS,"MSLP, 10m wind, 2m dewpoint",Surface,Value,# m dewpoint,Pressure,yes,,,,1,2m_dewpoint
 AIFS,"2 m Relative Humidity (from temperature and dewpoint), MSLP and 10m Wind",Surface,Value,# m relative humidity,Pressure,yes,,,,1,2m_rh_10m_wnd_derived
+AIFS,"330 K Isentropic Potential Vorticity, Wind and Pressure",Surface,Value,Potential vorticity on the surface,Pressure,yes,,,,1,330K_pv
 AIFS,"Cloud Cover by Height (low, middle, high)",Surface,Value,Low cloud (%): each place in the color of its layer with the most cover,,,,yes,,1,cloud_layers
 AIFS,MSLP and 10m Wind,Surface,Value,# m wind speed,Pressure,yes,,,,1,mslp_10m_wind
 AIFS,"200mb Divergence, Wind and Height",Tropical and dynamics,Value,Divergence,Heights,yes,,,,1,200_div_wnd
 AIFS,200mb Divergence and Streamlines,Tropical and dynamics,Value,Divergence,,,yes,,,1,200_stream_div
+AIFS,300mb Q-Vector Divergence (QG forcing for vertical motion) and Height,Tropical and dynamics,Value,-# div Q,Heights,,,,,1,300_qvector_div
 AIFS,850mb Vorticity and Streamlines,Tropical and dynamics,Value,Relative vorticity,,,yes,,,1,850_stream_vort
 AIFS,"850mb Equivalent Potential Temperature, Wind and Height",Tropical and dynamics,Value,Equivalent potential temperature,Heights,yes,,,,1,850_thetae_ht
 AIFS,"850mb Vorticity, 500mb Height, 200mb Wind",Tropical and dynamics,Value,#mb relative vorticity,Heights,yes,,,,1,850vor_500ht_200wd
 AIFS,850-200mb Deep-Layer Wind Shear,Tropical and dynamics,Value,Shear magnitude,Pressure,yes,,,,1,shear_850_200
 AIFS,850-200mb Mean Wind (Steering Flow),Tropical and dynamics,Value,Mean wind speed,Pressure,yes,,,,1,steering_850_200
+AIFS,200mb Velocity Potential and Irrotational Wind,Upper air,Value,Velocity potential (#^# m^#/s: green the divergent outflow over rising air); barbs: the irrotational wind,,yes,,,,1,200_velocity_potential
 AIFS,"700mb Relative Humidity, Height and Omega",Upper air,Value,Relative humidity,"Heights,Omega",yes,,,,1,700_rh_ht
 AIFS,"700mb Temperature, Wind and MSLP",Upper air,Value,#mb temperature,Pressure,yes,,,,1,700_temp_mslp
 AIFS,850-700mb Mean Relative Humidity,Upper air,Value,Mean relative humidity of # and # mb,,,,,,1,850_700_rh
@@ -33,6 +37,7 @@ AIGFS,"MSLP, #-#mb thickness and precipitation",Precipitation and moisture,Value
 AIGFS,#mb Wind and Height,Upper air,Value,Wind speed,Heights,,,,200/250/300,3,200_wnd_ht 250_wnd_ht 300_wnd_ht
 AIGFS,"#mb Vorticity, Wind, and Height",Tropical and dynamics,Value,Relative vorticity,Heights,yes,,,500/850,2,500_vort_ht 850_vort_ht
 AIGFS,#mb Relative Humidity and Height,Upper air,Value,Relative humidity,Heights,yes,,,500/850,2,500_rh_ht 850_rh_ht
+AIGFS,"2m Temperature Anomaly, MSLP and 10m Wind",Anomalies,Anomaly,# m temperature against the # daily mean near the surface,Pressure,yes,,,,1,2m_temp_anom
 AIGFS,500mb Height and Anomaly,Anomalies,Anomaly,Height anomaly from the # mean,Heights,yes,,,,1,500_hgt_anom
 AIGFS,MSLP and Anomaly,Anomalies,Anomaly,Pressure anomaly from the # mean,Pressure,yes,,,,1,mslp_anom
 AIGFS,MSLP and 48-hour Change,Changes and trends,Change,Sea level pressure change,Pressure,,,,,1,mslp_trend
@@ -43,14 +48,17 @@ AIGFS,Total Accumulated Precipitation of Period,Precipitation and moisture,Value
 AIGFS,"MSLP, 10m wind, 2m temperature",Surface,Value,# m temperature,Pressure,yes,,,,1,10m_wnd_2m_temp
 AIGFS,"MSLP, 10m wind, 2m dewpoint",Surface,Value,# m dewpoint,Pressure,yes,,,,1,2m_dewpoint
 AIGFS,"2 m Relative Humidity (from temperature and dewpoint), MSLP and 10m Wind",Surface,Value,# m relative humidity,Pressure,yes,,,,1,2m_rh_10m_wnd_derived
+AIGFS,"330 K Isentropic Potential Vorticity, Wind and Pressure",Surface,Value,Potential vorticity on the surface,Pressure,yes,,,,1,330K_pv
 AIGFS,MSLP and 10m Wind,Surface,Value,# m wind speed,Pressure,yes,,,,1,mslp_10m_wind
 AIGFS,"200mb Divergence, Wind and Height",Tropical and dynamics,Value,Divergence,Heights,yes,,,,1,200_div_wnd
 AIGFS,200mb Divergence and Streamlines,Tropical and dynamics,Value,Divergence,,,yes,,,1,200_stream_div
+AIGFS,300mb Q-Vector Divergence (QG forcing for vertical motion) and Height,Tropical and dynamics,Value,-# div Q,Heights,,,,,1,300_qvector_div
 AIGFS,850mb Vorticity and Streamlines,Tropical and dynamics,Value,Relative vorticity,,,yes,,,1,850_stream_vort
 AIGFS,"850mb Equivalent Potential Temperature, Wind and Height",Tropical and dynamics,Value,Equivalent potential temperature,Heights,yes,,,,1,850_thetae_ht
 AIGFS,"850mb Vorticity, 500mb Height, 200mb Wind",Tropical and dynamics,Value,#mb relative vorticity,Heights,yes,,,,1,850vor_500ht_200wd
 AIGFS,850-200mb Deep-Layer Wind Shear,Tropical and dynamics,Value,Shear magnitude,Pressure,yes,,,,1,shear_850_200
 AIGFS,850-200mb Mean Wind (Steering Flow),Tropical and dynamics,Value,Mean wind speed,Pressure,yes,,,,1,steering_850_200
+AIGFS,200mb Velocity Potential and Irrotational Wind,Upper air,Value,Velocity potential (#^# m^#/s: green the divergent outflow over rising air); barbs: the irrotational wind,,yes,,,,1,200_velocity_potential
 AIGFS,"700mb Relative Humidity, Height and Omega",Upper air,Value,Relative humidity,"Heights,Omega",yes,,,,1,700_rh_ht
 AIGFS,"700mb Temperature, Wind and MSLP",Upper air,Value,#mb temperature,Pressure,yes,,,,1,700_temp_mslp
 AIGFS,850-700mb Mean Relative Humidity,Upper air,Value,Mean relative humidity of # and # mb,,,,,,1,850_700_rh
@@ -62,12 +70,15 @@ AROME,"#mb Vorticity, Wind, and Height",Tropical and dynamics,Value,Relative vor
 AROME,#mb Relative Humidity and Height,Upper air,Value,Relative humidity,Heights,yes,,,500/850,2,500_rh_ht 850_rh_ht
 AROME,MSLP and 48-hour Change,Changes and trends,Change,Sea level pressure change,Pressure,,,,,1,mslp_trend
 AROME,500mb Height and 48-hour Change,Changes and trends,Change,#mb height change,Heights,,,,,1,z500_trend
+AROME,Surface-Based CAPE and the 850-500mb Wind Crossover,Severe: instability,Value,Surface-based CAPE,Other lines,yes,,,,1,sbcape_crossover
 AROME,"Surface-Based CAPE, MSLP and 10m Wind",Severe: instability,Value,Surface-based CAPE,Pressure,yes,,,,1,sbcape_wind
 AROME,"MSLP, 10m wind, 2m temperature",Surface,Value,# m temperature,Pressure,yes,,,,1,10m_wnd_2m_temp
+AROME,"330 K Isentropic Potential Vorticity, Wind and Pressure",Surface,Value,Potential vorticity on the surface,Pressure,yes,,,,1,330K_pv
 AROME,"Cloud Cover by Height (low, middle, high)",Surface,Value,Low cloud (%): each place in the color of its layer with the most cover,,,,yes,,1,cloud_layers
 AROME,MSLP and 10m Wind,Surface,Value,# m wind speed,Pressure,yes,,,,1,mslp_10m_wind
 AROME,"200mb Divergence, Wind and Height",Tropical and dynamics,Value,Divergence,Heights,yes,,,,1,200_div_wnd
 AROME,200mb Divergence and Streamlines,Tropical and dynamics,Value,Divergence,,,yes,,,1,200_stream_div
+AROME,300mb Q-Vector Divergence (QG forcing for vertical motion) and Height,Tropical and dynamics,Value,-# div Q,Heights,,,,,1,300_qvector_div
 AROME,850mb Vorticity and Streamlines,Tropical and dynamics,Value,Relative vorticity,,,yes,,,1,850_stream_vort
 AROME,"850mb Equivalent Potential Temperature, Wind and Height",Tropical and dynamics,Value,Equivalent potential temperature,Heights,yes,,,,1,850_thetae_ht
 AROME,"850mb Vorticity, 500mb Height, 200mb Wind",Tropical and dynamics,Value,#mb relative vorticity,Heights,yes,,,,1,850vor_500ht_200wd
@@ -84,17 +95,20 @@ ARPEGE,"#mb Vorticity, Wind, and Height",Tropical and dynamics,Value,Relative vo
 ARPEGE,#mb Relative Humidity and Height,Upper air,Value,Relative humidity,Heights,yes,,,500/850,2,500_rh_ht 850_rh_ht
 ARPEGE,MSLP and 48-hour Change,Changes and trends,Change,Sea level pressure change,Pressure,,,,,1,mslp_trend
 ARPEGE,500mb Height and 48-hour Change,Changes and trends,Change,#mb height change,Heights,,,,,1,z500_trend
+ARPEGE,Surface-Based CAPE and the 850-500mb Wind Crossover,Severe: instability,Value,Surface-based CAPE,Other lines,yes,,,,1,sbcape_crossover
 ARPEGE,"Surface-Based CAPE, MSLP and 10m Wind",Severe: instability,Value,Surface-based CAPE,Pressure,yes,,,,1,sbcape_wind
 ARPEGE,"MSLP, 10m wind, 2m temperature",Surface,Value,# m temperature,Pressure,yes,,,,1,10m_wnd_2m_temp
 ARPEGE,"Cloud Cover by Height (low, middle, high)",Surface,Value,Low cloud (%): each place in the color of its layer with the most cover,,,,yes,,1,cloud_layers
 ARPEGE,MSLP and 10m Wind,Surface,Value,# m wind speed,Pressure,yes,,,,1,mslp_10m_wind
 ARPEGE,"200mb Divergence, Wind and Height",Tropical and dynamics,Value,Divergence,Heights,yes,,,,1,200_div_wnd
 ARPEGE,200mb Divergence and Streamlines,Tropical and dynamics,Value,Divergence,,,yes,,,1,200_stream_div
+ARPEGE,300mb Q-Vector Divergence (QG forcing for vertical motion) and Height,Tropical and dynamics,Value,-# div Q,Heights,,,,,1,300_qvector_div
 ARPEGE,850mb Vorticity and Streamlines,Tropical and dynamics,Value,Relative vorticity,,,yes,,,1,850_stream_vort
 ARPEGE,"850mb Equivalent Potential Temperature, Wind and Height",Tropical and dynamics,Value,Equivalent potential temperature,Heights,yes,,,,1,850_thetae_ht
 ARPEGE,"850mb Vorticity, 500mb Height, 200mb Wind",Tropical and dynamics,Value,#mb relative vorticity,Heights,yes,,,,1,850vor_500ht_200wd
 ARPEGE,850-200mb Deep-Layer Wind Shear,Tropical and dynamics,Value,Shear magnitude,Pressure,yes,,,,1,shear_850_200
 ARPEGE,850-200mb Mean Wind (Steering Flow),Tropical and dynamics,Value,Mean wind speed,Pressure,yes,,,,1,steering_850_200
+ARPEGE,200mb Velocity Potential and Irrotational Wind,Upper air,Value,Velocity potential (#^# m^#/s: green the divergent outflow over rising air); barbs: the irrotational wind,,yes,,,,1,200_velocity_potential
 ARPEGE,"700mb Temperature, Wind and MSLP",Upper air,Value,#mb temperature,Pressure,yes,,,,1,700_temp_mslp
 ARPEGE,850-700mb Mean Relative Humidity,Upper air,Value,Mean relative humidity of # and # mb,,,,,,1,850_700_rh
 ARPEGE,"700-300mb Mean Relative Humidity, 500mb Height and Wind",Upper air,Value,"Mean relative humidity, #mb",Heights,yes,,,,1,rh_700_300
@@ -108,8 +122,10 @@ ARWEN,"MSLP, 10m wind, 2m temperature",Surface,Value,# m temperature,Pressure,ye
 ARWEN,MSLP and 10m Wind,Surface,Value,# m wind speed,Pressure,yes,,,,1,mslp_10m_wind
 CFS,#mb Relative Humidity and Height,Upper air,Value,Relative humidity,Heights,yes,,,500/850,2,500_rh_ht 850_rh_ht
 CFS,#mb Wind and Height,Upper air,Value,Wind speed,Heights,yes,,,500/850,2,500_wnd_ht 850_wnd_ht
+CFS,"2m Temperature Anomaly, MSLP and 10m Wind",Anomalies,Anomaly,# m temperature against the # daily mean near the surface,Pressure,yes,,,,1,2m_temp_anom
 CFS,500mb Height and Anomaly,Anomalies,Anomaly,Height anomaly from the CFS normal (#),Heights,yes,,,,1,500_hgt_anom
 CFS,MSLP and Anomaly,Anomalies,Anomaly,Pressure anomaly from the CFS normal (#),Pressure,yes,,,,1,mslp_anom
+CFS,Precipitable Water Anomaly and MSLP,Anomalies,Anomaly,Precipitable water anomaly from the CFS normal (#),Pressure,,,,,1,pwat_anom
 CFS,MSLP and 48-hour Change,Changes and trends,Change,Sea level pressure change,Pressure,,,,,1,mslp_trend
 CFS,500mb Height and 48-hour Change,Changes and trends,Change,#mb height change,Heights,,,,,1,z500_trend
 CFS,MSLP and Precipitable Water,Precipitation and moisture,Value,Precipitable water,Pressure,,,,,1,mslp_pwat
@@ -123,8 +139,10 @@ CFS,"850mb Height, Precipitable Water and Wind",Upper air,Value,Precipitable wat
 CFS,"850mb Temperature, Wind and Height",Upper air,Value,Temperature,Heights,yes,,,,1,850_temp_ht
 CFS-ANL,#mb Relative Humidity and Height,Upper air,Value,Relative humidity,Heights,yes,,,500/850,2,500_rh_ht 850_rh_ht
 CFS-ANL,#mb Wind and Height,Upper air,Value,Wind speed,Heights,yes,,,500/850,2,500_wnd_ht 850_wnd_ht
+CFS-ANL,"2m Temperature Anomaly, MSLP and 10m Wind",Anomalies,Anomaly,# m temperature against the # daily mean near the surface,Pressure,yes,,,,1,2m_temp_anom
 CFS-ANL,500mb Height and Anomaly,Anomalies,Anomaly,Height anomaly from the CFS normal (#),Heights,yes,,,,1,500_hgt_anom
 CFS-ANL,MSLP and Anomaly,Anomalies,Anomaly,Pressure anomaly from the CFS normal (#),Pressure,yes,,,,1,mslp_anom
+CFS-ANL,Precipitable Water Anomaly and MSLP,Anomalies,Anomaly,Precipitable water anomaly from the CFS normal (#),Pressure,,,,,1,pwat_anom
 CFS-ANL,MSLP and 48-hour Change,Changes and trends,Change,Sea level pressure change,Pressure,,,,,1,mslp_trend
 CFS-ANL,500mb Height and 48-hour Change,Changes and trends,Change,#mb height change,Heights,,,,,1,z500_trend
 CFS-ANL,MSLP and Precipitable Water,Precipitation and moisture,Value,Precipitable water,Pressure,,,,,1,mslp_pwat
@@ -179,6 +197,7 @@ ERA5,#mb Relative Humidity and Height,Upper air,Value,Relative humidity,Heights,
 ERA5,MSLP and 48-hour Change,Changes and trends,Change,Sea level pressure change,Pressure,,,,,1,mslp_trend
 ERA5,500mb Height and 48-hour Change,Changes and trends,Change,#mb height change,Heights,,,,,1,z500_trend
 ERA5,MSLP and Precipitable Water,Precipitation and moisture,Value,Precipitable water,Pressure,,,,,1,mslp_pwat
+ERA5,Surface-Based CAPE and the 850-500mb Wind Crossover,Severe: instability,Value,Surface-based CAPE,Other lines,yes,,,,1,sbcape_crossover
 ERA5,"Surface-Based CAPE, MSLP and 10m Wind",Severe: instability,Value,Surface-based CAPE,Pressure,yes,,,,1,sbcape_wind
 ERA5,"MSLP, 10m wind, 2m temperature",Surface,Value,# m temperature,Pressure,yes,,,,1,10m_wnd_2m_temp
 ERA5,"MSLP, 10m wind, 2m dewpoint",Surface,Value,# m dewpoint,Pressure,yes,,,,1,2m_dewpoint
@@ -187,11 +206,13 @@ ERA5,"Cloud Cover by Height (low, middle, high)",Surface,Value,Low cloud (%): ea
 ERA5,MSLP and 10m Wind,Surface,Value,# m wind speed,Pressure,yes,,,,1,mslp_10m_wind
 ERA5,"200mb Divergence, Wind and Height",Tropical and dynamics,Value,Divergence,Heights,yes,,,,1,200_div_wnd
 ERA5,200mb Divergence and Streamlines,Tropical and dynamics,Value,Divergence,,,yes,,,1,200_stream_div
+ERA5,300mb Q-Vector Divergence (QG forcing for vertical motion) and Height,Tropical and dynamics,Value,-# div Q,Heights,,,,,1,300_qvector_div
 ERA5,850mb Vorticity and Streamlines,Tropical and dynamics,Value,Relative vorticity,,,yes,,,1,850_stream_vort
 ERA5,"850mb Equivalent Potential Temperature, Wind and Height",Tropical and dynamics,Value,Equivalent potential temperature,Heights,yes,,,,1,850_thetae_ht
 ERA5,"850mb Vorticity, 500mb Height, 200mb Wind",Tropical and dynamics,Value,#mb relative vorticity,Heights,yes,,,,1,850vor_500ht_200wd
 ERA5,850-200mb Deep-Layer Wind Shear,Tropical and dynamics,Value,Shear magnitude,Pressure,yes,,,,1,shear_850_200
 ERA5,850-200mb Mean Wind (Steering Flow),Tropical and dynamics,Value,Mean wind speed,Pressure,yes,,,,1,steering_850_200
+ERA5,200mb Velocity Potential and Irrotational Wind,Upper air,Value,Velocity potential (#^# m^#/s: green the divergent outflow over rising air); barbs: the irrotational wind,,yes,,,,1,200_velocity_potential
 ERA5,"700mb Relative Humidity, Height and Omega",Upper air,Value,Relative humidity,"Heights,Omega",yes,,,,1,700_rh_ht
 ERA5,"700mb Temperature, Wind and MSLP",Upper air,Value,#mb temperature,Pressure,yes,,,,1,700_temp_mslp
 ERA5,850-700mb Mean Relative Humidity,Upper air,Value,Mean relative humidity of # and # mb,,,,,,1,850_700_rh
@@ -205,14 +226,17 @@ GDPS,#mb Relative Humidity and Height,Upper air,Value,Relative humidity,Heights,
 GDPS,MSLP and 48-hour Change,Changes and trends,Change,Sea level pressure change,Pressure,,,,,1,mslp_trend
 GDPS,500mb Height and 48-hour Change,Changes and trends,Change,#mb height change,Heights,,,,,1,z500_trend
 GDPS,"MSLP, 10m wind, 2m temperature",Surface,Value,# m temperature,Pressure,yes,,,,1,10m_wnd_2m_temp
+GDPS,"330 K Isentropic Potential Vorticity, Wind and Pressure",Surface,Value,Potential vorticity on the surface,Pressure,yes,,,,1,330K_pv
 GDPS,MSLP and 10m Wind,Surface,Value,# m wind speed,Pressure,yes,,,,1,mslp_10m_wind
 GDPS,"200mb Divergence, Wind and Height",Tropical and dynamics,Value,Divergence,Heights,yes,,,,1,200_div_wnd
 GDPS,200mb Divergence and Streamlines,Tropical and dynamics,Value,Divergence,,,yes,,,1,200_stream_div
+GDPS,300mb Q-Vector Divergence (QG forcing for vertical motion) and Height,Tropical and dynamics,Value,-# div Q,Heights,,,,,1,300_qvector_div
 GDPS,850mb Vorticity and Streamlines,Tropical and dynamics,Value,Relative vorticity,,,yes,,,1,850_stream_vort
 GDPS,"850mb Equivalent Potential Temperature, Wind and Height",Tropical and dynamics,Value,Equivalent potential temperature,Heights,yes,,,,1,850_thetae_ht
 GDPS,"850mb Vorticity, 500mb Height, 200mb Wind",Tropical and dynamics,Value,#mb relative vorticity,Heights,yes,,,,1,850vor_500ht_200wd
 GDPS,850-200mb Deep-Layer Wind Shear,Tropical and dynamics,Value,Shear magnitude,Pressure,yes,,,,1,shear_850_200
 GDPS,850-200mb Mean Wind (Steering Flow),Tropical and dynamics,Value,Mean wind speed,Pressure,yes,,,,1,steering_850_200
+GDPS,200mb Velocity Potential and Irrotational Wind,Upper air,Value,Velocity potential (#^# m^#/s: green the divergent outflow over rising air); barbs: the irrotational wind,,yes,,,,1,200_velocity_potential
 GDPS,"700mb Temperature, Wind and MSLP",Upper air,Value,#mb temperature,Pressure,yes,,,,1,700_temp_mslp
 GDPS,850-700mb Mean Relative Humidity,Upper air,Value,Mean relative humidity of # and # mb,,,,,,1,850_700_rh
 GDPS,"700-300mb Mean Relative Humidity, 500mb Height and Wind",Upper air,Value,"Mean relative humidity, #mb",Heights,yes,,,,1,rh_700_300
@@ -237,8 +261,10 @@ GEFS,Mean #mb Wind and Height,Upper air,Value,Wind speed,Heights,,,,200/250/300,
 GEFS,"Mean MSLP, #-#mb thickness and precipitation type",Precipitation and moisture,Value,"Precipitation (green rain, blue snow, pink mixed), hours #","Pressure,Thickness",,,yes,850/1000 | 700/850,2,1000_850_thick_type 850_700_thick_type
 GEFS,Mean #-hour Precipitation and Spread,Precipitation and moisture,Value,"Mean precipitation, # hours",Ensemble mean / spread,,,,06/24,2,precip_p06 precip_p24
 GEFS,Mean #mb Relative Humidity and Height,Upper air,Value,Relative humidity,Heights,yes,,,500/850,2,500_rh_ht 850_rh_ht
+GEFS,"Mean 2m Temperature Anomaly, MSLP and 10m Wind",Anomalies,Anomaly,# m temperature against the # daily mean near the surface,Pressure,yes,,,,1,2m_temp_anom
 GEFS,Mean 500mb Height and Anomaly,Anomalies,Anomaly,Height anomaly from the # mean,Heights,yes,,,,1,500_hgt_anom
 GEFS,Mean MSLP and Anomaly,Anomalies,Anomaly,Pressure anomaly from the # mean,Pressure,yes,,,,1,mslp_anom
+GEFS,Mean Precipitable Water Anomaly and MSLP,Anomalies,Anomaly,Precipitable water anomaly from the # mean,Pressure,,,,,1,pwat_anom
 GEFS,Mean MSLP and 48-hour Change,Changes and trends,Change,Sea level pressure change,Pressure,,,,,1,mslp_trend
 GEFS,Mean Snow Depth Change from the previous 24 hours,Changes and trends,Change,Mean change of the snow depth in the previous # hours,,,,,,1,snodpth_chng_mean
 GEFS,Mean Snow Depth Change from F00,Changes and trends,Change,Snow depth change,,,,,,1,snodpth_chng
@@ -263,6 +289,7 @@ GEFS,Mean Total Accumulated Precipitation of Period,Precipitation and moisture,V
 GEFS,Mean MSLP and Precipitation (Rain / Snow / Mixed),Precipitation and moisture,Value,"Precipitation (green rain, blue snow, pink mixed), hours #","Pressure,Thickness",,,yes,,1,precip_type
 GEFS,Probability of Ice Pellets over 0.25 in,Probability: precipitation,Chance of a limit,Chance of # in or more of precipitation falling as ice pellets in # hours,,,,,,1,prob_ice_0.25in
 GEFS,Mean CAPE and Spread,Severe: instability,Value,Mean CAPE,Ensemble mean / spread,,,,,1,cape
+GEFS,Mean Surface-Based CAPE and the 850-500mb Wind Crossover,Severe: instability,Value,Surface-based CAPE,Other lines,yes,,,,1,sbcape_crossover
 GEFS,"Mean Surface-Based CAPE, MSLP and 10m Wind",Severe: instability,Value,Surface-based CAPE,Pressure,yes,,,,1,sbcape_wind
 GEFS,"Mean MSLP, 10m wind, 2m temperature",Surface,Value,# m temperature,Pressure,yes,,,,1,10m_wnd_2m_temp
 GEFS,Mean 10m Winds and Spread,Surface,Value,Spread of the # m wind speed,,yes,,,,1,10m_wnd
@@ -273,11 +300,13 @@ GEFS,Mean MSLP and 10m Wind,Surface,Value,# m wind speed,Pressure,yes,,,,1,mslp_
 GEFS,Mean Sea Level Pressure and Spread,Surface,Value,Spread of the sea level pressure,Pressure,,,,,1,mslp
 GEFS,"Mean 200mb Divergence, Wind and Height",Tropical and dynamics,Value,Divergence,Heights,yes,,,,1,200_div_wnd
 GEFS,Mean 200mb Divergence and Streamlines,Tropical and dynamics,Value,Divergence,,,yes,,,1,200_stream_div
+GEFS,Mean 300mb Q-Vector Divergence (QG forcing for vertical motion) and Height,Tropical and dynamics,Value,-# div Q,Heights,,,,,1,300_qvector_div
 GEFS,Mean 850mb Vorticity and Streamlines,Tropical and dynamics,Value,Relative vorticity,,,yes,,,1,850_stream_vort
 GEFS,"Mean 850mb Equivalent Potential Temperature, Wind and Height",Tropical and dynamics,Value,Equivalent potential temperature,Heights,yes,,,,1,850_thetae_ht
 GEFS,"Mean 850mb Vorticity, 500mb Height, 200mb Wind",Tropical and dynamics,Value,#mb relative vorticity,Heights,yes,,,,1,850vor_500ht_200wd
 GEFS,Mean 850-200mb Deep-Layer Wind Shear,Tropical and dynamics,Value,Shear magnitude,Pressure,yes,,,,1,shear_850_200
 GEFS,Mean 850-200mb Mean Wind (Steering Flow),Tropical and dynamics,Value,Mean wind speed,Pressure,yes,,,,1,steering_850_200
+GEFS,Mean 200mb Velocity Potential and Irrotational Wind,Upper air,Value,Velocity potential (#^# m^#/s: green the divergent outflow over rising air); barbs: the irrotational wind,,yes,,,,1,200_velocity_potential
 GEFS,"Mean 700mb Relative Humidity, Height and Omega",Upper air,Value,Relative humidity,"Heights,Omega",yes,,,,1,700_rh_ht
 GEFS,"Mean 700mb Temperature, Wind and MSLP",Upper air,Value,#mb temperature,Pressure,yes,,,,1,700_temp_mslp
 GEFS,Mean 850-700mb Mean Relative Humidity,Upper air,Value,Mean relative humidity of # and # mb,,,,,,1,850_700_rh
@@ -297,7 +326,9 @@ GEOS-FP,"#mb Temperature, Wind and Height",Upper air,Value,Temperature,Heights,y
 GEOS-FP,#mb Wind and Height,Upper air,Value,Wind speed,Heights,yes,,,1/2/5/10/20/30/50/70/100/500/850,11,100_wnd_ht 10_wnd_ht 1_wnd_ht 20_wnd_ht 2_wnd_ht ...
 GEOS-FP,"#mb Potential Vorticity (its own), Wind and Height",Upper air,Value,Potential vorticity,Heights,yes,,,10/20/30/50/70/100,6,100_pv_ht 10_pv_ht 20_pv_ht 30_pv_ht 50_pv_ht ...
 GEOS-FP,#mb Wind and Height,Upper air,Value,Wind speed,Heights,,,,200/250/300,3,200_wnd_ht 250_wnd_ht 300_wnd_ht
+GEOS-FP,"#mb Frontogenesis, Height and Wind",Surface,Value,Frontogenesis,Heights,yes,,,700/850,2,850_frontogenesis 700_frontogenesis
 GEOS-FP,#mb Relative Humidity and Height,Upper air,Value,Relative humidity,Heights,yes,,,500/850,2,500_rh_ht 850_rh_ht
+GEOS-FP,"#mb Temperature Advection, Height and Wind",Upper air,Value,Temperature advection,Heights,yes,,,700/850,2,700_temp_adv 850_temp_adv
 GEOS-FP,All aerosols: optical thickness,Air quality and smoke,Value,Total aerosol optical thickness at # nm,,yes,,,,1,aod_total
 GEOS-FP,Dust: aerosol optical thickness,Air quality and smoke,Value,Dust optical thickness at # nm,,yes,,,,1,dust_aod
 GEOS-FP,Dust: column mass,Air quality and smoke,Value,Dust in the whole column,,yes,,,,1,dust_column
@@ -311,15 +342,18 @@ GEOS-FP,MSLP and 48-hour Change,Changes and trends,Change,Sea level pressure cha
 GEOS-FP,500mb Height and 48-hour Change,Changes and trends,Change,#mb height change,Heights,,,,,1,z500_trend
 GEOS-FP,MSLP and Precipitable Water,Precipitation and moisture,Value,Precipitable water,Pressure,,,,,1,mslp_pwat
 GEOS-FP,"MSLP, 10m wind, 2m temperature",Surface,Value,# m temperature,Pressure,yes,,,,1,10m_wnd_2m_temp
+GEOS-FP,850mb Okubo-Weiss (strain against rotation) and Streamlines,Surface,Value,Okubo-Weiss number,,,yes,,,1,850_okubo_weiss
 GEOS-FP,"Cloud Cover by Height (low, middle, high)",Surface,Value,Low cloud (%): each place in the color of its layer with the most cover,,,,yes,,1,cloud_layers
 GEOS-FP,MSLP and 10m Wind,Surface,Value,# m wind speed,Pressure,yes,,,,1,mslp_10m_wind
 GEOS-FP,"200mb Divergence, Wind and Height",Tropical and dynamics,Value,Divergence,Heights,yes,,,,1,200_div_wnd
 GEOS-FP,200mb Divergence and Streamlines,Tropical and dynamics,Value,Divergence,,,yes,,,1,200_stream_div
+GEOS-FP,300mb Q-Vector Divergence (QG forcing for vertical motion) and Height,Tropical and dynamics,Value,-# div Q,Heights,,,,,1,300_qvector_div
 GEOS-FP,850mb Vorticity and Streamlines,Tropical and dynamics,Value,Relative vorticity,,,yes,,,1,850_stream_vort
 GEOS-FP,"850mb Equivalent Potential Temperature, Wind and Height",Tropical and dynamics,Value,Equivalent potential temperature,Heights,yes,,,,1,850_thetae_ht
 GEOS-FP,"850mb Vorticity, 500mb Height, 200mb Wind",Tropical and dynamics,Value,#mb relative vorticity,Heights,yes,,,,1,850vor_500ht_200wd
 GEOS-FP,850-200mb Deep-Layer Wind Shear,Tropical and dynamics,Value,Shear magnitude,Pressure,yes,,,,1,shear_850_200
 GEOS-FP,850-200mb Mean Wind (Steering Flow),Tropical and dynamics,Value,Mean wind speed,Pressure,yes,,,,1,steering_850_200
+GEOS-FP,200mb Velocity Potential and Irrotational Wind,Upper air,Value,Velocity potential (#^# m^#/s: green the divergent outflow over rising air); barbs: the irrotational wind,,yes,,,,1,200_velocity_potential
 GEOS-FP,"700mb Temperature, Wind and MSLP",Upper air,Value,#mb temperature,Pressure,yes,,,,1,700_temp_mslp
 GEOS-FP,"850mb Height, Precipitable Water and Wind",Upper air,Value,Precipitable water,Heights,yes,,,,1,850_pw_ht
 GEPS,Mean Total Precipitation every # hours,Precipitation and moisture,Value,"Precipitation, hours #","Pressure,Thickness",,,,03/06/12/24/36/48/60,7,precip_p03 precip_p06 precip_p12 precip_p24 precip_p36 ...
@@ -341,6 +375,7 @@ GEPS,Mean MSLP and Precipitable Water,Precipitation and moisture,Value,Precipita
 GEPS,Mean Total Accumulated Precipitation of Period,Precipitation and moisture,Value,"Precipitation, hours #",Pressure,,,,,1,precip_ptot
 GEPS,Probability of 2m Temperature at or over 90 F,Probability: temperature and wind,Chance of a limit,Chance of # F or hotter,,,,,,1,prob_2m_temp_90f
 GEPS,Probability of 2m Temperature at or under Freezing,Probability: temperature and wind,Chance of a limit,Chance of # C or colder,,,,,,1,prob_2m_temp_freezing
+GEPS,Mean Surface-Based CAPE and the 850-500mb Wind Crossover,Severe: instability,Value,Surface-based CAPE,Other lines,yes,,,,1,sbcape_crossover
 GEPS,"Mean Surface-Based CAPE, MSLP and 10m Wind",Severe: instability,Value,Surface-based CAPE,Pressure,yes,,,,1,sbcape_wind
 GEPS,"Mean MSLP, 10m wind, 2m temperature",Surface,Value,# m temperature,Pressure,yes,,,,1,10m_wnd_2m_temp
 GEPS,Mean MSLP and 10m Wind,Surface,Value,# m wind speed,Pressure,yes,,,,1,mslp_10m_wind
@@ -349,21 +384,28 @@ GEPS,Mean 200mb Divergence and Streamlines,Tropical and dynamics,Value,Divergenc
 GEPS,"Mean 850mb Equivalent Potential Temperature, Wind and Height",Tropical and dynamics,Value,Equivalent potential temperature,Heights,yes,,,,1,850_thetae_ht
 GEPS,Mean 850-200mb Deep-Layer Wind Shear,Tropical and dynamics,Value,Shear magnitude,Pressure,yes,,,,1,shear_850_200
 GEPS,Mean 850-200mb Mean Wind (Steering Flow),Tropical and dynamics,Value,Mean wind speed,Pressure,yes,,,,1,steering_850_200
+GEPS,Mean 200mb Velocity Potential and Irrotational Wind,Upper air,Value,Velocity potential (#^# m^#/s: green the divergent outflow over rising air); barbs: the irrotational wind,,yes,,,,1,200_velocity_potential
 GEPS,"Mean 700mb Temperature, Wind and MSLP",Upper air,Value,#mb temperature,Pressure,yes,,,,1,700_temp_mslp
 GEPS,Mean 850-700mb Mean Relative Humidity,Upper air,Value,Mean relative humidity of # and # mb,,,,,,1,850_700_rh
 GEPS,"Mean 850mb Height, Precipitable Water and Wind",Upper air,Value,Precipitable water,Heights,yes,,,,1,850_pw_ht
 GFS,"#mb Temperature, Wind and Height",Upper air,Value,Temperature,Heights,yes,,,1/2/5/10/20/30/50/70/100/850/925,11,100_temp_ht 10_temp_ht 1_temp_ht 20_temp_ht 2_temp_ht ...
 GFS,#mb Wind and Height,Upper air,Value,Wind speed,Heights,yes,,,1/2/5/10/20/30/50/70/100/500/850,11,100_wnd_ht 10_wnd_ht 1_wnd_ht 20_wnd_ht 2_wnd_ht ...
 GFS,Total Precipitation every # hour,Precipitation and moisture,Value,"Precipitation, hours #","Pressure,Thickness",,,,01/03/06/12/24/36/48/60,8,precip_p01 precip_p03 precip_p06 precip_p12 precip_p24 ...
+GFS,"# K Isentropic Potential Vorticity, Wind and Pressure",Surface,Value,Potential vorticity on the surface,Pressure,yes,,,330/500/530/600/650/850,6,330K_pv 530K_pv 650K_pv 850K_pv 500K_pv ...
 GFS,"#mb Potential Vorticity, Wind and Height",Upper air,Value,Potential vorticity,Heights,yes,,,10/20/30/50/70/100,6,100_pv_ht 10_pv_ht 20_pv_ht 30_pv_ht 50_pv_ht ...
-GFS,"# K Isentropic Potential Vorticity, Wind and Pressure",Surface,Value,Potential vorticity on the surface,Pressure,yes,,,500/530/600/650/850,5,530K_pv 650K_pv 850K_pv 500K_pv 600K_pv
 GFS,"MSLP, #-#mb thickness and precipitation",Precipitation and moisture,Value,"Precipitation, hours #","Pressure,Thickness",,,,850/1000 | 500/700/850,3,1000_500_thick 1000_850_thick 850_700_thick
 GFS,#mb Wind and Height,Upper air,Value,Wind speed,Heights,,,,200/250/300,3,200_wnd_ht 250_wnd_ht 300_wnd_ht
 GFS,#mb Height and Anomaly,Anomalies,Anomaly,Height anomaly from the # mean,Heights,yes,,,500/700,2,500_hgt_anom 700_hgt_anom
 GFS,"MSLP, #-#mb thickness and precipitation type",Precipitation and moisture,Value,"Precipitation (green rain, blue snow, pink mixed), hours #","Pressure,Thickness",,,yes,850/1000 | 700/850,2,1000_850_thick_type 850_700_thick_type
+GFS,"# K Isentropic Relative Humidity, Wind and Pressure",Surface,Value,Relative humidity on the surface,Pressure,yes,,,290/300,2,290K_isen 300K_isen
+GFS,"#mb Frontogenesis, Height and Wind",Surface,Value,Frontogenesis,Heights,yes,,,700/850,2,850_frontogenesis 700_frontogenesis
 GFS,"#mb Vorticity, Wind, and Height",Tropical and dynamics,Value,Relative vorticity,Heights,yes,,,500/850,2,500_vort_ht 850_vort_ht
 GFS,#mb Relative Humidity and Height,Upper air,Value,Relative humidity,Heights,yes,,,500/850,2,500_rh_ht 850_rh_ht
+GFS,"#mb Temperature Advection, Height and Wind",Upper air,Value,Temperature advection,Heights,yes,,,700/850,2,700_temp_adv 850_temp_adv
+GFS,"2m Temperature Anomaly, MSLP and 10m Wind",Anomalies,Anomaly,# m temperature against the # daily mean near the surface,Pressure,yes,,,,1,2m_temp_anom
+GFS,"850mb Temperature Anomaly, Height and Wind",Anomalies,Anomaly,# mb temperature anomaly from the # mean,Heights,yes,,,,1,850_temp_anom
 GFS,MSLP and Anomaly,Anomalies,Anomaly,Pressure anomaly from the # mean,Pressure,yes,,,,1,mslp_anom
+GFS,Precipitable Water Anomaly and MSLP,Anomalies,Anomaly,Precipitable water anomaly from the # mean,Pressure,,,,,1,pwat_anom
 GFS,MSLP and 48-hour Change,Changes and trends,Change,Sea level pressure change,Pressure,,,,,1,mslp_trend
 GFS,Snow Depth Change from F00,Changes and trends,Change,Snow depth change,,,,,,1,snodpth_chng
 GFS,500mb Height and 48-hour Change,Changes and trends,Change,#mb height change,Heights,,,,,1,z500_trend
@@ -375,20 +417,29 @@ GFS,MSLP and Precipitable Water,Precipitation and moisture,Value,Precipitable wa
 GFS,Total Accumulated Precipitation of Period,Precipitation and moisture,Value,"Precipitation, hours #",Pressure,,,,,1,precip_ptot
 GFS,"MSLP, 1000-500mb thickness and Precipitation Rate (Rain / Snow / Mixed)",Precipitation and moisture,Value,Precipitation rate per hour,"Pressure,Thickness",,,yes,,1,precip_rate_type
 GFS,MSLP and Precipitation (Rain / Snow / Mixed),Precipitation and moisture,Value,"Precipitation (green rain, blue snow, pink mixed), hours #","Pressure,Thickness",,,yes,,1,precip_type
+GFS,Snowfall in 24 hours (10:1),Precipitation and moisture,Value,"Snowfall at #:#, hours #",,,,,,1,snow_24h
+GFS,Total Snowfall (10:1),Precipitation and moisture,Value,"Snowfall at #:#, hours #",,,,,,1,snow_total
+GFS,Surface-Based CAPE and the 850-500mb Wind Crossover,Severe: instability,Value,Surface-based CAPE,Other lines,yes,,,,1,sbcape_crossover
 GFS,"Surface-Based CAPE, MSLP and 10m Wind",Severe: instability,Value,Surface-based CAPE,Pressure,yes,,,,1,sbcape_wind
 GFS,Simulated Composite Radar Reflectivity,Severe: storm structure,Value,Composite reflectivity,,,,,,1,sim_radar_comp
 GFS,"MSLP, 10m wind, 2m temperature",Surface,Value,# m temperature,Pressure,yes,,,,1,10m_wnd_2m_temp
 GFS,"MSLP, 10m wind, 2m dewpoint",Surface,Value,# m dewpoint,Pressure,yes,,,,1,2m_dewpoint
 GFS,"2 m Relative Humidity (from temperature and dewpoint), MSLP and 10m Wind",Surface,Value,# m relative humidity,Pressure,yes,,,,1,2m_rh_10m_wnd_derived
+GFS,850mb Okubo-Weiss (strain against rotation) and Streamlines,Surface,Value,Okubo-Weiss number,,,yes,,,1,850_okubo_weiss
 GFS,"Cloud Cover by Height (low, middle, high)",Surface,Value,Low cloud (%): each place in the color of its layer with the most cover,,,,yes,,1,cloud_layers
+GFS,Dynamic Tropopause (2 PVU) Pressure and Wind,Surface,Value,Pressure of the # PVU surface,,yes,,,,1,dt_pressure
+GFS,Dynamic Tropopause (2 PVU) Potential Temperature and Wind,Surface,Value,Potential temperature on the # PVU surface,,yes,,,,1,dt_theta
 GFS,MSLP and 10m Wind,Surface,Value,# m wind speed,Pressure,yes,,,,1,mslp_10m_wind
+GFS,Simulated Infrared (outgoing longwave as brightness temperature),Surface,Value,"Brightness temperature (C) of the outgoing longwave, the mean of the last hours",,,,,,1,sim_ir
 GFS,"200mb Divergence, Wind and Height",Tropical and dynamics,Value,Divergence,Heights,yes,,,,1,200_div_wnd
 GFS,200mb Divergence and Streamlines,Tropical and dynamics,Value,Divergence,,,yes,,,1,200_stream_div
+GFS,300mb Q-Vector Divergence (QG forcing for vertical motion) and Height,Tropical and dynamics,Value,-# div Q,Heights,,,,,1,300_qvector_div
 GFS,850mb Vorticity and Streamlines,Tropical and dynamics,Value,Relative vorticity,,,yes,,,1,850_stream_vort
 GFS,"850mb Equivalent Potential Temperature, Wind and Height",Tropical and dynamics,Value,Equivalent potential temperature,Heights,yes,,,,1,850_thetae_ht
 GFS,"850mb Vorticity, 500mb Height, 200mb Wind",Tropical and dynamics,Value,#mb relative vorticity,Heights,yes,,,,1,850vor_500ht_200wd
 GFS,850-200mb Deep-Layer Wind Shear,Tropical and dynamics,Value,Shear magnitude,Pressure,yes,,,,1,shear_850_200
 GFS,850-200mb Mean Wind (Steering Flow),Tropical and dynamics,Value,Mean wind speed,Pressure,yes,,,,1,steering_850_200
+GFS,200mb Velocity Potential and Irrotational Wind,Upper air,Value,Velocity potential (#^# m^#/s: green the divergent outflow over rising air); barbs: the irrotational wind,,yes,,,,1,200_velocity_potential
 GFS,"700mb Relative Humidity, Height and Omega",Upper air,Value,Relative humidity,"Heights,Omega",yes,,,,1,700_rh_ht
 GFS,"700mb Temperature, Wind and MSLP",Upper air,Value,#mb temperature,Pressure,yes,,,,1,700_temp_mslp
 GFS,850-700mb Mean Relative Humidity,Upper air,Value,Mean relative humidity of # and # mb,,,,,,1,850_700_rh
@@ -402,6 +453,7 @@ GFS-ANL,#mb Relative Humidity and Height,Upper air,Value,Relative humidity,Heigh
 GFS-ANL,MSLP and 48-hour Change,Changes and trends,Change,Sea level pressure change,Pressure,,,,,1,mslp_trend
 GFS-ANL,500mb Height and 48-hour Change,Changes and trends,Change,#mb height change,Heights,,,,,1,z500_trend
 GFS-ANL,MSLP and Precipitable Water,Precipitation and moisture,Value,Precipitable water,Pressure,,,,,1,mslp_pwat
+GFS-ANL,Surface-Based CAPE and the 850-500mb Wind Crossover,Severe: instability,Value,Surface-based CAPE,Other lines,yes,,,,1,sbcape_crossover
 GFS-ANL,"Surface-Based CAPE, MSLP and 10m Wind",Severe: instability,Value,Surface-based CAPE,Pressure,yes,,,,1,sbcape_wind
 GFS-ANL,"MSLP, 10m wind, 2m temperature",Surface,Value,# m temperature,Pressure,yes,,,,1,10m_wnd_2m_temp
 GFS-ANL,"MSLP, 10m wind, 2m dewpoint",Surface,Value,# m dewpoint,Pressure,yes,,,,1,2m_dewpoint
@@ -409,11 +461,13 @@ GFS-ANL,"2 m Relative Humidity (from temperature and dewpoint), MSLP and 10m Win
 GFS-ANL,MSLP and 10m Wind,Surface,Value,# m wind speed,Pressure,yes,,,,1,mslp_10m_wind
 GFS-ANL,"200mb Divergence, Wind and Height",Tropical and dynamics,Value,Divergence,Heights,yes,,,,1,200_div_wnd
 GFS-ANL,200mb Divergence and Streamlines,Tropical and dynamics,Value,Divergence,,,yes,,,1,200_stream_div
+GFS-ANL,300mb Q-Vector Divergence (QG forcing for vertical motion) and Height,Tropical and dynamics,Value,-# div Q,Heights,,,,,1,300_qvector_div
 GFS-ANL,850mb Vorticity and Streamlines,Tropical and dynamics,Value,Relative vorticity,,,yes,,,1,850_stream_vort
 GFS-ANL,"850mb Equivalent Potential Temperature, Wind and Height",Tropical and dynamics,Value,Equivalent potential temperature,Heights,yes,,,,1,850_thetae_ht
 GFS-ANL,"850mb Vorticity, 500mb Height, 200mb Wind",Tropical and dynamics,Value,#mb relative vorticity,Heights,yes,,,,1,850vor_500ht_200wd
 GFS-ANL,850-200mb Deep-Layer Wind Shear,Tropical and dynamics,Value,Shear magnitude,Pressure,yes,,,,1,shear_850_200
 GFS-ANL,850-200mb Mean Wind (Steering Flow),Tropical and dynamics,Value,Mean wind speed,Pressure,yes,,,,1,steering_850_200
+GFS-ANL,200mb Velocity Potential and Irrotational Wind,Upper air,Value,Velocity potential (#^# m^#/s: green the divergent outflow over rising air); barbs: the irrotational wind,,yes,,,,1,200_velocity_potential
 GFS-ANL,"700mb Relative Humidity, Height and Omega",Upper air,Value,Relative humidity,"Heights,Omega",yes,,,,1,700_rh_ht
 GFS-ANL,"700mb Temperature, Wind and MSLP",Upper air,Value,#mb temperature,Pressure,yes,,,,1,700_temp_mslp
 GFS-ANL,850-700mb Mean Relative Humidity,Upper air,Value,Mean relative humidity of # and # mb,,,,,,1,850_700_rh
@@ -437,6 +491,7 @@ GFS1-ANL,#mb Relative Humidity and Height,Upper air,Value,Relative humidity,Heig
 GFS1-ANL,MSLP and 48-hour Change,Changes and trends,Change,Sea level pressure change,Pressure,,,,,1,mslp_trend
 GFS1-ANL,500mb Height and 48-hour Change,Changes and trends,Change,#mb height change,Heights,,,,,1,z500_trend
 GFS1-ANL,MSLP and Precipitable Water,Precipitation and moisture,Value,Precipitable water,Pressure,,,,,1,mslp_pwat
+GFS1-ANL,Surface-Based CAPE and the 850-500mb Wind Crossover,Severe: instability,Value,Surface-based CAPE,Other lines,yes,,,,1,sbcape_crossover
 GFS1-ANL,"Surface-Based CAPE, MSLP and 10m Wind",Severe: instability,Value,Surface-based CAPE,Pressure,yes,,,,1,sbcape_wind
 GFS1-ANL,"MSLP, 10m wind, 2m temperature",Surface,Value,# m temperature,Pressure,yes,,,,1,10m_wnd_2m_temp
 GFS1-ANL,"MSLP, 10m wind, 2m dewpoint",Surface,Value,# m dewpoint,Pressure,yes,,,,1,2m_dewpoint
@@ -444,11 +499,13 @@ GFS1-ANL,"2 m Relative Humidity (from temperature and dewpoint), MSLP and 10m Wi
 GFS1-ANL,MSLP and 10m Wind,Surface,Value,# m wind speed,Pressure,yes,,,,1,mslp_10m_wind
 GFS1-ANL,"200mb Divergence, Wind and Height",Tropical and dynamics,Value,Divergence,Heights,yes,,,,1,200_div_wnd
 GFS1-ANL,200mb Divergence and Streamlines,Tropical and dynamics,Value,Divergence,,,yes,,,1,200_stream_div
+GFS1-ANL,300mb Q-Vector Divergence (QG forcing for vertical motion) and Height,Tropical and dynamics,Value,-# div Q,Heights,,,,,1,300_qvector_div
 GFS1-ANL,850mb Vorticity and Streamlines,Tropical and dynamics,Value,Relative vorticity,,,yes,,,1,850_stream_vort
 GFS1-ANL,"850mb Equivalent Potential Temperature, Wind and Height",Tropical and dynamics,Value,Equivalent potential temperature,Heights,yes,,,,1,850_thetae_ht
 GFS1-ANL,"850mb Vorticity, 500mb Height, 200mb Wind",Tropical and dynamics,Value,#mb relative vorticity,Heights,yes,,,,1,850vor_500ht_200wd
 GFS1-ANL,850-200mb Deep-Layer Wind Shear,Tropical and dynamics,Value,Shear magnitude,Pressure,yes,,,,1,shear_850_200
 GFS1-ANL,850-200mb Mean Wind (Steering Flow),Tropical and dynamics,Value,Mean wind speed,Pressure,yes,,,,1,steering_850_200
+GFS1-ANL,200mb Velocity Potential and Irrotational Wind,Upper air,Value,Velocity potential (#^# m^#/s: green the divergent outflow over rising air); barbs: the irrotational wind,,yes,,,,1,200_velocity_potential
 GFS1-ANL,"700mb Relative Humidity, Height and Omega",Upper air,Value,Relative humidity,"Heights,Omega",yes,,,,1,700_rh_ht
 GFS1-ANL,"700mb Temperature, Wind and MSLP",Upper air,Value,#mb temperature,Pressure,yes,,,,1,700_temp_mslp
 GFS1-ANL,850-700mb Mean Relative Humidity,Upper air,Value,Mean relative humidity of # and # mb,,,,,,1,850_700_rh
@@ -461,17 +518,20 @@ GRAPES,"#mb Vorticity, Wind, and Height",Tropical and dynamics,Value,Relative vo
 GRAPES,#mb Relative Humidity and Height,Upper air,Value,Relative humidity,Heights,yes,,,500/850,2,500_rh_ht 850_rh_ht
 GRAPES,MSLP and 48-hour Change,Changes and trends,Change,Sea level pressure change,Pressure,,,,,1,mslp_trend
 GRAPES,500mb Height and 48-hour Change,Changes and trends,Change,#mb height change,Heights,,,,,1,z500_trend
+GRAPES,Surface-Based CAPE and the 850-500mb Wind Crossover,Severe: instability,Value,Surface-based CAPE,Other lines,yes,,,,1,sbcape_crossover
 GRAPES,"Surface-Based CAPE, MSLP and 10m Wind",Severe: instability,Value,Surface-based CAPE,Pressure,yes,,,,1,sbcape_wind
 GRAPES,"MSLP, 10m wind, 2m temperature",Surface,Value,# m temperature,Pressure,yes,,,,1,10m_wnd_2m_temp
 GRAPES,"Cloud Cover by Height (low, middle, high)",Surface,Value,Low cloud (%): each place in the color of its layer with the most cover,,,,yes,,1,cloud_layers
 GRAPES,MSLP and 10m Wind,Surface,Value,# m wind speed,Pressure,yes,,,,1,mslp_10m_wind
 GRAPES,"200mb Divergence, Wind and Height",Tropical and dynamics,Value,Divergence,Heights,yes,,,,1,200_div_wnd
 GRAPES,200mb Divergence and Streamlines,Tropical and dynamics,Value,Divergence,,,yes,,,1,200_stream_div
+GRAPES,300mb Q-Vector Divergence (QG forcing for vertical motion) and Height,Tropical and dynamics,Value,-# div Q,Heights,,,,,1,300_qvector_div
 GRAPES,850mb Vorticity and Streamlines,Tropical and dynamics,Value,Relative vorticity,,,yes,,,1,850_stream_vort
 GRAPES,"850mb Equivalent Potential Temperature, Wind and Height",Tropical and dynamics,Value,Equivalent potential temperature,Heights,yes,,,,1,850_thetae_ht
 GRAPES,"850mb Vorticity, 500mb Height, 200mb Wind",Tropical and dynamics,Value,#mb relative vorticity,Heights,yes,,,,1,850vor_500ht_200wd
 GRAPES,850-200mb Deep-Layer Wind Shear,Tropical and dynamics,Value,Shear magnitude,Pressure,yes,,,,1,shear_850_200
 GRAPES,850-200mb Mean Wind (Steering Flow),Tropical and dynamics,Value,Mean wind speed,Pressure,yes,,,,1,steering_850_200
+GRAPES,200mb Velocity Potential and Irrotational Wind,Upper air,Value,Velocity potential (#^# m^#/s: green the divergent outflow over rising air); barbs: the irrotational wind,,yes,,,,1,200_velocity_potential
 GRAPES,"700mb Temperature, Wind and MSLP",Upper air,Value,#mb temperature,Pressure,yes,,,,1,700_temp_mslp
 GRAPES,850-700mb Mean Relative Humidity,Upper air,Value,Mean relative humidity of # and # mb,,,,,,1,850_700_rh
 GRAPES,"700-300mb Mean Relative Humidity, 500mb Height and Wind",Upper air,Value,"Mean relative humidity, #mb",Heights,yes,,,,1,rh_700_300
@@ -483,15 +543,18 @@ GSM,#mb Relative Humidity and Height,Upper air,Value,Relative humidity,Heights,y
 GSM,MSLP and 48-hour Change,Changes and trends,Change,Sea level pressure change,Pressure,,,,,1,mslp_trend
 GSM,500mb Height and 48-hour Change,Changes and trends,Change,#mb height change,Heights,,,,,1,z500_trend
 GSM,"MSLP, 10m wind, 2m temperature",Surface,Value,# m temperature,Pressure,yes,,,,1,10m_wnd_2m_temp
+GSM,"330 K Isentropic Potential Vorticity, Wind and Pressure",Surface,Value,Potential vorticity on the surface,Pressure,yes,,,,1,330K_pv
 GSM,"Cloud Cover by Height (low, middle, high)",Surface,Value,Low cloud (%): each place in the color of its layer with the most cover,,,,yes,,1,cloud_layers
 GSM,MSLP and 10m Wind,Surface,Value,# m wind speed,Pressure,yes,,,,1,mslp_10m_wind
 GSM,"200mb Divergence, Wind and Height",Tropical and dynamics,Value,Divergence,Heights,yes,,,,1,200_div_wnd
 GSM,200mb Divergence and Streamlines,Tropical and dynamics,Value,Divergence,,,yes,,,1,200_stream_div
+GSM,300mb Q-Vector Divergence (QG forcing for vertical motion) and Height,Tropical and dynamics,Value,-# div Q,Heights,,,,,1,300_qvector_div
 GSM,850mb Vorticity and Streamlines,Tropical and dynamics,Value,Relative vorticity,,,yes,,,1,850_stream_vort
 GSM,"850mb Equivalent Potential Temperature, Wind and Height",Tropical and dynamics,Value,Equivalent potential temperature,Heights,yes,,,,1,850_thetae_ht
 GSM,"850mb Vorticity, 500mb Height, 200mb Wind",Tropical and dynamics,Value,#mb relative vorticity,Heights,yes,,,,1,850vor_500ht_200wd
 GSM,850-200mb Deep-Layer Wind Shear,Tropical and dynamics,Value,Shear magnitude,Pressure,yes,,,,1,shear_850_200
 GSM,850-200mb Mean Wind (Steering Flow),Tropical and dynamics,Value,Mean wind speed,Pressure,yes,,,,1,steering_850_200
+GSM,200mb Velocity Potential and Irrotational Wind,Upper air,Value,Velocity potential (#^# m^#/s: green the divergent outflow over rising air); barbs: the irrotational wind,,yes,,,,1,200_velocity_potential
 GSM,"700mb Temperature, Wind and MSLP",Upper air,Value,#mb temperature,Pressure,yes,,,,1,700_temp_mslp
 GSM,850-700mb Mean Relative Humidity,Upper air,Value,Mean relative humidity of # and # mb,,,,,,1,850_700_rh
 GSM,"700-300mb Mean Relative Humidity, 500mb Height and Wind",Upper air,Value,"Mean relative humidity, #mb",Heights,yes,,,,1,rh_700_300
@@ -529,15 +592,18 @@ HGEFS,Mean #mb Relative Humidity and Height,Upper air,Value,Relative humidity,He
 HGEFS,Mean MSLP and 48-hour Change,Changes and trends,Change,Sea level pressure change,Pressure,,,,,1,mslp_trend
 HGEFS,Mean 500mb Height and 48-hour Change,Changes and trends,Change,#mb height change,Heights,,,,,1,z500_trend
 HGEFS,"Mean MSLP, 10m wind, 2m temperature",Surface,Value,# m temperature,Pressure,yes,,,,1,10m_wnd_2m_temp
+HGEFS,"Mean 330 K Isentropic Potential Vorticity, Wind and Pressure",Surface,Value,Potential vorticity on the surface,Pressure,yes,,,,1,330K_pv
 HGEFS,"Mean Cloud Cover by Height (low, middle, high)",Surface,Value,Low cloud (%): each place in the color of its layer with the most cover,,,,yes,,1,cloud_layers
 HGEFS,Mean MSLP and 10m Wind,Surface,Value,# m wind speed,Pressure,yes,,,,1,mslp_10m_wind
 HGEFS,"Mean 200mb Divergence, Wind and Height",Tropical and dynamics,Value,Divergence,Heights,yes,,,,1,200_div_wnd
 HGEFS,Mean 200mb Divergence and Streamlines,Tropical and dynamics,Value,Divergence,,,yes,,,1,200_stream_div
+HGEFS,Mean 300mb Q-Vector Divergence (QG forcing for vertical motion) and Height,Tropical and dynamics,Value,-# div Q,Heights,,,,,1,300_qvector_div
 HGEFS,Mean 850mb Vorticity and Streamlines,Tropical and dynamics,Value,Relative vorticity,,,yes,,,1,850_stream_vort
 HGEFS,"Mean 850mb Equivalent Potential Temperature, Wind and Height",Tropical and dynamics,Value,Equivalent potential temperature,Heights,yes,,,,1,850_thetae_ht
 HGEFS,"Mean 850mb Vorticity, 500mb Height, 200mb Wind",Tropical and dynamics,Value,#mb relative vorticity,Heights,yes,,,,1,850vor_500ht_200wd
 HGEFS,Mean 850-200mb Deep-Layer Wind Shear,Tropical and dynamics,Value,Shear magnitude,Pressure,yes,,,,1,shear_850_200
 HGEFS,Mean 850-200mb Mean Wind (Steering Flow),Tropical and dynamics,Value,Mean wind speed,Pressure,yes,,,,1,steering_850_200
+HGEFS,Mean 200mb Velocity Potential and Irrotational Wind,Upper air,Value,Velocity potential (#^# m^#/s: green the divergent outflow over rising air); barbs: the irrotational wind,,yes,,,,1,200_velocity_potential
 HGEFS,"Mean 700mb Temperature, Wind and MSLP",Upper air,Value,#mb temperature,Pressure,yes,,,,1,700_temp_mslp
 HGEFS,Mean 850-700mb Mean Relative Humidity,Upper air,Value,Mean relative humidity of # and # mb,,,,,,1,850_700_rh
 HGEFS,"Mean 700-300mb Mean Relative Humidity, 500mb Height and Wind",Upper air,Value,"Mean relative humidity, #mb",Heights,yes,,,,1,rh_700_300
@@ -548,6 +614,7 @@ HRDPS,#mb Wind and Height,Upper air,Value,Wind speed,Heights,yes,,,500/850,2,500
 HRDPS,"#mb Temperature, Wind and Height",Upper air,Value,Temperature,Heights,yes,,,850/925,2,850_temp_ht 925_temp_ht
 HRDPS,MSLP and 48-hour Change,Changes and trends,Change,Sea level pressure change,Pressure,,,,,1,mslp_trend
 HRDPS,500mb Height and 48-hour Change,Changes and trends,Change,#mb height change,Heights,,,,,1,z500_trend
+HRDPS,Surface-Based CAPE and the 850-500mb Wind Crossover,Severe: instability,Value,Surface-based CAPE,Other lines,yes,,,,1,sbcape_crossover
 HRDPS,"Surface-Based CAPE, MSLP and 10m Wind",Severe: instability,Value,Surface-based CAPE,Pressure,yes,,,,1,sbcape_wind
 HRDPS,"MSLP, 10m wind, 2m temperature",Surface,Value,# m temperature,Pressure,yes,,,,1,10m_wnd_2m_temp
 HRDPS,"MSLP, 10m wind, 2m dewpoint",Surface,Value,# m dewpoint,Pressure,yes,,,,1,2m_dewpoint
@@ -555,6 +622,7 @@ HRDPS,"2 m Relative Humidity (from temperature and dewpoint), MSLP and 10m Wind"
 HRDPS,MSLP and 10m Wind,Surface,Value,# m wind speed,Pressure,yes,,,,1,mslp_10m_wind
 HRDPS,"200mb Divergence, Wind and Height",Tropical and dynamics,Value,Divergence,Heights,yes,,,,1,200_div_wnd
 HRDPS,200mb Divergence and Streamlines,Tropical and dynamics,Value,Divergence,,,yes,,,1,200_stream_div
+HRDPS,300mb Q-Vector Divergence (QG forcing for vertical motion) and Height,Tropical and dynamics,Value,-# div Q,Heights,,,,,1,300_qvector_div
 HRDPS,850mb Vorticity and Streamlines,Tropical and dynamics,Value,Relative vorticity,,,yes,,,1,850_stream_vort
 HRDPS,"850mb Equivalent Potential Temperature, Wind and Height",Tropical and dynamics,Value,Equivalent potential temperature,Heights,yes,,,,1,850_thetae_ht
 HRDPS,"850mb Vorticity, 500mb Height, 200mb Wind",Tropical and dynamics,Value,#mb relative vorticity,Heights,yes,,,,1,850vor_500ht_200wd
@@ -655,6 +723,7 @@ HRRR,"STP (Significant Tornado Parameter, fixed layer)",Severe: composite indice
 HRRR,Best (Most Unstable) CAPE,Severe: instability,Value,Most unstable CAPE,,,,,,1,best_cape
 HRRR,Most Unstable CAPE and CIN,Severe: instability,Value,CAPE,Other lines,,,,,1,best_cape_cin
 HRRR,Best Lifted Index (lowest 180 mb),Severe: instability,Value,Best (#-layer) lifted index of the lowest # mb,,,,,,1,lifted_index_ml
+HRRR,Surface-Based CAPE and the 850-500mb Wind Crossover,Severe: instability,Value,Surface-based CAPE,Other lines,yes,,,,1,sbcape_crossover
 HRRR,"Surface-Based CAPE, MSLP and 10m Wind",Severe: instability,Value,Surface-based CAPE,Pressure,yes,,,,1,sbcape_wind
 HRRR,Surface-Based CAPE and CIN,Severe: instability,Value,CAPE,Other lines,,,,,1,sfc_cape_cin
 HRRR,Accumulated Maximum 2-5 km Updraft Helicity,Severe: rotation and shear,Value,Strongest updraft helicity since the start of the run,,,,,,1,accu_max_updraft_hlcy
@@ -681,6 +750,7 @@ HRRR,"Cloud Cover by Height (low, middle, high)",Surface,Value,Low cloud (%): ea
 HRRR,MSLP and 10m Wind,Surface,Value,# m wind speed,Pressure,yes,,,,1,mslp_10m_wind
 HRRR,"200mb Divergence, Wind and Height",Tropical and dynamics,Value,Divergence,Heights,yes,,,,1,200_div_wnd
 HRRR,200mb Divergence and Streamlines,Tropical and dynamics,Value,Divergence,,,yes,,,1,200_stream_div
+HRRR,300mb Q-Vector Divergence (QG forcing for vertical motion) and Height,Tropical and dynamics,Value,-# div Q,Heights,,,,,1,300_qvector_div
 HRRR,850mb Vorticity and Streamlines,Tropical and dynamics,Value,Relative vorticity,,,yes,,,1,850_stream_vort
 HRRR,"850mb Equivalent Potential Temperature, Wind and Height",Tropical and dynamics,Value,Equivalent potential temperature,Heights,yes,,,,1,850_thetae_ht
 HRRR,"850mb Vorticity, 500mb Height, 200mb Wind",Tropical and dynamics,Value,#mb relative vorticity,Heights,yes,,,,1,850vor_500ht_200wd
@@ -734,6 +804,7 @@ HRRR-AK,"STP (Significant Tornado Parameter, fixed layer)",Severe: composite ind
 HRRR-AK,Best (Most Unstable) CAPE,Severe: instability,Value,Most unstable CAPE,,,,,,1,best_cape
 HRRR-AK,Most Unstable CAPE and CIN,Severe: instability,Value,CAPE,Other lines,,,,,1,best_cape_cin
 HRRR-AK,Best Lifted Index (lowest 180 mb),Severe: instability,Value,Best (#-layer) lifted index of the lowest # mb,,,,,,1,lifted_index_ml
+HRRR-AK,Surface-Based CAPE and the 850-500mb Wind Crossover,Severe: instability,Value,Surface-based CAPE,Other lines,yes,,,,1,sbcape_crossover
 HRRR-AK,"Surface-Based CAPE, MSLP and 10m Wind",Severe: instability,Value,Surface-based CAPE,Pressure,yes,,,,1,sbcape_wind
 HRRR-AK,Surface-Based CAPE and CIN,Severe: instability,Value,CAPE,Other lines,,,,,1,sfc_cape_cin
 HRRR-AK,Accumulated Maximum 2-5 km Updraft Helicity,Severe: rotation and shear,Value,Strongest updraft helicity since the start of the run,,,,,,1,accu_max_updraft_hlcy
@@ -760,6 +831,7 @@ HRRR-AK,"Cloud Cover by Height (low, middle, high)",Surface,Value,Low cloud (%):
 HRRR-AK,MSLP and 10m Wind,Surface,Value,# m wind speed,Pressure,yes,,,,1,mslp_10m_wind
 HRRR-AK,"200mb Divergence, Wind and Height",Tropical and dynamics,Value,Divergence,Heights,yes,,,,1,200_div_wnd
 HRRR-AK,200mb Divergence and Streamlines,Tropical and dynamics,Value,Divergence,,,yes,,,1,200_stream_div
+HRRR-AK,300mb Q-Vector Divergence (QG forcing for vertical motion) and Height,Tropical and dynamics,Value,-# div Q,Heights,,,,,1,300_qvector_div
 HRRR-AK,850mb Vorticity and Streamlines,Tropical and dynamics,Value,Relative vorticity,,,yes,,,1,850_stream_vort
 HRRR-AK,"850mb Equivalent Potential Temperature, Wind and Height",Tropical and dynamics,Value,Equivalent potential temperature,Heights,yes,,,,1,850_thetae_ht
 HRRR-AK,"850mb Vorticity, 500mb Height, 200mb Wind",Tropical and dynamics,Value,#mb relative vorticity,Heights,yes,,,,1,850vor_500ht_200wd
@@ -779,17 +851,20 @@ ICON,"#mb Vorticity, Wind, and Height",Tropical and dynamics,Value,Relative vort
 ICON,#mb Relative Humidity and Height,Upper air,Value,Relative humidity,Heights,yes,,,500/850,2,500_rh_ht 850_rh_ht
 ICON,MSLP and 48-hour Change,Changes and trends,Change,Sea level pressure change,Pressure,,,,,1,mslp_trend
 ICON,500mb Height and 48-hour Change,Changes and trends,Change,#mb height change,Heights,,,,,1,z500_trend
+ICON,Surface-Based CAPE and the 850-500mb Wind Crossover,Severe: instability,Value,Surface-based CAPE,Other lines,yes,,,,1,sbcape_crossover
 ICON,"Surface-Based CAPE, MSLP and 10m Wind",Severe: instability,Value,Surface-based CAPE,Pressure,yes,,,,1,sbcape_wind
 ICON,"MSLP, 10m wind, 2m temperature",Surface,Value,# m temperature,Pressure,yes,,,,1,10m_wnd_2m_temp
 ICON,"Cloud Cover by Height (low, middle, high)",Surface,Value,Low cloud (%): each place in the color of its layer with the most cover,,,,yes,,1,cloud_layers
 ICON,MSLP and 10m Wind,Surface,Value,# m wind speed,Pressure,yes,,,,1,mslp_10m_wind
 ICON,"200mb Divergence, Wind and Height",Tropical and dynamics,Value,Divergence,Heights,yes,,,,1,200_div_wnd
 ICON,200mb Divergence and Streamlines,Tropical and dynamics,Value,Divergence,,,yes,,,1,200_stream_div
+ICON,300mb Q-Vector Divergence (QG forcing for vertical motion) and Height,Tropical and dynamics,Value,-# div Q,Heights,,,,,1,300_qvector_div
 ICON,850mb Vorticity and Streamlines,Tropical and dynamics,Value,Relative vorticity,,,yes,,,1,850_stream_vort
 ICON,"850mb Equivalent Potential Temperature, Wind and Height",Tropical and dynamics,Value,Equivalent potential temperature,Heights,yes,,,,1,850_thetae_ht
 ICON,"850mb Vorticity, 500mb Height, 200mb Wind",Tropical and dynamics,Value,#mb relative vorticity,Heights,yes,,,,1,850vor_500ht_200wd
 ICON,850-200mb Deep-Layer Wind Shear,Tropical and dynamics,Value,Shear magnitude,Pressure,yes,,,,1,shear_850_200
 ICON,850-200mb Mean Wind (Steering Flow),Tropical and dynamics,Value,Mean wind speed,Pressure,yes,,,,1,steering_850_200
+ICON,200mb Velocity Potential and Irrotational Wind,Upper air,Value,Velocity potential (#^# m^#/s: green the divergent outflow over rising air); barbs: the irrotational wind,,yes,,,,1,200_velocity_potential
 ICON,"700mb Temperature, Wind and MSLP",Upper air,Value,#mb temperature,Pressure,yes,,,,1,700_temp_mslp
 ICON,850-700mb Mean Relative Humidity,Upper air,Value,Mean relative humidity of # and # mb,,,,,,1,850_700_rh
 ICON,"700-300mb Mean Relative Humidity, 500mb Height and Wind",Upper air,Value,"Mean relative humidity, #mb",Heights,yes,,,,1,rh_700_300
@@ -799,6 +874,7 @@ ICON-2I,#mb Wind and Height,Upper air,Value,Wind speed,Heights,yes,,,500/850,2,5
 ICON-2I,"#mb Temperature, Wind and Height",Upper air,Value,Temperature,Heights,yes,,,850/925,2,850_temp_ht 925_temp_ht
 ICON-2I,MSLP and 48-hour Change,Changes and trends,Change,Sea level pressure change,Pressure,,,,,1,mslp_trend
 ICON-2I,500mb Height and 48-hour Change,Changes and trends,Change,#mb height change,Heights,,,,,1,z500_trend
+ICON-2I,Surface-Based CAPE and the 850-500mb Wind Crossover,Severe: instability,Value,Surface-based CAPE,Other lines,yes,,,,1,sbcape_crossover
 ICON-2I,"Surface-Based CAPE, MSLP and 10m Wind",Severe: instability,Value,Surface-based CAPE,Pressure,yes,,,,1,sbcape_wind
 ICON-2I,"MSLP, 10m wind, 2m temperature",Surface,Value,# m temperature,Pressure,yes,,,,1,10m_wnd_2m_temp
 ICON-2I,"Cloud Cover by Height (low, middle, high)",Surface,Value,Low cloud (%): each place in the color of its layer with the most cover,,,,yes,,1,cloud_layers
@@ -822,6 +898,7 @@ ICON-EU,#mb Wind and Height,Upper air,Value,Wind speed,Heights,yes,,,500/850,2,5
 ICON-EU,"#mb Temperature, Wind and Height",Upper air,Value,Temperature,Heights,yes,,,850/925,2,850_temp_ht 925_temp_ht
 ICON-EU,MSLP and 48-hour Change,Changes and trends,Change,Sea level pressure change,Pressure,,,,,1,mslp_trend
 ICON-EU,500mb Height and 48-hour Change,Changes and trends,Change,#mb height change,Heights,,,,,1,z500_trend
+ICON-EU,Surface-Based CAPE and the 850-500mb Wind Crossover,Severe: instability,Value,Surface-based CAPE,Other lines,yes,,,,1,sbcape_crossover
 ICON-EU,"Surface-Based CAPE, MSLP and 10m Wind",Severe: instability,Value,Surface-based CAPE,Pressure,yes,,,,1,sbcape_wind
 ICON-EU,"MSLP, 10m wind, 2m temperature",Surface,Value,# m temperature,Pressure,yes,,,,1,10m_wnd_2m_temp
 ICON-EU,"MSLP, 10m wind, 2m dewpoint",Surface,Value,# m dewpoint,Pressure,yes,,,,1,2m_dewpoint
@@ -830,6 +907,7 @@ ICON-EU,"Cloud Cover by Height (low, middle, high)",Surface,Value,Low cloud (%):
 ICON-EU,MSLP and 10m Wind,Surface,Value,# m wind speed,Pressure,yes,,,,1,mslp_10m_wind
 ICON-EU,"200mb Divergence, Wind and Height",Tropical and dynamics,Value,Divergence,Heights,yes,,,,1,200_div_wnd
 ICON-EU,200mb Divergence and Streamlines,Tropical and dynamics,Value,Divergence,,,yes,,,1,200_stream_div
+ICON-EU,300mb Q-Vector Divergence (QG forcing for vertical motion) and Height,Tropical and dynamics,Value,-# div Q,Heights,,,,,1,300_qvector_div
 ICON-EU,850mb Vorticity and Streamlines,Tropical and dynamics,Value,Relative vorticity,,,yes,,,1,850_stream_vort
 ICON-EU,"850mb Equivalent Potential Temperature, Wind and Height",Tropical and dynamics,Value,Equivalent potential temperature,Heights,yes,,,,1,850_thetae_ht
 ICON-EU,"850mb Vorticity, 500mb Height, 200mb Wind",Tropical and dynamics,Value,#mb relative vorticity,Heights,yes,,,,1,850vor_500ht_200wd
@@ -846,28 +924,34 @@ IFS,"MSLP, #-#mb thickness and precipitation",Precipitation and moisture,Value,"
 IFS,#mb Wind and Height,Upper air,Value,Wind speed,Heights,,,,200/250/300,3,200_wnd_ht 250_wnd_ht 300_wnd_ht
 IFS,"#mb Vorticity, Wind, and Height",Tropical and dynamics,Value,Relative vorticity,Heights,yes,,,500/850,2,500_vort_ht 850_vort_ht
 IFS,#mb Relative Humidity and Height,Upper air,Value,Relative humidity,Heights,yes,,,500/850,2,500_rh_ht 850_rh_ht
+IFS,"2m Temperature Anomaly, MSLP and 10m Wind",Anomalies,Anomaly,# m temperature against the # daily mean near the surface,Pressure,yes,,,,1,2m_temp_anom
 IFS,500mb Height and Anomaly,Anomalies,Anomaly,Height anomaly from the # mean,Heights,yes,,,,1,500_hgt_anom
 IFS,MSLP and Anomaly,Anomalies,Anomaly,Pressure anomaly from the # mean,Pressure,yes,,,,1,mslp_anom
+IFS,Precipitable Water Anomaly and MSLP,Anomalies,Anomaly,Precipitable water anomaly from the # mean,Pressure,,,,,1,pwat_anom
 IFS,MSLP and 48-hour Change,Changes and trends,Change,Sea level pressure change,Pressure,,,,,1,mslp_trend
 IFS,500mb Height and 48-hour Change,Changes and trends,Change,#mb height change,Heights,,,,,1,z500_trend
 IFS,"MSLP, 10m wind and precipitation",Precipitation and moisture,Value,"Precipitation, hours #",Pressure,yes,,,,1,10m_wnd_precip
 IFS,"MSLP, 850mb temperature and precipitation",Precipitation and moisture,Value,"Precipitation, hours #","Pressure,Temperature",,,,,1,850_temp_mslp_precip
 IFS,MSLP and Precipitable Water,Precipitation and moisture,Value,Precipitable water,Pressure,,,,,1,mslp_pwat
 IFS,Total Accumulated Precipitation of Period,Precipitation and moisture,Value,"Precipitation, hours #",Pressure,,,,,1,precip_ptot
+IFS,Surface-Based CAPE and the 850-500mb Wind Crossover,Severe: instability,Value,Surface-based CAPE,Other lines,yes,,,,1,sbcape_crossover
 IFS,"Surface-Based CAPE, MSLP and 10m Wind",Severe: instability,Value,Surface-based CAPE,Pressure,yes,,,,1,sbcape_wind
 IFS,"MSLP, 10m wind, 2m temperature",Surface,Value,# m temperature,Pressure,yes,,,,1,10m_wnd_2m_temp
 IFS,"MSLP, 10m wind, 2m dewpoint",Surface,Value,# m dewpoint,Pressure,yes,,,,1,2m_dewpoint
 IFS,"2 m Relative Humidity (from temperature and dewpoint), MSLP and 10m Wind",Surface,Value,# m relative humidity,Pressure,yes,,,,1,2m_rh_10m_wnd_derived
+IFS,"330 K Isentropic Potential Vorticity, Wind and Pressure",Surface,Value,Potential vorticity on the surface,Pressure,yes,,,,1,330K_pv
 IFS,"Cloud Cover by Height (low, middle, high)",Surface,Value,Low cloud (%): each place in the color of its layer with the most cover,,,,yes,,1,cloud_layers
 IFS,MSLP and 10m Wind,Surface,Value,# m wind speed,Pressure,yes,,,,1,mslp_10m_wind
 IFS,"200mb Divergence, Wind and Height",Tropical and dynamics,Value,Divergence,Heights,yes,,,,1,200_div_wnd
 IFS,200mb Divergence and Streamlines,Tropical and dynamics,Value,Divergence,,,yes,,,1,200_stream_div
+IFS,300mb Q-Vector Divergence (QG forcing for vertical motion) and Height,Tropical and dynamics,Value,-# div Q,Heights,,,,,1,300_qvector_div
 IFS,850mb Vorticity and Streamlines,Tropical and dynamics,Value,Relative vorticity,,,yes,,,1,850_stream_vort
 IFS,"850mb Equivalent Potential Temperature, Wind and Height",Tropical and dynamics,Value,Equivalent potential temperature,Heights,yes,,,,1,850_thetae_ht
 IFS,"850mb Vorticity, 500mb Height, 200mb Wind",Tropical and dynamics,Value,#mb relative vorticity,Heights,yes,,,,1,850vor_500ht_200wd
 IFS,850-200mb Deep-Layer Wind Shear,Tropical and dynamics,Value,Shear magnitude,Pressure,yes,,,,1,shear_850_200
 IFS,850-200mb Mean Wind (Steering Flow),Tropical and dynamics,Value,Mean wind speed,Pressure,yes,,,,1,steering_850_200
 IFS,"10mb Potential Vorticity (10-50mb layer), Wind and Height",Upper air,Value,Potential vorticity,Heights,yes,,,,1,10_pv_ht
+IFS,200mb Velocity Potential and Irrotational Wind,Upper air,Value,Velocity potential (#^# m^#/s: green the divergent outflow over rising air); barbs: the irrotational wind,,yes,,,,1,200_velocity_potential
 IFS,"700mb Relative Humidity, Height and Omega",Upper air,Value,Relative humidity,"Heights,Omega",yes,,,,1,700_rh_ht
 IFS,"700mb Temperature, Wind and MSLP",Upper air,Value,#mb temperature,Pressure,yes,,,,1,700_temp_mslp
 IFS,850-700mb Mean Relative Humidity,Upper air,Value,Mean relative humidity of # and # mb,,,,,,1,850_700_rh
@@ -921,6 +1005,7 @@ MPAS-HT,"STP (Significant Tornado Parameter, fixed layer)",Severe: composite ind
 MPAS-HT,Best (Most Unstable) CAPE,Severe: instability,Value,Most unstable CAPE,,,,,,1,best_cape
 MPAS-HT,Most Unstable CAPE and CIN,Severe: instability,Value,CAPE,Other lines,,,,,1,best_cape_cin
 MPAS-HT,Best Lifted Index (lowest 180 mb),Severe: instability,Value,Best (#-layer) lifted index of the lowest # mb,,,,,,1,lifted_index_ml
+MPAS-HT,Surface-Based CAPE and the 850-500mb Wind Crossover,Severe: instability,Value,Surface-based CAPE,Other lines,yes,,,,1,sbcape_crossover
 MPAS-HT,"Surface-Based CAPE, MSLP and 10m Wind",Severe: instability,Value,Surface-based CAPE,Pressure,yes,,,,1,sbcape_wind
 MPAS-HT,Surface-Based CAPE and CIN,Severe: instability,Value,CAPE,Other lines,,,,,1,sfc_cape_cin
 MPAS-HT,Accumulated Maximum 2-5 km Updraft Helicity,Severe: rotation and shear,Value,Strongest updraft helicity since the start of the run,,,,,,1,accu_max_updraft_hlcy
@@ -979,6 +1064,7 @@ MPAS-RN,"STP (Significant Tornado Parameter, fixed layer)",Severe: composite ind
 MPAS-RN,Best (Most Unstable) CAPE,Severe: instability,Value,Most unstable CAPE,,,,,,1,best_cape
 MPAS-RN,Most Unstable CAPE and CIN,Severe: instability,Value,CAPE,Other lines,,,,,1,best_cape_cin
 MPAS-RN,Best Lifted Index (lowest 180 mb),Severe: instability,Value,Best (#-layer) lifted index of the lowest # mb,,,,,,1,lifted_index_ml
+MPAS-RN,Surface-Based CAPE and the 850-500mb Wind Crossover,Severe: instability,Value,Surface-based CAPE,Other lines,yes,,,,1,sbcape_crossover
 MPAS-RN,"Surface-Based CAPE, MSLP and 10m Wind",Severe: instability,Value,Surface-based CAPE,Pressure,yes,,,,1,sbcape_wind
 MPAS-RN,Surface-Based CAPE and CIN,Severe: instability,Value,CAPE,Other lines,,,,,1,sfc_cape_cin
 MPAS-RN,Accumulated Maximum 2-5 km Updraft Helicity,Severe: rotation and shear,Value,Strongest updraft helicity since the start of the run,,,,,,1,accu_max_updraft_hlcy
@@ -1022,8 +1108,10 @@ MSM-UL,#mb Wind and Height,Upper air,Value,Wind speed,Heights,,,,200/250/300,3,2
 MSM-UL,"#mb Vorticity, Wind, and Height",Tropical and dynamics,Value,Relative vorticity,Heights,yes,,,500/850,2,500_vort_ht 850_vort_ht
 MSM-UL,#mb Relative Humidity and Height,Upper air,Value,Relative humidity,Heights,yes,,,500/850,2,500_rh_ht 850_rh_ht
 MSM-UL,500mb Height and 48-hour Change,Changes and trends,Change,#mb height change,Heights,,,,,1,z500_trend
+MSM-UL,"330 K Isentropic Potential Vorticity, Wind and Pressure",Surface,Value,Potential vorticity on the surface,Pressure,yes,,,,1,330K_pv
 MSM-UL,"200mb Divergence, Wind and Height",Tropical and dynamics,Value,Divergence,Heights,yes,,,,1,200_div_wnd
 MSM-UL,200mb Divergence and Streamlines,Tropical and dynamics,Value,Divergence,,,yes,,,1,200_stream_div
+MSM-UL,300mb Q-Vector Divergence (QG forcing for vertical motion) and Height,Tropical and dynamics,Value,-# div Q,Heights,,,,,1,300_qvector_div
 MSM-UL,850mb Vorticity and Streamlines,Tropical and dynamics,Value,Relative vorticity,,,yes,,,1,850_stream_vort
 MSM-UL,"850mb Equivalent Potential Temperature, Wind and Height",Tropical and dynamics,Value,Equivalent potential temperature,Heights,yes,,,,1,850_thetae_ht
 MSM-UL,"850mb Vorticity, 500mb Height, 200mb Wind",Tropical and dynamics,Value,#mb relative vorticity,Heights,yes,,,,1,850vor_500ht_200wd
@@ -1037,6 +1125,7 @@ NAM-ANL,"#mb Temperature, Wind and Height",Upper air,Value,Temperature,Heights,y
 NAM-ANL,MSLP and 48-hour Change,Changes and trends,Change,Sea level pressure change,Pressure,,,,,1,mslp_trend
 NAM-ANL,500mb Height and 48-hour Change,Changes and trends,Change,#mb height change,Heights,,,,,1,z500_trend
 NAM-ANL,MSLP and Precipitable Water,Precipitation and moisture,Value,Precipitable water,Pressure,,,,,1,mslp_pwat
+NAM-ANL,Surface-Based CAPE and the 850-500mb Wind Crossover,Severe: instability,Value,Surface-based CAPE,Other lines,yes,,,,1,sbcape_crossover
 NAM-ANL,"Surface-Based CAPE, MSLP and 10m Wind",Severe: instability,Value,Surface-based CAPE,Pressure,yes,,,,1,sbcape_wind
 NAM-ANL,Simulated Composite Radar Reflectivity,Severe: storm structure,Value,Composite reflectivity,,,,,,1,sim_radar_comp
 NAM-ANL,"MSLP, 10m wind, 2m temperature",Surface,Value,# m temperature,Pressure,yes,,,,1,10m_wnd_2m_temp
@@ -1045,6 +1134,7 @@ NAM-ANL,"2 m Relative Humidity (from temperature and dewpoint), MSLP and 10m Win
 NAM-ANL,MSLP and 10m Wind,Surface,Value,# m wind speed,Pressure,yes,,,,1,mslp_10m_wind
 NAM-ANL,"200mb Divergence, Wind and Height",Tropical and dynamics,Value,Divergence,Heights,yes,,,,1,200_div_wnd
 NAM-ANL,200mb Divergence and Streamlines,Tropical and dynamics,Value,Divergence,,,yes,,,1,200_stream_div
+NAM-ANL,300mb Q-Vector Divergence (QG forcing for vertical motion) and Height,Tropical and dynamics,Value,-# div Q,Heights,,,,,1,300_qvector_div
 NAM-ANL,850mb Vorticity and Streamlines,Tropical and dynamics,Value,Relative vorticity,,,yes,,,1,850_stream_vort
 NAM-ANL,"850mb Equivalent Potential Temperature, Wind and Height",Tropical and dynamics,Value,Equivalent potential temperature,Heights,yes,,,,1,850_thetae_ht
 NAM-ANL,"850mb Vorticity, 500mb Height, 200mb Wind",Tropical and dynamics,Value,#mb relative vorticity,Heights,yes,,,,1,850vor_500ht_200wd
@@ -1061,6 +1151,7 @@ NARR,#mb Wind and Height,Upper air,Value,Wind speed,Heights,yes,,,500/850,2,500_
 NARR,MSLP and 48-hour Change,Changes and trends,Change,Sea level pressure change,Pressure,,,,,1,mslp_trend
 NARR,500mb Height and 48-hour Change,Changes and trends,Change,#mb height change,Heights,,,,,1,z500_trend
 NARR,MSLP and Precipitable Water,Precipitation and moisture,Value,Precipitable water,Pressure,,,,,1,mslp_pwat
+NARR,Surface-Based CAPE and the 850-500mb Wind Crossover,Severe: instability,Value,Surface-based CAPE,Other lines,yes,,,,1,sbcape_crossover
 NARR,"Surface-Based CAPE, MSLP and 10m Wind",Severe: instability,Value,Surface-based CAPE,Pressure,yes,,,,1,sbcape_wind
 NARR,"MSLP, 10m wind, 2m temperature",Surface,Value,# m temperature,Pressure,yes,,,,1,10m_wnd_2m_temp
 NARR,"MSLP, 10m wind, 2m dewpoint",Surface,Value,# m dewpoint,Pressure,yes,,,,1,2m_dewpoint
@@ -1068,6 +1159,7 @@ NARR,"2 m Relative Humidity (from temperature and dewpoint), MSLP and 10m Wind",
 NARR,MSLP and 10m Wind,Surface,Value,# m wind speed,Pressure,yes,,,,1,mslp_10m_wind
 NARR,"200mb Divergence, Wind and Height",Tropical and dynamics,Value,Divergence,Heights,yes,,,,1,200_div_wnd
 NARR,200mb Divergence and Streamlines,Tropical and dynamics,Value,Divergence,,,yes,,,1,200_stream_div
+NARR,300mb Q-Vector Divergence (QG forcing for vertical motion) and Height,Tropical and dynamics,Value,-# div Q,Heights,,,,,1,300_qvector_div
 NARR,850mb Vorticity and Streamlines,Tropical and dynamics,Value,Relative vorticity,,,yes,,,1,850_stream_vort
 NARR,"850mb Equivalent Potential Temperature, Wind and Height",Tropical and dynamics,Value,Equivalent potential temperature,Heights,yes,,,,1,850_thetae_ht
 NARR,"850mb Vorticity, 500mb Height, 200mb Wind",Tropical and dynamics,Value,#mb relative vorticity,Heights,yes,,,,1,850vor_500ht_200wd
@@ -1117,9 +1209,11 @@ RAP-ANL,#mb Relative Humidity and Height,Upper air,Value,Relative humidity,Heigh
 RAP-ANL,#mb Wind and Height,Upper air,Value,Wind speed,Heights,yes,,,500/850,2,500_wnd_ht 850_wnd_ht
 RAP-ANL,"#mb Temperature, Wind and Height",Upper air,Value,Temperature,Heights,yes,,,850/925,2,850_temp_ht 925_temp_ht
 RAP-ANL,500mb Height and 48-hour Change,Changes and trends,Change,#mb height change,Heights,,,,,1,z500_trend
+RAP-ANL,Surface-Based CAPE and the 850-500mb Wind Crossover,Severe: instability,Value,Surface-based CAPE,Other lines,yes,,,,1,sbcape_crossover
 RAP-ANL,Simulated Composite Radar Reflectivity,Severe: storm structure,Value,Composite reflectivity,,,,,,1,sim_radar_comp
 RAP-ANL,"200mb Divergence, Wind and Height",Tropical and dynamics,Value,Divergence,Heights,yes,,,,1,200_div_wnd
 RAP-ANL,200mb Divergence and Streamlines,Tropical and dynamics,Value,Divergence,,,yes,,,1,200_stream_div
+RAP-ANL,300mb Q-Vector Divergence (QG forcing for vertical motion) and Height,Tropical and dynamics,Value,-# div Q,Heights,,,,,1,300_qvector_div
 RAP-ANL,850mb Vorticity and Streamlines,Tropical and dynamics,Value,Relative vorticity,,,yes,,,1,850_stream_vort
 RAP-ANL,"850mb Equivalent Potential Temperature, Wind and Height",Tropical and dynamics,Value,Equivalent potential temperature,Heights,yes,,,,1,850_thetae_ht
 RAP-ANL,"850mb Vorticity, 500mb Height, 200mb Wind",Tropical and dynamics,Value,#mb relative vorticity,Heights,yes,,,,1,850vor_500ht_200wd
@@ -1214,6 +1308,7 @@ RRFS,"STP (Significant Tornado Parameter, fixed layer)",Severe: composite indice
 RRFS,Best (Most Unstable) CAPE,Severe: instability,Value,Most unstable CAPE,,,,,,1,best_cape
 RRFS,Most Unstable CAPE and CIN,Severe: instability,Value,CAPE,Other lines,,,,,1,best_cape_cin
 RRFS,Best Lifted Index (lowest 180 mb),Severe: instability,Value,Best (#-layer) lifted index of the lowest # mb,,,,,,1,lifted_index_ml
+RRFS,Surface-Based CAPE and the 850-500mb Wind Crossover,Severe: instability,Value,Surface-based CAPE,Other lines,yes,,,,1,sbcape_crossover
 RRFS,"Surface-Based CAPE, MSLP and 10m Wind",Severe: instability,Value,Surface-based CAPE,Pressure,yes,,,,1,sbcape_wind
 RRFS,Surface-Based CAPE and CIN,Severe: instability,Value,CAPE,Other lines,,,,,1,sfc_cape_cin
 RRFS,Accumulated Maximum 2-5 km Updraft Helicity,Severe: rotation and shear,Value,Strongest updraft helicity since the start of the run,,,,,,1,accu_max_updraft_hlcy
@@ -1242,6 +1337,7 @@ RRFS,Surface Runoff in the last hour,Surface,Value,Water running off the ground 
 RRFS,Surface Runoff in the last 6 hours,Surface,Value,Water running off the ground in the last # hours,,,,,,1,runoff_6hr
 RRFS,"200mb Divergence, Wind and Height",Tropical and dynamics,Value,Divergence,Heights,yes,,,,1,200_div_wnd
 RRFS,200mb Divergence and Streamlines,Tropical and dynamics,Value,Divergence,,,yes,,,1,200_stream_div
+RRFS,300mb Q-Vector Divergence (QG forcing for vertical motion) and Height,Tropical and dynamics,Value,-# div Q,Heights,,,,,1,300_qvector_div
 RRFS,850mb Vorticity and Streamlines,Tropical and dynamics,Value,Relative vorticity,,,yes,,,1,850_stream_vort
 RRFS,"850mb Equivalent Potential Temperature, Wind and Height",Tropical and dynamics,Value,Equivalent potential temperature,Heights,yes,,,,1,850_thetae_ht
 RRFS,"850mb Vorticity, 500mb Height, 200mb Wind",Tropical and dynamics,Value,#mb relative vorticity,Heights,yes,,,,1,850vor_500ht_200wd
@@ -1292,6 +1388,7 @@ RRFS-AK,"STP (Significant Tornado Parameter, fixed layer)",Severe: composite ind
 RRFS-AK,Best (Most Unstable) CAPE,Severe: instability,Value,Most unstable CAPE,,,,,,1,best_cape
 RRFS-AK,Most Unstable CAPE and CIN,Severe: instability,Value,CAPE,Other lines,,,,,1,best_cape_cin
 RRFS-AK,Best Lifted Index (lowest 180 mb),Severe: instability,Value,Best (#-layer) lifted index of the lowest # mb,,,,,,1,lifted_index_ml
+RRFS-AK,Surface-Based CAPE and the 850-500mb Wind Crossover,Severe: instability,Value,Surface-based CAPE,Other lines,yes,,,,1,sbcape_crossover
 RRFS-AK,"Surface-Based CAPE, MSLP and 10m Wind",Severe: instability,Value,Surface-based CAPE,Pressure,yes,,,,1,sbcape_wind
 RRFS-AK,Surface-Based CAPE and CIN,Severe: instability,Value,CAPE,Other lines,,,,,1,sfc_cape_cin
 RRFS-AK,Accumulated Maximum 2-5 km Updraft Helicity,Severe: rotation and shear,Value,Strongest updraft helicity since the start of the run,,,,,,1,accu_max_updraft_hlcy
@@ -1318,6 +1415,7 @@ RRFS-AK,"Cloud Cover by Height (low, middle, high)",Surface,Value,Low cloud (%):
 RRFS-AK,MSLP and 10m Wind,Surface,Value,# m wind speed,Pressure,yes,,,,1,mslp_10m_wind
 RRFS-AK,"200mb Divergence, Wind and Height",Tropical and dynamics,Value,Divergence,Heights,yes,,,,1,200_div_wnd
 RRFS-AK,200mb Divergence and Streamlines,Tropical and dynamics,Value,Divergence,,,yes,,,1,200_stream_div
+RRFS-AK,300mb Q-Vector Divergence (QG forcing for vertical motion) and Height,Tropical and dynamics,Value,-# div Q,Heights,,,,,1,300_qvector_div
 RRFS-AK,850mb Vorticity and Streamlines,Tropical and dynamics,Value,Relative vorticity,,,yes,,,1,850_stream_vort
 RRFS-AK,"850mb Equivalent Potential Temperature, Wind and Height",Tropical and dynamics,Value,Equivalent potential temperature,Heights,yes,,,,1,850_thetae_ht
 RRFS-AK,"850mb Vorticity, 500mb Height, 200mb Wind",Tropical and dynamics,Value,#mb relative vorticity,Heights,yes,,,,1,850vor_500ht_200wd
@@ -1368,6 +1466,7 @@ RRFS-FIREWX,"STP (Significant Tornado Parameter, fixed layer)",Severe: composite
 RRFS-FIREWX,Best (Most Unstable) CAPE,Severe: instability,Value,Most unstable CAPE,,,,,,1,best_cape
 RRFS-FIREWX,Most Unstable CAPE and CIN,Severe: instability,Value,CAPE,Other lines,,,,,1,best_cape_cin
 RRFS-FIREWX,Best Lifted Index (lowest 180 mb),Severe: instability,Value,Best (#-layer) lifted index of the lowest # mb,,,,,,1,lifted_index_ml
+RRFS-FIREWX,Surface-Based CAPE and the 850-500mb Wind Crossover,Severe: instability,Value,Surface-based CAPE,Other lines,yes,,,,1,sbcape_crossover
 RRFS-FIREWX,"Surface-Based CAPE, MSLP and 10m Wind",Severe: instability,Value,Surface-based CAPE,Pressure,yes,,,,1,sbcape_wind
 RRFS-FIREWX,Surface-Based CAPE and CIN,Severe: instability,Value,CAPE,Other lines,,,,,1,sfc_cape_cin
 RRFS-FIREWX,Accumulated Maximum 2-5 km Updraft Helicity,Severe: rotation and shear,Value,Strongest updraft helicity since the start of the run,,,,,,1,accu_max_updraft_hlcy
@@ -1394,6 +1493,7 @@ RRFS-FIREWX,"Cloud Cover by Height (low, middle, high)",Surface,Value,Low cloud 
 RRFS-FIREWX,MSLP and 10m Wind,Surface,Value,# m wind speed,Pressure,yes,,,,1,mslp_10m_wind
 RRFS-FIREWX,"200mb Divergence, Wind and Height",Tropical and dynamics,Value,Divergence,Heights,yes,,,,1,200_div_wnd
 RRFS-FIREWX,200mb Divergence and Streamlines,Tropical and dynamics,Value,Divergence,,,yes,,,1,200_stream_div
+RRFS-FIREWX,300mb Q-Vector Divergence (QG forcing for vertical motion) and Height,Tropical and dynamics,Value,-# div Q,Heights,,,,,1,300_qvector_div
 RRFS-FIREWX,850mb Vorticity and Streamlines,Tropical and dynamics,Value,Relative vorticity,,,yes,,,1,850_stream_vort
 RRFS-FIREWX,"850mb Equivalent Potential Temperature, Wind and Height",Tropical and dynamics,Value,Equivalent potential temperature,Heights,yes,,,,1,850_thetae_ht
 RRFS-FIREWX,"850mb Vorticity, 500mb Height, 200mb Wind",Tropical and dynamics,Value,#mb relative vorticity,Heights,yes,,,,1,850vor_500ht_200wd
@@ -1444,6 +1544,7 @@ RRFS-HI,"STP (Significant Tornado Parameter, fixed layer)",Severe: composite ind
 RRFS-HI,Best (Most Unstable) CAPE,Severe: instability,Value,Most unstable CAPE,,,,,,1,best_cape
 RRFS-HI,Most Unstable CAPE and CIN,Severe: instability,Value,CAPE,Other lines,,,,,1,best_cape_cin
 RRFS-HI,Best Lifted Index (lowest 180 mb),Severe: instability,Value,Best (#-layer) lifted index of the lowest # mb,,,,,,1,lifted_index_ml
+RRFS-HI,Surface-Based CAPE and the 850-500mb Wind Crossover,Severe: instability,Value,Surface-based CAPE,Other lines,yes,,,,1,sbcape_crossover
 RRFS-HI,"Surface-Based CAPE, MSLP and 10m Wind",Severe: instability,Value,Surface-based CAPE,Pressure,yes,,,,1,sbcape_wind
 RRFS-HI,Surface-Based CAPE and CIN,Severe: instability,Value,CAPE,Other lines,,,,,1,sfc_cape_cin
 RRFS-HI,Accumulated Maximum 2-5 km Updraft Helicity,Severe: rotation and shear,Value,Strongest updraft helicity since the start of the run,,,,,,1,accu_max_updraft_hlcy
@@ -1470,6 +1571,7 @@ RRFS-HI,"Cloud Cover by Height (low, middle, high)",Surface,Value,Low cloud (%):
 RRFS-HI,MSLP and 10m Wind,Surface,Value,# m wind speed,Pressure,yes,,,,1,mslp_10m_wind
 RRFS-HI,"200mb Divergence, Wind and Height",Tropical and dynamics,Value,Divergence,Heights,yes,,,,1,200_div_wnd
 RRFS-HI,200mb Divergence and Streamlines,Tropical and dynamics,Value,Divergence,,,yes,,,1,200_stream_div
+RRFS-HI,300mb Q-Vector Divergence (QG forcing for vertical motion) and Height,Tropical and dynamics,Value,-# div Q,Heights,,,,,1,300_qvector_div
 RRFS-HI,850mb Vorticity and Streamlines,Tropical and dynamics,Value,Relative vorticity,,,yes,,,1,850_stream_vort
 RRFS-HI,"850mb Equivalent Potential Temperature, Wind and Height",Tropical and dynamics,Value,Equivalent potential temperature,Heights,yes,,,,1,850_thetae_ht
 RRFS-HI,"850mb Vorticity, 500mb Height, 200mb Wind",Tropical and dynamics,Value,#mb relative vorticity,Heights,yes,,,,1,850vor_500ht_200wd
@@ -1520,6 +1622,7 @@ RRFS-NA,"STP (Significant Tornado Parameter, fixed layer)",Severe: composite ind
 RRFS-NA,Best (Most Unstable) CAPE,Severe: instability,Value,Most unstable CAPE,,,,,,1,best_cape
 RRFS-NA,Most Unstable CAPE and CIN,Severe: instability,Value,CAPE,Other lines,,,,,1,best_cape_cin
 RRFS-NA,Best Lifted Index (lowest 180 mb),Severe: instability,Value,Best (#-layer) lifted index of the lowest # mb,,,,,,1,lifted_index_ml
+RRFS-NA,Surface-Based CAPE and the 850-500mb Wind Crossover,Severe: instability,Value,Surface-based CAPE,Other lines,yes,,,,1,sbcape_crossover
 RRFS-NA,"Surface-Based CAPE, MSLP and 10m Wind",Severe: instability,Value,Surface-based CAPE,Pressure,yes,,,,1,sbcape_wind
 RRFS-NA,Surface-Based CAPE and CIN,Severe: instability,Value,CAPE,Other lines,,,,,1,sfc_cape_cin
 RRFS-NA,Accumulated Maximum 2-5 km Updraft Helicity,Severe: rotation and shear,Value,Strongest updraft helicity since the start of the run,,,,,,1,accu_max_updraft_hlcy
@@ -1546,6 +1649,7 @@ RRFS-NA,"Cloud Cover by Height (low, middle, high)",Surface,Value,Low cloud (%):
 RRFS-NA,MSLP and 10m Wind,Surface,Value,# m wind speed,Pressure,yes,,,,1,mslp_10m_wind
 RRFS-NA,"200mb Divergence, Wind and Height",Tropical and dynamics,Value,Divergence,Heights,yes,,,,1,200_div_wnd
 RRFS-NA,200mb Divergence and Streamlines,Tropical and dynamics,Value,Divergence,,,yes,,,1,200_stream_div
+RRFS-NA,300mb Q-Vector Divergence (QG forcing for vertical motion) and Height,Tropical and dynamics,Value,-# div Q,Heights,,,,,1,300_qvector_div
 RRFS-NA,850mb Vorticity and Streamlines,Tropical and dynamics,Value,Relative vorticity,,,yes,,,1,850_stream_vort
 RRFS-NA,"850mb Equivalent Potential Temperature, Wind and Height",Tropical and dynamics,Value,Equivalent potential temperature,Heights,yes,,,,1,850_thetae_ht
 RRFS-NA,"850mb Vorticity, 500mb Height, 200mb Wind",Tropical and dynamics,Value,#mb relative vorticity,Heights,yes,,,,1,850vor_500ht_200wd
@@ -1596,6 +1700,7 @@ RRFS-PR,"STP (Significant Tornado Parameter, fixed layer)",Severe: composite ind
 RRFS-PR,Best (Most Unstable) CAPE,Severe: instability,Value,Most unstable CAPE,,,,,,1,best_cape
 RRFS-PR,Most Unstable CAPE and CIN,Severe: instability,Value,CAPE,Other lines,,,,,1,best_cape_cin
 RRFS-PR,Best Lifted Index (lowest 180 mb),Severe: instability,Value,Best (#-layer) lifted index of the lowest # mb,,,,,,1,lifted_index_ml
+RRFS-PR,Surface-Based CAPE and the 850-500mb Wind Crossover,Severe: instability,Value,Surface-based CAPE,Other lines,yes,,,,1,sbcape_crossover
 RRFS-PR,"Surface-Based CAPE, MSLP and 10m Wind",Severe: instability,Value,Surface-based CAPE,Pressure,yes,,,,1,sbcape_wind
 RRFS-PR,Surface-Based CAPE and CIN,Severe: instability,Value,CAPE,Other lines,,,,,1,sfc_cape_cin
 RRFS-PR,Accumulated Maximum 2-5 km Updraft Helicity,Severe: rotation and shear,Value,Strongest updraft helicity since the start of the run,,,,,,1,accu_max_updraft_hlcy
@@ -1622,6 +1727,7 @@ RRFS-PR,"Cloud Cover by Height (low, middle, high)",Surface,Value,Low cloud (%):
 RRFS-PR,MSLP and 10m Wind,Surface,Value,# m wind speed,Pressure,yes,,,,1,mslp_10m_wind
 RRFS-PR,"200mb Divergence, Wind and Height",Tropical and dynamics,Value,Divergence,Heights,yes,,,,1,200_div_wnd
 RRFS-PR,200mb Divergence and Streamlines,Tropical and dynamics,Value,Divergence,,,yes,,,1,200_stream_div
+RRFS-PR,300mb Q-Vector Divergence (QG forcing for vertical motion) and Height,Tropical and dynamics,Value,-# div Q,Heights,,,,,1,300_qvector_div
 RRFS-PR,850mb Vorticity and Streamlines,Tropical and dynamics,Value,Relative vorticity,,,yes,,,1,850_stream_vort
 RRFS-PR,"850mb Equivalent Potential Temperature, Wind and Height",Tropical and dynamics,Value,Equivalent potential temperature,Heights,yes,,,,1,850_thetae_ht
 RRFS-PR,"850mb Vorticity, 500mb Height, 200mb Wind",Tropical and dynamics,Value,#mb relative vorticity,Heights,yes,,,,1,850vor_500ht_200wd
@@ -1867,17 +1973,20 @@ UKMO,"#mb Vorticity, Wind, and Height",Tropical and dynamics,Value,Relative vort
 UKMO,#mb Relative Humidity and Height,Upper air,Value,Relative humidity,Heights,yes,,,500/850,2,500_rh_ht 850_rh_ht
 UKMO,MSLP and 48-hour Change,Changes and trends,Change,Sea level pressure change,Pressure,,,,,1,mslp_trend
 UKMO,500mb Height and 48-hour Change,Changes and trends,Change,#mb height change,Heights,,,,,1,z500_trend
+UKMO,Surface-Based CAPE and the 850-500mb Wind Crossover,Severe: instability,Value,Surface-based CAPE,Other lines,yes,,,,1,sbcape_crossover
 UKMO,"Surface-Based CAPE, MSLP and 10m Wind",Severe: instability,Value,Surface-based CAPE,Pressure,yes,,,,1,sbcape_wind
 UKMO,"MSLP, 10m wind, 2m temperature",Surface,Value,# m temperature,Pressure,yes,,,,1,10m_wnd_2m_temp
 UKMO,"Cloud Cover by Height (low, middle, high)",Surface,Value,Low cloud (%): each place in the color of its layer with the most cover,,,,yes,,1,cloud_layers
 UKMO,MSLP and 10m Wind,Surface,Value,# m wind speed,Pressure,yes,,,,1,mslp_10m_wind
 UKMO,"200mb Divergence, Wind and Height",Tropical and dynamics,Value,Divergence,Heights,yes,,,,1,200_div_wnd
 UKMO,200mb Divergence and Streamlines,Tropical and dynamics,Value,Divergence,,,yes,,,1,200_stream_div
+UKMO,300mb Q-Vector Divergence (QG forcing for vertical motion) and Height,Tropical and dynamics,Value,-# div Q,Heights,,,,,1,300_qvector_div
 UKMO,850mb Vorticity and Streamlines,Tropical and dynamics,Value,Relative vorticity,,,yes,,,1,850_stream_vort
 UKMO,"850mb Equivalent Potential Temperature, Wind and Height",Tropical and dynamics,Value,Equivalent potential temperature,Heights,yes,,,,1,850_thetae_ht
 UKMO,"850mb Vorticity, 500mb Height, 200mb Wind",Tropical and dynamics,Value,#mb relative vorticity,Heights,yes,,,,1,850vor_500ht_200wd
 UKMO,850-200mb Deep-Layer Wind Shear,Tropical and dynamics,Value,Shear magnitude,Pressure,yes,,,,1,shear_850_200
 UKMO,850-200mb Mean Wind (Steering Flow),Tropical and dynamics,Value,Mean wind speed,Pressure,yes,,,,1,steering_850_200
+UKMO,200mb Velocity Potential and Irrotational Wind,Upper air,Value,Velocity potential (#^# m^#/s: green the divergent outflow over rising air); barbs: the irrotational wind,,yes,,,,1,200_velocity_potential
 UKMO,"700mb Temperature, Wind and MSLP",Upper air,Value,#mb temperature,Pressure,yes,,,,1,700_temp_mslp
 UKMO,850-700mb Mean Relative Humidity,Upper air,Value,Mean relative humidity of # and # mb,,,,,,1,850_700_rh
 UKMO,"700-300mb Mean Relative Humidity, 500mb Height and Wind",Upper air,Value,"Mean relative humidity, #mb",Heights,yes,,,,1,rh_700_300
@@ -1922,6 +2031,7 @@ WOOF-NAM-HOSTED,"MSLP, 10m wind and precipitation",Precipitation and moisture,Va
 WOOF-NAM-HOSTED,"MSLP, 850mb temperature and precipitation",Precipitation and moisture,Value,"Precipitation, hours #","Pressure,Temperature",,,,,1,850_temp_mslp_precip
 WOOF-NAM-HOSTED,MSLP and Precipitable Water,Precipitation and moisture,Value,Precipitable water,Pressure,,,,,1,mslp_pwat
 WOOF-NAM-HOSTED,Total Accumulated Precipitation of Period,Precipitation and moisture,Value,"Precipitation, hours #",Pressure,,,,,1,precip_ptot
+WOOF-NAM-HOSTED,Surface-Based CAPE and the 850-500mb Wind Crossover,Severe: instability,Value,Surface-based CAPE,Other lines,yes,,,,1,sbcape_crossover
 WOOF-NAM-HOSTED,"Surface-Based CAPE, MSLP and 10m Wind",Severe: instability,Value,Surface-based CAPE,Pressure,yes,,,,1,sbcape_wind
 WOOF-NAM-HOSTED,Simulated Composite Radar Reflectivity,Severe: storm structure,Value,Composite reflectivity,,,,,,1,sim_radar_comp
 WOOF-NAM-HOSTED,"MSLP, 10m wind, 2m temperature",Surface,Value,# m temperature,Pressure,yes,,,,1,10m_wnd_2m_temp
@@ -1930,6 +2040,7 @@ WOOF-NAM-HOSTED,"2 m Relative Humidity (from temperature and dewpoint), MSLP and
 WOOF-NAM-HOSTED,MSLP and 10m Wind,Surface,Value,# m wind speed,Pressure,yes,,,,1,mslp_10m_wind
 WOOF-NAM-HOSTED,"200mb Divergence, Wind and Height",Tropical and dynamics,Value,Divergence,Heights,yes,,,,1,200_div_wnd
 WOOF-NAM-HOSTED,200mb Divergence and Streamlines,Tropical and dynamics,Value,Divergence,,,yes,,,1,200_stream_div
+WOOF-NAM-HOSTED,300mb Q-Vector Divergence (QG forcing for vertical motion) and Height,Tropical and dynamics,Value,-# div Q,Heights,,,,,1,300_qvector_div
 WOOF-NAM-HOSTED,850mb Vorticity and Streamlines,Tropical and dynamics,Value,Relative vorticity,,,yes,,,1,850_stream_vort
 WOOF-NAM-HOSTED,"850mb Equivalent Potential Temperature, Wind and Height",Tropical and dynamics,Value,Equivalent potential temperature,Heights,yes,,,,1,850_thetae_ht
 WOOF-NAM-HOSTED,"850mb Vorticity, 500mb Height, 200mb Wind",Tropical and dynamics,Value,#mb relative vorticity,Heights,yes,,,,1,850vor_500ht_200wd

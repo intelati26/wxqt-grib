@@ -1,3 +1,4 @@
+CHART AIFS|Anomalies|2m_temp_anom|2m Temperature Anomaly, MSLP and 10m Wind|2 m temperature against the 1991-2020 daily mean near the surface (C)|Sea level pressure (mb)|own||0
 CHART AIFS|Anomalies|500_hgt_anom|500mb Height and Anomaly|Height anomaly from the 1991-2020 mean (dam)|Height (dam)|own||0
 CHART AIFS|Anomalies|mslp_anom|MSLP and Anomaly|Pressure anomaly from the 1991-2020 mean (mb)|Sea level pressure (mb)|own||0
 CHART AIFS|Changes and trends|mslp_trend|MSLP and 48-hour Change|Sea level pressure change (mb)|Sea level pressure (mb)|||0
@@ -12,10 +13,12 @@ CHART AIFS|Precipitation and moisture|precip_ptot|Total Accumulated Precipitatio
 CHART AIFS|Surface|10m_wnd_2m_temp|MSLP, 10m wind, 2m temperature|2 m temperature|Sea level pressure (mb)|own||0
 CHART AIFS|Surface|2m_dewpoint|MSLP, 10m wind, 2m dewpoint|2 m dewpoint|Sea level pressure (mb)|own||0
 CHART AIFS|Surface|2m_rh_10m_wnd_derived|2 m Relative Humidity (from temperature and dewpoint), MSLP and 10m Wind|2 m relative humidity (%)|Sea level pressure (mb)|own||0
+CHART AIFS|Surface|330K_pv|330 K Isentropic Potential Vorticity, Wind and Pressure|Potential vorticity on the surface (PVU)|Pressure of the 330 K surface (mb)|own||0
 CHART AIFS|Surface|cloud_layers|Cloud Cover by Height (low, middle, high)|Low cloud (%): each place in the color of its layer with the most cover (gray low, blue middle, pink high; under 20% clear)||||2
 CHART AIFS|Surface|mslp_10m_wind|MSLP and 10m Wind|10 m wind speed (kt)|Sea level pressure (mb)|own||0
 CHART AIFS|Tropical and dynamics|200_div_wnd|200mb Divergence, Wind and Height|Divergence (1e-5 /s)|Height (dam)|own||0
 CHART AIFS|Tropical and dynamics|200_stream_div|200mb Divergence and Streamlines|Divergence (1e-5 /s)|||streamlines|0
+CHART AIFS|Tropical and dynamics|300_qvector_div|300mb Q-Vector Divergence (QG forcing for vertical motion) and Height|-2 div Q (10^-17 K per m^2 per s: forcing for rising red, sinking blue)|Height (dam)|||0
 CHART AIFS|Tropical and dynamics|500_vort_ht|500mb Vorticity, Wind, and Height|Relative vorticity (1e-5 /s)|Height (dam)|own||0
 CHART AIFS|Tropical and dynamics|850_stream_vort|850mb Vorticity and Streamlines|Relative vorticity (1e-5 /s)|||streamlines|0
 CHART AIFS|Tropical and dynamics|850_thetae_ht|850mb Equivalent Potential Temperature, Wind and Height|Equivalent potential temperature (K)|Height (dam)|own||0
@@ -25,6 +28,7 @@ CHART AIFS|Tropical and dynamics|shear_850_200|850-200mb Deep-Layer Wind Shear|S
 CHART AIFS|Tropical and dynamics|steering_850_200|850-200mb Mean Wind (Steering Flow)|Mean wind speed (kt)|Sea level pressure (mb)|own||0
 CHART AIFS|Upper air|100_temp_ht|100mb Temperature, Wind and Height|Temperature|Height (dam)|own||0
 CHART AIFS|Upper air|100_wnd_ht|100mb Wind and Height|Wind speed (kt)|Height (dam)|own||0
+CHART AIFS|Upper air|200_velocity_potential|200mb Velocity Potential and Irrotational Wind|Velocity potential (10^6 m^2/s: green the divergent outflow over rising air); barbs: the irrotational wind||own||0
 CHART AIFS|Upper air|200_wnd_ht|200mb Wind and Height|Wind speed (kt)|Height (dam)|||0
 CHART AIFS|Upper air|250_wnd_ht|250mb Wind and Height|Wind speed (kt)|Height (dam)|||0
 CHART AIFS|Upper air|300_wnd_ht|300mb Wind and Height|Wind speed (kt)|Height (dam)|||0
@@ -40,6 +44,7 @@ CHART AIFS|Upper air|850_temp_ht|850mb Temperature, Wind and Height|Temperature|
 CHART AIFS|Upper air|850_wnd_ht|850mb Height and Wind|Wind speed (kt)|Height (dam)|own||0
 CHART AIFS|Upper air|925_temp_ht|925mb Temperature, Wind and Height|Temperature|Height (dam)|own||0
 CHART AIFS|Upper air|rh_700_300|700-300mb Mean Relative Humidity, 500mb Height and Wind|Mean relative humidity, 700-300mb (%)|Height (dam)|own||0
+CHART AIGFS|Anomalies|2m_temp_anom|2m Temperature Anomaly, MSLP and 10m Wind|2 m temperature against the 1991-2020 daily mean near the surface (C)|Sea level pressure (mb)|own||0
 CHART AIGFS|Anomalies|500_hgt_anom|500mb Height and Anomaly|Height anomaly from the 1991-2020 mean (dam)|Height (dam)|own||0
 CHART AIGFS|Anomalies|mslp_anom|MSLP and Anomaly|Pressure anomaly from the 1991-2020 mean (mb)|Sea level pressure (mb)|own||0
 CHART AIGFS|Changes and trends|mslp_trend|MSLP and 48-hour Change|Sea level pressure change (mb)|Sea level pressure (mb)|||0
@@ -59,9 +64,11 @@ CHART AIGFS|Precipitation and moisture|precip_ptot|Total Accumulated Precipitati
 CHART AIGFS|Surface|10m_wnd_2m_temp|MSLP, 10m wind, 2m temperature|2 m temperature|Sea level pressure (mb)|own||0
 CHART AIGFS|Surface|2m_dewpoint|MSLP, 10m wind, 2m dewpoint|2 m dewpoint|Sea level pressure (mb)|own||0
 CHART AIGFS|Surface|2m_rh_10m_wnd_derived|2 m Relative Humidity (from temperature and dewpoint), MSLP and 10m Wind|2 m relative humidity (%)|Sea level pressure (mb)|own||0
+CHART AIGFS|Surface|330K_pv|330 K Isentropic Potential Vorticity, Wind and Pressure|Potential vorticity on the surface (PVU)|Pressure of the 330 K surface (mb)|own||0
 CHART AIGFS|Surface|mslp_10m_wind|MSLP and 10m Wind|10 m wind speed (kt)|Sea level pressure (mb)|own||0
 CHART AIGFS|Tropical and dynamics|200_div_wnd|200mb Divergence, Wind and Height|Divergence (1e-5 /s)|Height (dam)|own||0
 CHART AIGFS|Tropical and dynamics|200_stream_div|200mb Divergence and Streamlines|Divergence (1e-5 /s)|||streamlines|0
+CHART AIGFS|Tropical and dynamics|300_qvector_div|300mb Q-Vector Divergence (QG forcing for vertical motion) and Height|-2 div Q (10^-17 K per m^2 per s: forcing for rising red, sinking blue)|Height (dam)|||0
 CHART AIGFS|Tropical and dynamics|500_vort_ht|500mb Vorticity, Wind, and Height|Relative vorticity (1e-5 /s)|Height (dam)|own||0
 CHART AIGFS|Tropical and dynamics|850_stream_vort|850mb Vorticity and Streamlines|Relative vorticity (1e-5 /s)|||streamlines|0
 CHART AIGFS|Tropical and dynamics|850_thetae_ht|850mb Equivalent Potential Temperature, Wind and Height|Equivalent potential temperature (K)|Height (dam)|own||0
@@ -71,6 +78,7 @@ CHART AIGFS|Tropical and dynamics|shear_850_200|850-200mb Deep-Layer Wind Shear|
 CHART AIGFS|Tropical and dynamics|steering_850_200|850-200mb Mean Wind (Steering Flow)|Mean wind speed (kt)|Sea level pressure (mb)|own||0
 CHART AIGFS|Upper air|100_temp_ht|100mb Temperature, Wind and Height|Temperature|Height (dam)|own||0
 CHART AIGFS|Upper air|100_wnd_ht|100mb Wind and Height|Wind speed (kt)|Height (dam)|own||0
+CHART AIGFS|Upper air|200_velocity_potential|200mb Velocity Potential and Irrotational Wind|Velocity potential (10^6 m^2/s: green the divergent outflow over rising air); barbs: the irrotational wind||own||0
 CHART AIGFS|Upper air|200_wnd_ht|200mb Wind and Height|Wind speed (kt)|Height (dam)|||0
 CHART AIGFS|Upper air|250_wnd_ht|250mb Wind and Height|Wind speed (kt)|Height (dam)|||0
 CHART AIGFS|Upper air|300_wnd_ht|300mb Wind and Height|Wind speed (kt)|Height (dam)|||0
@@ -89,12 +97,15 @@ CHART AIGFS|Upper air|rh_700_300|700-300mb Mean Relative Humidity, 500mb Height 
 CHART AROME|Changes and trends|mslp_trend|MSLP and 48-hour Change|Sea level pressure change (mb)|Sea level pressure (mb)|||0
 CHART AROME|Changes and trends|z500_trend|500mb Height and 48-hour Change|500mb height change (dam)|Height (dam)|||0
 CHART AROME-HD|Surface|cloud_layers|Cloud Cover by Height (low, middle, high)|Low cloud (%): each place in the color of its layer with the most cover (gray low, blue middle, pink high; under 20% clear)||||2
+CHART AROME|Severe: instability|sbcape_crossover|Surface-Based CAPE and the 850-500mb Wind Crossover|Surface-based CAPE (J/kg)|Veering 850-500 mb (degrees, from 45; where CAPE is 100 J/kg or more)|own||0
 CHART AROME|Severe: instability|sbcape_wind|Surface-Based CAPE, MSLP and 10m Wind|Surface-based CAPE (J/kg)|Sea level pressure (mb)|own||0
 CHART AROME|Surface|10m_wnd_2m_temp|MSLP, 10m wind, 2m temperature|2 m temperature|Sea level pressure (mb)|own||0
+CHART AROME|Surface|330K_pv|330 K Isentropic Potential Vorticity, Wind and Pressure|Potential vorticity on the surface (PVU)|Pressure of the 330 K surface (mb)|own||0
 CHART AROME|Surface|cloud_layers|Cloud Cover by Height (low, middle, high)|Low cloud (%): each place in the color of its layer with the most cover (gray low, blue middle, pink high; under 20% clear)||||2
 CHART AROME|Surface|mslp_10m_wind|MSLP and 10m Wind|10 m wind speed (kt)|Sea level pressure (mb)|own||0
 CHART AROME|Tropical and dynamics|200_div_wnd|200mb Divergence, Wind and Height|Divergence (1e-5 /s)|Height (dam)|own||0
 CHART AROME|Tropical and dynamics|200_stream_div|200mb Divergence and Streamlines|Divergence (1e-5 /s)|||streamlines|0
+CHART AROME|Tropical and dynamics|300_qvector_div|300mb Q-Vector Divergence (QG forcing for vertical motion) and Height|-2 div Q (10^-17 K per m^2 per s: forcing for rising red, sinking blue)|Height (dam)|||0
 CHART AROME|Tropical and dynamics|500_vort_ht|500mb Vorticity, Wind, and Height|Relative vorticity (1e-5 /s)|Height (dam)|own||0
 CHART AROME|Tropical and dynamics|850_stream_vort|850mb Vorticity and Streamlines|Relative vorticity (1e-5 /s)|||streamlines|0
 CHART AROME|Tropical and dynamics|850_thetae_ht|850mb Equivalent Potential Temperature, Wind and Height|Equivalent potential temperature (K)|Height (dam)|own||0
@@ -122,12 +133,14 @@ CHART ARPEGE-EU|Changes and trends|mslp_trend|MSLP and 48-hour Change|Sea level 
 CHART ARPEGE-EU|Surface|10m_wnd_2m_temp|MSLP, 10m wind, 2m temperature|2 m temperature|Sea level pressure (mb)|own||0
 CHART ARPEGE-EU|Surface|cloud_layers|Cloud Cover by Height (low, middle, high)|Low cloud (%): each place in the color of its layer with the most cover (gray low, blue middle, pink high; under 20% clear)||||2
 CHART ARPEGE-EU|Surface|mslp_10m_wind|MSLP and 10m Wind|10 m wind speed (kt)|Sea level pressure (mb)|own||0
+CHART ARPEGE|Severe: instability|sbcape_crossover|Surface-Based CAPE and the 850-500mb Wind Crossover|Surface-based CAPE (J/kg)|Veering 850-500 mb (degrees, from 45; where CAPE is 100 J/kg or more)|own||0
 CHART ARPEGE|Severe: instability|sbcape_wind|Surface-Based CAPE, MSLP and 10m Wind|Surface-based CAPE (J/kg)|Sea level pressure (mb)|own||0
 CHART ARPEGE|Surface|10m_wnd_2m_temp|MSLP, 10m wind, 2m temperature|2 m temperature|Sea level pressure (mb)|own||0
 CHART ARPEGE|Surface|cloud_layers|Cloud Cover by Height (low, middle, high)|Low cloud (%): each place in the color of its layer with the most cover (gray low, blue middle, pink high; under 20% clear)||||2
 CHART ARPEGE|Surface|mslp_10m_wind|MSLP and 10m Wind|10 m wind speed (kt)|Sea level pressure (mb)|own||0
 CHART ARPEGE|Tropical and dynamics|200_div_wnd|200mb Divergence, Wind and Height|Divergence (1e-5 /s)|Height (dam)|own||0
 CHART ARPEGE|Tropical and dynamics|200_stream_div|200mb Divergence and Streamlines|Divergence (1e-5 /s)|||streamlines|0
+CHART ARPEGE|Tropical and dynamics|300_qvector_div|300mb Q-Vector Divergence (QG forcing for vertical motion) and Height|-2 div Q (10^-17 K per m^2 per s: forcing for rising red, sinking blue)|Height (dam)|||0
 CHART ARPEGE|Tropical and dynamics|500_vort_ht|500mb Vorticity, Wind, and Height|Relative vorticity (1e-5 /s)|Height (dam)|own||0
 CHART ARPEGE|Tropical and dynamics|850_stream_vort|850mb Vorticity and Streamlines|Relative vorticity (1e-5 /s)|||streamlines|0
 CHART ARPEGE|Tropical and dynamics|850_thetae_ht|850mb Equivalent Potential Temperature, Wind and Height|Equivalent potential temperature (K)|Height (dam)|own||0
@@ -137,6 +150,7 @@ CHART ARPEGE|Tropical and dynamics|shear_850_200|850-200mb Deep-Layer Wind Shear
 CHART ARPEGE|Tropical and dynamics|steering_850_200|850-200mb Mean Wind (Steering Flow)|Mean wind speed (kt)|Sea level pressure (mb)|own||0
 CHART ARPEGE|Upper air|100_temp_ht|100mb Temperature, Wind and Height|Temperature|Height (dam)|own||0
 CHART ARPEGE|Upper air|100_wnd_ht|100mb Wind and Height|Wind speed (kt)|Height (dam)|own||0
+CHART ARPEGE|Upper air|200_velocity_potential|200mb Velocity Potential and Irrotational Wind|Velocity potential (10^6 m^2/s: green the divergent outflow over rising air); barbs: the irrotational wind||own||0
 CHART ARPEGE|Upper air|200_wnd_ht|200mb Wind and Height|Wind speed (kt)|Height (dam)|||0
 CHART ARPEGE|Upper air|250_wnd_ht|250mb Wind and Height|Wind speed (kt)|Height (dam)|||0
 CHART ARPEGE|Upper air|300_wnd_ht|300mb Wind and Height|Wind speed (kt)|Height (dam)|||0
@@ -162,8 +176,10 @@ CHART CFS30|Surface|cfs30_mslp_departure|Next days: sea level pressure against t
 CHART CFS30|Surface|cfs30_mslp|Next days: mean sea level pressure|CFSv2, the mean of the next 0 days: sea level pressure (mb)||||0
 CHART CFS30|Surface|cfs30_t2m|Next days: temperature against the normal|CFSv2, next 0 days vs its normal: 2 m temperature||||0
 CHART CFS30|Surface|cfs30_t2m_value|Next days: mean temperature|CFSv2, the mean of the next 0 days: 2 m temperature||||0
+CHART CFS-ANL|Anomalies|2m_temp_anom|2m Temperature Anomaly, MSLP and 10m Wind|2 m temperature against the 1991-2020 daily mean near the surface (C)|Sea level pressure (mb)|own||0
 CHART CFS-ANL|Anomalies|500_hgt_anom|500mb Height and Anomaly|Height anomaly from the CFS normal (1999-2010) (dam)|Height (dam)|own||0
 CHART CFS-ANL|Anomalies|mslp_anom|MSLP and Anomaly|Pressure anomaly from the CFS normal (1999-2010) (mb)|Sea level pressure (mb)|own||0
+CHART CFS-ANL|Anomalies|pwat_anom|Precipitable Water Anomaly and MSLP|Precipitable water anomaly from the CFS normal (1999-2010) (mm)|Sea level pressure (mb)|||0
 CHART CFS-ANL|Changes and trends|mslp_trend|MSLP and 48-hour Change|Sea level pressure change (mb)|Sea level pressure (mb)|||0
 CHART CFS-ANL|Changes and trends|z500_trend|500mb Height and 48-hour Change|500mb height change (dam)|Height (dam)|||0
 CHART CFS-ANL|Precipitation and moisture|mslp_pwat|MSLP and Precipitable Water|Precipitable water|Sea level pressure (mb)|||0
@@ -179,8 +195,10 @@ CHART CFS-ANL|Upper air|850_pw_ht|850mb Height, Precipitable Water and Wind|Prec
 CHART CFS-ANL|Upper air|850_rh_ht|850mb Relative Humidity and Height|Relative humidity (%)|Height (dam)|own||0
 CHART CFS-ANL|Upper air|850_temp_ht|850mb Temperature, Wind and Height|Temperature|Height (dam)|own||0
 CHART CFS-ANL|Upper air|850_wnd_ht|850mb Height and Wind|Wind speed (kt)|Height (dam)|own||0
+CHART CFS|Anomalies|2m_temp_anom|2m Temperature Anomaly, MSLP and 10m Wind|2 m temperature against the 1991-2020 daily mean near the surface (C)|Sea level pressure (mb)|own||0
 CHART CFS|Anomalies|500_hgt_anom|500mb Height and Anomaly|Height anomaly from the CFS normal (1999-2010) (dam)|Height (dam)|own||0
 CHART CFS|Anomalies|mslp_anom|MSLP and Anomaly|Pressure anomaly from the CFS normal (1999-2010) (mb)|Sea level pressure (mb)|own||0
+CHART CFS|Anomalies|pwat_anom|Precipitable Water Anomaly and MSLP|Precipitable water anomaly from the CFS normal (1999-2010) (mm)|Sea level pressure (mb)|||0
 CHART CFS|Changes and trends|mslp_trend|MSLP and 48-hour Change|Sea level pressure change (mb)|Sea level pressure (mb)|||0
 CHART CFS|Changes and trends|z500_trend|500mb Height and 48-hour Change|500mb height change (dam)|Height (dam)|||0
 CHART CFS|Precipitation and moisture|mslp_pwat|MSLP and Precipitable Water|Precipitable water|Sea level pressure (mb)|||0
@@ -238,6 +256,7 @@ CHART ENS-ALL|Probability: temperature and wind|all_prob_24h_2in|Probability of 
 CHART ERA5|Changes and trends|mslp_trend|MSLP and 48-hour Change|Sea level pressure change (mb)|Sea level pressure (mb)|||0
 CHART ERA5|Changes and trends|z500_trend|500mb Height and 48-hour Change|500mb height change (dam)|Height (dam)|||0
 CHART ERA5|Precipitation and moisture|mslp_pwat|MSLP and Precipitable Water|Precipitable water|Sea level pressure (mb)|||0
+CHART ERA5|Severe: instability|sbcape_crossover|Surface-Based CAPE and the 850-500mb Wind Crossover|Surface-based CAPE (J/kg)|Veering 850-500 mb (degrees, from 45; where CAPE is 100 J/kg or more)|own||0
 CHART ERA5|Severe: instability|sbcape_wind|Surface-Based CAPE, MSLP and 10m Wind|Surface-based CAPE (J/kg)|Sea level pressure (mb)|own||0
 CHART ERA5|Surface|10m_wnd_2m_temp|MSLP, 10m wind, 2m temperature|2 m temperature|Sea level pressure (mb)|own||0
 CHART ERA5|Surface|2m_dewpoint|MSLP, 10m wind, 2m dewpoint|2 m dewpoint|Sea level pressure (mb)|own||0
@@ -246,6 +265,7 @@ CHART ERA5|Surface|cloud_layers|Cloud Cover by Height (low, middle, high)|Low cl
 CHART ERA5|Surface|mslp_10m_wind|MSLP and 10m Wind|10 m wind speed (kt)|Sea level pressure (mb)|own||0
 CHART ERA5|Tropical and dynamics|200_div_wnd|200mb Divergence, Wind and Height|Divergence (1e-5 /s)|Height (dam)|own||0
 CHART ERA5|Tropical and dynamics|200_stream_div|200mb Divergence and Streamlines|Divergence (1e-5 /s)|||streamlines|0
+CHART ERA5|Tropical and dynamics|300_qvector_div|300mb Q-Vector Divergence (QG forcing for vertical motion) and Height|-2 div Q (10^-17 K per m^2 per s: forcing for rising red, sinking blue)|Height (dam)|||0
 CHART ERA5|Tropical and dynamics|500_vort_ht|500mb Vorticity, Wind, and Height|Relative vorticity (1e-5 /s)|Height (dam)|own||0
 CHART ERA5|Tropical and dynamics|850_stream_vort|850mb Vorticity and Streamlines|Relative vorticity (1e-5 /s)|||streamlines|0
 CHART ERA5|Tropical and dynamics|850_thetae_ht|850mb Equivalent Potential Temperature, Wind and Height|Equivalent potential temperature (K)|Height (dam)|own||0
@@ -257,6 +277,7 @@ CHART ERA5|Upper air|100_temp_ht|100mb Temperature, Wind and Height|Temperature|
 CHART ERA5|Upper air|100_wnd_ht|100mb Wind and Height|Wind speed (kt)|Height (dam)|own||0
 CHART ERA5|Upper air|10_temp_ht|10mb Temperature, Wind and Height|Temperature|Height (dam)|own||0
 CHART ERA5|Upper air|10_wnd_ht|10mb Wind and Height|Wind speed (kt)|Height (dam)|own||0
+CHART ERA5|Upper air|200_velocity_potential|200mb Velocity Potential and Irrotational Wind|Velocity potential (10^6 m^2/s: green the divergent outflow over rising air); barbs: the irrotational wind||own||0
 CHART ERA5|Upper air|200_wnd_ht|200mb Wind and Height|Wind speed (kt)|Height (dam)|||0
 CHART ERA5|Upper air|250_wnd_ht|250mb Wind and Height|Wind speed (kt)|Height (dam)|||0
 CHART ERA5|Upper air|300_wnd_ht|300mb Wind and Height|Wind speed (kt)|Height (dam)|||0
@@ -278,9 +299,11 @@ CHART ERA5|Upper air|rh_700_300|700-300mb Mean Relative Humidity, 500mb Height a
 CHART GDPS|Changes and trends|mslp_trend|MSLP and 48-hour Change|Sea level pressure change (mb)|Sea level pressure (mb)|||0
 CHART GDPS|Changes and trends|z500_trend|500mb Height and 48-hour Change|500mb height change (dam)|Height (dam)|||0
 CHART GDPS|Surface|10m_wnd_2m_temp|MSLP, 10m wind, 2m temperature|2 m temperature|Sea level pressure (mb)|own||0
+CHART GDPS|Surface|330K_pv|330 K Isentropic Potential Vorticity, Wind and Pressure|Potential vorticity on the surface (PVU)|Pressure of the 330 K surface (mb)|own||0
 CHART GDPS|Surface|mslp_10m_wind|MSLP and 10m Wind|10 m wind speed (kt)|Sea level pressure (mb)|own||0
 CHART GDPS|Tropical and dynamics|200_div_wnd|200mb Divergence, Wind and Height|Divergence (1e-5 /s)|Height (dam)|own||0
 CHART GDPS|Tropical and dynamics|200_stream_div|200mb Divergence and Streamlines|Divergence (1e-5 /s)|||streamlines|0
+CHART GDPS|Tropical and dynamics|300_qvector_div|300mb Q-Vector Divergence (QG forcing for vertical motion) and Height|-2 div Q (10^-17 K per m^2 per s: forcing for rising red, sinking blue)|Height (dam)|||0
 CHART GDPS|Tropical and dynamics|500_vort_ht|500mb Vorticity, Wind, and Height|Relative vorticity (1e-5 /s)|Height (dam)|own||0
 CHART GDPS|Tropical and dynamics|850_stream_vort|850mb Vorticity and Streamlines|Relative vorticity (1e-5 /s)|||streamlines|0
 CHART GDPS|Tropical and dynamics|850_thetae_ht|850mb Equivalent Potential Temperature, Wind and Height|Equivalent potential temperature (K)|Height (dam)|own||0
@@ -290,6 +313,7 @@ CHART GDPS|Tropical and dynamics|shear_850_200|850-200mb Deep-Layer Wind Shear|S
 CHART GDPS|Tropical and dynamics|steering_850_200|850-200mb Mean Wind (Steering Flow)|Mean wind speed (kt)|Sea level pressure (mb)|own||0
 CHART GDPS|Upper air|100_temp_ht|100mb Temperature, Wind and Height|Temperature|Height (dam)|own||0
 CHART GDPS|Upper air|100_wnd_ht|100mb Wind and Height|Wind speed (kt)|Height (dam)|own||0
+CHART GDPS|Upper air|200_velocity_potential|200mb Velocity Potential and Irrotational Wind|Velocity potential (10^6 m^2/s: green the divergent outflow over rising air); barbs: the irrotational wind||own||0
 CHART GDPS|Upper air|200_wnd_ht|200mb Wind and Height|Wind speed (kt)|Height (dam)|||0
 CHART GDPS|Upper air|250_wnd_ht|250mb Wind and Height|Wind speed (kt)|Height (dam)|||0
 CHART GDPS|Upper air|300_wnd_ht|300mb Wind and Height|Wind speed (kt)|Height (dam)|||0
@@ -304,8 +328,10 @@ CHART GDPS|Upper air|850_temp_ht|850mb Temperature, Wind and Height|Temperature|
 CHART GDPS|Upper air|850_wnd_ht|850mb Height and Wind|Wind speed (kt)|Height (dam)|own||0
 CHART GDPS|Upper air|925_temp_ht|925mb Temperature, Wind and Height|Temperature|Height (dam)|own||0
 CHART GDPS|Upper air|rh_700_300|700-300mb Mean Relative Humidity, 500mb Height and Wind|Mean relative humidity, 700-300mb (%)|Height (dam)|own||0
+CHART GEFS|Anomalies|2m_temp_anom|Mean 2m Temperature Anomaly, MSLP and 10m Wind|2 m temperature against the 1991-2020 daily mean near the surface (C)|Sea level pressure (mb)|own||0
 CHART GEFS|Anomalies|500_hgt_anom|Mean 500mb Height and Anomaly|Height anomaly from the 1991-2020 mean (dam)|Height (dam)|own||0
 CHART GEFS|Anomalies|mslp_anom|Mean MSLP and Anomaly|Pressure anomaly from the 1991-2020 mean (mb)|Sea level pressure (mb)|own||0
+CHART GEFS|Anomalies|pwat_anom|Mean Precipitable Water Anomaly and MSLP|Precipitable water anomaly from the 1991-2020 mean (mm)|Sea level pressure (mb)|||0
 CHART GEFS|Changes and trends|mslp_trend|Mean MSLP and 48-hour Change|Sea level pressure change (mb)|Sea level pressure (mb)|||0
 CHART GEFS|Changes and trends|snodpth_chng_mean|Mean Snow Depth Change from the previous 24 hours|Mean change of the snow depth in the previous 24 hours||||0
 CHART GEFS|Changes and trends|snodpth_chng|Mean Snow Depth Change from F00|Snow depth change||||0
@@ -385,6 +411,7 @@ CHART GEFS|Probability: severe and storms|prob_cape_250|Probability of CAPE over
 CHART GEFS|Probability: severe and storms|prob_cape_4000|Probability of CAPE over 4000|Chance of surface-based CAPE over 4000 J/kg (% of the 31 members)||||0
 CHART GEFS|Probability: severe and storms|prob_cape_500|Probability of CAPE over 500|Chance of surface-based CAPE over 500 J/kg (% of the 31 members)||||0
 CHART GEFS|Severe: instability|cape|Mean CAPE and Spread|Mean CAPE (J/kg)|Spread of the CAPE (J/kg)|||0
+CHART GEFS|Severe: instability|sbcape_crossover|Mean Surface-Based CAPE and the 850-500mb Wind Crossover|Surface-based CAPE (J/kg)|Veering 850-500 mb (degrees, from 45; where CAPE is 100 J/kg or more)|own||0
 CHART GEFS|Severe: instability|sbcape_wind|Mean Surface-Based CAPE, MSLP and 10m Wind|Surface-based CAPE (J/kg)|Sea level pressure (mb)|own||0
 CHART GEFS|Surface|10m_wnd_2m_temp|Mean MSLP, 10m wind, 2m temperature|2 m temperature|Sea level pressure (mb)|own||0
 CHART GEFS|Surface|10m_wnd|Mean 10m Winds and Spread|Spread of the 10 m wind speed (m/s)||own||0
@@ -395,6 +422,7 @@ CHART GEFS|Surface|mslp_10m_wind|Mean MSLP and 10m Wind|10 m wind speed (kt)|Sea
 CHART GEFS|Surface|mslp|Mean Sea Level Pressure and Spread|Spread of the sea level pressure (mb)|Sea level pressure (mb)|||0
 CHART GEFS|Tropical and dynamics|200_div_wnd|Mean 200mb Divergence, Wind and Height|Divergence (1e-5 /s)|Height (dam)|own||0
 CHART GEFS|Tropical and dynamics|200_stream_div|Mean 200mb Divergence and Streamlines|Divergence (1e-5 /s)|||streamlines|0
+CHART GEFS|Tropical and dynamics|300_qvector_div|Mean 300mb Q-Vector Divergence (QG forcing for vertical motion) and Height|-2 div Q (10^-17 K per m^2 per s: forcing for rising red, sinking blue)|Height (dam)|||0
 CHART GEFS|Tropical and dynamics|500_vort_ht|Mean 500mb Height, Vorticity and Spread|Spread of the 500 mb height (m)|Mean height (dam);Mean vorticity (1e-5 /s)|||0
 CHART GEFS|Tropical and dynamics|700_vort_ht|Mean 700mb Height, Vorticity and Spread|Spread of the 700 mb height (m)|Mean height (dam);Mean vorticity (1e-5 /s)|||0
 CHART GEFS|Tropical and dynamics|850_stream_vort|Mean 850mb Vorticity and Streamlines|Relative vorticity (1e-5 /s)|||streamlines|0
@@ -407,6 +435,7 @@ CHART GEFS|Upper air|100_temp_ht|Mean 100mb Temperature, Wind and Height|Tempera
 CHART GEFS|Upper air|100_wnd_ht|Mean 100mb Wind and Height|Wind speed (kt)|Height (dam)|own||0
 CHART GEFS|Upper air|10_temp_ht|Mean 10mb Temperature, Wind and Height|Temperature|Height (dam)|own||0
 CHART GEFS|Upper air|10_wnd_ht|Mean 10mb Wind and Height|Wind speed (kt)|Height (dam)|own||0
+CHART GEFS|Upper air|200_velocity_potential|Mean 200mb Velocity Potential and Irrotational Wind|Velocity potential (10^6 m^2/s: green the divergent outflow over rising air); barbs: the irrotational wind||own||0
 CHART GEFS|Upper air|200_wnd_ht|Mean 200mb Wind and Height|Wind speed (kt)|Height (dam)|||0
 CHART GEFS|Upper air|250_temp|Mean 250mb Temperature and Spread|Spread of the 250 mb temperature (K)|Mean temperature (C)|||0
 CHART GEFS|Upper air|250_wnd_ht|Mean 250mb Wind and Height|Wind speed (kt)|Height (dam)|||0
@@ -455,10 +484,13 @@ CHART GEOS-FP|Changes and trends|mslp_trend|MSLP and 48-hour Change|Sea level pr
 CHART GEOS-FP|Changes and trends|z500_trend|500mb Height and 48-hour Change|500mb height change (dam)|Height (dam)|||0
 CHART GEOS-FP|Precipitation and moisture|mslp_pwat|MSLP and Precipitable Water|Precipitable water|Sea level pressure (mb)|||0
 CHART GEOS-FP|Surface|10m_wnd_2m_temp|MSLP, 10m wind, 2m temperature|2 m temperature|Sea level pressure (mb)|own||0
+CHART GEOS-FP|Surface|850_frontogenesis|850mb Frontogenesis, Height and Wind|Frontogenesis (K per 100 km per 3 hours; the potential temperature's gradient strengthening)|Height (dam)|own||0
+CHART GEOS-FP|Surface|850_okubo_weiss|850mb Okubo-Weiss (strain against rotation) and Streamlines|Okubo-Weiss number (10^-10 per s^2, the wind smoothed to the synoptic scale: strain red, rotation blue)|||streamlines|0
 CHART GEOS-FP|Surface|cloud_layers|Cloud Cover by Height (low, middle, high)|Low cloud (%): each place in the color of its layer with the most cover (gray low, blue middle, pink high; under 20% clear)||||2
 CHART GEOS-FP|Surface|mslp_10m_wind|MSLP and 10m Wind|10 m wind speed (kt)|Sea level pressure (mb)|own||0
 CHART GEOS-FP|Tropical and dynamics|200_div_wnd|200mb Divergence, Wind and Height|Divergence (1e-5 /s)|Height (dam)|own||0
 CHART GEOS-FP|Tropical and dynamics|200_stream_div|200mb Divergence and Streamlines|Divergence (1e-5 /s)|||streamlines|0
+CHART GEOS-FP|Tropical and dynamics|300_qvector_div|300mb Q-Vector Divergence (QG forcing for vertical motion) and Height|-2 div Q (10^-17 K per m^2 per s: forcing for rising red, sinking blue)|Height (dam)|||0
 CHART GEOS-FP|Tropical and dynamics|850_stream_vort|850mb Vorticity and Streamlines|Relative vorticity (1e-5 /s)|||streamlines|0
 CHART GEOS-FP|Tropical and dynamics|850_thetae_ht|850mb Equivalent Potential Temperature, Wind and Height|Equivalent potential temperature (K)|Height (dam)|own||0
 CHART GEOS-FP|Tropical and dynamics|850vor_500ht_200wd|850mb Vorticity, 500mb Height, 200mb Wind|850mb relative vorticity (1e-5 /s)|Height (dam)|own||0
@@ -472,6 +504,7 @@ CHART GEOS-FP|Upper air|10_temp_ht|10mb Temperature, Wind and Height|Temperature
 CHART GEOS-FP|Upper air|10_wnd_ht|10mb Wind and Height|Wind speed (kt)|Height (dam)|own||0
 CHART GEOS-FP|Upper air|1_temp_ht|1mb Temperature, Wind and Height|Temperature|Height (dam)|own||0
 CHART GEOS-FP|Upper air|1_wnd_ht|1mb Wind and Height|Wind speed (kt)|Height (dam)|own||0
+CHART GEOS-FP|Upper air|200_velocity_potential|200mb Velocity Potential and Irrotational Wind|Velocity potential (10^6 m^2/s: green the divergent outflow over rising air); barbs: the irrotational wind||own||0
 CHART GEOS-FP|Upper air|200_wnd_ht|200mb Wind and Height|Wind speed (kt)|Height (dam)|||0
 CHART GEOS-FP|Upper air|20_pv_ht|20mb Potential Vorticity (its own), Wind and Height|Potential vorticity (PVU)|Height (dam)|own||0
 CHART GEOS-FP|Upper air|20_temp_ht|20mb Temperature, Wind and Height|Temperature|Height (dam)|own||0
@@ -490,12 +523,15 @@ CHART GEOS-FP|Upper air|50_temp_ht|50mb Temperature, Wind and Height|Temperature
 CHART GEOS-FP|Upper air|50_wnd_ht|50mb Wind and Height|Wind speed (kt)|Height (dam)|own||0
 CHART GEOS-FP|Upper air|5_temp_ht|5mb Temperature, Wind and Height|Temperature|Height (dam)|own||0
 CHART GEOS-FP|Upper air|5_wnd_ht|5mb Wind and Height|Wind speed (kt)|Height (dam)|own||0
+CHART GEOS-FP|Upper air|700_frontogenesis|700mb Frontogenesis, Height and Wind|Frontogenesis (K per 100 km per 3 hours; the potential temperature's gradient strengthening)|Height (dam)|own||0
+CHART GEOS-FP|Upper air|700_temp_adv|700mb Temperature Advection, Height and Wind|Temperature advection (C per 3 hours: warm red, cold blue)|Height (dam)|own||0
 CHART GEOS-FP|Upper air|700_temp_mslp|700mb Temperature, Wind and MSLP|700mb temperature|Sea level pressure (mb)|own||0
 CHART GEOS-FP|Upper air|70_pv_ht|70mb Potential Vorticity (its own), Wind and Height|Potential vorticity (PVU)|Height (dam)|own||0
 CHART GEOS-FP|Upper air|70_temp_ht|70mb Temperature, Wind and Height|Temperature|Height (dam)|own||0
 CHART GEOS-FP|Upper air|70_wnd_ht|70mb Wind and Height|Wind speed (kt)|Height (dam)|own||0
 CHART GEOS-FP|Upper air|850_pw_ht|850mb Height, Precipitable Water and Wind|Precipitable water|Height (dam)|own||0
 CHART GEOS-FP|Upper air|850_rh_ht|850mb Relative Humidity and Height|Relative humidity (%)|Height (dam)|own||0
+CHART GEOS-FP|Upper air|850_temp_adv|850mb Temperature Advection, Height and Wind|Temperature advection (C per 3 hours: warm red, cold blue)|Height (dam)|own||0
 CHART GEOS-FP|Upper air|850_temp_ht|850mb Temperature, Wind and Height|Temperature|Height (dam)|own||0
 CHART GEOS-FP|Upper air|850_wnd_ht|850mb Height and Wind|Wind speed (kt)|Height (dam)|own||0
 CHART GEOS-FP|Upper air|925_temp_ht|925mb Temperature, Wind and Height|Temperature|Height (dam)|own||0
@@ -528,6 +564,7 @@ CHART GEPS|Probability: precipitation|prob_total_1in|Probability of total precip
 CHART GEPS|Probability: precipitation|prob_total_2in|Probability of total precipitation of 2.00 in or more (since the start of the run)|Chance of 2.00 in or more of precipitation in total since the start of the run (% of the 21 members)||||0
 CHART GEPS|Probability: temperature and wind|prob_2m_temp_90f|Probability of 2m Temperature at or over 90 F|Chance of 90 F or hotter (% of the 21 members)||||0
 CHART GEPS|Probability: temperature and wind|prob_2m_temp_freezing|Probability of 2m Temperature at or under Freezing|Chance of 0 C or colder (% of the 21 members)||||0
+CHART GEPS|Severe: instability|sbcape_crossover|Mean Surface-Based CAPE and the 850-500mb Wind Crossover|Surface-based CAPE (J/kg)|Veering 850-500 mb (degrees, from 45; where CAPE is 100 J/kg or more)|own||0
 CHART GEPS|Severe: instability|sbcape_wind|Mean Surface-Based CAPE, MSLP and 10m Wind|Surface-based CAPE (J/kg)|Sea level pressure (mb)|own||0
 CHART GEPS|Surface|10m_wnd_2m_temp|Mean MSLP, 10m wind, 2m temperature|2 m temperature|Sea level pressure (mb)|own||0
 CHART GEPS|Surface|mslp_10m_wind|Mean MSLP and 10m Wind|10 m wind speed (kt)|Sea level pressure (mb)|own||0
@@ -540,6 +577,7 @@ CHART GEPS|Upper air|100_temp_ht|Mean 100mb Temperature, Wind and Height|Tempera
 CHART GEPS|Upper air|100_wnd_ht|Mean 100mb Wind and Height|Wind speed (kt)|Height (dam)|own||0
 CHART GEPS|Upper air|10_temp_ht|Mean 10mb Temperature, Wind and Height|Temperature|Height (dam)|own||0
 CHART GEPS|Upper air|10_wnd_ht|Mean 10mb Wind and Height|Wind speed (kt)|Height (dam)|own||0
+CHART GEPS|Upper air|200_velocity_potential|Mean 200mb Velocity Potential and Irrotational Wind|Velocity potential (10^6 m^2/s: green the divergent outflow over rising air); barbs: the irrotational wind||own||0
 CHART GEPS|Upper air|200_wnd_ht|Mean 200mb Wind and Height|Wind speed (kt)|Height (dam)|||0
 CHART GEPS|Upper air|250_wnd_ht|Mean 250mb Wind and Height|Wind speed (kt)|Height (dam)|||0
 CHART GEPS|Upper air|300_wnd_ht|Mean 300mb Wind and Height|Wind speed (kt)|Height (dam)|||0
@@ -557,6 +595,7 @@ CHART GEPS|Upper air|925_temp_ht|Mean 925mb Temperature, Wind and Height|Tempera
 CHART GFS1-ANL|Changes and trends|mslp_trend|MSLP and 48-hour Change|Sea level pressure change (mb)|Sea level pressure (mb)|||0
 CHART GFS1-ANL|Changes and trends|z500_trend|500mb Height and 48-hour Change|500mb height change (dam)|Height (dam)|||0
 CHART GFS1-ANL|Precipitation and moisture|mslp_pwat|MSLP and Precipitable Water|Precipitable water|Sea level pressure (mb)|||0
+CHART GFS1-ANL|Severe: instability|sbcape_crossover|Surface-Based CAPE and the 850-500mb Wind Crossover|Surface-based CAPE (J/kg)|Veering 850-500 mb (degrees, from 45; where CAPE is 100 J/kg or more)|own||0
 CHART GFS1-ANL|Severe: instability|sbcape_wind|Surface-Based CAPE, MSLP and 10m Wind|Surface-based CAPE (J/kg)|Sea level pressure (mb)|own||0
 CHART GFS1-ANL|Surface|10m_wnd_2m_temp|MSLP, 10m wind, 2m temperature|2 m temperature|Sea level pressure (mb)|own||0
 CHART GFS1-ANL|Surface|2m_dewpoint|MSLP, 10m wind, 2m dewpoint|2 m dewpoint|Sea level pressure (mb)|own||0
@@ -564,6 +603,7 @@ CHART GFS1-ANL|Surface|2m_rh_10m_wnd_derived|2 m Relative Humidity (from tempera
 CHART GFS1-ANL|Surface|mslp_10m_wind|MSLP and 10m Wind|10 m wind speed (kt)|Sea level pressure (mb)|own||0
 CHART GFS1-ANL|Tropical and dynamics|200_div_wnd|200mb Divergence, Wind and Height|Divergence (1e-5 /s)|Height (dam)|own||0
 CHART GFS1-ANL|Tropical and dynamics|200_stream_div|200mb Divergence and Streamlines|Divergence (1e-5 /s)|||streamlines|0
+CHART GFS1-ANL|Tropical and dynamics|300_qvector_div|300mb Q-Vector Divergence (QG forcing for vertical motion) and Height|-2 div Q (10^-17 K per m^2 per s: forcing for rising red, sinking blue)|Height (dam)|||0
 CHART GFS1-ANL|Tropical and dynamics|500_vort_ht|500mb Vorticity, Wind, and Height|Relative vorticity (1e-5 /s)|Height (dam)|own||0
 CHART GFS1-ANL|Tropical and dynamics|850_stream_vort|850mb Vorticity and Streamlines|Relative vorticity (1e-5 /s)|||streamlines|0
 CHART GFS1-ANL|Tropical and dynamics|850_thetae_ht|850mb Equivalent Potential Temperature, Wind and Height|Equivalent potential temperature (K)|Height (dam)|own||0
@@ -573,6 +613,7 @@ CHART GFS1-ANL|Tropical and dynamics|shear_850_200|850-200mb Deep-Layer Wind She
 CHART GFS1-ANL|Tropical and dynamics|steering_850_200|850-200mb Mean Wind (Steering Flow)|Mean wind speed (kt)|Sea level pressure (mb)|own||0
 CHART GFS1-ANL|Upper air|100_temp_ht|100mb Temperature, Wind and Height|Temperature|Height (dam)|own||0
 CHART GFS1-ANL|Upper air|100_wnd_ht|100mb Wind and Height|Wind speed (kt)|Height (dam)|own||0
+CHART GFS1-ANL|Upper air|200_velocity_potential|200mb Velocity Potential and Irrotational Wind|Velocity potential (10^6 m^2/s: green the divergent outflow over rising air); barbs: the irrotational wind||own||0
 CHART GFS1-ANL|Upper air|200_wnd_ht|200mb Wind and Height|Wind speed (kt)|Height (dam)|||0
 CHART GFS1-ANL|Upper air|250_wnd_ht|250mb Wind and Height|Wind speed (kt)|Height (dam)|||0
 CHART GFS1-ANL|Upper air|300_wnd_ht|300mb Wind and Height|Wind speed (kt)|Height (dam)|||0
@@ -590,6 +631,7 @@ CHART GFS1-ANL|Upper air|rh_700_300|700-300mb Mean Relative Humidity, 500mb Heig
 CHART GFS-ANL|Changes and trends|mslp_trend|MSLP and 48-hour Change|Sea level pressure change (mb)|Sea level pressure (mb)|||0
 CHART GFS-ANL|Changes and trends|z500_trend|500mb Height and 48-hour Change|500mb height change (dam)|Height (dam)|||0
 CHART GFS-ANL|Precipitation and moisture|mslp_pwat|MSLP and Precipitable Water|Precipitable water|Sea level pressure (mb)|||0
+CHART GFS-ANL|Severe: instability|sbcape_crossover|Surface-Based CAPE and the 850-500mb Wind Crossover|Surface-based CAPE (J/kg)|Veering 850-500 mb (degrees, from 45; where CAPE is 100 J/kg or more)|own||0
 CHART GFS-ANL|Severe: instability|sbcape_wind|Surface-Based CAPE, MSLP and 10m Wind|Surface-based CAPE (J/kg)|Sea level pressure (mb)|own||0
 CHART GFS-ANL|Surface|10m_wnd_2m_temp|MSLP, 10m wind, 2m temperature|2 m temperature|Sea level pressure (mb)|own||0
 CHART GFS-ANL|Surface|2m_dewpoint|MSLP, 10m wind, 2m dewpoint|2 m dewpoint|Sea level pressure (mb)|own||0
@@ -597,6 +639,7 @@ CHART GFS-ANL|Surface|2m_rh_10m_wnd_derived|2 m Relative Humidity (from temperat
 CHART GFS-ANL|Surface|mslp_10m_wind|MSLP and 10m Wind|10 m wind speed (kt)|Sea level pressure (mb)|own||0
 CHART GFS-ANL|Tropical and dynamics|200_div_wnd|200mb Divergence, Wind and Height|Divergence (1e-5 /s)|Height (dam)|own||0
 CHART GFS-ANL|Tropical and dynamics|200_stream_div|200mb Divergence and Streamlines|Divergence (1e-5 /s)|||streamlines|0
+CHART GFS-ANL|Tropical and dynamics|300_qvector_div|300mb Q-Vector Divergence (QG forcing for vertical motion) and Height|-2 div Q (10^-17 K per m^2 per s: forcing for rising red, sinking blue)|Height (dam)|||0
 CHART GFS-ANL|Tropical and dynamics|500_vort_ht|500mb Vorticity, Wind, and Height|Relative vorticity (1e-5 /s)|Height (dam)|own||0
 CHART GFS-ANL|Tropical and dynamics|850_stream_vort|850mb Vorticity and Streamlines|Relative vorticity (1e-5 /s)|||streamlines|0
 CHART GFS-ANL|Tropical and dynamics|850_thetae_ht|850mb Equivalent Potential Temperature, Wind and Height|Equivalent potential temperature (K)|Height (dam)|own||0
@@ -606,6 +649,7 @@ CHART GFS-ANL|Tropical and dynamics|shear_850_200|850-200mb Deep-Layer Wind Shea
 CHART GFS-ANL|Tropical and dynamics|steering_850_200|850-200mb Mean Wind (Steering Flow)|Mean wind speed (kt)|Sea level pressure (mb)|own||0
 CHART GFS-ANL|Upper air|100_temp_ht|100mb Temperature, Wind and Height|Temperature|Height (dam)|own||0
 CHART GFS-ANL|Upper air|100_wnd_ht|100mb Wind and Height|Wind speed (kt)|Height (dam)|own||0
+CHART GFS-ANL|Upper air|200_velocity_potential|200mb Velocity Potential and Irrotational Wind|Velocity potential (10^6 m^2/s: green the divergent outflow over rising air); barbs: the irrotational wind||own||0
 CHART GFS-ANL|Upper air|200_wnd_ht|200mb Wind and Height|Wind speed (kt)|Height (dam)|||0
 CHART GFS-ANL|Upper air|250_wnd_ht|250mb Wind and Height|Wind speed (kt)|Height (dam)|||0
 CHART GFS-ANL|Upper air|300_wnd_ht|300mb Wind and Height|Wind speed (kt)|Height (dam)|||0
@@ -620,9 +664,12 @@ CHART GFS-ANL|Upper air|850_temp_ht|850mb Temperature, Wind and Height|Temperatu
 CHART GFS-ANL|Upper air|850_wnd_ht|850mb Height and Wind|Wind speed (kt)|Height (dam)|own||0
 CHART GFS-ANL|Upper air|925_temp_ht|925mb Temperature, Wind and Height|Temperature|Height (dam)|own||0
 CHART GFS-ANL|Upper air|rh_700_300|700-300mb Mean Relative Humidity, 500mb Height and Wind|Mean relative humidity, 700-300mb (%)|Height (dam)|own||0
+CHART GFS|Anomalies|2m_temp_anom|2m Temperature Anomaly, MSLP and 10m Wind|2 m temperature against the 1991-2020 daily mean near the surface (C)|Sea level pressure (mb)|own||0
 CHART GFS|Anomalies|500_hgt_anom|500mb Height and Anomaly|Height anomaly from the 1991-2020 mean (dam)|Height (dam)|own||0
 CHART GFS|Anomalies|700_hgt_anom|700mb Height and Anomaly|Height anomaly from the 1991-2020 mean (dam)|Height (dam)|own||0
+CHART GFS|Anomalies|850_temp_anom|850mb Temperature Anomaly, Height and Wind|850 mb temperature anomaly from the 1991-2020 mean (C)|Height (dam)|own||0
 CHART GFS|Anomalies|mslp_anom|MSLP and Anomaly|Pressure anomaly from the 1991-2020 mean (mb)|Sea level pressure (mb)|own||0
+CHART GFS|Anomalies|pwat_anom|Precipitable Water Anomaly and MSLP|Precipitable water anomaly from the 1991-2020 mean (mm)|Sea level pressure (mb)|||0
 CHART GFS|Changes and trends|mslp_trend|MSLP and 48-hour Change|Sea level pressure change (mb)|Sea level pressure (mb)|||0
 CHART GFS|Changes and trends|snodpth_chng|Snow Depth Change from F00|Snow depth change||||0
 CHART GFS|Changes and trends|z500_trend|500mb Height and 48-hour Change|500mb height change (dam)|Height (dam)|||0
@@ -647,18 +694,29 @@ CHART GFS|Precipitation and moisture|precip_p60|Total Precipitation every 60 hou
 CHART GFS|Precipitation and moisture|precip_ptot|Total Accumulated Precipitation of Period|Precipitation, hours 0-12|Sea level pressure (mb)|||0
 CHART GFS|Precipitation and moisture|precip_rate_type|MSLP, 1000-500mb thickness and Precipitation Rate (Rain / Snow / Mixed)|Precipitation rate per hour (green rain, blue snow, pink mixed)|Sea level pressure (mb);1000-500mb thickness (dam)|||2
 CHART GFS|Precipitation and moisture|precip_type|MSLP and Precipitation (Rain / Snow / Mixed)|Precipitation (green rain, blue snow, pink mixed), hours 9-12|Sea level pressure (mb);1000-500mb thickness (dam)|||2
+CHART GFS|Precipitation and moisture|snow_24h|Snowfall in 24 hours (10:1)|Snowfall at 10:1, hours 0-12||||0
+CHART GFS|Precipitation and moisture|snow_total|Total Snowfall (10:1)|Snowfall at 10:1, hours 0-12||||0
+CHART GFS|Severe: instability|sbcape_crossover|Surface-Based CAPE and the 850-500mb Wind Crossover|Surface-based CAPE (J/kg)|Veering 850-500 mb (degrees, from 45; where CAPE is 100 J/kg or more)|own||0
 CHART GFS|Severe: instability|sbcape_wind|Surface-Based CAPE, MSLP and 10m Wind|Surface-based CAPE (J/kg)|Sea level pressure (mb)|own||0
 CHART GFS|Severe: storm structure|sim_radar_comp|Simulated Composite Radar Reflectivity|Composite reflectivity (dBZ)||||0
 CHART GFS|Surface|10m_wnd_2m_temp|MSLP, 10m wind, 2m temperature|2 m temperature|Sea level pressure (mb)|own||0
+CHART GFS|Surface|290K_isen|290 K Isentropic Relative Humidity, Wind and Pressure|Relative humidity on the surface (%)|Pressure of the 290 K surface (mb)|own||0
 CHART GFS|Surface|2m_dewpoint|MSLP, 10m wind, 2m dewpoint|2 m dewpoint|Sea level pressure (mb)|own||0
 CHART GFS|Surface|2m_rh_10m_wnd_derived|2 m Relative Humidity (from temperature and dewpoint), MSLP and 10m Wind|2 m relative humidity (%)|Sea level pressure (mb)|own||0
+CHART GFS|Surface|330K_pv|330 K Isentropic Potential Vorticity, Wind and Pressure|Potential vorticity on the surface (PVU)|Pressure of the 330 K surface (mb)|own||0
 CHART GFS|Surface|530K_pv|530 K Isentropic Potential Vorticity, Wind and Pressure|Potential vorticity on the surface (PVU)|Pressure of the 530 K surface (mb)|own||0
 CHART GFS|Surface|650K_pv|650 K Isentropic Potential Vorticity, Wind and Pressure|Potential vorticity on the surface (PVU)|Pressure of the 650 K surface (mb)|own||0
+CHART GFS|Surface|850_frontogenesis|850mb Frontogenesis, Height and Wind|Frontogenesis (K per 100 km per 3 hours; the potential temperature's gradient strengthening)|Height (dam)|own||0
 CHART GFS|Surface|850K_pv|850 K Isentropic Potential Vorticity, Wind and Pressure|Potential vorticity on the surface (PVU)|Pressure of the 850 K surface (mb)|own||0
+CHART GFS|Surface|850_okubo_weiss|850mb Okubo-Weiss (strain against rotation) and Streamlines|Okubo-Weiss number (10^-10 per s^2, the wind smoothed to the synoptic scale: strain red, rotation blue)|||streamlines|0
 CHART GFS|Surface|cloud_layers|Cloud Cover by Height (low, middle, high)|Low cloud (%): each place in the color of its layer with the most cover (gray low, blue middle, pink high; under 20% clear)||||2
+CHART GFS|Surface|dt_pressure|Dynamic Tropopause (2 PVU) Pressure and Wind|Pressure of the 2 PVU surface (mb)||own||0
+CHART GFS|Surface|dt_theta|Dynamic Tropopause (2 PVU) Potential Temperature and Wind|Potential temperature on the 2 PVU surface (K)||own||0
 CHART GFS|Surface|mslp_10m_wind|MSLP and 10m Wind|10 m wind speed (kt)|Sea level pressure (mb)|own||0
+CHART GFS|Surface|sim_ir|Simulated Infrared (outgoing longwave as brightness temperature)|Brightness temperature (C) of the outgoing longwave, the mean of the last hours||||0
 CHART GFS|Tropical and dynamics|200_div_wnd|200mb Divergence, Wind and Height|Divergence (1e-5 /s)|Height (dam)|own||0
 CHART GFS|Tropical and dynamics|200_stream_div|200mb Divergence and Streamlines|Divergence (1e-5 /s)|||streamlines|0
+CHART GFS|Tropical and dynamics|300_qvector_div|300mb Q-Vector Divergence (QG forcing for vertical motion) and Height|-2 div Q (10^-17 K per m^2 per s: forcing for rising red, sinking blue)|Height (dam)|||0
 CHART GFS|Tropical and dynamics|500_vort_ht|500mb Vorticity, Wind, and Height|Relative vorticity (1e-5 /s)|Height (dam)|own||0
 CHART GFS|Tropical and dynamics|850_stream_vort|850mb Vorticity and Streamlines|Relative vorticity (1e-5 /s)|||streamlines|0
 CHART GFS|Tropical and dynamics|850_thetae_ht|850mb Equivalent Potential Temperature, Wind and Height|Equivalent potential temperature (K)|Height (dam)|own||0
@@ -674,6 +732,7 @@ CHART GFS|Upper air|10_temp_ht|10mb Temperature, Wind and Height|Temperature|Hei
 CHART GFS|Upper air|10_wnd_ht|10mb Wind and Height|Wind speed (kt)|Height (dam)|own||0
 CHART GFS|Upper air|1_temp_ht|1mb Temperature, Wind and Height|Temperature|Height (dam)|own||0
 CHART GFS|Upper air|1_wnd_ht|1mb Wind and Height|Wind speed (kt)|Height (dam)|own||0
+CHART GFS|Upper air|200_velocity_potential|200mb Velocity Potential and Irrotational Wind|Velocity potential (10^6 m^2/s: green the divergent outflow over rising air); barbs: the irrotational wind||own||0
 CHART GFS|Upper air|200_wnd_ht|200mb Wind and Height|Wind speed (kt)|Height (dam)|||0
 CHART GFS|Upper air|20_pv_ht|20mb Potential Vorticity, Wind and Height|Potential vorticity (PVU)|Height (dam)|own||0
 CHART GFS|Upper air|20_temp_ht|20mb Temperature, Wind and Height|Temperature|Height (dam)|own||0
@@ -681,6 +740,7 @@ CHART GFS|Upper air|20_wnd_ht|20mb Wind and Height|Wind speed (kt)|Height (dam)|
 CHART GFS|Upper air|250_wnd_ht|250mb Wind and Height|Wind speed (kt)|Height (dam)|||0
 CHART GFS|Upper air|2_temp_ht|2mb Temperature, Wind and Height|Temperature|Height (dam)|own||0
 CHART GFS|Upper air|2_wnd_ht|2mb Wind and Height|Wind speed (kt)|Height (dam)|own||0
+CHART GFS|Upper air|300K_isen|300 K Isentropic Relative Humidity, Wind and Pressure|Relative humidity on the surface (%)|Pressure of the 300 K surface (mb)|own||0
 CHART GFS|Upper air|300_wnd_ht|300mb Wind and Height|Wind speed (kt)|Height (dam)|||0
 CHART GFS|Upper air|30_pv_ht|30mb Potential Vorticity, Wind and Height|Potential vorticity (PVU)|Height (dam)|own||0
 CHART GFS|Upper air|30_temp_ht|30mb Temperature, Wind and Height|Temperature|Height (dam)|own||0
@@ -694,7 +754,9 @@ CHART GFS|Upper air|50_wnd_ht|50mb Wind and Height|Wind speed (kt)|Height (dam)|
 CHART GFS|Upper air|5_temp_ht|5mb Temperature, Wind and Height|Temperature|Height (dam)|own||0
 CHART GFS|Upper air|5_wnd_ht|5mb Wind and Height|Wind speed (kt)|Height (dam)|own||0
 CHART GFS|Upper air|600K_pv|600 K Isentropic Potential Vorticity, Wind and Pressure|Potential vorticity on the surface (PVU)|Pressure of the 600 K surface (mb)|own||0
+CHART GFS|Upper air|700_frontogenesis|700mb Frontogenesis, Height and Wind|Frontogenesis (K per 100 km per 3 hours; the potential temperature's gradient strengthening)|Height (dam)|own||0
 CHART GFS|Upper air|700_rh_ht|700mb Relative Humidity, Height and Omega|Relative humidity (%)|Height (dam);Omega (ubar/s, rising air)|own||0
+CHART GFS|Upper air|700_temp_adv|700mb Temperature Advection, Height and Wind|Temperature advection (C per 3 hours: warm red, cold blue)|Height (dam)|own||0
 CHART GFS|Upper air|700_temp_mslp|700mb Temperature, Wind and MSLP|700mb temperature|Sea level pressure (mb)|own||0
 CHART GFS|Upper air|70_pv_ht|70mb Potential Vorticity, Wind and Height|Potential vorticity (PVU)|Height (dam)|own||0
 CHART GFS|Upper air|70_temp_ht|70mb Temperature, Wind and Height|Temperature|Height (dam)|own||0
@@ -702,6 +764,7 @@ CHART GFS|Upper air|70_wnd_ht|70mb Wind and Height|Wind speed (kt)|Height (dam)|
 CHART GFS|Upper air|850_700_rh|850-700mb Mean Relative Humidity|Mean relative humidity of 850 and 700 mb (%)||||0
 CHART GFS|Upper air|850_pw_ht|850mb Height, Precipitable Water and Wind|Precipitable water|Height (dam)|own||0
 CHART GFS|Upper air|850_rh_ht|850mb Relative Humidity and Height|Relative humidity (%)|Height (dam)|own||0
+CHART GFS|Upper air|850_temp_adv|850mb Temperature Advection, Height and Wind|Temperature advection (C per 3 hours: warm red, cold blue)|Height (dam)|own||0
 CHART GFS|Upper air|850_temp_ht|850mb Temperature, Wind and Height|Temperature|Height (dam)|own||0
 CHART GFS|Upper air|850_wnd_ht|850mb Height and Wind|Wind speed (kt)|Height (dam)|own||0
 CHART GFS|Upper air|925_temp_ht|925mb Temperature, Wind and Height|Temperature|Height (dam)|own||0
@@ -718,12 +781,14 @@ CHART GFS-WAVE|Ocean and waves|wsea_dir_per|Wind Sea Direction and Period (sec)|
 CHART GFS-WAVE|Ocean and waves|wsea_wv_ht|Wind Sea Wave Height and Wind|Wind Sea height||own||0
 CHART GRAPES|Changes and trends|mslp_trend|MSLP and 48-hour Change|Sea level pressure change (mb)|Sea level pressure (mb)|||0
 CHART GRAPES|Changes and trends|z500_trend|500mb Height and 48-hour Change|500mb height change (dam)|Height (dam)|||0
+CHART GRAPES|Severe: instability|sbcape_crossover|Surface-Based CAPE and the 850-500mb Wind Crossover|Surface-based CAPE (J/kg)|Veering 850-500 mb (degrees, from 45; where CAPE is 100 J/kg or more)|own||0
 CHART GRAPES|Severe: instability|sbcape_wind|Surface-Based CAPE, MSLP and 10m Wind|Surface-based CAPE (J/kg)|Sea level pressure (mb)|own||0
 CHART GRAPES|Surface|10m_wnd_2m_temp|MSLP, 10m wind, 2m temperature|2 m temperature|Sea level pressure (mb)|own||0
 CHART GRAPES|Surface|cloud_layers|Cloud Cover by Height (low, middle, high)|Low cloud (%): each place in the color of its layer with the most cover (gray low, blue middle, pink high; under 20% clear)||||2
 CHART GRAPES|Surface|mslp_10m_wind|MSLP and 10m Wind|10 m wind speed (kt)|Sea level pressure (mb)|own||0
 CHART GRAPES|Tropical and dynamics|200_div_wnd|200mb Divergence, Wind and Height|Divergence (1e-5 /s)|Height (dam)|own||0
 CHART GRAPES|Tropical and dynamics|200_stream_div|200mb Divergence and Streamlines|Divergence (1e-5 /s)|||streamlines|0
+CHART GRAPES|Tropical and dynamics|300_qvector_div|300mb Q-Vector Divergence (QG forcing for vertical motion) and Height|-2 div Q (10^-17 K per m^2 per s: forcing for rising red, sinking blue)|Height (dam)|||0
 CHART GRAPES|Tropical and dynamics|500_vort_ht|500mb Vorticity, Wind, and Height|Relative vorticity (1e-5 /s)|Height (dam)|own||0
 CHART GRAPES|Tropical and dynamics|850_stream_vort|850mb Vorticity and Streamlines|Relative vorticity (1e-5 /s)|||streamlines|0
 CHART GRAPES|Tropical and dynamics|850_thetae_ht|850mb Equivalent Potential Temperature, Wind and Height|Equivalent potential temperature (K)|Height (dam)|own||0
@@ -733,6 +798,7 @@ CHART GRAPES|Tropical and dynamics|shear_850_200|850-200mb Deep-Layer Wind Shear
 CHART GRAPES|Tropical and dynamics|steering_850_200|850-200mb Mean Wind (Steering Flow)|Mean wind speed (kt)|Sea level pressure (mb)|own||0
 CHART GRAPES|Upper air|100_temp_ht|100mb Temperature, Wind and Height|Temperature|Height (dam)|own||0
 CHART GRAPES|Upper air|100_wnd_ht|100mb Wind and Height|Wind speed (kt)|Height (dam)|own||0
+CHART GRAPES|Upper air|200_velocity_potential|200mb Velocity Potential and Irrotational Wind|Velocity potential (10^6 m^2/s: green the divergent outflow over rising air); barbs: the irrotational wind||own||0
 CHART GRAPES|Upper air|200_wnd_ht|200mb Wind and Height|Wind speed (kt)|Height (dam)|||0
 CHART GRAPES|Upper air|250_wnd_ht|250mb Wind and Height|Wind speed (kt)|Height (dam)|||0
 CHART GRAPES|Upper air|300_wnd_ht|300mb Wind and Height|Wind speed (kt)|Height (dam)|||0
@@ -750,10 +816,12 @@ CHART GRAPES|Upper air|rh_700_300|700-300mb Mean Relative Humidity, 500mb Height
 CHART GSM|Changes and trends|mslp_trend|MSLP and 48-hour Change|Sea level pressure change (mb)|Sea level pressure (mb)|||0
 CHART GSM|Changes and trends|z500_trend|500mb Height and 48-hour Change|500mb height change (dam)|Height (dam)|||0
 CHART GSM|Surface|10m_wnd_2m_temp|MSLP, 10m wind, 2m temperature|2 m temperature|Sea level pressure (mb)|own||0
+CHART GSM|Surface|330K_pv|330 K Isentropic Potential Vorticity, Wind and Pressure|Potential vorticity on the surface (PVU)|Pressure of the 330 K surface (mb)|own||0
 CHART GSM|Surface|cloud_layers|Cloud Cover by Height (low, middle, high)|Low cloud (%): each place in the color of its layer with the most cover (gray low, blue middle, pink high; under 20% clear)||||2
 CHART GSM|Surface|mslp_10m_wind|MSLP and 10m Wind|10 m wind speed (kt)|Sea level pressure (mb)|own||0
 CHART GSM|Tropical and dynamics|200_div_wnd|200mb Divergence, Wind and Height|Divergence (1e-5 /s)|Height (dam)|own||0
 CHART GSM|Tropical and dynamics|200_stream_div|200mb Divergence and Streamlines|Divergence (1e-5 /s)|||streamlines|0
+CHART GSM|Tropical and dynamics|300_qvector_div|300mb Q-Vector Divergence (QG forcing for vertical motion) and Height|-2 div Q (10^-17 K per m^2 per s: forcing for rising red, sinking blue)|Height (dam)|||0
 CHART GSM|Tropical and dynamics|500_vort_ht|500mb Vorticity, Wind, and Height|Relative vorticity (1e-5 /s)|Height (dam)|own||0
 CHART GSM|Tropical and dynamics|850_stream_vort|850mb Vorticity and Streamlines|Relative vorticity (1e-5 /s)|||streamlines|0
 CHART GSM|Tropical and dynamics|850_thetae_ht|850mb Equivalent Potential Temperature, Wind and Height|Equivalent potential temperature (K)|Height (dam)|own||0
@@ -763,6 +831,7 @@ CHART GSM|Tropical and dynamics|shear_850_200|850-200mb Deep-Layer Wind Shear|Sh
 CHART GSM|Tropical and dynamics|steering_850_200|850-200mb Mean Wind (Steering Flow)|Mean wind speed (kt)|Sea level pressure (mb)|own||0
 CHART GSM|Upper air|100_temp_ht|100mb Temperature, Wind and Height|Temperature|Height (dam)|own||0
 CHART GSM|Upper air|100_wnd_ht|100mb Wind and Height|Wind speed (kt)|Height (dam)|own||0
+CHART GSM|Upper air|200_velocity_potential|200mb Velocity Potential and Irrotational Wind|Velocity potential (10^6 m^2/s: green the divergent outflow over rising air); barbs: the irrotational wind||own||0
 CHART GSM|Upper air|200_wnd_ht|200mb Wind and Height|Wind speed (kt)|Height (dam)|||0
 CHART GSM|Upper air|250_wnd_ht|250mb Wind and Height|Wind speed (kt)|Height (dam)|||0
 CHART GSM|Upper air|300_wnd_ht|300mb Wind and Height|Wind speed (kt)|Height (dam)|||0
@@ -804,10 +873,12 @@ CHART HAFSB|Tropical and dynamics|shear_850_200|850-200mb Deep-Layer Wind Shear|
 CHART HGEFS|Changes and trends|mslp_trend|Mean MSLP and 48-hour Change|Sea level pressure change (mb)|Sea level pressure (mb)|||0
 CHART HGEFS|Changes and trends|z500_trend|Mean 500mb Height and 48-hour Change|500mb height change (dam)|Height (dam)|||0
 CHART HGEFS|Surface|10m_wnd_2m_temp|Mean MSLP, 10m wind, 2m temperature|2 m temperature|Sea level pressure (mb)|own||0
+CHART HGEFS|Surface|330K_pv|Mean 330 K Isentropic Potential Vorticity, Wind and Pressure|Potential vorticity on the surface (PVU)|Pressure of the 330 K surface (mb)|own||0
 CHART HGEFS|Surface|cloud_layers|Mean Cloud Cover by Height (low, middle, high)|Low cloud (%): each place in the color of its layer with the most cover (gray low, blue middle, pink high; under 20% clear)||||2
 CHART HGEFS|Surface|mslp_10m_wind|Mean MSLP and 10m Wind|10 m wind speed (kt)|Sea level pressure (mb)|own||0
 CHART HGEFS|Tropical and dynamics|200_div_wnd|Mean 200mb Divergence, Wind and Height|Divergence (1e-5 /s)|Height (dam)|own||0
 CHART HGEFS|Tropical and dynamics|200_stream_div|Mean 200mb Divergence and Streamlines|Divergence (1e-5 /s)|||streamlines|0
+CHART HGEFS|Tropical and dynamics|300_qvector_div|Mean 300mb Q-Vector Divergence (QG forcing for vertical motion) and Height|-2 div Q (10^-17 K per m^2 per s: forcing for rising red, sinking blue)|Height (dam)|||0
 CHART HGEFS|Tropical and dynamics|500_vort_ht|Mean 500mb Vorticity, Wind, and Height|Relative vorticity (1e-5 /s)|Height (dam)|own||0
 CHART HGEFS|Tropical and dynamics|850_stream_vort|Mean 850mb Vorticity and Streamlines|Relative vorticity (1e-5 /s)|||streamlines|0
 CHART HGEFS|Tropical and dynamics|850_thetae_ht|Mean 850mb Equivalent Potential Temperature, Wind and Height|Equivalent potential temperature (K)|Height (dam)|own||0
@@ -817,6 +888,7 @@ CHART HGEFS|Tropical and dynamics|shear_850_200|Mean 850-200mb Deep-Layer Wind S
 CHART HGEFS|Tropical and dynamics|steering_850_200|Mean 850-200mb Mean Wind (Steering Flow)|Mean wind speed (kt)|Sea level pressure (mb)|own||0
 CHART HGEFS|Upper air|100_temp_ht|Mean 100mb Temperature, Wind and Height|Temperature|Height (dam)|own||0
 CHART HGEFS|Upper air|100_wnd_ht|Mean 100mb Wind and Height|Wind speed (kt)|Height (dam)|own||0
+CHART HGEFS|Upper air|200_velocity_potential|Mean 200mb Velocity Potential and Irrotational Wind|Velocity potential (10^6 m^2/s: green the divergent outflow over rising air); barbs: the irrotational wind||own||0
 CHART HGEFS|Upper air|200_wnd_ht|Mean 200mb Wind and Height|Wind speed (kt)|Height (dam)|||0
 CHART HGEFS|Upper air|250_wnd_ht|Mean 250mb Wind and Height|Wind speed (kt)|Height (dam)|||0
 CHART HGEFS|Upper air|300_wnd_ht|Mean 300mb Wind and Height|Wind speed (kt)|Height (dam)|||0
@@ -833,6 +905,7 @@ CHART HGEFS|Upper air|925_temp_ht|Mean 925mb Temperature, Wind and Height|Temper
 CHART HGEFS|Upper air|rh_700_300|Mean 700-300mb Mean Relative Humidity, 500mb Height and Wind|Mean relative humidity, 700-300mb (%)|Height (dam)|own||0
 CHART HRDPS|Changes and trends|mslp_trend|MSLP and 48-hour Change|Sea level pressure change (mb)|Sea level pressure (mb)|||0
 CHART HRDPS|Changes and trends|z500_trend|500mb Height and 48-hour Change|500mb height change (dam)|Height (dam)|||0
+CHART HRDPS|Severe: instability|sbcape_crossover|Surface-Based CAPE and the 850-500mb Wind Crossover|Surface-based CAPE (J/kg)|Veering 850-500 mb (degrees, from 45; where CAPE is 100 J/kg or more)|own||0
 CHART HRDPS|Severe: instability|sbcape_wind|Surface-Based CAPE, MSLP and 10m Wind|Surface-based CAPE (J/kg)|Sea level pressure (mb)|own||0
 CHART HRDPS|Surface|10m_wnd_2m_temp|MSLP, 10m wind, 2m temperature|2 m temperature|Sea level pressure (mb)|own||0
 CHART HRDPS|Surface|2m_dewpoint|MSLP, 10m wind, 2m dewpoint|2 m dewpoint|Sea level pressure (mb)|own||0
@@ -840,6 +913,7 @@ CHART HRDPS|Surface|2m_rh_10m_wnd_derived|2 m Relative Humidity (from temperatur
 CHART HRDPS|Surface|mslp_10m_wind|MSLP and 10m Wind|10 m wind speed (kt)|Sea level pressure (mb)|own||0
 CHART HRDPS|Tropical and dynamics|200_div_wnd|200mb Divergence, Wind and Height|Divergence (1e-5 /s)|Height (dam)|own||0
 CHART HRDPS|Tropical and dynamics|200_stream_div|200mb Divergence and Streamlines|Divergence (1e-5 /s)|||streamlines|0
+CHART HRDPS|Tropical and dynamics|300_qvector_div|300mb Q-Vector Divergence (QG forcing for vertical motion) and Height|-2 div Q (10^-17 K per m^2 per s: forcing for rising red, sinking blue)|Height (dam)|||0
 CHART HRDPS|Tropical and dynamics|500_vort_ht|500mb Vorticity, Wind, and Height|Relative vorticity (1e-5 /s)|Height (dam)|own||0
 CHART HRDPS|Tropical and dynamics|850_stream_vort|850mb Vorticity and Streamlines|Relative vorticity (1e-5 /s)|||streamlines|0
 CHART HRDPS|Tropical and dynamics|850_thetae_ht|850mb Equivalent Potential Temperature, Wind and Height|Equivalent potential temperature (K)|Height (dam)|own||0
@@ -976,6 +1050,7 @@ CHART HRRR-AK|Severe: composite indices|stp|STP (Significant Tornado Parameter, 
 CHART HRRR-AK|Severe: instability|best_cape|Best (Most Unstable) CAPE|Most unstable CAPE (J/kg)||||0
 CHART HRRR-AK|Severe: instability|best_cape_cin|Most Unstable CAPE and CIN|CAPE (J/kg)|CIN (J/kg)|||0
 CHART HRRR-AK|Severe: instability|lifted_index_ml|Best Lifted Index (lowest 180 mb)|Best (4-layer) lifted index of the lowest 180 mb (negative: unstable)||||0
+CHART HRRR-AK|Severe: instability|sbcape_crossover|Surface-Based CAPE and the 850-500mb Wind Crossover|Surface-based CAPE (J/kg)|Veering 850-500 mb (degrees, from 45; where CAPE is 100 J/kg or more)|own||0
 CHART HRRR-AK|Severe: instability|sbcape_wind|Surface-Based CAPE, MSLP and 10m Wind|Surface-based CAPE (J/kg)|Sea level pressure (mb)|own||0
 CHART HRRR-AK|Severe: instability|sfc_cape_cin|Surface-Based CAPE and CIN|CAPE (J/kg)|CIN (J/kg)|||0
 CHART HRRR-AK|Severe: rotation and shear|accu_max_updraft_hlcy|Accumulated Maximum 2-5 km Updraft Helicity|Strongest updraft helicity since the start of the run (m2/s2)||||0
@@ -1006,6 +1081,7 @@ CHART HRRR-AK|Surface|cloud_layers|Cloud Cover by Height (low, middle, high)|Low
 CHART HRRR-AK|Surface|mslp_10m_wind|MSLP and 10m Wind|10 m wind speed (kt)|Sea level pressure (mb)|own||0
 CHART HRRR-AK|Tropical and dynamics|200_div_wnd|200mb Divergence, Wind and Height|Divergence (1e-5 /s)|Height (dam)|own||0
 CHART HRRR-AK|Tropical and dynamics|200_stream_div|200mb Divergence and Streamlines|Divergence (1e-5 /s)|||streamlines|0
+CHART HRRR-AK|Tropical and dynamics|300_qvector_div|300mb Q-Vector Divergence (QG forcing for vertical motion) and Height|-2 div Q (10^-17 K per m^2 per s: forcing for rising red, sinking blue)|Height (dam)|||0
 CHART HRRR-AK|Tropical and dynamics|500_vort_ht|500mb Vorticity, Wind, and Height|Relative vorticity (1e-5 /s)|Height (dam)|own||0
 CHART HRRR-AK|Tropical and dynamics|850_stream_vort|850mb Vorticity and Streamlines|Relative vorticity (1e-5 /s)|||streamlines|0
 CHART HRRR-AK|Tropical and dynamics|850_thetae_ht|850mb Equivalent Potential Temperature, Wind and Height|Equivalent potential temperature (K)|Height (dam)|own||0
@@ -1071,6 +1147,7 @@ CHART HRRR|Severe: composite indices|stp|STP (Significant Tornado Parameter, fix
 CHART HRRR|Severe: instability|best_cape|Best (Most Unstable) CAPE|Most unstable CAPE (J/kg)||||0
 CHART HRRR|Severe: instability|best_cape_cin|Most Unstable CAPE and CIN|CAPE (J/kg)|CIN (J/kg)|||0
 CHART HRRR|Severe: instability|lifted_index_ml|Best Lifted Index (lowest 180 mb)|Best (4-layer) lifted index of the lowest 180 mb (negative: unstable)||||0
+CHART HRRR|Severe: instability|sbcape_crossover|Surface-Based CAPE and the 850-500mb Wind Crossover|Surface-based CAPE (J/kg)|Veering 850-500 mb (degrees, from 45; where CAPE is 100 J/kg or more)|own||0
 CHART HRRR|Severe: instability|sbcape_wind|Surface-Based CAPE, MSLP and 10m Wind|Surface-based CAPE (J/kg)|Sea level pressure (mb)|own||0
 CHART HRRR|Severe: instability|sfc_cape_cin|Surface-Based CAPE and CIN|CAPE (J/kg)|CIN (J/kg)|||0
 CHART HRRR|Severe: rotation and shear|accu_max_updraft_hlcy|Accumulated Maximum 2-5 km Updraft Helicity|Strongest updraft helicity since the start of the run (m2/s2)||||0
@@ -1101,6 +1178,7 @@ CHART HRRR|Surface|cloud_layers|Cloud Cover by Height (low, middle, high)|Low cl
 CHART HRRR|Surface|mslp_10m_wind|MSLP and 10m Wind|10 m wind speed (kt)|Sea level pressure (mb)|own||0
 CHART HRRR|Tropical and dynamics|200_div_wnd|200mb Divergence, Wind and Height|Divergence (1e-5 /s)|Height (dam)|own||0
 CHART HRRR|Tropical and dynamics|200_stream_div|200mb Divergence and Streamlines|Divergence (1e-5 /s)|||streamlines|0
+CHART HRRR|Tropical and dynamics|300_qvector_div|300mb Q-Vector Divergence (QG forcing for vertical motion) and Height|-2 div Q (10^-17 K per m^2 per s: forcing for rising red, sinking blue)|Height (dam)|||0
 CHART HRRR|Tropical and dynamics|500_vort_ht|500mb Vorticity, Wind, and Height|Relative vorticity (1e-5 /s)|Height (dam)|own||0
 CHART HRRR|Tropical and dynamics|850_stream_vort|850mb Vorticity and Streamlines|Relative vorticity (1e-5 /s)|||streamlines|0
 CHART HRRR|Tropical and dynamics|850_thetae_ht|850mb Equivalent Potential Temperature, Wind and Height|Equivalent potential temperature (K)|Height (dam)|own||0
@@ -1128,6 +1206,7 @@ CHART HRRR|Upper air|925_temp_wnd|925mb Temperature and Wind|925 mb temperature|
 CHART HRRR|Upper air|rh_700_300|700-300mb Mean Relative Humidity, 500mb Height and Wind|Mean relative humidity, 700-300mb (%)|Height (dam)|own||0
 CHART ICON-2I|Changes and trends|mslp_trend|MSLP and 48-hour Change|Sea level pressure change (mb)|Sea level pressure (mb)|||0
 CHART ICON-2I|Changes and trends|z500_trend|500mb Height and 48-hour Change|500mb height change (dam)|Height (dam)|||0
+CHART ICON-2I|Severe: instability|sbcape_crossover|Surface-Based CAPE and the 850-500mb Wind Crossover|Surface-based CAPE (J/kg)|Veering 850-500 mb (degrees, from 45; where CAPE is 100 J/kg or more)|own||0
 CHART ICON-2I|Severe: instability|sbcape_wind|Surface-Based CAPE, MSLP and 10m Wind|Surface-based CAPE (J/kg)|Sea level pressure (mb)|own||0
 CHART ICON-2I|Surface|10m_wnd_2m_temp|MSLP, 10m wind, 2m temperature|2 m temperature|Sea level pressure (mb)|own||0
 CHART ICON-2I|Surface|cloud_layers|Cloud Cover by Height (low, middle, high)|Low cloud (%): each place in the color of its layer with the most cover (gray low, blue middle, pink high; under 20% clear)||||2
@@ -1156,6 +1235,7 @@ CHART ICON-D2|Surface|cloud_layers|Cloud Cover by Height (low, middle, high)|Low
 CHART ICON-D2|Surface|mslp_10m_wind|MSLP and 10m Wind|10 m wind speed (kt)|Sea level pressure (mb)|own||0
 CHART ICON-EU|Changes and trends|mslp_trend|MSLP and 48-hour Change|Sea level pressure change (mb)|Sea level pressure (mb)|||0
 CHART ICON-EU|Changes and trends|z500_trend|500mb Height and 48-hour Change|500mb height change (dam)|Height (dam)|||0
+CHART ICON-EU|Severe: instability|sbcape_crossover|Surface-Based CAPE and the 850-500mb Wind Crossover|Surface-based CAPE (J/kg)|Veering 850-500 mb (degrees, from 45; where CAPE is 100 J/kg or more)|own||0
 CHART ICON-EU|Severe: instability|sbcape_wind|Surface-Based CAPE, MSLP and 10m Wind|Surface-based CAPE (J/kg)|Sea level pressure (mb)|own||0
 CHART ICON-EU|Surface|10m_wnd_2m_temp|MSLP, 10m wind, 2m temperature|2 m temperature|Sea level pressure (mb)|own||0
 CHART ICON-EU|Surface|2m_dewpoint|MSLP, 10m wind, 2m dewpoint|2 m dewpoint|Sea level pressure (mb)|own||0
@@ -1164,6 +1244,7 @@ CHART ICON-EU|Surface|cloud_layers|Cloud Cover by Height (low, middle, high)|Low
 CHART ICON-EU|Surface|mslp_10m_wind|MSLP and 10m Wind|10 m wind speed (kt)|Sea level pressure (mb)|own||0
 CHART ICON-EU|Tropical and dynamics|200_div_wnd|200mb Divergence, Wind and Height|Divergence (1e-5 /s)|Height (dam)|own||0
 CHART ICON-EU|Tropical and dynamics|200_stream_div|200mb Divergence and Streamlines|Divergence (1e-5 /s)|||streamlines|0
+CHART ICON-EU|Tropical and dynamics|300_qvector_div|300mb Q-Vector Divergence (QG forcing for vertical motion) and Height|-2 div Q (10^-17 K per m^2 per s: forcing for rising red, sinking blue)|Height (dam)|||0
 CHART ICON-EU|Tropical and dynamics|500_vort_ht|500mb Vorticity, Wind, and Height|Relative vorticity (1e-5 /s)|Height (dam)|own||0
 CHART ICON-EU|Tropical and dynamics|850_stream_vort|850mb Vorticity and Streamlines|Relative vorticity (1e-5 /s)|||streamlines|0
 CHART ICON-EU|Tropical and dynamics|850_thetae_ht|850mb Equivalent Potential Temperature, Wind and Height|Equivalent potential temperature (K)|Height (dam)|own||0
@@ -1184,12 +1265,14 @@ CHART ICON-EU|Upper air|850_temp_ht|850mb Temperature, Wind and Height|Temperatu
 CHART ICON-EU|Upper air|850_wnd_ht|850mb Height and Wind|Wind speed (kt)|Height (dam)|own||0
 CHART ICON-EU|Upper air|925_temp_ht|925mb Temperature, Wind and Height|Temperature|Height (dam)|own||0
 CHART ICON-EU|Upper air|rh_700_300|700-300mb Mean Relative Humidity, 500mb Height and Wind|Mean relative humidity, 700-300mb (%)|Height (dam)|own||0
+CHART ICON|Severe: instability|sbcape_crossover|Surface-Based CAPE and the 850-500mb Wind Crossover|Surface-based CAPE (J/kg)|Veering 850-500 mb (degrees, from 45; where CAPE is 100 J/kg or more)|own||0
 CHART ICON|Severe: instability|sbcape_wind|Surface-Based CAPE, MSLP and 10m Wind|Surface-based CAPE (J/kg)|Sea level pressure (mb)|own||0
 CHART ICON|Surface|10m_wnd_2m_temp|MSLP, 10m wind, 2m temperature|2 m temperature|Sea level pressure (mb)|own||0
 CHART ICON|Surface|cloud_layers|Cloud Cover by Height (low, middle, high)|Low cloud (%): each place in the color of its layer with the most cover (gray low, blue middle, pink high; under 20% clear)||||2
 CHART ICON|Surface|mslp_10m_wind|MSLP and 10m Wind|10 m wind speed (kt)|Sea level pressure (mb)|own||0
 CHART ICON|Tropical and dynamics|200_div_wnd|200mb Divergence, Wind and Height|Divergence (1e-5 /s)|Height (dam)|own||0
 CHART ICON|Tropical and dynamics|200_stream_div|200mb Divergence and Streamlines|Divergence (1e-5 /s)|||streamlines|0
+CHART ICON|Tropical and dynamics|300_qvector_div|300mb Q-Vector Divergence (QG forcing for vertical motion) and Height|-2 div Q (10^-17 K per m^2 per s: forcing for rising red, sinking blue)|Height (dam)|||0
 CHART ICON|Tropical and dynamics|500_vort_ht|500mb Vorticity, Wind, and Height|Relative vorticity (1e-5 /s)|Height (dam)|own||0
 CHART ICON|Tropical and dynamics|850_stream_vort|850mb Vorticity and Streamlines|Relative vorticity (1e-5 /s)|||streamlines|0
 CHART ICON|Tropical and dynamics|850_thetae_ht|850mb Equivalent Potential Temperature, Wind and Height|Equivalent potential temperature (K)|Height (dam)|own||0
@@ -1199,6 +1282,7 @@ CHART ICON|Tropical and dynamics|shear_850_200|850-200mb Deep-Layer Wind Shear|S
 CHART ICON|Tropical and dynamics|steering_850_200|850-200mb Mean Wind (Steering Flow)|Mean wind speed (kt)|Sea level pressure (mb)|own||0
 CHART ICON|Upper air|100_temp_ht|100mb Temperature, Wind and Height|Temperature|Height (dam)|own||0
 CHART ICON|Upper air|100_wnd_ht|100mb Wind and Height|Wind speed (kt)|Height (dam)|own||0
+CHART ICON|Upper air|200_velocity_potential|200mb Velocity Potential and Irrotational Wind|Velocity potential (10^6 m^2/s: green the divergent outflow over rising air); barbs: the irrotational wind||own||0
 CHART ICON|Upper air|200_wnd_ht|200mb Wind and Height|Wind speed (kt)|Height (dam)|||0
 CHART ICON|Upper air|250_wnd_ht|250mb Wind and Height|Wind speed (kt)|Height (dam)|||0
 CHART ICON|Upper air|300_wnd_ht|300mb Wind and Height|Wind speed (kt)|Height (dam)|||0
@@ -1213,8 +1297,10 @@ CHART ICON|Upper air|850_temp_ht|850mb Temperature, Wind and Height|Temperature|
 CHART ICON|Upper air|850_wnd_ht|850mb Height and Wind|Wind speed (kt)|Height (dam)|own||0
 CHART ICON|Upper air|925_temp_ht|925mb Temperature, Wind and Height|Temperature|Height (dam)|own||0
 CHART ICON|Upper air|rh_700_300|700-300mb Mean Relative Humidity, 500mb Height and Wind|Mean relative humidity, 700-300mb (%)|Height (dam)|own||0
+CHART IFS|Anomalies|2m_temp_anom|2m Temperature Anomaly, MSLP and 10m Wind|2 m temperature against the 1991-2020 daily mean near the surface (C)|Sea level pressure (mb)|own||0
 CHART IFS|Anomalies|500_hgt_anom|500mb Height and Anomaly|Height anomaly from the 1991-2020 mean (dam)|Height (dam)|own||0
 CHART IFS|Anomalies|mslp_anom|MSLP and Anomaly|Pressure anomaly from the 1991-2020 mean (mb)|Sea level pressure (mb)|own||0
+CHART IFS|Anomalies|pwat_anom|Precipitable Water Anomaly and MSLP|Precipitable water anomaly from the 1991-2020 mean (mm)|Sea level pressure (mb)|||0
 CHART IFS|Changes and trends|mslp_trend|MSLP and 48-hour Change|Sea level pressure change (mb)|Sea level pressure (mb)|||0
 CHART IFS|Changes and trends|z500_trend|500mb Height and 48-hour Change|500mb height change (dam)|Height (dam)|||0
 CHART IFS-ENS|Ensemble: single members|member_2m_temp_mslp|Member: 2 m Temperature and MSLP|2 m temperature|Sea level pressure (mb)|||0
@@ -1252,14 +1338,17 @@ CHART IFS|Precipitation and moisture|precip_p36|Total Precipitation every 36 hou
 CHART IFS|Precipitation and moisture|precip_p48|Total Precipitation every 48 hours|Precipitation, hours 0-12|Sea level pressure (mb);1000-500mb thickness (dam)|||0
 CHART IFS|Precipitation and moisture|precip_p60|Total Precipitation every 60 hours|Precipitation, hours 0-12|Sea level pressure (mb);1000-500mb thickness (dam)|||0
 CHART IFS|Precipitation and moisture|precip_ptot|Total Accumulated Precipitation of Period|Precipitation, hours 0-12|Sea level pressure (mb)|||0
+CHART IFS|Severe: instability|sbcape_crossover|Surface-Based CAPE and the 850-500mb Wind Crossover|Surface-based CAPE (J/kg)|Veering 850-500 mb (degrees, from 45; where CAPE is 100 J/kg or more)|own||0
 CHART IFS|Severe: instability|sbcape_wind|Surface-Based CAPE, MSLP and 10m Wind|Surface-based CAPE (J/kg)|Sea level pressure (mb)|own||0
 CHART IFS|Surface|10m_wnd_2m_temp|MSLP, 10m wind, 2m temperature|2 m temperature|Sea level pressure (mb)|own||0
 CHART IFS|Surface|2m_dewpoint|MSLP, 10m wind, 2m dewpoint|2 m dewpoint|Sea level pressure (mb)|own||0
 CHART IFS|Surface|2m_rh_10m_wnd_derived|2 m Relative Humidity (from temperature and dewpoint), MSLP and 10m Wind|2 m relative humidity (%)|Sea level pressure (mb)|own||0
+CHART IFS|Surface|330K_pv|330 K Isentropic Potential Vorticity, Wind and Pressure|Potential vorticity on the surface (PVU)|Pressure of the 330 K surface (mb)|own||0
 CHART IFS|Surface|cloud_layers|Cloud Cover by Height (low, middle, high)|Low cloud (%): each place in the color of its layer with the most cover (gray low, blue middle, pink high; under 20% clear)||||2
 CHART IFS|Surface|mslp_10m_wind|MSLP and 10m Wind|10 m wind speed (kt)|Sea level pressure (mb)|own||0
 CHART IFS|Tropical and dynamics|200_div_wnd|200mb Divergence, Wind and Height|Divergence (1e-5 /s)|Height (dam)|own||0
 CHART IFS|Tropical and dynamics|200_stream_div|200mb Divergence and Streamlines|Divergence (1e-5 /s)|||streamlines|0
+CHART IFS|Tropical and dynamics|300_qvector_div|300mb Q-Vector Divergence (QG forcing for vertical motion) and Height|-2 div Q (10^-17 K per m^2 per s: forcing for rising red, sinking blue)|Height (dam)|||0
 CHART IFS|Tropical and dynamics|500_vort_ht|500mb Vorticity, Wind, and Height|Relative vorticity (1e-5 /s)|Height (dam)|own||0
 CHART IFS|Tropical and dynamics|850_stream_vort|850mb Vorticity and Streamlines|Relative vorticity (1e-5 /s)|||streamlines|0
 CHART IFS|Tropical and dynamics|850_thetae_ht|850mb Equivalent Potential Temperature, Wind and Height|Equivalent potential temperature (K)|Height (dam)|own||0
@@ -1272,6 +1361,7 @@ CHART IFS|Upper air|100_wnd_ht|100mb Wind and Height|Wind speed (kt)|Height (dam
 CHART IFS|Upper air|10_pv_ht|10mb Potential Vorticity (10-50mb layer), Wind and Height|Potential vorticity (PVU)|Height (dam)|own||0
 CHART IFS|Upper air|10_temp_ht|10mb Temperature, Wind and Height|Temperature|Height (dam)|own||0
 CHART IFS|Upper air|10_wnd_ht|10mb Wind and Height|Wind speed (kt)|Height (dam)|own||0
+CHART IFS|Upper air|200_velocity_potential|200mb Velocity Potential and Irrotational Wind|Velocity potential (10^6 m^2/s: green the divergent outflow over rising air); barbs: the irrotational wind||own||0
 CHART IFS|Upper air|200_wnd_ht|200mb Wind and Height|Wind speed (kt)|Height (dam)|||0
 CHART IFS|Upper air|250_wnd_ht|250mb Wind and Height|Wind speed (kt)|Height (dam)|||0
 CHART IFS|Upper air|300_wnd_ht|300mb Wind and Height|Wind speed (kt)|Height (dam)|||0
@@ -1319,6 +1409,7 @@ CHART MPAS-HT|Severe: composite indices|stp|STP (Significant Tornado Parameter, 
 CHART MPAS-HT|Severe: instability|best_cape|Best (Most Unstable) CAPE|Most unstable CAPE (J/kg)||||0
 CHART MPAS-HT|Severe: instability|best_cape_cin|Most Unstable CAPE and CIN|CAPE (J/kg)|CIN (J/kg)|||0
 CHART MPAS-HT|Severe: instability|lifted_index_ml|Best Lifted Index (lowest 180 mb)|Best (4-layer) lifted index of the lowest 180 mb (negative: unstable)||||0
+CHART MPAS-HT|Severe: instability|sbcape_crossover|Surface-Based CAPE and the 850-500mb Wind Crossover|Surface-based CAPE (J/kg)|Veering 850-500 mb (degrees, from 45; where CAPE is 100 J/kg or more)|own||0
 CHART MPAS-HT|Severe: instability|sbcape_wind|Surface-Based CAPE, MSLP and 10m Wind|Surface-based CAPE (J/kg)|Sea level pressure (mb)|own||0
 CHART MPAS-HT|Severe: instability|sfc_cape_cin|Surface-Based CAPE and CIN|CAPE (J/kg)|CIN (J/kg)|||0
 CHART MPAS-HT|Severe: rotation and shear|accu_max_updraft_hlcy|Accumulated Maximum 2-5 km Updraft Helicity|Strongest updraft helicity since the start of the run (m2/s2)||||0
@@ -1384,6 +1475,7 @@ CHART MPAS-RN|Severe: composite indices|stp|STP (Significant Tornado Parameter, 
 CHART MPAS-RN|Severe: instability|best_cape|Best (Most Unstable) CAPE|Most unstable CAPE (J/kg)||||0
 CHART MPAS-RN|Severe: instability|best_cape_cin|Most Unstable CAPE and CIN|CAPE (J/kg)|CIN (J/kg)|||0
 CHART MPAS-RN|Severe: instability|lifted_index_ml|Best Lifted Index (lowest 180 mb)|Best (4-layer) lifted index of the lowest 180 mb (negative: unstable)||||0
+CHART MPAS-RN|Severe: instability|sbcape_crossover|Surface-Based CAPE and the 850-500mb Wind Crossover|Surface-based CAPE (J/kg)|Veering 850-500 mb (degrees, from 45; where CAPE is 100 J/kg or more)|own||0
 CHART MPAS-RN|Severe: instability|sbcape_wind|Surface-Based CAPE, MSLP and 10m Wind|Surface-based CAPE (J/kg)|Sea level pressure (mb)|own||0
 CHART MPAS-RN|Severe: instability|sfc_cape_cin|Surface-Based CAPE and CIN|CAPE (J/kg)|CIN (J/kg)|||0
 CHART MPAS-RN|Severe: rotation and shear|accu_max_updraft_hlcy|Accumulated Maximum 2-5 km Updraft Helicity|Strongest updraft helicity since the start of the run (m2/s2)||||0
@@ -1436,8 +1528,10 @@ CHART MSM|Surface|10m_wnd_2m_temp|MSLP, 10m wind, 2m temperature|2 m temperature
 CHART MSM|Surface|cloud_layers|Cloud Cover by Height (low, middle, high)|Low cloud (%): each place in the color of its layer with the most cover (gray low, blue middle, pink high; under 20% clear)||||2
 CHART MSM|Surface|mslp_10m_wind|MSLP and 10m Wind|10 m wind speed (kt)|Sea level pressure (mb)|own||0
 CHART MSM-UL|Changes and trends|z500_trend|500mb Height and 48-hour Change|500mb height change (dam)|Height (dam)|||0
+CHART MSM-UL|Surface|330K_pv|330 K Isentropic Potential Vorticity, Wind and Pressure|Potential vorticity on the surface (PVU)|Pressure of the 330 K surface (mb)|own||0
 CHART MSM-UL|Tropical and dynamics|200_div_wnd|200mb Divergence, Wind and Height|Divergence (1e-5 /s)|Height (dam)|own||0
 CHART MSM-UL|Tropical and dynamics|200_stream_div|200mb Divergence and Streamlines|Divergence (1e-5 /s)|||streamlines|0
+CHART MSM-UL|Tropical and dynamics|300_qvector_div|300mb Q-Vector Divergence (QG forcing for vertical motion) and Height|-2 div Q (10^-17 K per m^2 per s: forcing for rising red, sinking blue)|Height (dam)|||0
 CHART MSM-UL|Tropical and dynamics|500_vort_ht|500mb Vorticity, Wind, and Height|Relative vorticity (1e-5 /s)|Height (dam)|own||0
 CHART MSM-UL|Tropical and dynamics|850_stream_vort|850mb Vorticity and Streamlines|Relative vorticity (1e-5 /s)|||streamlines|0
 CHART MSM-UL|Tropical and dynamics|850_thetae_ht|850mb Equivalent Potential Temperature, Wind and Height|Equivalent potential temperature (K)|Height (dam)|own||0
@@ -1459,6 +1553,7 @@ CHART MSM-UL|Upper air|rh_700_300|700-300mb Mean Relative Humidity, 500mb Height
 CHART NAM-ANL|Changes and trends|mslp_trend|MSLP and 48-hour Change|Sea level pressure change (mb)|Sea level pressure (mb)|||0
 CHART NAM-ANL|Changes and trends|z500_trend|500mb Height and 48-hour Change|500mb height change (dam)|Height (dam)|||0
 CHART NAM-ANL|Precipitation and moisture|mslp_pwat|MSLP and Precipitable Water|Precipitable water|Sea level pressure (mb)|||0
+CHART NAM-ANL|Severe: instability|sbcape_crossover|Surface-Based CAPE and the 850-500mb Wind Crossover|Surface-based CAPE (J/kg)|Veering 850-500 mb (degrees, from 45; where CAPE is 100 J/kg or more)|own||0
 CHART NAM-ANL|Severe: instability|sbcape_wind|Surface-Based CAPE, MSLP and 10m Wind|Surface-based CAPE (J/kg)|Sea level pressure (mb)|own||0
 CHART NAM-ANL|Severe: storm structure|sim_radar_comp|Simulated Composite Radar Reflectivity|Composite reflectivity (dBZ)||||0
 CHART NAM-ANL|Surface|10m_wnd_2m_temp|MSLP, 10m wind, 2m temperature|2 m temperature|Sea level pressure (mb)|own||0
@@ -1467,6 +1562,7 @@ CHART NAM-ANL|Surface|2m_rh_10m_wnd_derived|2 m Relative Humidity (from temperat
 CHART NAM-ANL|Surface|mslp_10m_wind|MSLP and 10m Wind|10 m wind speed (kt)|Sea level pressure (mb)|own||0
 CHART NAM-ANL|Tropical and dynamics|200_div_wnd|200mb Divergence, Wind and Height|Divergence (1e-5 /s)|Height (dam)|own||0
 CHART NAM-ANL|Tropical and dynamics|200_stream_div|200mb Divergence and Streamlines|Divergence (1e-5 /s)|||streamlines|0
+CHART NAM-ANL|Tropical and dynamics|300_qvector_div|300mb Q-Vector Divergence (QG forcing for vertical motion) and Height|-2 div Q (10^-17 K per m^2 per s: forcing for rising red, sinking blue)|Height (dam)|||0
 CHART NAM-ANL|Tropical and dynamics|500_vort_ht|500mb Vorticity, Wind, and Height|Relative vorticity (1e-5 /s)|Height (dam)|own||0
 CHART NAM-ANL|Tropical and dynamics|850_stream_vort|850mb Vorticity and Streamlines|Relative vorticity (1e-5 /s)|||streamlines|0
 CHART NAM-ANL|Tropical and dynamics|850_thetae_ht|850mb Equivalent Potential Temperature, Wind and Height|Equivalent potential temperature (K)|Height (dam)|own||0
@@ -1491,6 +1587,7 @@ CHART NAM-ANL|Upper air|rh_700_300|700-300mb Mean Relative Humidity, 500mb Heigh
 CHART NARR|Changes and trends|mslp_trend|MSLP and 48-hour Change|Sea level pressure change (mb)|Sea level pressure (mb)|||0
 CHART NARR|Changes and trends|z500_trend|500mb Height and 48-hour Change|500mb height change (dam)|Height (dam)|||0
 CHART NARR|Precipitation and moisture|mslp_pwat|MSLP and Precipitable Water|Precipitable water|Sea level pressure (mb)|||0
+CHART NARR|Severe: instability|sbcape_crossover|Surface-Based CAPE and the 850-500mb Wind Crossover|Surface-based CAPE (J/kg)|Veering 850-500 mb (degrees, from 45; where CAPE is 100 J/kg or more)|own||0
 CHART NARR|Severe: instability|sbcape_wind|Surface-Based CAPE, MSLP and 10m Wind|Surface-based CAPE (J/kg)|Sea level pressure (mb)|own||0
 CHART NARR|Surface|10m_wnd_2m_temp|MSLP, 10m wind, 2m temperature|2 m temperature|Sea level pressure (mb)|own||0
 CHART NARR|Surface|2m_dewpoint|MSLP, 10m wind, 2m dewpoint|2 m dewpoint|Sea level pressure (mb)|own||0
@@ -1498,6 +1595,7 @@ CHART NARR|Surface|2m_rh_10m_wnd_derived|2 m Relative Humidity (from temperature
 CHART NARR|Surface|mslp_10m_wind|MSLP and 10m Wind|10 m wind speed (kt)|Sea level pressure (mb)|own||0
 CHART NARR|Tropical and dynamics|200_div_wnd|200mb Divergence, Wind and Height|Divergence (1e-5 /s)|Height (dam)|own||0
 CHART NARR|Tropical and dynamics|200_stream_div|200mb Divergence and Streamlines|Divergence (1e-5 /s)|||streamlines|0
+CHART NARR|Tropical and dynamics|300_qvector_div|300mb Q-Vector Divergence (QG forcing for vertical motion) and Height|-2 div Q (10^-17 K per m^2 per s: forcing for rising red, sinking blue)|Height (dam)|||0
 CHART NARR|Tropical and dynamics|850_stream_vort|850mb Vorticity and Streamlines|Relative vorticity (1e-5 /s)|||streamlines|0
 CHART NARR|Tropical and dynamics|850_thetae_ht|850mb Equivalent Potential Temperature, Wind and Height|Equivalent potential temperature (K)|Height (dam)|own||0
 CHART NARR|Tropical and dynamics|850vor_500ht_200wd|850mb Vorticity, 500mb Height, 200mb Wind|850mb relative vorticity (1e-5 /s)|Height (dam)|own||0
@@ -1566,9 +1664,11 @@ CHART NBM|Surface|2m_temp_10m_wnd|2 m Temperature and 10 m Wind|2 m temperature|
 CHART NBM|Surface|total_cloud_cover|Total Cloud Cover and 10 m Wind|Total cloud cover (%)||own||0
 CHART NBM|Surface|tstm_coverage|Thunderstorm Coverage|Thunderstorm coverage in the hour: isolated, scattered, numerous||||0
 CHART RAP-ANL|Changes and trends|z500_trend|500mb Height and 48-hour Change|500mb height change (dam)|Height (dam)|||0
+CHART RAP-ANL|Severe: instability|sbcape_crossover|Surface-Based CAPE and the 850-500mb Wind Crossover|Surface-based CAPE (J/kg)|Veering 850-500 mb (degrees, from 45; where CAPE is 100 J/kg or more)|own||0
 CHART RAP-ANL|Severe: storm structure|sim_radar_comp|Simulated Composite Radar Reflectivity|Composite reflectivity (dBZ)||||0
 CHART RAP-ANL|Tropical and dynamics|200_div_wnd|200mb Divergence, Wind and Height|Divergence (1e-5 /s)|Height (dam)|own||0
 CHART RAP-ANL|Tropical and dynamics|200_stream_div|200mb Divergence and Streamlines|Divergence (1e-5 /s)|||streamlines|0
+CHART RAP-ANL|Tropical and dynamics|300_qvector_div|300mb Q-Vector Divergence (QG forcing for vertical motion) and Height|-2 div Q (10^-17 K per m^2 per s: forcing for rising red, sinking blue)|Height (dam)|||0
 CHART RAP-ANL|Tropical and dynamics|500_vort_ht|500mb Vorticity, Wind, and Height|Relative vorticity (1e-5 /s)|Height (dam)|own||0
 CHART RAP-ANL|Tropical and dynamics|850_stream_vort|850mb Vorticity and Streamlines|Relative vorticity (1e-5 /s)|||streamlines|0
 CHART RAP-ANL|Tropical and dynamics|850_thetae_ht|850mb Equivalent Potential Temperature, Wind and Height|Equivalent potential temperature (K)|Height (dam)|own||0
@@ -1701,6 +1801,7 @@ CHART RRFS-AK|Severe: composite indices|stp|STP (Significant Tornado Parameter, 
 CHART RRFS-AK|Severe: instability|best_cape|Best (Most Unstable) CAPE|Most unstable CAPE (J/kg)||||0
 CHART RRFS-AK|Severe: instability|best_cape_cin|Most Unstable CAPE and CIN|CAPE (J/kg)|CIN (J/kg)|||0
 CHART RRFS-AK|Severe: instability|lifted_index_ml|Best Lifted Index (lowest 180 mb)|Best (4-layer) lifted index of the lowest 180 mb (negative: unstable)||||0
+CHART RRFS-AK|Severe: instability|sbcape_crossover|Surface-Based CAPE and the 850-500mb Wind Crossover|Surface-based CAPE (J/kg)|Veering 850-500 mb (degrees, from 45; where CAPE is 100 J/kg or more)|own||0
 CHART RRFS-AK|Severe: instability|sbcape_wind|Surface-Based CAPE, MSLP and 10m Wind|Surface-based CAPE (J/kg)|Sea level pressure (mb)|own||0
 CHART RRFS-AK|Severe: instability|sfc_cape_cin|Surface-Based CAPE and CIN|CAPE (J/kg)|CIN (J/kg)|||0
 CHART RRFS-AK|Severe: rotation and shear|accu_max_updraft_hlcy|Accumulated Maximum 2-5 km Updraft Helicity|Strongest updraft helicity since the start of the run (m2/s2)||||0
@@ -1731,6 +1832,7 @@ CHART RRFS-AK|Surface|cloud_layers|Cloud Cover by Height (low, middle, high)|Low
 CHART RRFS-AK|Surface|mslp_10m_wind|MSLP and 10m Wind|10 m wind speed (kt)|Sea level pressure (mb)|own||0
 CHART RRFS-AK|Tropical and dynamics|200_div_wnd|200mb Divergence, Wind and Height|Divergence (1e-5 /s)|Height (dam)|own||0
 CHART RRFS-AK|Tropical and dynamics|200_stream_div|200mb Divergence and Streamlines|Divergence (1e-5 /s)|||streamlines|0
+CHART RRFS-AK|Tropical and dynamics|300_qvector_div|300mb Q-Vector Divergence (QG forcing for vertical motion) and Height|-2 div Q (10^-17 K per m^2 per s: forcing for rising red, sinking blue)|Height (dam)|||0
 CHART RRFS-AK|Tropical and dynamics|500_vort_ht|500mb Vorticity, Wind, and Height|Relative vorticity (1e-5 /s)|Height (dam)|own||0
 CHART RRFS-AK|Tropical and dynamics|850_stream_vort|850mb Vorticity and Streamlines|Relative vorticity (1e-5 /s)|||streamlines|0
 CHART RRFS-AK|Tropical and dynamics|850_thetae_ht|850mb Equivalent Potential Temperature, Wind and Height|Equivalent potential temperature (K)|Height (dam)|own||0
@@ -1840,6 +1942,7 @@ CHART RRFS-FIREWX|Severe: composite indices|stp|STP (Significant Tornado Paramet
 CHART RRFS-FIREWX|Severe: instability|best_cape|Best (Most Unstable) CAPE|Most unstable CAPE (J/kg)||||0
 CHART RRFS-FIREWX|Severe: instability|best_cape_cin|Most Unstable CAPE and CIN|CAPE (J/kg)|CIN (J/kg)|||0
 CHART RRFS-FIREWX|Severe: instability|lifted_index_ml|Best Lifted Index (lowest 180 mb)|Best (4-layer) lifted index of the lowest 180 mb (negative: unstable)||||0
+CHART RRFS-FIREWX|Severe: instability|sbcape_crossover|Surface-Based CAPE and the 850-500mb Wind Crossover|Surface-based CAPE (J/kg)|Veering 850-500 mb (degrees, from 45; where CAPE is 100 J/kg or more)|own||0
 CHART RRFS-FIREWX|Severe: instability|sbcape_wind|Surface-Based CAPE, MSLP and 10m Wind|Surface-based CAPE (J/kg)|Sea level pressure (mb)|own||0
 CHART RRFS-FIREWX|Severe: instability|sfc_cape_cin|Surface-Based CAPE and CIN|CAPE (J/kg)|CIN (J/kg)|||0
 CHART RRFS-FIREWX|Severe: rotation and shear|accu_max_updraft_hlcy|Accumulated Maximum 2-5 km Updraft Helicity|Strongest updraft helicity since the start of the run (m2/s2)||||0
@@ -1870,6 +1973,7 @@ CHART RRFS-FIREWX|Surface|cloud_layers|Cloud Cover by Height (low, middle, high)
 CHART RRFS-FIREWX|Surface|mslp_10m_wind|MSLP and 10m Wind|10 m wind speed (kt)|Sea level pressure (mb)|own||0
 CHART RRFS-FIREWX|Tropical and dynamics|200_div_wnd|200mb Divergence, Wind and Height|Divergence (1e-5 /s)|Height (dam)|own||0
 CHART RRFS-FIREWX|Tropical and dynamics|200_stream_div|200mb Divergence and Streamlines|Divergence (1e-5 /s)|||streamlines|0
+CHART RRFS-FIREWX|Tropical and dynamics|300_qvector_div|300mb Q-Vector Divergence (QG forcing for vertical motion) and Height|-2 div Q (10^-17 K per m^2 per s: forcing for rising red, sinking blue)|Height (dam)|||0
 CHART RRFS-FIREWX|Tropical and dynamics|500_vort_ht|500mb Vorticity, Wind, and Height|Relative vorticity (1e-5 /s)|Height (dam)|own||0
 CHART RRFS-FIREWX|Tropical and dynamics|850_stream_vort|850mb Vorticity and Streamlines|Relative vorticity (1e-5 /s)|||streamlines|0
 CHART RRFS-FIREWX|Tropical and dynamics|850_thetae_ht|850mb Equivalent Potential Temperature, Wind and Height|Equivalent potential temperature (K)|Height (dam)|own||0
@@ -1935,6 +2039,7 @@ CHART RRFS-HI|Severe: composite indices|stp|STP (Significant Tornado Parameter, 
 CHART RRFS-HI|Severe: instability|best_cape|Best (Most Unstable) CAPE|Most unstable CAPE (J/kg)||||0
 CHART RRFS-HI|Severe: instability|best_cape_cin|Most Unstable CAPE and CIN|CAPE (J/kg)|CIN (J/kg)|||0
 CHART RRFS-HI|Severe: instability|lifted_index_ml|Best Lifted Index (lowest 180 mb)|Best (4-layer) lifted index of the lowest 180 mb (negative: unstable)||||0
+CHART RRFS-HI|Severe: instability|sbcape_crossover|Surface-Based CAPE and the 850-500mb Wind Crossover|Surface-based CAPE (J/kg)|Veering 850-500 mb (degrees, from 45; where CAPE is 100 J/kg or more)|own||0
 CHART RRFS-HI|Severe: instability|sbcape_wind|Surface-Based CAPE, MSLP and 10m Wind|Surface-based CAPE (J/kg)|Sea level pressure (mb)|own||0
 CHART RRFS-HI|Severe: instability|sfc_cape_cin|Surface-Based CAPE and CIN|CAPE (J/kg)|CIN (J/kg)|||0
 CHART RRFS-HI|Severe: rotation and shear|accu_max_updraft_hlcy|Accumulated Maximum 2-5 km Updraft Helicity|Strongest updraft helicity since the start of the run (m2/s2)||||0
@@ -1965,6 +2070,7 @@ CHART RRFS-HI|Surface|cloud_layers|Cloud Cover by Height (low, middle, high)|Low
 CHART RRFS-HI|Surface|mslp_10m_wind|MSLP and 10m Wind|10 m wind speed (kt)|Sea level pressure (mb)|own||0
 CHART RRFS-HI|Tropical and dynamics|200_div_wnd|200mb Divergence, Wind and Height|Divergence (1e-5 /s)|Height (dam)|own||0
 CHART RRFS-HI|Tropical and dynamics|200_stream_div|200mb Divergence and Streamlines|Divergence (1e-5 /s)|||streamlines|0
+CHART RRFS-HI|Tropical and dynamics|300_qvector_div|300mb Q-Vector Divergence (QG forcing for vertical motion) and Height|-2 div Q (10^-17 K per m^2 per s: forcing for rising red, sinking blue)|Height (dam)|||0
 CHART RRFS-HI|Tropical and dynamics|500_vort_ht|500mb Vorticity, Wind, and Height|Relative vorticity (1e-5 /s)|Height (dam)|own||0
 CHART RRFS-HI|Tropical and dynamics|850_stream_vort|850mb Vorticity and Streamlines|Relative vorticity (1e-5 /s)|||streamlines|0
 CHART RRFS-HI|Tropical and dynamics|850_thetae_ht|850mb Equivalent Potential Temperature, Wind and Height|Equivalent potential temperature (K)|Height (dam)|own||0
@@ -2030,6 +2136,7 @@ CHART RRFS-NA|Severe: composite indices|stp|STP (Significant Tornado Parameter, 
 CHART RRFS-NA|Severe: instability|best_cape|Best (Most Unstable) CAPE|Most unstable CAPE (J/kg)||||0
 CHART RRFS-NA|Severe: instability|best_cape_cin|Most Unstable CAPE and CIN|CAPE (J/kg)|CIN (J/kg)|||0
 CHART RRFS-NA|Severe: instability|lifted_index_ml|Best Lifted Index (lowest 180 mb)|Best (4-layer) lifted index of the lowest 180 mb (negative: unstable)||||0
+CHART RRFS-NA|Severe: instability|sbcape_crossover|Surface-Based CAPE and the 850-500mb Wind Crossover|Surface-based CAPE (J/kg)|Veering 850-500 mb (degrees, from 45; where CAPE is 100 J/kg or more)|own||0
 CHART RRFS-NA|Severe: instability|sbcape_wind|Surface-Based CAPE, MSLP and 10m Wind|Surface-based CAPE (J/kg)|Sea level pressure (mb)|own||0
 CHART RRFS-NA|Severe: instability|sfc_cape_cin|Surface-Based CAPE and CIN|CAPE (J/kg)|CIN (J/kg)|||0
 CHART RRFS-NA|Severe: rotation and shear|accu_max_updraft_hlcy|Accumulated Maximum 2-5 km Updraft Helicity|Strongest updraft helicity since the start of the run (m2/s2)||||0
@@ -2060,6 +2167,7 @@ CHART RRFS-NA|Surface|cloud_layers|Cloud Cover by Height (low, middle, high)|Low
 CHART RRFS-NA|Surface|mslp_10m_wind|MSLP and 10m Wind|10 m wind speed (kt)|Sea level pressure (mb)|own||0
 CHART RRFS-NA|Tropical and dynamics|200_div_wnd|200mb Divergence, Wind and Height|Divergence (1e-5 /s)|Height (dam)|own||0
 CHART RRFS-NA|Tropical and dynamics|200_stream_div|200mb Divergence and Streamlines|Divergence (1e-5 /s)|||streamlines|0
+CHART RRFS-NA|Tropical and dynamics|300_qvector_div|300mb Q-Vector Divergence (QG forcing for vertical motion) and Height|-2 div Q (10^-17 K per m^2 per s: forcing for rising red, sinking blue)|Height (dam)|||0
 CHART RRFS-NA|Tropical and dynamics|500_vort_ht|500mb Vorticity, Wind, and Height|Relative vorticity (1e-5 /s)|Height (dam)|own||0
 CHART RRFS-NA|Tropical and dynamics|850_stream_vort|850mb Vorticity and Streamlines|Relative vorticity (1e-5 /s)|||streamlines|0
 CHART RRFS-NA|Tropical and dynamics|850_thetae_ht|850mb Equivalent Potential Temperature, Wind and Height|Equivalent potential temperature (K)|Height (dam)|own||0
@@ -2149,6 +2257,7 @@ CHART RRFS-PR|Severe: composite indices|stp|STP (Significant Tornado Parameter, 
 CHART RRFS-PR|Severe: instability|best_cape|Best (Most Unstable) CAPE|Most unstable CAPE (J/kg)||||0
 CHART RRFS-PR|Severe: instability|best_cape_cin|Most Unstable CAPE and CIN|CAPE (J/kg)|CIN (J/kg)|||0
 CHART RRFS-PR|Severe: instability|lifted_index_ml|Best Lifted Index (lowest 180 mb)|Best (4-layer) lifted index of the lowest 180 mb (negative: unstable)||||0
+CHART RRFS-PR|Severe: instability|sbcape_crossover|Surface-Based CAPE and the 850-500mb Wind Crossover|Surface-based CAPE (J/kg)|Veering 850-500 mb (degrees, from 45; where CAPE is 100 J/kg or more)|own||0
 CHART RRFS-PR|Severe: instability|sbcape_wind|Surface-Based CAPE, MSLP and 10m Wind|Surface-based CAPE (J/kg)|Sea level pressure (mb)|own||0
 CHART RRFS-PR|Severe: instability|sfc_cape_cin|Surface-Based CAPE and CIN|CAPE (J/kg)|CIN (J/kg)|||0
 CHART RRFS-PR|Severe: rotation and shear|accu_max_updraft_hlcy|Accumulated Maximum 2-5 km Updraft Helicity|Strongest updraft helicity since the start of the run (m2/s2)||||0
@@ -2179,6 +2288,7 @@ CHART RRFS-PR|Surface|cloud_layers|Cloud Cover by Height (low, middle, high)|Low
 CHART RRFS-PR|Surface|mslp_10m_wind|MSLP and 10m Wind|10 m wind speed (kt)|Sea level pressure (mb)|own||0
 CHART RRFS-PR|Tropical and dynamics|200_div_wnd|200mb Divergence, Wind and Height|Divergence (1e-5 /s)|Height (dam)|own||0
 CHART RRFS-PR|Tropical and dynamics|200_stream_div|200mb Divergence and Streamlines|Divergence (1e-5 /s)|||streamlines|0
+CHART RRFS-PR|Tropical and dynamics|300_qvector_div|300mb Q-Vector Divergence (QG forcing for vertical motion) and Height|-2 div Q (10^-17 K per m^2 per s: forcing for rising red, sinking blue)|Height (dam)|||0
 CHART RRFS-PR|Tropical and dynamics|500_vort_ht|500mb Vorticity, Wind, and Height|Relative vorticity (1e-5 /s)|Height (dam)|own||0
 CHART RRFS-PR|Tropical and dynamics|850_stream_vort|850mb Vorticity and Streamlines|Relative vorticity (1e-5 /s)|||streamlines|0
 CHART RRFS-PR|Tropical and dynamics|850_thetae_ht|850mb Equivalent Potential Temperature, Wind and Height|Equivalent potential temperature (K)|Height (dam)|own||0
@@ -2209,6 +2319,7 @@ CHART RRFS|Severe: composite indices|stp|STP (Significant Tornado Parameter, fix
 CHART RRFS|Severe: instability|best_cape|Best (Most Unstable) CAPE|Most unstable CAPE (J/kg)||||0
 CHART RRFS|Severe: instability|best_cape_cin|Most Unstable CAPE and CIN|CAPE (J/kg)|CIN (J/kg)|||0
 CHART RRFS|Severe: instability|lifted_index_ml|Best Lifted Index (lowest 180 mb)|Best (4-layer) lifted index of the lowest 180 mb (negative: unstable)||||0
+CHART RRFS|Severe: instability|sbcape_crossover|Surface-Based CAPE and the 850-500mb Wind Crossover|Surface-based CAPE (J/kg)|Veering 850-500 mb (degrees, from 45; where CAPE is 100 J/kg or more)|own||0
 CHART RRFS|Severe: instability|sbcape_wind|Surface-Based CAPE, MSLP and 10m Wind|Surface-based CAPE (J/kg)|Sea level pressure (mb)|own||0
 CHART RRFS|Severe: instability|sfc_cape_cin|Surface-Based CAPE and CIN|CAPE (J/kg)|CIN (J/kg)|||0
 CHART RRFS|Severe: rotation and shear|accu_max_updraft_hlcy|Accumulated Maximum 2-5 km Updraft Helicity|Strongest updraft helicity since the start of the run (m2/s2)||||0
@@ -2241,6 +2352,7 @@ CHART RRFS|Surface|runoff_1hr|Surface Runoff in the last hour|Water running off 
 CHART RRFS|Surface|runoff_6hr|Surface Runoff in the last 6 hours|Water running off the ground in the last 6 hours (the rain the ground does not take)||||0
 CHART RRFS|Tropical and dynamics|200_div_wnd|200mb Divergence, Wind and Height|Divergence (1e-5 /s)|Height (dam)|own||0
 CHART RRFS|Tropical and dynamics|200_stream_div|200mb Divergence and Streamlines|Divergence (1e-5 /s)|||streamlines|0
+CHART RRFS|Tropical and dynamics|300_qvector_div|300mb Q-Vector Divergence (QG forcing for vertical motion) and Height|-2 div Q (10^-17 K per m^2 per s: forcing for rising red, sinking blue)|Height (dam)|||0
 CHART RRFS|Tropical and dynamics|500_vort_ht|500mb Vorticity, Wind, and Height|Relative vorticity (1e-5 /s)|Height (dam)|own||0
 CHART RRFS|Tropical and dynamics|850_stream_vort|850mb Vorticity and Streamlines|Relative vorticity (1e-5 /s)|||streamlines|0
 CHART RRFS|Tropical and dynamics|850_thetae_ht|850mb Equivalent Potential Temperature, Wind and Height|Equivalent potential temperature (K)|Height (dam)|own||0
@@ -2523,12 +2635,14 @@ CHART SPCREFS|SPC REFS: Surface and upper air|z700_mean|700 mb Height (ensemble 
 CHART SPCREFS|SPC REFS: Surface and upper air|z850_mean|850 mb Height (ensemble mean)|850 mb Height (ensemble mean) (m)||||0
 CHART UKMO|Changes and trends|mslp_trend|MSLP and 48-hour Change|Sea level pressure change (mb)|Sea level pressure (mb)|||0
 CHART UKMO|Changes and trends|z500_trend|500mb Height and 48-hour Change|500mb height change (dam)|Height (dam)|||0
+CHART UKMO|Severe: instability|sbcape_crossover|Surface-Based CAPE and the 850-500mb Wind Crossover|Surface-based CAPE (J/kg)|Veering 850-500 mb (degrees, from 45; where CAPE is 100 J/kg or more)|own||0
 CHART UKMO|Severe: instability|sbcape_wind|Surface-Based CAPE, MSLP and 10m Wind|Surface-based CAPE (J/kg)|Sea level pressure (mb)|own||0
 CHART UKMO|Surface|10m_wnd_2m_temp|MSLP, 10m wind, 2m temperature|2 m temperature|Sea level pressure (mb)|own||0
 CHART UKMO|Surface|cloud_layers|Cloud Cover by Height (low, middle, high)|Low cloud (%): each place in the color of its layer with the most cover (gray low, blue middle, pink high; under 20% clear)||||2
 CHART UKMO|Surface|mslp_10m_wind|MSLP and 10m Wind|10 m wind speed (kt)|Sea level pressure (mb)|own||0
 CHART UKMO|Tropical and dynamics|200_div_wnd|200mb Divergence, Wind and Height|Divergence (1e-5 /s)|Height (dam)|own||0
 CHART UKMO|Tropical and dynamics|200_stream_div|200mb Divergence and Streamlines|Divergence (1e-5 /s)|||streamlines|0
+CHART UKMO|Tropical and dynamics|300_qvector_div|300mb Q-Vector Divergence (QG forcing for vertical motion) and Height|-2 div Q (10^-17 K per m^2 per s: forcing for rising red, sinking blue)|Height (dam)|||0
 CHART UKMO|Tropical and dynamics|500_vort_ht|500mb Vorticity, Wind, and Height|Relative vorticity (1e-5 /s)|Height (dam)|own||0
 CHART UKMO|Tropical and dynamics|850_stream_vort|850mb Vorticity and Streamlines|Relative vorticity (1e-5 /s)|||streamlines|0
 CHART UKMO|Tropical and dynamics|850_thetae_ht|850mb Equivalent Potential Temperature, Wind and Height|Equivalent potential temperature (K)|Height (dam)|own||0
@@ -2538,6 +2652,7 @@ CHART UKMO|Tropical and dynamics|shear_850_200|850-200mb Deep-Layer Wind Shear|S
 CHART UKMO|Tropical and dynamics|steering_850_200|850-200mb Mean Wind (Steering Flow)|Mean wind speed (kt)|Sea level pressure (mb)|own||0
 CHART UKMO|Upper air|100_temp_ht|100mb Temperature, Wind and Height|Temperature|Height (dam)|own||0
 CHART UKMO|Upper air|100_wnd_ht|100mb Wind and Height|Wind speed (kt)|Height (dam)|own||0
+CHART UKMO|Upper air|200_velocity_potential|200mb Velocity Potential and Irrotational Wind|Velocity potential (10^6 m^2/s: green the divergent outflow over rising air); barbs: the irrotational wind||own||0
 CHART UKMO|Upper air|200_wnd_ht|200mb Wind and Height|Wind speed (kt)|Height (dam)|||0
 CHART UKMO|Upper air|250_wnd_ht|250mb Wind and Height|Wind speed (kt)|Height (dam)|||0
 CHART UKMO|Upper air|300_wnd_ht|300mb Wind and Height|Wind speed (kt)|Height (dam)|||0
@@ -2594,6 +2709,7 @@ CHART WOOF-NAM-HOSTED|Precipitation and moisture|precip_p36|Total Precipitation 
 CHART WOOF-NAM-HOSTED|Precipitation and moisture|precip_p48|Total Precipitation every 48 hours|Precipitation, hours 0-12|Sea level pressure (mb);1000-500mb thickness (dam)|||0
 CHART WOOF-NAM-HOSTED|Precipitation and moisture|precip_p60|Total Precipitation every 60 hours|Precipitation, hours 0-12|Sea level pressure (mb);1000-500mb thickness (dam)|||0
 CHART WOOF-NAM-HOSTED|Precipitation and moisture|precip_ptot|Total Accumulated Precipitation of Period|Precipitation, hours 0-12|Sea level pressure (mb)|||0
+CHART WOOF-NAM-HOSTED|Severe: instability|sbcape_crossover|Surface-Based CAPE and the 850-500mb Wind Crossover|Surface-based CAPE (J/kg)|Veering 850-500 mb (degrees, from 45; where CAPE is 100 J/kg or more)|own||0
 CHART WOOF-NAM-HOSTED|Severe: instability|sbcape_wind|Surface-Based CAPE, MSLP and 10m Wind|Surface-based CAPE (J/kg)|Sea level pressure (mb)|own||0
 CHART WOOF-NAM-HOSTED|Severe: storm structure|sim_radar_comp|Simulated Composite Radar Reflectivity|Composite reflectivity (dBZ)||||0
 CHART WOOF-NAM-HOSTED|Surface|10m_wnd_2m_temp|MSLP, 10m wind, 2m temperature|2 m temperature|Sea level pressure (mb)|own||0
@@ -2602,6 +2718,7 @@ CHART WOOF-NAM-HOSTED|Surface|2m_rh_10m_wnd_derived|2 m Relative Humidity (from 
 CHART WOOF-NAM-HOSTED|Surface|mslp_10m_wind|MSLP and 10m Wind|10 m wind speed (kt)|Sea level pressure (mb)|own||0
 CHART WOOF-NAM-HOSTED|Tropical and dynamics|200_div_wnd|200mb Divergence, Wind and Height|Divergence (1e-5 /s)|Height (dam)|own||0
 CHART WOOF-NAM-HOSTED|Tropical and dynamics|200_stream_div|200mb Divergence and Streamlines|Divergence (1e-5 /s)|||streamlines|0
+CHART WOOF-NAM-HOSTED|Tropical and dynamics|300_qvector_div|300mb Q-Vector Divergence (QG forcing for vertical motion) and Height|-2 div Q (10^-17 K per m^2 per s: forcing for rising red, sinking blue)|Height (dam)|||0
 CHART WOOF-NAM-HOSTED|Tropical and dynamics|500_vort_ht|500mb Vorticity, Wind, and Height|Relative vorticity (1e-5 /s)|Height (dam)|own||0
 CHART WOOF-NAM-HOSTED|Tropical and dynamics|850_stream_vort|850mb Vorticity and Streamlines|Relative vorticity (1e-5 /s)|||streamlines|0
 CHART WOOF-NAM-HOSTED|Tropical and dynamics|850_thetae_ht|850mb Equivalent Potential Temperature, Wind and Height|Equivalent potential temperature (K)|Height (dam)|own||0
@@ -2842,11 +2959,15 @@ LEVELS AIFS|100_wnd_ht|z=HGT@100 mb,u=UGRD@100 mb,v=VGRD@100 mb|HGT@100 mb|UGRD@
 LEVELS AIFS|10m_wnd_2m_temp|t=TMP@2 m above ground,u=UGRD@10 m above ground,v=VGRD@10 m above ground,p=PRMSL@mean sea level|PRMSL@mean sea level|UGRD@10 m above ground
 LEVELS AIFS|200_div_wnd|z=HGT@200 mb,u=UGRD@200 mb,v=VGRD@200 mb|HGT@200 mb|UGRD@200 mb
 LEVELS AIFS|200_stream_div|z=HGT@200 mb,u=UGRD@200 mb,v=VGRD@200 mb||
+LEVELS AIFS|200_velocity_potential|u=UGRD@200 mb,v=VGRD@200 mb||
 LEVELS AIFS|200_wnd_ht|z=HGT@200 mb,u=UGRD@200 mb,v=VGRD@200 mb|HGT@200 mb|
 LEVELS AIFS|250_wnd_ht|z=HGT@250 mb,u=UGRD@250 mb,v=VGRD@250 mb|HGT@250 mb|
 LEVELS AIFS|2m_dewpoint|d=DPT@2 m above ground,u=UGRD@10 m above ground,v=VGRD@10 m above ground,p=PRMSL@mean sea level|PRMSL@mean sea level|UGRD@10 m above ground
 LEVELS AIFS|2m_rh_10m_wnd_derived|t=TMP@2 m above ground,d=DPT@2 m above ground,u=UGRD@10 m above ground,v=VGRD@10 m above ground,p=PRMSL@mean sea level|PRMSL@mean sea level|UGRD@10 m above ground
+LEVELS AIFS|2m_temp_anom|f=TMP@2 m above ground,p=PRMSL@mean sea level,u=UGRD@10 m above ground,v=VGRD@10 m above ground|PRMSL@mean sea level|UGRD@10 m above ground
+LEVELS AIFS|300_qvector_div|t=TMP@300 mb,z=HGT@300 mb|HGT@300 mb|
 LEVELS AIFS|300_wnd_ht|z=HGT@300 mb,u=UGRD@300 mb,v=VGRD@300 mb|HGT@300 mb|
+LEVELS AIFS|330K_pv|t100=TMP@100 mb,t150=TMP@150 mb,u150=UGRD@150 mb,v150=VGRD@150 mb,t200=TMP@200 mb,u200=UGRD@200 mb,v200=VGRD@200 mb,t250=TMP@250 mb,u250=UGRD@250 mb,v250=VGRD@250 mb,t300=TMP@300 mb,u300=UGRD@300 mb,v300=VGRD@300 mb,t400=TMP@400 mb,u400=UGRD@400 mb,v400=VGRD@400 mb,t500=TMP@500 mb,u500=UGRD@500 mb,v500=VGRD@500 mb,t600=TMP@600 mb,u600=UGRD@600 mb,v600=VGRD@600 mb,t700=TMP@700 mb,u700=UGRD@700 mb,v700=VGRD@700 mb,t850=TMP@850 mb||
 LEVELS AIFS|500_hgt_anom|z=HGT@500 mb,u=UGRD@500 mb,v=VGRD@500 mb|HGT@500 mb|UGRD@500 mb
 LEVELS AIFS|500_rh_ht|z=HGT@500 mb,rh=RH@500 mb,u=UGRD@500 mb,v=VGRD@500 mb|HGT@500 mb|UGRD@500 mb
 LEVELS AIFS|500_vort_ht|z=HGT@500 mb,u=UGRD@500 mb,v=VGRD@500 mb|HGT@500 mb|UGRD@500 mb
@@ -2887,11 +3008,15 @@ LEVELS AIGFS|10m_wnd_2m_temp|t=TMP@2 m above ground,u=UGRD@10 m above ground,v=V
 LEVELS AIGFS|10m_wnd_precip|||
 LEVELS AIGFS|200_div_wnd|z=HGT@200 mb,u=UGRD@200 mb,v=VGRD@200 mb|HGT@200 mb|UGRD@200 mb
 LEVELS AIGFS|200_stream_div|z=HGT@200 mb,u=UGRD@200 mb,v=VGRD@200 mb||
+LEVELS AIGFS|200_velocity_potential|u=UGRD@200 mb,v=VGRD@200 mb||
 LEVELS AIGFS|200_wnd_ht|z=HGT@200 mb,u=UGRD@200 mb,v=VGRD@200 mb|HGT@200 mb|
 LEVELS AIGFS|250_wnd_ht|z=HGT@250 mb,u=UGRD@250 mb,v=VGRD@250 mb|HGT@250 mb|
 LEVELS AIGFS|2m_dewpoint|d=DPT@2 m above ground,u=UGRD@10 m above ground,v=VGRD@10 m above ground,p=PRMSL@mean sea level|PRMSL@mean sea level|UGRD@10 m above ground
 LEVELS AIGFS|2m_rh_10m_wnd_derived|t=TMP@2 m above ground,d=DPT@2 m above ground,u=UGRD@10 m above ground,v=VGRD@10 m above ground,p=PRMSL@mean sea level|PRMSL@mean sea level|UGRD@10 m above ground
+LEVELS AIGFS|2m_temp_anom|f=TMP@2 m above ground,p=PRMSL@mean sea level,u=UGRD@10 m above ground,v=VGRD@10 m above ground|PRMSL@mean sea level|UGRD@10 m above ground
+LEVELS AIGFS|300_qvector_div|t=TMP@300 mb,z=HGT@300 mb|HGT@300 mb|
 LEVELS AIGFS|300_wnd_ht|z=HGT@300 mb,u=UGRD@300 mb,v=VGRD@300 mb|HGT@300 mb|
+LEVELS AIGFS|330K_pv|t100=TMP@100 mb,t150=TMP@150 mb,u150=UGRD@150 mb,v150=VGRD@150 mb,t200=TMP@200 mb,u200=UGRD@200 mb,v200=VGRD@200 mb,t250=TMP@250 mb,u250=UGRD@250 mb,v250=VGRD@250 mb,t300=TMP@300 mb,u300=UGRD@300 mb,v300=VGRD@300 mb,t400=TMP@400 mb,u400=UGRD@400 mb,v400=VGRD@400 mb,t500=TMP@500 mb,u500=UGRD@500 mb,v500=VGRD@500 mb,t600=TMP@600 mb,u600=UGRD@600 mb,v600=VGRD@600 mb,t700=TMP@700 mb,u700=UGRD@700 mb,v700=VGRD@700 mb,t850=TMP@850 mb||
 LEVELS AIGFS|500_hgt_anom|z=HGT@500 mb,u=UGRD@500 mb,v=VGRD@500 mb|HGT@500 mb|UGRD@500 mb
 LEVELS AIGFS|500_rh_ht|z=HGT@500 mb,rh=RH@500 mb,u=UGRD@500 mb,v=VGRD@500 mb|HGT@500 mb|UGRD@500 mb
 LEVELS AIGFS|500_vort_ht|z=HGT@500 mb,u=UGRD@500 mb,v=VGRD@500 mb|HGT@500 mb|UGRD@500 mb
@@ -2932,7 +3057,9 @@ LEVELS AROME|200_div_wnd|z=HGT@200 mb,u=UGRD@200 mb,v=VGRD@200 mb|HGT@200 mb|UGR
 LEVELS AROME|200_stream_div|z=HGT@200 mb,u=UGRD@200 mb,v=VGRD@200 mb||
 LEVELS AROME|200_wnd_ht|z=HGT@200 mb,u=UGRD@200 mb,v=VGRD@200 mb|HGT@200 mb|
 LEVELS AROME|250_wnd_ht|z=HGT@250 mb,u=UGRD@250 mb,v=VGRD@250 mb|HGT@250 mb|
+LEVELS AROME|300_qvector_div|t=TMP@300 mb,z=HGT@300 mb|HGT@300 mb|
 LEVELS AROME|300_wnd_ht|z=HGT@300 mb,u=UGRD@300 mb,v=VGRD@300 mb|HGT@300 mb|
+LEVELS AROME|330K_pv|t100=TMP@100 mb,t150=TMP@150 mb,u150=UGRD@150 mb,v150=VGRD@150 mb,t200=TMP@200 mb,u200=UGRD@200 mb,v200=VGRD@200 mb,t250=TMP@250 mb,u250=UGRD@250 mb,v250=VGRD@250 mb,t300=TMP@300 mb,u300=UGRD@300 mb,v300=VGRD@300 mb,t400=TMP@400 mb,u400=UGRD@400 mb,v400=VGRD@400 mb,t500=TMP@500 mb,u500=UGRD@500 mb,v500=VGRD@500 mb,t600=TMP@600 mb,u600=UGRD@600 mb,v600=VGRD@600 mb,t700=TMP@700 mb,u700=UGRD@700 mb,v700=VGRD@700 mb,t850=TMP@850 mb||
 LEVELS AROME|500_rh_ht|z=HGT@500 mb,rh=RH@500 mb,u=UGRD@500 mb,v=VGRD@500 mb|HGT@500 mb|UGRD@500 mb
 LEVELS AROME|500_vort_ht|z=HGT@500 mb,u=UGRD@500 mb,v=VGRD@500 mb|HGT@500 mb|UGRD@500 mb
 LEVELS AROME|500_wnd_ht|z=HGT@500 mb,u=UGRD@500 mb,v=VGRD@500 mb|HGT@500 mb|UGRD@500 mb
@@ -2951,6 +3078,7 @@ LEVELS AROME-HD|cloud_layers|lo=LCDC@low cloud layer,mi=MCDC@middle cloud layer,
 LEVELS AROME|mslp_10m_wind|u=UGRD@10 m above ground,v=VGRD@10 m above ground,p=PRMSL@mean sea level|PRMSL@mean sea level|UGRD@10 m above ground
 LEVELS AROME|mslp_trend|||
 LEVELS AROME|rh_700_300|r7=RH@700 mb,r5=RH@500 mb,r3=RH@300 mb,z=HGT@500 mb,u=UGRD@500 mb,v=VGRD@500 mb|HGT@500 mb|UGRD@500 mb
+LEVELS AROME|sbcape_crossover|c=CAPE@surface,u=UGRD@850 mb,v=VGRD@850 mb,u5=UGRD@500 mb,v5=VGRD@500 mb||UGRD@850 mb
 LEVELS AROME|sbcape_wind|c=CAPE@surface,u=UGRD@10 m above ground,v=VGRD@10 m above ground,p=PRMSL@mean sea level|PRMSL@mean sea level|UGRD@10 m above ground
 LEVELS AROME|shear_850_200|u8=UGRD@850 mb,v8=VGRD@850 mb,u2=UGRD@200 mb,v2=VGRD@200 mb,p=PRMSL@mean sea level|PRMSL@mean sea level|
 LEVELS AROME|steering_850_200|u0=UGRD@850 mb,v0=VGRD@850 mb,u1=UGRD@700 mb,v1=VGRD@700 mb,u2=UGRD@500 mb,v2=VGRD@500 mb,u3=UGRD@300 mb,v3=VGRD@300 mb,u4=UGRD@200 mb,v4=VGRD@200 mb,p=PRMSL@mean sea level|PRMSL@mean sea level|
@@ -2960,8 +3088,10 @@ LEVELS ARPEGE|100_wnd_ht|z=HGT@100 mb,u=UGRD@100 mb,v=VGRD@100 mb|HGT@100 mb|UGR
 LEVELS ARPEGE|10m_wnd_2m_temp|t=TMP@2 m above ground,u=UGRD@10 m above ground,v=VGRD@10 m above ground,p=PRMSL@mean sea level|PRMSL@mean sea level|UGRD@10 m above ground
 LEVELS ARPEGE|200_div_wnd|z=HGT@200 mb,u=UGRD@200 mb,v=VGRD@200 mb|HGT@200 mb|UGRD@200 mb
 LEVELS ARPEGE|200_stream_div|z=HGT@200 mb,u=UGRD@200 mb,v=VGRD@200 mb||
+LEVELS ARPEGE|200_velocity_potential|u=UGRD@200 mb,v=VGRD@200 mb||
 LEVELS ARPEGE|200_wnd_ht|z=HGT@200 mb,u=UGRD@200 mb,v=VGRD@200 mb|HGT@200 mb|
 LEVELS ARPEGE|250_wnd_ht|z=HGT@250 mb,u=UGRD@250 mb,v=VGRD@250 mb|HGT@250 mb|
+LEVELS ARPEGE|300_qvector_div|t=TMP@300 mb,z=HGT@300 mb|HGT@300 mb|
 LEVELS ARPEGE|300_wnd_ht|z=HGT@300 mb,u=UGRD@300 mb,v=VGRD@300 mb|HGT@300 mb|
 LEVELS ARPEGE|500_rh_ht|z=HGT@500 mb,rh=RH@500 mb,u=UGRD@500 mb,v=VGRD@500 mb|HGT@500 mb|UGRD@500 mb
 LEVELS ARPEGE|500_vort_ht|z=HGT@500 mb,u=UGRD@500 mb,v=VGRD@500 mb|HGT@500 mb|UGRD@500 mb
@@ -2986,6 +3116,7 @@ LEVELS ARPEGE-EU|mslp_trend|||
 LEVELS ARPEGE|mslp_10m_wind|u=UGRD@10 m above ground,v=VGRD@10 m above ground,p=PRMSL@mean sea level|PRMSL@mean sea level|UGRD@10 m above ground
 LEVELS ARPEGE|mslp_trend|||
 LEVELS ARPEGE|rh_700_300|r7=RH@700 mb,r5=RH@500 mb,r3=RH@300 mb,z=HGT@500 mb,u=UGRD@500 mb,v=VGRD@500 mb|HGT@500 mb|UGRD@500 mb
+LEVELS ARPEGE|sbcape_crossover|c=CAPE@surface,u=UGRD@850 mb,v=VGRD@850 mb,u5=UGRD@500 mb,v5=VGRD@500 mb||UGRD@850 mb
 LEVELS ARPEGE|sbcape_wind|c=CAPE@surface,u=UGRD@10 m above ground,v=VGRD@10 m above ground,p=PRMSL@mean sea level|PRMSL@mean sea level|UGRD@10 m above ground
 LEVELS ARPEGE|shear_850_200|u8=UGRD@850 mb,v8=VGRD@850 mb,u2=UGRD@200 mb,v2=VGRD@200 mb,p=PRMSL@mean sea level|PRMSL@mean sea level|
 LEVELS ARPEGE|steering_850_200|u0=UGRD@850 mb,v0=VGRD@850 mb,u1=UGRD@700 mb,v1=VGRD@700 mb,u2=UGRD@500 mb,v2=VGRD@500 mb,u3=UGRD@300 mb,v3=VGRD@300 mb,u4=UGRD@200 mb,v4=VGRD@200 mb,p=PRMSL@mean sea level|PRMSL@mean sea level|
@@ -2995,6 +3126,7 @@ LEVELS ARWEN|mslp_10m_wind|u=UGRD@10 m above ground,v=VGRD@10 m above ground,p=P
 LEVELS ARWEN|mslp_trend|||
 LEVELS ARWEN|sim_radar_comp|r=REFC@entire atmosphere||
 LEVELS CFS|10m_wnd_2m_temp|t=TMP@2 m above ground,u=UGRD@10 m above ground,v=VGRD@10 m above ground,p=PRMSL@mean sea level|PRMSL@mean sea level|UGRD@10 m above ground
+LEVELS CFS|2m_temp_anom|f=TMP@2 m above ground,p=PRMSL@mean sea level,u=UGRD@10 m above ground,v=VGRD@10 m above ground|PRMSL@mean sea level|UGRD@10 m above ground
 LEVELS CFS30|cfs30_mslp_departure|v=mslp@30 days||
 LEVELS CFS30|cfs30_mslp|v=mslp.values@30 days||
 LEVELS CFS30|cfs30_precip_value|v=precip.values@30 days||
@@ -3014,6 +3146,7 @@ LEVELS CFS|850_temp_ht|z=HGT@850 mb,u=UGRD@850 mb,v=VGRD@850 mb,t=TMP@850 mb|HGT
 LEVELS CFS|850_thetae_ht|z=HGT@850 mb,u=UGRD@850 mb,v=VGRD@850 mb,t=TMP@850 mb,rh=RH@850 mb|HGT@850 mb|UGRD@850 mb
 LEVELS CFS|850_wnd_ht|z=HGT@850 mb,u=UGRD@850 mb,v=VGRD@850 mb|HGT@850 mb|UGRD@850 mb
 LEVELS CFS-ANL|10m_wnd_2m_temp|t=TMP@2 m above ground,u=UGRD@10 m above ground,v=VGRD@10 m above ground,p=PRMSL@mean sea level|PRMSL@mean sea level|UGRD@10 m above ground
+LEVELS CFS-ANL|2m_temp_anom|f=TMP@2 m above ground,p=PRMSL@mean sea level,u=UGRD@10 m above ground,v=VGRD@10 m above ground|PRMSL@mean sea level|UGRD@10 m above ground
 LEVELS CFS-ANL|500_hgt_anom|z=HGT@500 mb,u=UGRD@500 mb,v=VGRD@500 mb|HGT@500 mb|UGRD@500 mb
 LEVELS CFS-ANL|500_rh_ht|z=HGT@500 mb,rh=RH@500 mb,u=UGRD@500 mb,v=VGRD@500 mb|HGT@500 mb|UGRD@500 mb
 LEVELS CFS-ANL|500_wnd_ht|z=HGT@500 mb,u=UGRD@500 mb,v=VGRD@500 mb|HGT@500 mb|UGRD@500 mb
@@ -3029,11 +3162,13 @@ LEVELS CFS-ANL|mslp_10m_wind|u=UGRD@10 m above ground,v=VGRD@10 m above ground,p
 LEVELS CFS-ANL|mslp_anom|p=PRMSL@mean sea level,u=UGRD@10 m above ground,v=VGRD@10 m above ground|PRMSL@mean sea level|UGRD@10 m above ground
 LEVELS CFS-ANL|mslp_pwat|pw=PWAT@entire atmosphere (considered as a single layer),p=PRMSL@mean sea level|PRMSL@mean sea level|
 LEVELS CFS-ANL|mslp_trend|||
+LEVELS CFS-ANL|pwat_anom|f=PWAT@entire atmosphere (considered as a single layer),p=PRMSL@mean sea level|PRMSL@mean sea level|
 LEVELS CFS-ANL|z500_trend|||
 LEVELS CFS|mslp_10m_wind|u=UGRD@10 m above ground,v=VGRD@10 m above ground,p=PRMSL@mean sea level|PRMSL@mean sea level|UGRD@10 m above ground
 LEVELS CFS|mslp_anom|p=PRMSL@mean sea level,u=UGRD@10 m above ground,v=VGRD@10 m above ground|PRMSL@mean sea level|UGRD@10 m above ground
 LEVELS CFS|mslp_pwat|pw=PWAT@entire atmosphere (considered as a single layer),p=PRMSL@mean sea level|PRMSL@mean sea level|
 LEVELS CFS|mslp_trend|||
+LEVELS CFS|pwat_anom|f=PWAT@entire atmosphere (considered as a single layer),p=PRMSL@mean sea level|PRMSL@mean sea level|
 LEVELS CFS|z500_trend|||
 LEVELS COPERNICUS|aod|a=AOD@surface||
 LEVELS COPERNICUS|co_aq|a=CO@surface||
@@ -3081,10 +3216,12 @@ LEVELS ERA5|10_temp_ht|z=HGT@10 mb,u=UGRD@10 mb,v=VGRD@10 mb,t=TMP@10 mb|HGT@10 
 LEVELS ERA5|10_wnd_ht|z=HGT@10 mb,u=UGRD@10 mb,v=VGRD@10 mb|HGT@10 mb|UGRD@10 mb
 LEVELS ERA5|200_div_wnd|z=HGT@200 mb,u=UGRD@200 mb,v=VGRD@200 mb|HGT@200 mb|UGRD@200 mb
 LEVELS ERA5|200_stream_div|z=HGT@200 mb,u=UGRD@200 mb,v=VGRD@200 mb||
+LEVELS ERA5|200_velocity_potential|u=UGRD@200 mb,v=VGRD@200 mb||
 LEVELS ERA5|200_wnd_ht|z=HGT@200 mb,u=UGRD@200 mb,v=VGRD@200 mb|HGT@200 mb|
 LEVELS ERA5|250_wnd_ht|z=HGT@250 mb,u=UGRD@250 mb,v=VGRD@250 mb|HGT@250 mb|
 LEVELS ERA5|2m_dewpoint|d=DPT@2 m above ground,u=UGRD@10 m above ground,v=VGRD@10 m above ground,p=PRMSL@mean sea level|PRMSL@mean sea level|UGRD@10 m above ground
 LEVELS ERA5|2m_rh_10m_wnd_derived|t=TMP@2 m above ground,d=DPT@2 m above ground,u=UGRD@10 m above ground,v=VGRD@10 m above ground,p=PRMSL@mean sea level|PRMSL@mean sea level|UGRD@10 m above ground
+LEVELS ERA5|300_qvector_div|t=TMP@300 mb,z=HGT@300 mb|HGT@300 mb|
 LEVELS ERA5|300_wnd_ht|z=HGT@300 mb,u=UGRD@300 mb,v=VGRD@300 mb|HGT@300 mb|
 LEVELS ERA5|30_temp_ht|z=HGT@30 mb,u=UGRD@30 mb,v=VGRD@30 mb,t=TMP@30 mb|HGT@30 mb|UGRD@30 mb
 LEVELS ERA5|30_wnd_ht|z=HGT@30 mb,u=UGRD@30 mb,v=VGRD@30 mb|HGT@30 mb|UGRD@30 mb
@@ -3110,6 +3247,7 @@ LEVELS ERA5|mslp_10m_wind|u=UGRD@10 m above ground,v=VGRD@10 m above ground,p=PR
 LEVELS ERA5|mslp_pwat|pw=PWAT@entire atmosphere (considered as a single layer),p=PRMSL@mean sea level|PRMSL@mean sea level|
 LEVELS ERA5|mslp_trend|||
 LEVELS ERA5|rh_700_300|r7=RH@700 mb,r5=RH@500 mb,r3=RH@300 mb,z=HGT@500 mb,u=UGRD@500 mb,v=VGRD@500 mb|HGT@500 mb|UGRD@500 mb
+LEVELS ERA5|sbcape_crossover|c=CAPE@surface,u=UGRD@850 mb,v=VGRD@850 mb,u5=UGRD@500 mb,v5=VGRD@500 mb||UGRD@850 mb
 LEVELS ERA5|sbcape_wind|c=CAPE@surface,u=UGRD@10 m above ground,v=VGRD@10 m above ground,p=PRMSL@mean sea level|PRMSL@mean sea level|UGRD@10 m above ground
 LEVELS ERA5|shear_850_200|u8=UGRD@850 mb,v8=VGRD@850 mb,u2=UGRD@200 mb,v2=VGRD@200 mb,p=PRMSL@mean sea level|PRMSL@mean sea level|
 LEVELS ERA5|steering_850_200|u0=UGRD@850 mb,v0=VGRD@850 mb,u1=UGRD@700 mb,v1=VGRD@700 mb,u2=UGRD@500 mb,v2=VGRD@500 mb,u3=UGRD@300 mb,v3=VGRD@300 mb,u4=UGRD@200 mb,v4=VGRD@200 mb,p=PRMSL@mean sea level|PRMSL@mean sea level|
@@ -3119,9 +3257,12 @@ LEVELS GDPS|100_wnd_ht|z=HGT@100 mb,u=UGRD@100 mb,v=VGRD@100 mb|HGT@100 mb|UGRD@
 LEVELS GDPS|10m_wnd_2m_temp|t=TMP@2 m above ground,u=UGRD@10 m above ground,v=VGRD@10 m above ground,p=PRMSL@mean sea level|PRMSL@mean sea level|UGRD@10 m above ground
 LEVELS GDPS|200_div_wnd|z=HGT@200 mb,u=UGRD@200 mb,v=VGRD@200 mb|HGT@200 mb|UGRD@200 mb
 LEVELS GDPS|200_stream_div|z=HGT@200 mb,u=UGRD@200 mb,v=VGRD@200 mb||
+LEVELS GDPS|200_velocity_potential|u=UGRD@200 mb,v=VGRD@200 mb||
 LEVELS GDPS|200_wnd_ht|z=HGT@200 mb,u=UGRD@200 mb,v=VGRD@200 mb|HGT@200 mb|
 LEVELS GDPS|250_wnd_ht|z=HGT@250 mb,u=UGRD@250 mb,v=VGRD@250 mb|HGT@250 mb|
+LEVELS GDPS|300_qvector_div|t=TMP@300 mb,z=HGT@300 mb|HGT@300 mb|
 LEVELS GDPS|300_wnd_ht|z=HGT@300 mb,u=UGRD@300 mb,v=VGRD@300 mb|HGT@300 mb|
+LEVELS GDPS|330K_pv|t100=TMP@100 mb,t150=TMP@150 mb,u150=UGRD@150 mb,v150=VGRD@150 mb,t200=TMP@200 mb,u200=UGRD@200 mb,v200=VGRD@200 mb,t250=TMP@250 mb,u250=UGRD@250 mb,v250=VGRD@250 mb,t300=TMP@300 mb,u300=UGRD@300 mb,v300=VGRD@300 mb,t400=TMP@400 mb,u400=UGRD@400 mb,v400=VGRD@400 mb,t500=TMP@500 mb,u500=UGRD@500 mb,v500=VGRD@500 mb,t600=TMP@600 mb,u600=UGRD@600 mb,v600=VGRD@600 mb,t700=TMP@700 mb,u700=UGRD@700 mb,v700=VGRD@700 mb,t850=TMP@850 mb||
 LEVELS GDPS|500_rh_ht|z=HGT@500 mb,rh=RH@500 mb,u=UGRD@500 mb,v=VGRD@500 mb|HGT@500 mb|UGRD@500 mb
 LEVELS GDPS|500_vort_ht|z=HGT@500 mb,u=UGRD@500 mb,v=VGRD@500 mb|HGT@500 mb|UGRD@500 mb
 LEVELS GDPS|500_wnd_ht|z=HGT@500 mb,u=UGRD@500 mb,v=VGRD@500 mb|HGT@500 mb|UGRD@500 mb
@@ -3162,13 +3303,16 @@ LEVELS GEFS|200_1224_ht|||
 LEVELS GEFS|200_1230_ht|||
 LEVELS GEFS|200_div_wnd|z=HGT@200 mb,u=UGRD@200 mb,v=VGRD@200 mb|HGT@200 mb|UGRD@200 mb
 LEVELS GEFS|200_stream_div|z=HGT@200 mb,u=UGRD@200 mb,v=VGRD@200 mb||
+LEVELS GEFS|200_velocity_potential|u=UGRD@200 mb,v=VGRD@200 mb||
 LEVELS GEFS|200_wnd_ht|z=HGT@200 mb,u=UGRD@200 mb,v=VGRD@200 mb|HGT@200 mb|
 LEVELS GEFS|250_temp|t=TMP@250 mb,s=TMP@250 mb|TMP@250 mb|
 LEVELS GEFS|250_wnd_ht|z=HGT@250 mb,u=UGRD@250 mb,v=VGRD@250 mb|HGT@250 mb|
 LEVELS GEFS|250_wnd|u=UGRD@250 mb,v=VGRD@250 mb,su=UGRD@250 mb,sv=VGRD@250 mb||UGRD@250 mb
 LEVELS GEFS|2m_dewpoint|d=DPT@2 m above ground,u=UGRD@10 m above ground,v=VGRD@10 m above ground,p=PRMSL@mean sea level|PRMSL@mean sea level|UGRD@10 m above ground
 LEVELS GEFS|2m_rh_10m_wnd_derived|t=TMP@2 m above ground,d=DPT@2 m above ground,u=UGRD@10 m above ground,v=VGRD@10 m above ground,p=PRMSL@mean sea level|PRMSL@mean sea level|UGRD@10 m above ground
+LEVELS GEFS|2m_temp_anom|f=TMP@2 m above ground,p=PRMSL@mean sea level,u=UGRD@10 m above ground,v=VGRD@10 m above ground|PRMSL@mean sea level|UGRD@10 m above ground
 LEVELS GEFS|2m_temp|t=TMP@2 m above ground,s=TMP@2 m above ground|TMP@2 m above ground|
+LEVELS GEFS|300_qvector_div|t=TMP@300 mb,z=HGT@300 mb|HGT@300 mb|
 LEVELS GEFS|300_wnd_ht|z=HGT@300 mb,u=UGRD@300 mb,v=VGRD@300 mb|HGT@300 mb|
 LEVELS GEFS|500_510_552_ht|||
 LEVELS GEFS|500_516_558_ht|||
@@ -3247,7 +3391,9 @@ LEVELS GEFS|prob_ice_0.25in|||
 LEVELS GEFS|prob_precip_0.25in|||
 LEVELS GEFS|prob_precip_0.5in|||
 LEVELS GEFS|prob_precip_1in|||
+LEVELS GEFS|pwat_anom|f=PWAT@entire atmosphere (considered as a single layer),p=PRMSL@mean sea level|PRMSL@mean sea level|
 LEVELS GEFS|rh_700_300|r7=RH@700 mb,r5=RH@500 mb,r3=RH@300 mb,z=HGT@500 mb,u=UGRD@500 mb,v=VGRD@500 mb|HGT@500 mb|UGRD@500 mb
+LEVELS GEFS|sbcape_crossover|c=CAPE@surface,u=UGRD@850 mb,v=VGRD@850 mb,u5=UGRD@500 mb,v5=VGRD@500 mb||UGRD@850 mb
 LEVELS GEFS|sbcape_wind|c=CAPE@surface,u=UGRD@10 m above ground,v=VGRD@10 m above ground,p=PRMSL@mean sea level|PRMSL@mean sea level|UGRD@10 m above ground
 LEVELS GEFS|shear_850_200|u8=UGRD@850 mb,v8=VGRD@850 mb,u2=UGRD@200 mb,v2=VGRD@200 mb,p=PRMSL@mean sea level|PRMSL@mean sea level|
 LEVELS GEFS|snodpth_chng|||
@@ -3292,6 +3438,7 @@ LEVELS GEOS-FP|1_temp_ht|z=HGT@1 mb,u=UGRD@1 mb,v=VGRD@1 mb,t=TMP@1 mb|HGT@1 mb|
 LEVELS GEOS-FP|1_wnd_ht|z=HGT@1 mb,u=UGRD@1 mb,v=VGRD@1 mb|HGT@1 mb|UGRD@1 mb
 LEVELS GEOS-FP|200_div_wnd|z=HGT@200 mb,u=UGRD@200 mb,v=VGRD@200 mb|HGT@200 mb|UGRD@200 mb
 LEVELS GEOS-FP|200_stream_div|z=HGT@200 mb,u=UGRD@200 mb,v=VGRD@200 mb||
+LEVELS GEOS-FP|200_velocity_potential|u=UGRD@200 mb,v=VGRD@200 mb||
 LEVELS GEOS-FP|200_wnd_ht|z=HGT@200 mb,u=UGRD@200 mb,v=VGRD@200 mb|HGT@200 mb|
 LEVELS GEOS-FP|20_pv_ht|z=HGT@20 mb,u=UGRD@20 mb,v=VGRD@20 mb,pv=EPV@20 mb|HGT@20 mb|UGRD@20 mb
 LEVELS GEOS-FP|20_temp_ht|z=HGT@20 mb,u=UGRD@20 mb,v=VGRD@20 mb,t=TMP@20 mb|HGT@20 mb|UGRD@20 mb
@@ -3299,6 +3446,7 @@ LEVELS GEOS-FP|20_wnd_ht|z=HGT@20 mb,u=UGRD@20 mb,v=VGRD@20 mb|HGT@20 mb|UGRD@20
 LEVELS GEOS-FP|250_wnd_ht|z=HGT@250 mb,u=UGRD@250 mb,v=VGRD@250 mb|HGT@250 mb|
 LEVELS GEOS-FP|2_temp_ht|z=HGT@2 mb,u=UGRD@2 mb,v=VGRD@2 mb,t=TMP@2 mb|HGT@2 mb|UGRD@2 mb
 LEVELS GEOS-FP|2_wnd_ht|z=HGT@2 mb,u=UGRD@2 mb,v=VGRD@2 mb|HGT@2 mb|UGRD@2 mb
+LEVELS GEOS-FP|300_qvector_div|t=TMP@300 mb,z=HGT@300 mb|HGT@300 mb|
 LEVELS GEOS-FP|300_wnd_ht|z=HGT@300 mb,u=UGRD@300 mb,v=VGRD@300 mb|HGT@300 mb|
 LEVELS GEOS-FP|30_pv_ht|z=HGT@30 mb,u=UGRD@30 mb,v=VGRD@30 mb,pv=EPV@30 mb|HGT@30 mb|UGRD@30 mb
 LEVELS GEOS-FP|30_temp_ht|z=HGT@30 mb,u=UGRD@30 mb,v=VGRD@30 mb,t=TMP@30 mb|HGT@30 mb|UGRD@30 mb
@@ -3310,13 +3458,18 @@ LEVELS GEOS-FP|50_temp_ht|z=HGT@50 mb,u=UGRD@50 mb,v=VGRD@50 mb,t=TMP@50 mb|HGT@
 LEVELS GEOS-FP|50_wnd_ht|z=HGT@50 mb,u=UGRD@50 mb,v=VGRD@50 mb|HGT@50 mb|UGRD@50 mb
 LEVELS GEOS-FP|5_temp_ht|z=HGT@5 mb,u=UGRD@5 mb,v=VGRD@5 mb,t=TMP@5 mb|HGT@5 mb|UGRD@5 mb
 LEVELS GEOS-FP|5_wnd_ht|z=HGT@5 mb,u=UGRD@5 mb,v=VGRD@5 mb|HGT@5 mb|UGRD@5 mb
+LEVELS GEOS-FP|700_frontogenesis|t=TMP@700 mb,u=UGRD@700 mb,v=VGRD@700 mb,z=HGT@700 mb,ps=PRES@surface|HGT@700 mb|UGRD@700 mb
+LEVELS GEOS-FP|700_temp_adv|t=TMP@700 mb,u=UGRD@700 mb,v=VGRD@700 mb,z=HGT@700 mb,ps=PRES@surface|HGT@700 mb|UGRD@700 mb
 LEVELS GEOS-FP|700_temp_mslp|t=TMP@700 mb,u=UGRD@700 mb,v=VGRD@700 mb,p=PRMSL@mean sea level|PRMSL@mean sea level|UGRD@700 mb
 LEVELS GEOS-FP|70_pv_ht|z=HGT@70 mb,u=UGRD@70 mb,v=VGRD@70 mb,pv=EPV@70 mb|HGT@70 mb|UGRD@70 mb
 LEVELS GEOS-FP|70_temp_ht|z=HGT@70 mb,u=UGRD@70 mb,v=VGRD@70 mb,t=TMP@70 mb|HGT@70 mb|UGRD@70 mb
 LEVELS GEOS-FP|70_wnd_ht|z=HGT@70 mb,u=UGRD@70 mb,v=VGRD@70 mb|HGT@70 mb|UGRD@70 mb
+LEVELS GEOS-FP|850_frontogenesis|t=TMP@850 mb,u=UGRD@850 mb,v=VGRD@850 mb,z=HGT@850 mb,ps=PRES@surface|HGT@850 mb|UGRD@850 mb
+LEVELS GEOS-FP|850_okubo_weiss|u=UGRD@850 mb,v=VGRD@850 mb,ps=PRES@surface||
 LEVELS GEOS-FP|850_pw_ht|z=HGT@850 mb,u=UGRD@850 mb,v=VGRD@850 mb,pw=PWAT@entire atmosphere (considered as a single layer)|HGT@850 mb|UGRD@850 mb
 LEVELS GEOS-FP|850_rh_ht|z=HGT@850 mb,rh=RH@850 mb,u=UGRD@850 mb,v=VGRD@850 mb|HGT@850 mb|UGRD@850 mb
 LEVELS GEOS-FP|850_stream_vort|z=HGT@850 mb,u=UGRD@850 mb,v=VGRD@850 mb||
+LEVELS GEOS-FP|850_temp_adv|t=TMP@850 mb,u=UGRD@850 mb,v=VGRD@850 mb,z=HGT@850 mb,ps=PRES@surface|HGT@850 mb|UGRD@850 mb
 LEVELS GEOS-FP|850_temp_ht|z=HGT@850 mb,u=UGRD@850 mb,v=VGRD@850 mb,t=TMP@850 mb|HGT@850 mb|UGRD@850 mb
 LEVELS GEOS-FP|850_thetae_ht|z=HGT@850 mb,u=UGRD@850 mb,v=VGRD@850 mb,t=TMP@850 mb,rh=RH@850 mb|HGT@850 mb|UGRD@850 mb
 LEVELS GEOS-FP|850vor_500ht_200wd|z=HGT@500 mb,u=UGRD@850 mb,v=VGRD@850 mb,u2=UGRD@200 mb,v2=VGRD@200 mb|HGT@500 mb|UGRD@200 mb
@@ -3348,6 +3501,7 @@ LEVELS GEPS|10_temp_ht|z=HGT@10 mb,u=UGRD@10 mb,v=VGRD@10 mb,t=TMP@10 mb|HGT@10 
 LEVELS GEPS|10_wnd_ht|z=HGT@10 mb,u=UGRD@10 mb,v=VGRD@10 mb|HGT@10 mb|UGRD@10 mb
 LEVELS GEPS|200_div_wnd|z=HGT@200 mb,u=UGRD@200 mb,v=VGRD@200 mb|HGT@200 mb|UGRD@200 mb
 LEVELS GEPS|200_stream_div|z=HGT@200 mb,u=UGRD@200 mb,v=VGRD@200 mb||
+LEVELS GEPS|200_velocity_potential|u=UGRD@200 mb,v=VGRD@200 mb||
 LEVELS GEPS|200_wnd_ht|z=HGT@200 mb,u=UGRD@200 mb,v=VGRD@200 mb|HGT@200 mb|
 LEVELS GEPS|250_wnd_ht|z=HGT@250 mb,u=UGRD@250 mb,v=VGRD@250 mb|HGT@250 mb|
 LEVELS GEPS|300_wnd_ht|z=HGT@300 mb,u=UGRD@300 mb,v=VGRD@300 mb|HGT@300 mb|
@@ -3384,6 +3538,7 @@ LEVELS GEPS|prob_total_0.25in|||
 LEVELS GEPS|prob_total_0.5in|||
 LEVELS GEPS|prob_total_1in|||
 LEVELS GEPS|prob_total_2in|||
+LEVELS GEPS|sbcape_crossover|c=CAPE@surface,u=UGRD@850 mb,v=VGRD@850 mb,u5=UGRD@500 mb,v5=VGRD@500 mb||UGRD@850 mb
 LEVELS GEPS|sbcape_wind|c=CAPE@surface,u=UGRD@10 m above ground,v=VGRD@10 m above ground,p=PRMSL@mean sea level|PRMSL@mean sea level|UGRD@10 m above ground
 LEVELS GEPS|shear_850_200|u8=UGRD@850 mb,v8=VGRD@850 mb,u2=UGRD@200 mb,v2=VGRD@200 mb,p=PRMSL@mean sea level|PRMSL@mean sea level|
 LEVELS GEPS|snodpth_chng|||
@@ -3410,10 +3565,12 @@ LEVELS GFS1-ANL|100_wnd_ht|z=HGT@100 mb,u=UGRD@100 mb,v=VGRD@100 mb|HGT@100 mb|U
 LEVELS GFS1-ANL|10m_wnd_2m_temp|t=TMP@2 m above ground,u=UGRD@10 m above ground,v=VGRD@10 m above ground,p=PRMSL@mean sea level|PRMSL@mean sea level|UGRD@10 m above ground
 LEVELS GFS1-ANL|200_div_wnd|z=HGT@200 mb,u=UGRD@200 mb,v=VGRD@200 mb|HGT@200 mb|UGRD@200 mb
 LEVELS GFS1-ANL|200_stream_div|z=HGT@200 mb,u=UGRD@200 mb,v=VGRD@200 mb||
+LEVELS GFS1-ANL|200_velocity_potential|u=UGRD@200 mb,v=VGRD@200 mb||
 LEVELS GFS1-ANL|200_wnd_ht|z=HGT@200 mb,u=UGRD@200 mb,v=VGRD@200 mb|HGT@200 mb|
 LEVELS GFS1-ANL|250_wnd_ht|z=HGT@250 mb,u=UGRD@250 mb,v=VGRD@250 mb|HGT@250 mb|
 LEVELS GFS1-ANL|2m_dewpoint|d=DPT@2 m above ground,u=UGRD@10 m above ground,v=VGRD@10 m above ground,p=PRMSL@mean sea level|PRMSL@mean sea level|UGRD@10 m above ground
 LEVELS GFS1-ANL|2m_rh_10m_wnd_derived|t=TMP@2 m above ground,d=DPT@2 m above ground,u=UGRD@10 m above ground,v=VGRD@10 m above ground,p=PRMSL@mean sea level|PRMSL@mean sea level|UGRD@10 m above ground
+LEVELS GFS1-ANL|300_qvector_div|t=TMP@300 mb,z=HGT@300 mb|HGT@300 mb|
 LEVELS GFS1-ANL|300_wnd_ht|z=HGT@300 mb,u=UGRD@300 mb,v=VGRD@300 mb|HGT@300 mb|
 LEVELS GFS1-ANL|500_rh_ht|z=HGT@500 mb,rh=RH@500 mb,u=UGRD@500 mb,v=VGRD@500 mb|HGT@500 mb|UGRD@500 mb
 LEVELS GFS1-ANL|500_vort_ht|z=HGT@500 mb,u=UGRD@500 mb,v=VGRD@500 mb|HGT@500 mb|UGRD@500 mb
@@ -3434,6 +3591,7 @@ LEVELS GFS1-ANL|mslp_10m_wind|u=UGRD@10 m above ground,v=VGRD@10 m above ground,
 LEVELS GFS1-ANL|mslp_pwat|pw=PWAT@entire atmosphere (considered as a single layer),p=PRMSL@mean sea level|PRMSL@mean sea level|
 LEVELS GFS1-ANL|mslp_trend|||
 LEVELS GFS1-ANL|rh_700_300|r7=RH@700 mb,r5=RH@500 mb,r3=RH@300 mb,z=HGT@500 mb,u=UGRD@500 mb,v=VGRD@500 mb|HGT@500 mb|UGRD@500 mb
+LEVELS GFS1-ANL|sbcape_crossover|c=CAPE@surface,u=UGRD@850 mb,v=VGRD@850 mb,u5=UGRD@500 mb,v5=VGRD@500 mb||UGRD@850 mb
 LEVELS GFS1-ANL|sbcape_wind|c=CAPE@surface,u=UGRD@10 m above ground,v=VGRD@10 m above ground,p=PRMSL@mean sea level|PRMSL@mean sea level|UGRD@10 m above ground
 LEVELS GFS1-ANL|shear_850_200|u8=UGRD@850 mb,v8=VGRD@850 mb,u2=UGRD@200 mb,v2=VGRD@200 mb,p=PRMSL@mean sea level|PRMSL@mean sea level|
 LEVELS GFS1-ANL|steering_850_200|u0=UGRD@850 mb,v0=VGRD@850 mb,u1=UGRD@700 mb,v1=VGRD@700 mb,u2=UGRD@500 mb,v2=VGRD@500 mb,u3=UGRD@300 mb,v3=VGRD@300 mb,u4=UGRD@200 mb,v4=VGRD@200 mb,p=PRMSL@mean sea level|PRMSL@mean sea level|
@@ -3442,19 +3600,25 @@ LEVELS GFS|1_temp_ht|z=HGT@1 mb,u=UGRD@1 mb,v=VGRD@1 mb,t=TMP@1 mb|HGT@1 mb|UGRD
 LEVELS GFS|1_wnd_ht|z=HGT@1 mb,u=UGRD@1 mb,v=VGRD@1 mb|HGT@1 mb|UGRD@1 mb
 LEVELS GFS|200_div_wnd|z=HGT@200 mb,u=UGRD@200 mb,v=VGRD@200 mb|HGT@200 mb|UGRD@200 mb
 LEVELS GFS|200_stream_div|z=HGT@200 mb,u=UGRD@200 mb,v=VGRD@200 mb||
+LEVELS GFS|200_velocity_potential|u=UGRD@200 mb,v=VGRD@200 mb||
 LEVELS GFS|200_wnd_ht|z=HGT@200 mb,u=UGRD@200 mb,v=VGRD@200 mb|HGT@200 mb|
 LEVELS GFS|20_pv_ht|z=HGT@20 mb,u=UGRD@20 mb,v=VGRD@20 mb,ta=TMP@10 mb,tb=TMP@30 mb|HGT@20 mb|UGRD@20 mb
 LEVELS GFS|20_temp_ht|z=HGT@20 mb,u=UGRD@20 mb,v=VGRD@20 mb,t=TMP@20 mb|HGT@20 mb|UGRD@20 mb
 LEVELS GFS|20_wnd_ht|z=HGT@20 mb,u=UGRD@20 mb,v=VGRD@20 mb|HGT@20 mb|UGRD@20 mb
 LEVELS GFS|250_wnd_ht|z=HGT@250 mb,u=UGRD@250 mb,v=VGRD@250 mb|HGT@250 mb|
+LEVELS GFS|290K_isen|t400=TMP@400 mb,r400=RH@400 mb,u400=UGRD@400 mb,v400=VGRD@400 mb,t500=TMP@500 mb,r500=RH@500 mb,u500=UGRD@500 mb,v500=VGRD@500 mb,t600=TMP@600 mb,r600=RH@600 mb,u600=UGRD@600 mb,v600=VGRD@600 mb,t700=TMP@700 mb,r700=RH@700 mb,u700=UGRD@700 mb,v700=VGRD@700 mb,t850=TMP@850 mb,r850=RH@850 mb,u850=UGRD@850 mb,v850=VGRD@850 mb,t925=TMP@925 mb,r925=RH@925 mb,u925=UGRD@925 mb,v925=VGRD@925 mb,t1000=TMP@1000 mb,r1000=RH@1000 mb,u1000=UGRD@1000 mb,v1000=VGRD@1000 mb,ps=PRES@surface||
 LEVELS GFS|2m_dewpoint|d=DPT@2 m above ground,u=UGRD@10 m above ground,v=VGRD@10 m above ground,p=PRMSL@mean sea level|PRMSL@mean sea level|UGRD@10 m above ground
 LEVELS GFS|2m_rh_10m_wnd_derived|t=TMP@2 m above ground,d=DPT@2 m above ground,u=UGRD@10 m above ground,v=VGRD@10 m above ground,p=PRMSL@mean sea level|PRMSL@mean sea level|UGRD@10 m above ground
+LEVELS GFS|2m_temp_anom|f=TMP@2 m above ground,p=PRMSL@mean sea level,u=UGRD@10 m above ground,v=VGRD@10 m above ground|PRMSL@mean sea level|UGRD@10 m above ground
 LEVELS GFS|2_temp_ht|z=HGT@2 mb,u=UGRD@2 mb,v=VGRD@2 mb,t=TMP@2 mb|HGT@2 mb|UGRD@2 mb
 LEVELS GFS|2_wnd_ht|z=HGT@2 mb,u=UGRD@2 mb,v=VGRD@2 mb|HGT@2 mb|UGRD@2 mb
+LEVELS GFS|300K_isen|t400=TMP@400 mb,r400=RH@400 mb,u400=UGRD@400 mb,v400=VGRD@400 mb,t500=TMP@500 mb,r500=RH@500 mb,u500=UGRD@500 mb,v500=VGRD@500 mb,t600=TMP@600 mb,r600=RH@600 mb,u600=UGRD@600 mb,v600=VGRD@600 mb,t700=TMP@700 mb,r700=RH@700 mb,u700=UGRD@700 mb,v700=VGRD@700 mb,t850=TMP@850 mb,r850=RH@850 mb,u850=UGRD@850 mb,v850=VGRD@850 mb,t925=TMP@925 mb,r925=RH@925 mb,u925=UGRD@925 mb,v925=VGRD@925 mb,t1000=TMP@1000 mb,r1000=RH@1000 mb,u1000=UGRD@1000 mb,v1000=VGRD@1000 mb,ps=PRES@surface||
+LEVELS GFS|300_qvector_div|t=TMP@300 mb,z=HGT@300 mb|HGT@300 mb|
 LEVELS GFS|300_wnd_ht|z=HGT@300 mb,u=UGRD@300 mb,v=VGRD@300 mb|HGT@300 mb|
 LEVELS GFS|30_pv_ht|z=HGT@30 mb,u=UGRD@30 mb,v=VGRD@30 mb,ta=TMP@20 mb,tb=TMP@40 mb|HGT@30 mb|UGRD@30 mb
 LEVELS GFS|30_temp_ht|z=HGT@30 mb,u=UGRD@30 mb,v=VGRD@30 mb,t=TMP@30 mb|HGT@30 mb|UGRD@30 mb
 LEVELS GFS|30_wnd_ht|z=HGT@30 mb,u=UGRD@30 mb,v=VGRD@30 mb|HGT@30 mb|UGRD@30 mb
+LEVELS GFS|330K_pv|t100=TMP@100 mb,t150=TMP@150 mb,u150=UGRD@150 mb,v150=VGRD@150 mb,t200=TMP@200 mb,u200=UGRD@200 mb,v200=VGRD@200 mb,t250=TMP@250 mb,u250=UGRD@250 mb,v250=VGRD@250 mb,t300=TMP@300 mb,u300=UGRD@300 mb,v300=VGRD@300 mb,t400=TMP@400 mb,u400=UGRD@400 mb,v400=VGRD@400 mb,t500=TMP@500 mb,u500=UGRD@500 mb,v500=VGRD@500 mb,t600=TMP@600 mb,u600=UGRD@600 mb,v600=VGRD@600 mb,t700=TMP@700 mb,u700=UGRD@700 mb,v700=VGRD@700 mb,t850=TMP@850 mb||
 LEVELS GFS|500_hgt_anom|z=HGT@500 mb,u=UGRD@500 mb,v=VGRD@500 mb|HGT@500 mb|UGRD@500 mb
 LEVELS GFS|500K_pv|t20=TMP@20 mb,t30=TMP@30 mb,u30=UGRD@30 mb,v30=VGRD@30 mb,t40=TMP@40 mb,u40=UGRD@40 mb,v40=VGRD@40 mb,t50=TMP@50 mb,u50=UGRD@50 mb,v50=VGRD@50 mb,t70=TMP@70 mb,u70=UGRD@70 mb,v70=VGRD@70 mb,t100=TMP@100 mb||
 LEVELS GFS|500_rh_ht|z=HGT@500 mb,rh=RH@500 mb,u=UGRD@500 mb,v=VGRD@500 mb|HGT@500 mb|UGRD@500 mb
@@ -3468,8 +3632,10 @@ LEVELS GFS|5_temp_ht|z=HGT@5 mb,u=UGRD@5 mb,v=VGRD@5 mb,t=TMP@5 mb|HGT@5 mb|UGRD
 LEVELS GFS|5_wnd_ht|z=HGT@5 mb,u=UGRD@5 mb,v=VGRD@5 mb|HGT@5 mb|UGRD@5 mb
 LEVELS GFS|600K_pv|t7=TMP@7 mb,t10=TMP@10 mb,u10=UGRD@10 mb,v10=VGRD@10 mb,t20=TMP@20 mb,u20=UGRD@20 mb,v20=VGRD@20 mb,t30=TMP@30 mb,u30=UGRD@30 mb,v30=VGRD@30 mb,t40=TMP@40 mb,u40=UGRD@40 mb,v40=VGRD@40 mb,t50=TMP@50 mb,u50=UGRD@50 mb,v50=VGRD@50 mb,t70=TMP@70 mb||
 LEVELS GFS|650K_pv|t7=TMP@7 mb,t10=TMP@10 mb,u10=UGRD@10 mb,v10=VGRD@10 mb,t20=TMP@20 mb,u20=UGRD@20 mb,v20=VGRD@20 mb,t30=TMP@30 mb,u30=UGRD@30 mb,v30=VGRD@30 mb,t40=TMP@40 mb,u40=UGRD@40 mb,v40=VGRD@40 mb,t50=TMP@50 mb||
+LEVELS GFS|700_frontogenesis|t=TMP@700 mb,u=UGRD@700 mb,v=VGRD@700 mb,z=HGT@700 mb,ps=PRES@surface|HGT@700 mb|UGRD@700 mb
 LEVELS GFS|700_hgt_anom|z=HGT@700 mb,u=UGRD@700 mb,v=VGRD@700 mb,ps=PRES@surface|HGT@700 mb|UGRD@700 mb
 LEVELS GFS|700_rh_ht|z=HGT@700 mb,rh=RH@700 mb,o=VVEL@700 mb,u=UGRD@700 mb,v=VGRD@700 mb|HGT@700 mb;VVEL@700 mb|UGRD@700 mb
+LEVELS GFS|700_temp_adv|t=TMP@700 mb,u=UGRD@700 mb,v=VGRD@700 mb,z=HGT@700 mb,ps=PRES@surface|HGT@700 mb|UGRD@700 mb
 LEVELS GFS|700_temp_mslp|t=TMP@700 mb,u=UGRD@700 mb,v=VGRD@700 mb,p=PRMSL@mean sea level|PRMSL@mean sea level|UGRD@700 mb
 LEVELS GFS|70_pv_ht|z=HGT@70 mb,u=UGRD@70 mb,v=VGRD@70 mb,ta=TMP@50 mb,tb=TMP@100 mb|HGT@70 mb|UGRD@70 mb
 LEVELS GFS|70_temp_ht|z=HGT@70 mb,u=UGRD@70 mb,v=VGRD@70 mb,t=TMP@70 mb|HGT@70 mb|UGRD@70 mb
@@ -3477,10 +3643,14 @@ LEVELS GFS|70_wnd_ht|z=HGT@70 mb,u=UGRD@70 mb,v=VGRD@70 mb|HGT@70 mb|UGRD@70 mb
 LEVELS GFS|850_700_rh|r8=RH@850 mb,r7=RH@700 mb||
 LEVELS GFS|850_700_thick|||
 LEVELS GFS|850_700_thick_type|||
+LEVELS GFS|850_frontogenesis|t=TMP@850 mb,u=UGRD@850 mb,v=VGRD@850 mb,z=HGT@850 mb,ps=PRES@surface|HGT@850 mb|UGRD@850 mb
 LEVELS GFS|850K_pv|t3=TMP@3 mb,t5=TMP@5 mb,u5=UGRD@5 mb,v5=VGRD@5 mb,t7=TMP@7 mb,u7=UGRD@7 mb,v7=VGRD@7 mb,t10=TMP@10 mb,u10=UGRD@10 mb,v10=VGRD@10 mb,t20=TMP@20 mb,u20=UGRD@20 mb,v20=VGRD@20 mb,t30=TMP@30 mb||
+LEVELS GFS|850_okubo_weiss|u=UGRD@850 mb,v=VGRD@850 mb,ps=PRES@surface||
 LEVELS GFS|850_pw_ht|z=HGT@850 mb,u=UGRD@850 mb,v=VGRD@850 mb,pw=PWAT@entire atmosphere (considered as a single layer)|HGT@850 mb|UGRD@850 mb
 LEVELS GFS|850_rh_ht|z=HGT@850 mb,rh=RH@850 mb,u=UGRD@850 mb,v=VGRD@850 mb|HGT@850 mb|UGRD@850 mb
 LEVELS GFS|850_stream_vort|z=HGT@850 mb,u=UGRD@850 mb,v=VGRD@850 mb||
+LEVELS GFS|850_temp_adv|t=TMP@850 mb,u=UGRD@850 mb,v=VGRD@850 mb,z=HGT@850 mb,ps=PRES@surface|HGT@850 mb|UGRD@850 mb
+LEVELS GFS|850_temp_anom|f=TMP@850 mb,z=HGT@850 mb,u=UGRD@850 mb,v=VGRD@850 mb,ps=PRES@surface|HGT@850 mb|UGRD@850 mb
 LEVELS GFS|850_temp_ht|z=HGT@850 mb,u=UGRD@850 mb,v=VGRD@850 mb,t=TMP@850 mb|HGT@850 mb|UGRD@850 mb
 LEVELS GFS|850_temp_mslp_precip|||
 LEVELS GFS|850_temp_mslp_precip_type|||
@@ -3494,10 +3664,12 @@ LEVELS GFS-ANL|100_wnd_ht|z=HGT@100 mb,u=UGRD@100 mb,v=VGRD@100 mb|HGT@100 mb|UG
 LEVELS GFS-ANL|10m_wnd_2m_temp|t=TMP@2 m above ground,u=UGRD@10 m above ground,v=VGRD@10 m above ground,p=PRMSL@mean sea level|PRMSL@mean sea level|UGRD@10 m above ground
 LEVELS GFS-ANL|200_div_wnd|z=HGT@200 mb,u=UGRD@200 mb,v=VGRD@200 mb|HGT@200 mb|UGRD@200 mb
 LEVELS GFS-ANL|200_stream_div|z=HGT@200 mb,u=UGRD@200 mb,v=VGRD@200 mb||
+LEVELS GFS-ANL|200_velocity_potential|u=UGRD@200 mb,v=VGRD@200 mb||
 LEVELS GFS-ANL|200_wnd_ht|z=HGT@200 mb,u=UGRD@200 mb,v=VGRD@200 mb|HGT@200 mb|
 LEVELS GFS-ANL|250_wnd_ht|z=HGT@250 mb,u=UGRD@250 mb,v=VGRD@250 mb|HGT@250 mb|
 LEVELS GFS-ANL|2m_dewpoint|d=DPT@2 m above ground,u=UGRD@10 m above ground,v=VGRD@10 m above ground,p=PRMSL@mean sea level|PRMSL@mean sea level|UGRD@10 m above ground
 LEVELS GFS-ANL|2m_rh_10m_wnd_derived|t=TMP@2 m above ground,d=DPT@2 m above ground,u=UGRD@10 m above ground,v=VGRD@10 m above ground,p=PRMSL@mean sea level|PRMSL@mean sea level|UGRD@10 m above ground
+LEVELS GFS-ANL|300_qvector_div|t=TMP@300 mb,z=HGT@300 mb|HGT@300 mb|
 LEVELS GFS-ANL|300_wnd_ht|z=HGT@300 mb,u=UGRD@300 mb,v=VGRD@300 mb|HGT@300 mb|
 LEVELS GFS-ANL|500_rh_ht|z=HGT@500 mb,rh=RH@500 mb,u=UGRD@500 mb,v=VGRD@500 mb|HGT@500 mb|UGRD@500 mb
 LEVELS GFS-ANL|500_vort_ht|z=HGT@500 mb,u=UGRD@500 mb,v=VGRD@500 mb|HGT@500 mb|UGRD@500 mb
@@ -3518,11 +3690,14 @@ LEVELS GFS-ANL|mslp_10m_wind|u=UGRD@10 m above ground,v=VGRD@10 m above ground,p
 LEVELS GFS-ANL|mslp_pwat|pw=PWAT@entire atmosphere (considered as a single layer),p=PRMSL@mean sea level|PRMSL@mean sea level|
 LEVELS GFS-ANL|mslp_trend|||
 LEVELS GFS-ANL|rh_700_300|r7=RH@700 mb,r5=RH@500 mb,r3=RH@300 mb,z=HGT@500 mb,u=UGRD@500 mb,v=VGRD@500 mb|HGT@500 mb|UGRD@500 mb
+LEVELS GFS-ANL|sbcape_crossover|c=CAPE@surface,u=UGRD@850 mb,v=VGRD@850 mb,u5=UGRD@500 mb,v5=VGRD@500 mb||UGRD@850 mb
 LEVELS GFS-ANL|sbcape_wind|c=CAPE@surface,u=UGRD@10 m above ground,v=VGRD@10 m above ground,p=PRMSL@mean sea level|PRMSL@mean sea level|UGRD@10 m above ground
 LEVELS GFS-ANL|shear_850_200|u8=UGRD@850 mb,v8=VGRD@850 mb,u2=UGRD@200 mb,v2=VGRD@200 mb,p=PRMSL@mean sea level|PRMSL@mean sea level|
 LEVELS GFS-ANL|steering_850_200|u0=UGRD@850 mb,v0=VGRD@850 mb,u1=UGRD@700 mb,v1=VGRD@700 mb,u2=UGRD@500 mb,v2=VGRD@500 mb,u3=UGRD@300 mb,v3=VGRD@300 mb,u4=UGRD@200 mb,v4=VGRD@200 mb,p=PRMSL@mean sea level|PRMSL@mean sea level|
 LEVELS GFS-ANL|z500_trend|||
 LEVELS GFS|cloud_layers|lo=LCDC@low cloud layer,mi=MCDC@middle cloud layer,hi=HCDC@high cloud layer||
+LEVELS GFS|dt_pressure|pn=PRES@PV=2e-06 (Km^2/kg/s) surface,ps=PRES@PV=-2e-06 (Km^2/kg/s) surface,un=UGRD@PV=2e-06 (Km^2/kg/s) surface,us=UGRD@PV=-2e-06 (Km^2/kg/s) surface,vn=VGRD@PV=2e-06 (Km^2/kg/s) surface,vs=VGRD@PV=-2e-06 (Km^2/kg/s) surface||
+LEVELS GFS|dt_theta|pn=PRES@PV=2e-06 (Km^2/kg/s) surface,ps=PRES@PV=-2e-06 (Km^2/kg/s) surface,un=UGRD@PV=2e-06 (Km^2/kg/s) surface,us=UGRD@PV=-2e-06 (Km^2/kg/s) surface,vn=VGRD@PV=2e-06 (Km^2/kg/s) surface,vs=VGRD@PV=-2e-06 (Km^2/kg/s) surface,tn=TMP@PV=2e-06 (Km^2/kg/s) surface,ts=TMP@PV=-2e-06 (Km^2/kg/s) surface||
 LEVELS GFS|mslp_10m_wind|u=UGRD@10 m above ground,v=VGRD@10 m above ground,p=PRMSL@mean sea level|PRMSL@mean sea level|UGRD@10 m above ground
 LEVELS GFS|mslp_anom|p=PRMSL@mean sea level,u=UGRD@10 m above ground,v=VGRD@10 m above ground|PRMSL@mean sea level|UGRD@10 m above ground
 LEVELS GFS|mslp_pwat|pw=PWAT@entire atmosphere (considered as a single layer),p=PRMSL@mean sea level|PRMSL@mean sea level|
@@ -3538,11 +3713,16 @@ LEVELS GFS|precip_p60|||
 LEVELS GFS|precip_ptot|||
 LEVELS GFS|precip_rate_type|||
 LEVELS GFS|precip_type|||
+LEVELS GFS|pwat_anom|f=PWAT@entire atmosphere (considered as a single layer),p=PRMSL@mean sea level|PRMSL@mean sea level|
 LEVELS GFS|rh_700_300|r7=RH@700 mb,r5=RH@500 mb,r3=RH@300 mb,z=HGT@500 mb,u=UGRD@500 mb,v=VGRD@500 mb|HGT@500 mb|UGRD@500 mb
+LEVELS GFS|sbcape_crossover|c=CAPE@surface,u=UGRD@850 mb,v=VGRD@850 mb,u5=UGRD@500 mb,v5=VGRD@500 mb||UGRD@850 mb
 LEVELS GFS|sbcape_wind|c=CAPE@surface,u=UGRD@10 m above ground,v=VGRD@10 m above ground,p=PRMSL@mean sea level|PRMSL@mean sea level|UGRD@10 m above ground
 LEVELS GFS|shear_850_200|u8=UGRD@850 mb,v8=VGRD@850 mb,u2=UGRD@200 mb,v2=VGRD@200 mb,p=PRMSL@mean sea level|PRMSL@mean sea level|
+LEVELS GFS|sim_ir|olr=ULWRF@top of atmosphere||
 LEVELS GFS|sim_radar_comp|r=REFC@entire atmosphere||
 LEVELS GFS|snodpth_chng|||
+LEVELS GFS|snow_24h|||
+LEVELS GFS|snow_total|||
 LEVELS GFS|steering_850_200|u0=UGRD@850 mb,v0=VGRD@850 mb,u1=UGRD@700 mb,v1=VGRD@700 mb,u2=UGRD@500 mb,v2=VGRD@500 mb,u3=UGRD@300 mb,v3=VGRD@300 mb,u4=UGRD@200 mb,v4=VGRD@200 mb,p=PRMSL@mean sea level|PRMSL@mean sea level|
 LEVELS GFS-WAVE|peak_dir_per|t=PERPW@surface,d=DIRPW@surface||
 LEVELS GFS-WAVE|sig_wv_ht|h=HTSGW@surface,u=UGRD@surface,v=VGRD@surface||UGRD@surface
@@ -3560,8 +3740,10 @@ LEVELS GRAPES|100_wnd_ht|z=HGT@100 mb,u=UGRD@100 mb,v=VGRD@100 mb|HGT@100 mb|UGR
 LEVELS GRAPES|10m_wnd_2m_temp|t=TMP@2 m above ground,u=UGRD@10 m above ground,v=VGRD@10 m above ground,p=PRMSL@mean sea level|PRMSL@mean sea level|UGRD@10 m above ground
 LEVELS GRAPES|200_div_wnd|z=HGT@200 mb,u=UGRD@200 mb,v=VGRD@200 mb|HGT@200 mb|UGRD@200 mb
 LEVELS GRAPES|200_stream_div|z=HGT@200 mb,u=UGRD@200 mb,v=VGRD@200 mb||
+LEVELS GRAPES|200_velocity_potential|u=UGRD@200 mb,v=VGRD@200 mb||
 LEVELS GRAPES|200_wnd_ht|z=HGT@200 mb,u=UGRD@200 mb,v=VGRD@200 mb|HGT@200 mb|
 LEVELS GRAPES|250_wnd_ht|z=HGT@250 mb,u=UGRD@250 mb,v=VGRD@250 mb|HGT@250 mb|
+LEVELS GRAPES|300_qvector_div|t=TMP@300 mb,z=HGT@300 mb|HGT@300 mb|
 LEVELS GRAPES|300_wnd_ht|z=HGT@300 mb,u=UGRD@300 mb,v=VGRD@300 mb|HGT@300 mb|
 LEVELS GRAPES|500_rh_ht|z=HGT@500 mb,rh=RH@500 mb,u=UGRD@500 mb,v=VGRD@500 mb|HGT@500 mb|UGRD@500 mb
 LEVELS GRAPES|500_vort_ht|z=HGT@500 mb,u=UGRD@500 mb,v=VGRD@500 mb|HGT@500 mb|UGRD@500 mb
@@ -3582,6 +3764,7 @@ LEVELS GRAPES|cloud_layers|lo=LCDC@low cloud layer,mi=MCDC@middle cloud layer,hi
 LEVELS GRAPES|mslp_10m_wind|u=UGRD@10 m above ground,v=VGRD@10 m above ground,p=PRMSL@mean sea level|PRMSL@mean sea level|UGRD@10 m above ground
 LEVELS GRAPES|mslp_trend|||
 LEVELS GRAPES|rh_700_300|r7=RH@700 mb,r5=RH@500 mb,r3=RH@300 mb,z=HGT@500 mb,u=UGRD@500 mb,v=VGRD@500 mb|HGT@500 mb|UGRD@500 mb
+LEVELS GRAPES|sbcape_crossover|c=CAPE@surface,u=UGRD@850 mb,v=VGRD@850 mb,u5=UGRD@500 mb,v5=VGRD@500 mb||UGRD@850 mb
 LEVELS GRAPES|sbcape_wind|c=CAPE@surface,u=UGRD@10 m above ground,v=VGRD@10 m above ground,p=PRMSL@mean sea level|PRMSL@mean sea level|UGRD@10 m above ground
 LEVELS GRAPES|shear_850_200|u8=UGRD@850 mb,v8=VGRD@850 mb,u2=UGRD@200 mb,v2=VGRD@200 mb,p=PRMSL@mean sea level|PRMSL@mean sea level|
 LEVELS GRAPES|steering_850_200|u0=UGRD@850 mb,v0=VGRD@850 mb,u1=UGRD@700 mb,v1=VGRD@700 mb,u2=UGRD@500 mb,v2=VGRD@500 mb,u3=UGRD@300 mb,v3=VGRD@300 mb,u4=UGRD@200 mb,v4=VGRD@200 mb,p=PRMSL@mean sea level|PRMSL@mean sea level|
@@ -3591,9 +3774,12 @@ LEVELS GSM|100_wnd_ht|z=HGT@100 mb,u=UGRD@100 mb,v=VGRD@100 mb|HGT@100 mb|UGRD@1
 LEVELS GSM|10m_wnd_2m_temp|t=TMP@2 m above ground,u=UGRD@10 m above ground,v=VGRD@10 m above ground,p=PRMSL@mean sea level|PRMSL@mean sea level|UGRD@10 m above ground
 LEVELS GSM|200_div_wnd|z=HGT@200 mb,u=UGRD@200 mb,v=VGRD@200 mb|HGT@200 mb|UGRD@200 mb
 LEVELS GSM|200_stream_div|z=HGT@200 mb,u=UGRD@200 mb,v=VGRD@200 mb||
+LEVELS GSM|200_velocity_potential|u=UGRD@200 mb,v=VGRD@200 mb||
 LEVELS GSM|200_wnd_ht|z=HGT@200 mb,u=UGRD@200 mb,v=VGRD@200 mb|HGT@200 mb|
 LEVELS GSM|250_wnd_ht|z=HGT@250 mb,u=UGRD@250 mb,v=VGRD@250 mb|HGT@250 mb|
+LEVELS GSM|300_qvector_div|t=TMP@300 mb,z=HGT@300 mb|HGT@300 mb|
 LEVELS GSM|300_wnd_ht|z=HGT@300 mb,u=UGRD@300 mb,v=VGRD@300 mb|HGT@300 mb|
+LEVELS GSM|330K_pv|t100=TMP@100 mb,t150=TMP@150 mb,u150=UGRD@150 mb,v150=VGRD@150 mb,t200=TMP@200 mb,u200=UGRD@200 mb,v200=VGRD@200 mb,t250=TMP@250 mb,u250=UGRD@250 mb,v250=VGRD@250 mb,t300=TMP@300 mb,u300=UGRD@300 mb,v300=VGRD@300 mb,t400=TMP@400 mb,u400=UGRD@400 mb,v400=VGRD@400 mb,t500=TMP@500 mb,u500=UGRD@500 mb,v500=VGRD@500 mb,t600=TMP@600 mb,u600=UGRD@600 mb,v600=VGRD@600 mb,t700=TMP@700 mb,u700=UGRD@700 mb,v700=VGRD@700 mb,t850=TMP@850 mb||
 LEVELS GSM|500_rh_ht|z=HGT@500 mb,rh=RH@500 mb,u=UGRD@500 mb,v=VGRD@500 mb|HGT@500 mb|UGRD@500 mb
 LEVELS GSM|500_vort_ht|z=HGT@500 mb,u=UGRD@500 mb,v=VGRD@500 mb|HGT@500 mb|UGRD@500 mb
 LEVELS GSM|500_wnd_ht|z=HGT@500 mb,u=UGRD@500 mb,v=VGRD@500 mb|HGT@500 mb|UGRD@500 mb
@@ -3645,9 +3831,12 @@ LEVELS HGEFS|100_wnd_ht|z=HGT@100 mb,u=UGRD@100 mb,v=VGRD@100 mb|HGT@100 mb|UGRD
 LEVELS HGEFS|10m_wnd_2m_temp|t=TMP@2 m above ground,u=UGRD@10 m above ground,v=VGRD@10 m above ground,p=PRMSL@mean sea level|PRMSL@mean sea level|UGRD@10 m above ground
 LEVELS HGEFS|200_div_wnd|z=HGT@200 mb,u=UGRD@200 mb,v=VGRD@200 mb|HGT@200 mb|UGRD@200 mb
 LEVELS HGEFS|200_stream_div|z=HGT@200 mb,u=UGRD@200 mb,v=VGRD@200 mb||
+LEVELS HGEFS|200_velocity_potential|u=UGRD@200 mb,v=VGRD@200 mb||
 LEVELS HGEFS|200_wnd_ht|z=HGT@200 mb,u=UGRD@200 mb,v=VGRD@200 mb|HGT@200 mb|
 LEVELS HGEFS|250_wnd_ht|z=HGT@250 mb,u=UGRD@250 mb,v=VGRD@250 mb|HGT@250 mb|
+LEVELS HGEFS|300_qvector_div|t=TMP@300 mb,z=HGT@300 mb|HGT@300 mb|
 LEVELS HGEFS|300_wnd_ht|z=HGT@300 mb,u=UGRD@300 mb,v=VGRD@300 mb|HGT@300 mb|
+LEVELS HGEFS|330K_pv|t100=TMP@100 mb,t150=TMP@150 mb,u150=UGRD@150 mb,v150=VGRD@150 mb,t200=TMP@200 mb,u200=UGRD@200 mb,v200=VGRD@200 mb,t250=TMP@250 mb,u250=UGRD@250 mb,v250=VGRD@250 mb,t300=TMP@300 mb,u300=UGRD@300 mb,v300=VGRD@300 mb,t400=TMP@400 mb,u400=UGRD@400 mb,v400=VGRD@400 mb,t500=TMP@500 mb,u500=UGRD@500 mb,v500=VGRD@500 mb,t600=TMP@600 mb,u600=UGRD@600 mb,v600=VGRD@600 mb,t700=TMP@700 mb,u700=UGRD@700 mb,v700=VGRD@700 mb,t850=TMP@850 mb||
 LEVELS HGEFS|500_rh_ht|z=HGT@500 mb,rh=RH@500 mb,u=UGRD@500 mb,v=VGRD@500 mb|HGT@500 mb|UGRD@500 mb
 LEVELS HGEFS|500_vort_ht|z=HGT@500 mb,u=UGRD@500 mb,v=VGRD@500 mb|HGT@500 mb|UGRD@500 mb
 LEVELS HGEFS|500_wnd_ht|z=HGT@500 mb,u=UGRD@500 mb,v=VGRD@500 mb|HGT@500 mb|UGRD@500 mb
@@ -3677,6 +3866,7 @@ LEVELS HRDPS|200_wnd_ht|z=HGT@200 mb,u=UGRD@200 mb,v=VGRD@200 mb|HGT@200 mb|
 LEVELS HRDPS|250_wnd_ht|z=HGT@250 mb,u=UGRD@250 mb,v=VGRD@250 mb|HGT@250 mb|
 LEVELS HRDPS|2m_dewpoint|d=DPT@2 m above ground,u=UGRD@10 m above ground,v=VGRD@10 m above ground,p=PRMSL@mean sea level|PRMSL@mean sea level|UGRD@10 m above ground
 LEVELS HRDPS|2m_rh_10m_wnd_derived|t=TMP@2 m above ground,d=DPT@2 m above ground,u=UGRD@10 m above ground,v=VGRD@10 m above ground,p=PRMSL@mean sea level|PRMSL@mean sea level|UGRD@10 m above ground
+LEVELS HRDPS|300_qvector_div|t=TMP@300 mb,z=HGT@300 mb|HGT@300 mb|
 LEVELS HRDPS|300_wnd_ht|z=HGT@300 mb,u=UGRD@300 mb,v=VGRD@300 mb|HGT@300 mb|
 LEVELS HRDPS|500_rh_ht|z=HGT@500 mb,rh=RH@500 mb,u=UGRD@500 mb,v=VGRD@500 mb|HGT@500 mb|UGRD@500 mb
 LEVELS HRDPS|500_vort_ht|z=HGT@500 mb,u=UGRD@500 mb,v=VGRD@500 mb|HGT@500 mb|UGRD@500 mb
@@ -3694,6 +3884,7 @@ LEVELS HRDPS|925_temp_ht|z=HGT@925 mb,u=UGRD@925 mb,v=VGRD@925 mb,t=TMP@925 mb|H
 LEVELS HRDPS|mslp_10m_wind|u=UGRD@10 m above ground,v=VGRD@10 m above ground,p=PRMSL@mean sea level|PRMSL@mean sea level|UGRD@10 m above ground
 LEVELS HRDPS|mslp_trend|||
 LEVELS HRDPS|rh_700_300|r7=RH@700 mb,r5=RH@500 mb,r3=RH@300 mb,z=HGT@500 mb,u=UGRD@500 mb,v=VGRD@500 mb|HGT@500 mb|UGRD@500 mb
+LEVELS HRDPS|sbcape_crossover|c=CAPE@surface,u=UGRD@850 mb,v=VGRD@850 mb,u5=UGRD@500 mb,v5=VGRD@500 mb||UGRD@850 mb
 LEVELS HRDPS|sbcape_wind|c=CAPE@surface,u=UGRD@10 m above ground,v=VGRD@10 m above ground,p=PRMSL@mean sea level|PRMSL@mean sea level|UGRD@10 m above ground
 LEVELS HRDPS|shear_850_200|u8=UGRD@850 mb,v8=VGRD@850 mb,u2=UGRD@200 mb,v2=VGRD@200 mb,p=PRMSL@mean sea level|PRMSL@mean sea level|
 LEVELS HRDPS|steering_850_200|u0=UGRD@850 mb,v0=VGRD@850 mb,u1=UGRD@700 mb,v1=VGRD@700 mb,u2=UGRD@500 mb,v2=VGRD@500 mb,u3=UGRD@300 mb,v3=VGRD@300 mb,u4=UGRD@200 mb,v4=VGRD@200 mb,p=PRMSL@mean sea level|PRMSL@mean sea level|
@@ -3790,6 +3981,7 @@ LEVELS HRRR|2m_rh_10m_wnd|||
 LEVELS HRRR|2m_rh_10m_wnd_derived|t=TMP@2 m above ground,d=DPT@2 m above ground,u=UGRD@10 m above ground,v=VGRD@10 m above ground,p=PRMSL@mean sea level|PRMSL@mean sea level|UGRD@10 m above ground
 LEVELS HRRR|2m_temp_10m_wnd|t=TMP@2 m above ground,u=UGRD@10 m above ground,v=VGRD@10 m above ground||UGRD@10 m above ground
 LEVELS HRRR|2m_tmpc|t=TMP@2 m above ground||
+LEVELS HRRR|300_qvector_div|t=TMP@300 mb,z=HGT@300 mb|HGT@300 mb|
 LEVELS HRRR|300_wnd_ht|z=HGT@300 mb,u=UGRD@300 mb,v=VGRD@300 mb|HGT@300 mb|
 LEVELS HRRR|300_wnd|u=UGRD@300 mb,v=VGRD@300 mb||UGRD@300 mb
 LEVELS HRRR|500_rh_ht|z=HGT@500 mb,rh=RH@500 mb,u=UGRD@500 mb,v=VGRD@500 mb|HGT@500 mb|UGRD@500 mb
@@ -3835,6 +4027,7 @@ LEVELS HRRR-AK|2m_rh_10m_wnd|||
 LEVELS HRRR-AK|2m_rh_10m_wnd_derived|t=TMP@2 m above ground,d=DPT@2 m above ground,u=UGRD@10 m above ground,v=VGRD@10 m above ground,p=PRMSL@mean sea level|PRMSL@mean sea level|UGRD@10 m above ground
 LEVELS HRRR-AK|2m_temp_10m_wnd|t=TMP@2 m above ground,u=UGRD@10 m above ground,v=VGRD@10 m above ground||UGRD@10 m above ground
 LEVELS HRRR-AK|2m_tmpc|t=TMP@2 m above ground||
+LEVELS HRRR-AK|300_qvector_div|t=TMP@300 mb,z=HGT@300 mb|HGT@300 mb|
 LEVELS HRRR-AK|300_wnd_ht|z=HGT@300 mb,u=UGRD@300 mb,v=VGRD@300 mb|HGT@300 mb|
 LEVELS HRRR-AK|300_wnd|u=UGRD@300 mb,v=VGRD@300 mb||UGRD@300 mb
 LEVELS HRRR-AK|500_rh_ht|z=HGT@500 mb,rh=RH@500 mb,u=UGRD@500 mb,v=VGRD@500 mb|HGT@500 mb|UGRD@500 mb
@@ -3895,6 +4088,7 @@ LEVELS HRRR-AK|precip_rate|r=PRATE@surface||
 LEVELS HRRR-AK|precip_rate_type|||
 LEVELS HRRR-AK|precip_type|||
 LEVELS HRRR-AK|rh_700_300|r7=RH@700 mb,r5=RH@500 mb,r3=RH@300 mb,z=HGT@500 mb,u=UGRD@500 mb,v=VGRD@500 mb|HGT@500 mb|UGRD@500 mb
+LEVELS HRRR-AK|sbcape_crossover|c=CAPE@surface,u=UGRD@850 mb,v=VGRD@850 mb,u5=UGRD@500 mb,v5=VGRD@500 mb||UGRD@850 mb
 LEVELS HRRR-AK|sbcape_wind|c=CAPE@surface,u=UGRD@10 m above ground,v=VGRD@10 m above ground,p=PRMSL@mean sea level|PRMSL@mean sea level|UGRD@10 m above ground
 LEVELS HRRR-AK|sfc_cape_cin|c=CAPE@surface,n=CIN@surface|CIN@surface|
 LEVELS HRRR-AK|shear_850_200|u8=UGRD@850 mb,v8=VGRD@850 mb,u2=UGRD@200 mb,v2=VGRD@200 mb,p=PRMSL@mean sea level|PRMSL@mean sea level|
@@ -3948,6 +4142,7 @@ LEVELS HRRR|precip_rate|r=PRATE@surface||
 LEVELS HRRR|precip_rate_type|||
 LEVELS HRRR|precip_type|||
 LEVELS HRRR|rh_700_300|r7=RH@700 mb,r5=RH@500 mb,r3=RH@300 mb,z=HGT@500 mb,u=UGRD@500 mb,v=VGRD@500 mb|HGT@500 mb|UGRD@500 mb
+LEVELS HRRR|sbcape_crossover|c=CAPE@surface,u=UGRD@850 mb,v=VGRD@850 mb,u5=UGRD@500 mb,v5=VGRD@500 mb||UGRD@850 mb
 LEVELS HRRR|sbcape_wind|c=CAPE@surface,u=UGRD@10 m above ground,v=VGRD@10 m above ground,p=PRMSL@mean sea level|PRMSL@mean sea level|UGRD@10 m above ground
 LEVELS HRRR|sfc_cape_cin|c=CAPE@surface,n=CIN@surface|CIN@surface|
 LEVELS HRRR|shear_850_200|u8=UGRD@850 mb,v8=VGRD@850 mb,u2=UGRD@200 mb,v2=VGRD@200 mb,p=PRMSL@mean sea level|PRMSL@mean sea level|
@@ -3970,6 +4165,7 @@ LEVELS ICON|100_wnd_ht|z=HGT@100 mb,u=UGRD@100 mb,v=VGRD@100 mb|HGT@100 mb|UGRD@
 LEVELS ICON|10m_wnd_2m_temp|t=TMP@2 m above ground,u=UGRD@10 m above ground,v=VGRD@10 m above ground,p=PRMSL@mean sea level|PRMSL@mean sea level|UGRD@10 m above ground
 LEVELS ICON|200_div_wnd|z=HGT@200 mb,u=UGRD@200 mb,v=VGRD@200 mb|HGT@200 mb|UGRD@200 mb
 LEVELS ICON|200_stream_div|z=HGT@200 mb,u=UGRD@200 mb,v=VGRD@200 mb||
+LEVELS ICON|200_velocity_potential|u=UGRD@200 mb,v=VGRD@200 mb||
 LEVELS ICON|200_wnd_ht|z=HGT@200 mb,u=UGRD@200 mb,v=VGRD@200 mb|HGT@200 mb|
 LEVELS ICON|250_wnd_ht|z=HGT@250 mb,u=UGRD@250 mb,v=VGRD@250 mb|HGT@250 mb|
 LEVELS ICON-2I|10m_wnd_2m_temp|t=TMP@2 m above ground,u=UGRD@10 m above ground,v=VGRD@10 m above ground,p=PRMSL@mean sea level|PRMSL@mean sea level|UGRD@10 m above ground
@@ -3989,8 +4185,10 @@ LEVELS ICON-2I|925_temp_ht|z=HGT@925 mb,u=UGRD@925 mb,v=VGRD@925 mb,t=TMP@925 mb
 LEVELS ICON-2I|cloud_layers|lo=LCDC@low cloud layer,mi=MCDC@middle cloud layer,hi=HCDC@high cloud layer||
 LEVELS ICON-2I|mslp_10m_wind|u=UGRD@10 m above ground,v=VGRD@10 m above ground,p=PRMSL@mean sea level|PRMSL@mean sea level|UGRD@10 m above ground
 LEVELS ICON-2I|mslp_trend|||
+LEVELS ICON-2I|sbcape_crossover|c=CAPE@surface,u=UGRD@850 mb,v=VGRD@850 mb,u5=UGRD@500 mb,v5=VGRD@500 mb||UGRD@850 mb
 LEVELS ICON-2I|sbcape_wind|c=CAPE@surface,u=UGRD@10 m above ground,v=VGRD@10 m above ground,p=PRMSL@mean sea level|PRMSL@mean sea level|UGRD@10 m above ground
 LEVELS ICON-2I|z500_trend|||
+LEVELS ICON|300_qvector_div|t=TMP@300 mb,z=HGT@300 mb|HGT@300 mb|
 LEVELS ICON|300_wnd_ht|z=HGT@300 mb,u=UGRD@300 mb,v=VGRD@300 mb|HGT@300 mb|
 LEVELS ICON|500_rh_ht|z=HGT@500 mb,rh=RH@500 mb,u=UGRD@500 mb,v=VGRD@500 mb|HGT@500 mb|UGRD@500 mb
 LEVELS ICON|500_vort_ht|z=HGT@500 mb,u=UGRD@500 mb,v=VGRD@500 mb|HGT@500 mb|UGRD@500 mb
@@ -4022,6 +4220,7 @@ LEVELS ICON-EU|200_wnd_ht|z=HGT@200 mb,u=UGRD@200 mb,v=VGRD@200 mb|HGT@200 mb|
 LEVELS ICON-EU|250_wnd_ht|z=HGT@250 mb,u=UGRD@250 mb,v=VGRD@250 mb|HGT@250 mb|
 LEVELS ICON-EU|2m_dewpoint|d=DPT@2 m above ground,u=UGRD@10 m above ground,v=VGRD@10 m above ground,p=PRMSL@mean sea level|PRMSL@mean sea level|UGRD@10 m above ground
 LEVELS ICON-EU|2m_rh_10m_wnd_derived|t=TMP@2 m above ground,d=DPT@2 m above ground,u=UGRD@10 m above ground,v=VGRD@10 m above ground,p=PRMSL@mean sea level|PRMSL@mean sea level|UGRD@10 m above ground
+LEVELS ICON-EU|300_qvector_div|t=TMP@300 mb,z=HGT@300 mb|HGT@300 mb|
 LEVELS ICON-EU|300_wnd_ht|z=HGT@300 mb,u=UGRD@300 mb,v=VGRD@300 mb|HGT@300 mb|
 LEVELS ICON-EU|500_rh_ht|z=HGT@500 mb,rh=RH@500 mb,u=UGRD@500 mb,v=VGRD@500 mb|HGT@500 mb|UGRD@500 mb
 LEVELS ICON-EU|500_vort_ht|z=HGT@500 mb,u=UGRD@500 mb,v=VGRD@500 mb|HGT@500 mb|UGRD@500 mb
@@ -4041,6 +4240,7 @@ LEVELS ICON-EU|cloud_layers|lo=LCDC@low cloud layer,mi=MCDC@middle cloud layer,h
 LEVELS ICON-EU|mslp_10m_wind|u=UGRD@10 m above ground,v=VGRD@10 m above ground,p=PRMSL@mean sea level|PRMSL@mean sea level|UGRD@10 m above ground
 LEVELS ICON-EU|mslp_trend|||
 LEVELS ICON-EU|rh_700_300|r7=RH@700 mb,r5=RH@500 mb,r3=RH@300 mb,z=HGT@500 mb,u=UGRD@500 mb,v=VGRD@500 mb|HGT@500 mb|UGRD@500 mb
+LEVELS ICON-EU|sbcape_crossover|c=CAPE@surface,u=UGRD@850 mb,v=VGRD@850 mb,u5=UGRD@500 mb,v5=VGRD@500 mb||UGRD@850 mb
 LEVELS ICON-EU|sbcape_wind|c=CAPE@surface,u=UGRD@10 m above ground,v=VGRD@10 m above ground,p=PRMSL@mean sea level|PRMSL@mean sea level|UGRD@10 m above ground
 LEVELS ICON-EU|shear_850_200|u8=UGRD@850 mb,v8=VGRD@850 mb,u2=UGRD@200 mb,v2=VGRD@200 mb,p=PRMSL@mean sea level|PRMSL@mean sea level|
 LEVELS ICON-EU|steering_850_200|u0=UGRD@850 mb,v0=VGRD@850 mb,u1=UGRD@700 mb,v1=VGRD@700 mb,u2=UGRD@500 mb,v2=VGRD@500 mb,u3=UGRD@300 mb,v3=VGRD@300 mb,u4=UGRD@200 mb,v4=VGRD@200 mb,p=PRMSL@mean sea level|PRMSL@mean sea level|
@@ -4048,6 +4248,7 @@ LEVELS ICON-EU|z500_trend|||
 LEVELS ICON|mslp_10m_wind|u=UGRD@10 m above ground,v=VGRD@10 m above ground,p=PRMSL@mean sea level|PRMSL@mean sea level|UGRD@10 m above ground
 LEVELS ICON|mslp_trend|||
 LEVELS ICON|rh_700_300|r7=RH@700 mb,r5=RH@500 mb,r3=RH@300 mb,z=HGT@500 mb,u=UGRD@500 mb,v=VGRD@500 mb|HGT@500 mb|UGRD@500 mb
+LEVELS ICON|sbcape_crossover|c=CAPE@surface,u=UGRD@850 mb,v=VGRD@850 mb,u5=UGRD@500 mb,v5=VGRD@500 mb||UGRD@850 mb
 LEVELS ICON|sbcape_wind|c=CAPE@surface,u=UGRD@10 m above ground,v=VGRD@10 m above ground,p=PRMSL@mean sea level|PRMSL@mean sea level|UGRD@10 m above ground
 LEVELS ICON|shear_850_200|u8=UGRD@850 mb,v8=VGRD@850 mb,u2=UGRD@200 mb,v2=VGRD@200 mb,p=PRMSL@mean sea level|PRMSL@mean sea level|
 LEVELS ICON|steering_850_200|u0=UGRD@850 mb,v0=VGRD@850 mb,u1=UGRD@700 mb,v1=VGRD@700 mb,u2=UGRD@500 mb,v2=VGRD@500 mb,u3=UGRD@300 mb,v3=VGRD@300 mb,u4=UGRD@200 mb,v4=VGRD@200 mb,p=PRMSL@mean sea level|PRMSL@mean sea level|
@@ -4063,11 +4264,15 @@ LEVELS IFS|10_temp_ht|z=HGT@10 mb,u=UGRD@10 mb,v=VGRD@10 mb,t=TMP@10 mb|HGT@10 m
 LEVELS IFS|10_wnd_ht|z=HGT@10 mb,u=UGRD@10 mb,v=VGRD@10 mb|HGT@10 mb|UGRD@10 mb
 LEVELS IFS|200_div_wnd|z=HGT@200 mb,u=UGRD@200 mb,v=VGRD@200 mb|HGT@200 mb|UGRD@200 mb
 LEVELS IFS|200_stream_div|z=HGT@200 mb,u=UGRD@200 mb,v=VGRD@200 mb||
+LEVELS IFS|200_velocity_potential|u=UGRD@200 mb,v=VGRD@200 mb||
 LEVELS IFS|200_wnd_ht|z=HGT@200 mb,u=UGRD@200 mb,v=VGRD@200 mb|HGT@200 mb|
 LEVELS IFS|250_wnd_ht|z=HGT@250 mb,u=UGRD@250 mb,v=VGRD@250 mb|HGT@250 mb|
 LEVELS IFS|2m_dewpoint|d=DPT@2 m above ground,u=UGRD@10 m above ground,v=VGRD@10 m above ground,p=PRMSL@mean sea level|PRMSL@mean sea level|UGRD@10 m above ground
 LEVELS IFS|2m_rh_10m_wnd_derived|t=TMP@2 m above ground,d=DPT@2 m above ground,u=UGRD@10 m above ground,v=VGRD@10 m above ground,p=PRMSL@mean sea level|PRMSL@mean sea level|UGRD@10 m above ground
+LEVELS IFS|2m_temp_anom|f=TMP@2 m above ground,p=PRMSL@mean sea level,u=UGRD@10 m above ground,v=VGRD@10 m above ground|PRMSL@mean sea level|UGRD@10 m above ground
+LEVELS IFS|300_qvector_div|t=TMP@300 mb,z=HGT@300 mb|HGT@300 mb|
 LEVELS IFS|300_wnd_ht|z=HGT@300 mb,u=UGRD@300 mb,v=VGRD@300 mb|HGT@300 mb|
+LEVELS IFS|330K_pv|t100=TMP@100 mb,t150=TMP@150 mb,u150=UGRD@150 mb,v150=VGRD@150 mb,t200=TMP@200 mb,u200=UGRD@200 mb,v200=VGRD@200 mb,t250=TMP@250 mb,u250=UGRD@250 mb,v250=VGRD@250 mb,t300=TMP@300 mb,u300=UGRD@300 mb,v300=VGRD@300 mb,t400=TMP@400 mb,u400=UGRD@400 mb,v400=VGRD@400 mb,t500=TMP@500 mb,u500=UGRD@500 mb,v500=VGRD@500 mb,t600=TMP@600 mb,u600=UGRD@600 mb,v600=VGRD@600 mb,t700=TMP@700 mb,u700=UGRD@700 mb,v700=VGRD@700 mb,t850=TMP@850 mb||
 LEVELS IFS|500_hgt_anom|z=HGT@500 mb,u=UGRD@500 mb,v=VGRD@500 mb|HGT@500 mb|UGRD@500 mb
 LEVELS IFS|500_rh_ht|z=HGT@500 mb,rh=RH@500 mb,u=UGRD@500 mb,v=VGRD@500 mb|HGT@500 mb|UGRD@500 mb
 LEVELS IFS|500_vort_ht|z=HGT@500 mb,u=UGRD@500 mb,v=VGRD@500 mb|HGT@500 mb|UGRD@500 mb
@@ -4122,7 +4327,9 @@ LEVELS IFS|precip_p36|||
 LEVELS IFS|precip_p48|||
 LEVELS IFS|precip_p60|||
 LEVELS IFS|precip_ptot|||
+LEVELS IFS|pwat_anom|f=PWAT@entire atmosphere (considered as a single layer),p=PRMSL@mean sea level|PRMSL@mean sea level|
 LEVELS IFS|rh_700_300|r7=RH@700 mb,r5=RH@500 mb,r3=RH@300 mb,z=HGT@500 mb,u=UGRD@500 mb,v=VGRD@500 mb|HGT@500 mb|UGRD@500 mb
+LEVELS IFS|sbcape_crossover|c=CAPE@surface,u=UGRD@850 mb,v=VGRD@850 mb,u5=UGRD@500 mb,v5=VGRD@500 mb||UGRD@850 mb
 LEVELS IFS|sbcape_wind|c=CAPE@surface,u=UGRD@10 m above ground,v=VGRD@10 m above ground,p=PRMSL@mean sea level|PRMSL@mean sea level|UGRD@10 m above ground
 LEVELS IFS|shear_850_200|u8=UGRD@850 mb,v8=VGRD@850 mb,u2=UGRD@200 mb,v2=VGRD@200 mb,p=PRMSL@mean sea level|PRMSL@mean sea level|
 LEVELS IFS|steering_850_200|u0=UGRD@850 mb,v0=VGRD@850 mb,u1=UGRD@700 mb,v1=VGRD@700 mb,u2=UGRD@500 mb,v2=VGRD@500 mb,u3=UGRD@300 mb,v3=VGRD@300 mb,u4=UGRD@200 mb,v4=VGRD@200 mb,p=PRMSL@mean sea level|PRMSL@mean sea level|
@@ -4192,6 +4399,7 @@ LEVELS MPAS-HT|pbl_height|h=HPBL@surface||
 LEVELS MPAS-HT|pbl_rich_height|h=HPBL@surface||
 LEVELS MPAS-HT|precip_pwat|pw=PWAT@entire atmosphere (considered as a single layer)||
 LEVELS MPAS-HT|precip_rate|r=PRATE@surface||
+LEVELS MPAS-HT|sbcape_crossover|c=CAPE@surface,u=UGRD@850 mb,v=VGRD@850 mb,u5=UGRD@500 mb,v5=VGRD@500 mb||UGRD@850 mb
 LEVELS MPAS-HT|sbcape_wind|c=CAPE@surface,u=UGRD@10 m above ground,v=VGRD@10 m above ground,p=PRMSL@mean sea level|PRMSL@mean sea level|UGRD@10 m above ground
 LEVELS MPAS-HT|sfc_cape_cin|c=CAPE@surface,n=CIN@surface|CIN@surface|
 LEVELS MPAS-HT|ship|||
@@ -4257,6 +4465,7 @@ LEVELS MPAS-RN|pbl_height|h=HPBL@surface||
 LEVELS MPAS-RN|pbl_rich_height|h=HPBL@surface||
 LEVELS MPAS-RN|precip_pwat|pw=PWAT@entire atmosphere (considered as a single layer)||
 LEVELS MPAS-RN|precip_rate|r=PRATE@surface||
+LEVELS MPAS-RN|sbcape_crossover|c=CAPE@surface,u=UGRD@850 mb,v=VGRD@850 mb,u5=UGRD@500 mb,v5=VGRD@500 mb||UGRD@850 mb
 LEVELS MPAS-RN|sbcape_wind|c=CAPE@surface,u=UGRD@10 m above ground,v=VGRD@10 m above ground,p=PRMSL@mean sea level|PRMSL@mean sea level|UGRD@10 m above ground
 LEVELS MPAS-RN|sfc_cape_cin|c=CAPE@surface,n=CIN@surface|CIN@surface|
 LEVELS MPAS-RN|ship|||
@@ -4280,7 +4489,9 @@ LEVELS MSM-UL|200_div_wnd|z=HGT@200 mb,u=UGRD@200 mb,v=VGRD@200 mb|HGT@200 mb|UG
 LEVELS MSM-UL|200_stream_div|z=HGT@200 mb,u=UGRD@200 mb,v=VGRD@200 mb||
 LEVELS MSM-UL|200_wnd_ht|z=HGT@200 mb,u=UGRD@200 mb,v=VGRD@200 mb|HGT@200 mb|
 LEVELS MSM-UL|250_wnd_ht|z=HGT@250 mb,u=UGRD@250 mb,v=VGRD@250 mb|HGT@250 mb|
+LEVELS MSM-UL|300_qvector_div|t=TMP@300 mb,z=HGT@300 mb|HGT@300 mb|
 LEVELS MSM-UL|300_wnd_ht|z=HGT@300 mb,u=UGRD@300 mb,v=VGRD@300 mb|HGT@300 mb|
+LEVELS MSM-UL|330K_pv|t100=TMP@100 mb,t150=TMP@150 mb,u150=UGRD@150 mb,v150=VGRD@150 mb,t200=TMP@200 mb,u200=UGRD@200 mb,v200=VGRD@200 mb,t250=TMP@250 mb,u250=UGRD@250 mb,v250=VGRD@250 mb,t300=TMP@300 mb,u300=UGRD@300 mb,v300=VGRD@300 mb,t400=TMP@400 mb,u400=UGRD@400 mb,v400=VGRD@400 mb,t500=TMP@500 mb,u500=UGRD@500 mb,v500=VGRD@500 mb,t600=TMP@600 mb,u600=UGRD@600 mb,v600=VGRD@600 mb,t700=TMP@700 mb,u700=UGRD@700 mb,v700=VGRD@700 mb,t850=TMP@850 mb||
 LEVELS MSM-UL|500_rh_ht|z=HGT@500 mb,rh=RH@500 mb,u=UGRD@500 mb,v=VGRD@500 mb|HGT@500 mb|UGRD@500 mb
 LEVELS MSM-UL|500_vort_ht|z=HGT@500 mb,u=UGRD@500 mb,v=VGRD@500 mb|HGT@500 mb|UGRD@500 mb
 LEVELS MSM-UL|500_wnd_ht|z=HGT@500 mb,u=UGRD@500 mb,v=VGRD@500 mb|HGT@500 mb|UGRD@500 mb
@@ -4302,6 +4513,7 @@ LEVELS NAM-ANL|200_wnd_ht|z=HGT@200 mb,u=UGRD@200 mb,v=VGRD@200 mb|HGT@200 mb|
 LEVELS NAM-ANL|250_wnd_ht|z=HGT@250 mb,u=UGRD@250 mb,v=VGRD@250 mb|HGT@250 mb|
 LEVELS NAM-ANL|2m_dewpoint|d=DPT@2 m above ground,u=UGRD@10 m above ground,v=VGRD@10 m above ground,p=PRMSL@mean sea level|PRMSL@mean sea level|UGRD@10 m above ground
 LEVELS NAM-ANL|2m_rh_10m_wnd_derived|t=TMP@2 m above ground,d=DPT@2 m above ground,u=UGRD@10 m above ground,v=VGRD@10 m above ground,p=PRMSL@mean sea level|PRMSL@mean sea level|UGRD@10 m above ground
+LEVELS NAM-ANL|300_qvector_div|t=TMP@300 mb,z=HGT@300 mb|HGT@300 mb|
 LEVELS NAM-ANL|300_wnd_ht|z=HGT@300 mb,u=UGRD@300 mb,v=VGRD@300 mb|HGT@300 mb|
 LEVELS NAM-ANL|500_rh_ht|z=HGT@500 mb,rh=RH@500 mb,u=UGRD@500 mb,v=VGRD@500 mb|HGT@500 mb|UGRD@500 mb
 LEVELS NAM-ANL|500_vort_ht|z=HGT@500 mb,u=UGRD@500 mb,v=VGRD@500 mb|HGT@500 mb|UGRD@500 mb
@@ -4322,6 +4534,7 @@ LEVELS NAM-ANL|mslp_10m_wind|u=UGRD@10 m above ground,v=VGRD@10 m above ground,p
 LEVELS NAM-ANL|mslp_pwat|pw=PWAT@entire atmosphere (considered as a single layer),p=PRMSL@mean sea level|PRMSL@mean sea level|
 LEVELS NAM-ANL|mslp_trend|||
 LEVELS NAM-ANL|rh_700_300|r7=RH@700 mb,r5=RH@500 mb,r3=RH@300 mb,z=HGT@500 mb,u=UGRD@500 mb,v=VGRD@500 mb|HGT@500 mb|UGRD@500 mb
+LEVELS NAM-ANL|sbcape_crossover|c=CAPE@surface,u=UGRD@850 mb,v=VGRD@850 mb,u5=UGRD@500 mb,v5=VGRD@500 mb||UGRD@850 mb
 LEVELS NAM-ANL|sbcape_wind|c=CAPE@surface,u=UGRD@10 m above ground,v=VGRD@10 m above ground,p=PRMSL@mean sea level|PRMSL@mean sea level|UGRD@10 m above ground
 LEVELS NAM-ANL|shear_850_200|u8=UGRD@850 mb,v8=VGRD@850 mb,u2=UGRD@200 mb,v2=VGRD@200 mb,p=PRMSL@mean sea level|PRMSL@mean sea level|
 LEVELS NAM-ANL|sim_radar_comp|r=REFC@entire atmosphere||
@@ -4334,6 +4547,7 @@ LEVELS NARR|200_wnd_ht|z=HGT@200 mb,u=UGRD@200 mb,v=VGRD@200 mb|HGT@200 mb|
 LEVELS NARR|250_wnd_ht|z=HGT@250 mb,u=UGRD@250 mb,v=VGRD@250 mb|HGT@250 mb|
 LEVELS NARR|2m_dewpoint|d=DPT@2 m above ground,u=UGRD@10 m above ground,v=VGRD@10 m above ground,p=PRMSL@mean sea level|PRMSL@mean sea level|UGRD@10 m above ground
 LEVELS NARR|2m_rh_10m_wnd_derived|t=TMP@2 m above ground,d=DPT@2 m above ground,u=UGRD@10 m above ground,v=VGRD@10 m above ground,p=PRMSL@mean sea level|PRMSL@mean sea level|UGRD@10 m above ground
+LEVELS NARR|300_qvector_div|t=TMP@300 mb,z=HGT@300 mb|HGT@300 mb|
 LEVELS NARR|300_wnd_ht|z=HGT@300 mb,u=UGRD@300 mb,v=VGRD@300 mb|HGT@300 mb|
 LEVELS NARR|500_rh_ht|z=HGT@500 mb,rh=RH@500 mb,u=UGRD@500 mb,v=VGRD@500 mb|HGT@500 mb|UGRD@500 mb
 LEVELS NARR|500_wnd_ht|z=HGT@500 mb,u=UGRD@500 mb,v=VGRD@500 mb|HGT@500 mb|UGRD@500 mb
@@ -4349,6 +4563,7 @@ LEVELS NARR|850_wnd_ht|z=HGT@850 mb,u=UGRD@850 mb,v=VGRD@850 mb|HGT@850 mb|UGRD@
 LEVELS NARR|mslp_10m_wind|u=UGRD@10 m above ground,v=VGRD@10 m above ground,p=PRMSL@mean sea level|PRMSL@mean sea level|UGRD@10 m above ground
 LEVELS NARR|mslp_pwat|pw=PWAT@entire atmosphere (considered as a single layer),p=PRMSL@mean sea level|PRMSL@mean sea level|
 LEVELS NARR|mslp_trend|||
+LEVELS NARR|sbcape_crossover|c=CAPE@surface,u=UGRD@850 mb,v=VGRD@850 mb,u5=UGRD@500 mb,v5=VGRD@500 mb||UGRD@850 mb
 LEVELS NARR|sbcape_wind|c=CAPE@surface,u=UGRD@10 m above ground,v=VGRD@10 m above ground,p=PRMSL@mean sea level|PRMSL@mean sea level|UGRD@10 m above ground
 LEVELS NARR|shear_850_200|u8=UGRD@850 mb,v8=VGRD@850 mb,u2=UGRD@200 mb,v2=VGRD@200 mb,p=PRMSL@mean sea level|PRMSL@mean sea level|
 LEVELS NARR|steering_850_200|u0=UGRD@850 mb,v0=VGRD@850 mb,u1=UGRD@700 mb,v1=VGRD@700 mb,u2=UGRD@500 mb,v2=VGRD@500 mb,u3=UGRD@300 mb,v3=VGRD@300 mb,u4=UGRD@200 mb,v4=VGRD@200 mb,p=PRMSL@mean sea level|PRMSL@mean sea level|
@@ -4408,6 +4623,7 @@ LEVELS RAP-ANL|200_div_wnd|z=HGT@200 mb,u=UGRD@200 mb,v=VGRD@200 mb|HGT@200 mb|U
 LEVELS RAP-ANL|200_stream_div|z=HGT@200 mb,u=UGRD@200 mb,v=VGRD@200 mb||
 LEVELS RAP-ANL|200_wnd_ht|z=HGT@200 mb,u=UGRD@200 mb,v=VGRD@200 mb|HGT@200 mb|
 LEVELS RAP-ANL|250_wnd_ht|z=HGT@250 mb,u=UGRD@250 mb,v=VGRD@250 mb|HGT@250 mb|
+LEVELS RAP-ANL|300_qvector_div|t=TMP@300 mb,z=HGT@300 mb|HGT@300 mb|
 LEVELS RAP-ANL|300_wnd_ht|z=HGT@300 mb,u=UGRD@300 mb,v=VGRD@300 mb|HGT@300 mb|
 LEVELS RAP-ANL|500_rh_ht|z=HGT@500 mb,rh=RH@500 mb,u=UGRD@500 mb,v=VGRD@500 mb|HGT@500 mb|UGRD@500 mb
 LEVELS RAP-ANL|500_vort_ht|z=HGT@500 mb,u=UGRD@500 mb,v=VGRD@500 mb|HGT@500 mb|UGRD@500 mb
@@ -4423,6 +4639,7 @@ LEVELS RAP-ANL|850_vort_ht|z=HGT@850 mb,u=UGRD@850 mb,v=VGRD@850 mb|HGT@850 mb|U
 LEVELS RAP-ANL|850_wnd_ht|z=HGT@850 mb,u=UGRD@850 mb,v=VGRD@850 mb|HGT@850 mb|UGRD@850 mb
 LEVELS RAP-ANL|925_temp_ht|z=HGT@925 mb,u=UGRD@925 mb,v=VGRD@925 mb,t=TMP@925 mb|HGT@925 mb|UGRD@925 mb
 LEVELS RAP-ANL|rh_700_300|r7=RH@700 mb,r5=RH@500 mb,r3=RH@300 mb,z=HGT@500 mb,u=UGRD@500 mb,v=VGRD@500 mb|HGT@500 mb|UGRD@500 mb
+LEVELS RAP-ANL|sbcape_crossover|c=CAPE@surface,u=UGRD@850 mb,v=VGRD@850 mb,u5=UGRD@500 mb,v5=VGRD@500 mb||UGRD@850 mb
 LEVELS RAP-ANL|sim_radar_comp|r=REFC@entire atmosphere||
 LEVELS RAP-ANL|z500_trend|||
 LEVELS REFS|combo_refc_chance|r1=REFC@entire atmosphere (considered as a single layer),r2=REFC@entire atmosphere (considered as a single layer),r3=REFC@entire atmosphere (considered as a single layer),r4=REFC@entire atmosphere (considered as a single layer),r5=REFC@entire atmosphere (considered as a single layer),d=REFC@entire atmosphere (considered as a single layer)||
@@ -4512,6 +4729,7 @@ LEVELS RRFS|2m_rh_10m_wnd|||
 LEVELS RRFS|2m_rh_10m_wnd_derived|t=TMP@2 m above ground,d=DPT@2 m above ground,u=UGRD@10 m above ground,v=VGRD@10 m above ground,p=PRMSL@mean sea level|PRMSL@mean sea level|UGRD@10 m above ground
 LEVELS RRFS|2m_temp_10m_wnd|t=TMP@2 m above ground,u=UGRD@10 m above ground,v=VGRD@10 m above ground||UGRD@10 m above ground
 LEVELS RRFS|2m_tmpc|t=TMP@2 m above ground||
+LEVELS RRFS|300_qvector_div|t=TMP@300 mb,z=HGT@300 mb|HGT@300 mb|
 LEVELS RRFS|300_wnd_ht|z=HGT@300 mb,u=UGRD@300 mb,v=VGRD@300 mb|HGT@300 mb|
 LEVELS RRFS|300_wnd|u=UGRD@300 mb,v=VGRD@300 mb||UGRD@300 mb
 LEVELS RRFS|500_rh_ht|z=HGT@500 mb,rh=RH@500 mb,u=UGRD@500 mb,v=VGRD@500 mb|HGT@500 mb|UGRD@500 mb
@@ -4557,6 +4775,7 @@ LEVELS RRFS-AK|2m_rh_10m_wnd|||
 LEVELS RRFS-AK|2m_rh_10m_wnd_derived|t=TMP@2 m above ground,d=DPT@2 m above ground,u=UGRD@10 m above ground,v=VGRD@10 m above ground,p=PRMSL@mean sea level|PRMSL@mean sea level|UGRD@10 m above ground
 LEVELS RRFS-AK|2m_temp_10m_wnd|t=TMP@2 m above ground,u=UGRD@10 m above ground,v=VGRD@10 m above ground||UGRD@10 m above ground
 LEVELS RRFS-AK|2m_tmpc|t=TMP@2 m above ground||
+LEVELS RRFS-AK|300_qvector_div|t=TMP@300 mb,z=HGT@300 mb|HGT@300 mb|
 LEVELS RRFS-AK|300_wnd_ht|z=HGT@300 mb,u=UGRD@300 mb,v=VGRD@300 mb|HGT@300 mb|
 LEVELS RRFS-AK|300_wnd|u=UGRD@300 mb,v=VGRD@300 mb||UGRD@300 mb
 LEVELS RRFS-AK|500_rh_ht|z=HGT@500 mb,rh=RH@500 mb,u=UGRD@500 mb,v=VGRD@500 mb|HGT@500 mb|UGRD@500 mb
@@ -4616,6 +4835,7 @@ LEVELS RRFS-AK|precip_rate|r=PRATE@surface||
 LEVELS RRFS-AK|precip_rate_type|||
 LEVELS RRFS-AK|precip_type|||
 LEVELS RRFS-AK|rh_700_300|r7=RH@700 mb,r5=RH@500 mb,r3=RH@300 mb,z=HGT@500 mb,u=UGRD@500 mb,v=VGRD@500 mb|HGT@500 mb|UGRD@500 mb
+LEVELS RRFS-AK|sbcape_crossover|c=CAPE@surface,u=UGRD@850 mb,v=VGRD@850 mb,u5=UGRD@500 mb,v5=VGRD@500 mb||UGRD@850 mb
 LEVELS RRFS-AK|sbcape_wind|c=CAPE@surface,u=UGRD@10 m above ground,v=VGRD@10 m above ground,p=PRMSL@mean sea level|PRMSL@mean sea level|UGRD@10 m above ground
 LEVELS RRFS-AK|sfc_cape_cin|c=CAPE@surface,n=CIN@surface|CIN@surface|
 LEVELS RRFS-AK|shear_850_200|u8=UGRD@850 mb,v8=VGRD@850 mb,u2=UGRD@200 mb,v2=VGRD@200 mb,p=PRMSL@mean sea level|PRMSL@mean sea level|
@@ -4694,6 +4914,7 @@ LEVELS RRFS-FIREWX|2m_rh_10m_wnd|||
 LEVELS RRFS-FIREWX|2m_rh_10m_wnd_derived|t=TMP@2 m above ground,d=DPT@2 m above ground,u=UGRD@10 m above ground,v=VGRD@10 m above ground,p=PRMSL@mean sea level|PRMSL@mean sea level|UGRD@10 m above ground
 LEVELS RRFS-FIREWX|2m_temp_10m_wnd|t=TMP@2 m above ground,u=UGRD@10 m above ground,v=VGRD@10 m above ground||UGRD@10 m above ground
 LEVELS RRFS-FIREWX|2m_tmpc|t=TMP@2 m above ground||
+LEVELS RRFS-FIREWX|300_qvector_div|t=TMP@300 mb,z=HGT@300 mb|HGT@300 mb|
 LEVELS RRFS-FIREWX|300_wnd_ht|z=HGT@300 mb,u=UGRD@300 mb,v=VGRD@300 mb|HGT@300 mb|
 LEVELS RRFS-FIREWX|300_wnd|u=UGRD@300 mb,v=VGRD@300 mb||UGRD@300 mb
 LEVELS RRFS-FIREWX|500_rh_ht|z=HGT@500 mb,rh=RH@500 mb,u=UGRD@500 mb,v=VGRD@500 mb|HGT@500 mb|UGRD@500 mb
@@ -4753,6 +4974,7 @@ LEVELS RRFS-FIREWX|precip_rate|r=PRATE@surface||
 LEVELS RRFS-FIREWX|precip_rate_type|||
 LEVELS RRFS-FIREWX|precip_type|||
 LEVELS RRFS-FIREWX|rh_700_300|r7=RH@700 mb,r5=RH@500 mb,r3=RH@300 mb,z=HGT@500 mb,u=UGRD@500 mb,v=VGRD@500 mb|HGT@500 mb|UGRD@500 mb
+LEVELS RRFS-FIREWX|sbcape_crossover|c=CAPE@surface,u=UGRD@850 mb,v=VGRD@850 mb,u5=UGRD@500 mb,v5=VGRD@500 mb||UGRD@850 mb
 LEVELS RRFS-FIREWX|sbcape_wind|c=CAPE@surface,u=UGRD@10 m above ground,v=VGRD@10 m above ground,p=PRMSL@mean sea level|PRMSL@mean sea level|UGRD@10 m above ground
 LEVELS RRFS-FIREWX|sfc_cape_cin|c=CAPE@surface,n=CIN@surface|CIN@surface|
 LEVELS RRFS-FIREWX|shear_850_200|u8=UGRD@850 mb,v8=VGRD@850 mb,u2=UGRD@200 mb,v2=VGRD@200 mb,p=PRMSL@mean sea level|PRMSL@mean sea level|
@@ -4793,6 +5015,7 @@ LEVELS RRFS-HI|2m_rh_10m_wnd|||
 LEVELS RRFS-HI|2m_rh_10m_wnd_derived|t=TMP@2 m above ground,d=DPT@2 m above ground,u=UGRD@10 m above ground,v=VGRD@10 m above ground,p=PRMSL@mean sea level|PRMSL@mean sea level|UGRD@10 m above ground
 LEVELS RRFS-HI|2m_temp_10m_wnd|t=TMP@2 m above ground,u=UGRD@10 m above ground,v=VGRD@10 m above ground||UGRD@10 m above ground
 LEVELS RRFS-HI|2m_tmpc|t=TMP@2 m above ground||
+LEVELS RRFS-HI|300_qvector_div|t=TMP@300 mb,z=HGT@300 mb|HGT@300 mb|
 LEVELS RRFS-HI|300_wnd_ht|z=HGT@300 mb,u=UGRD@300 mb,v=VGRD@300 mb|HGT@300 mb|
 LEVELS RRFS-HI|300_wnd|u=UGRD@300 mb,v=VGRD@300 mb||UGRD@300 mb
 LEVELS RRFS-HI|500_rh_ht|z=HGT@500 mb,rh=RH@500 mb,u=UGRD@500 mb,v=VGRD@500 mb|HGT@500 mb|UGRD@500 mb
@@ -4852,6 +5075,7 @@ LEVELS RRFS-HI|precip_rate|r=PRATE@surface||
 LEVELS RRFS-HI|precip_rate_type|||
 LEVELS RRFS-HI|precip_type|||
 LEVELS RRFS-HI|rh_700_300|r7=RH@700 mb,r5=RH@500 mb,r3=RH@300 mb,z=HGT@500 mb,u=UGRD@500 mb,v=VGRD@500 mb|HGT@500 mb|UGRD@500 mb
+LEVELS RRFS-HI|sbcape_crossover|c=CAPE@surface,u=UGRD@850 mb,v=VGRD@850 mb,u5=UGRD@500 mb,v5=VGRD@500 mb||UGRD@850 mb
 LEVELS RRFS-HI|sbcape_wind|c=CAPE@surface,u=UGRD@10 m above ground,v=VGRD@10 m above ground,p=PRMSL@mean sea level|PRMSL@mean sea level|UGRD@10 m above ground
 LEVELS RRFS-HI|sfc_cape_cin|c=CAPE@surface,n=CIN@surface|CIN@surface|
 LEVELS RRFS-HI|shear_850_200|u8=UGRD@850 mb,v8=VGRD@850 mb,u2=UGRD@200 mb,v2=VGRD@200 mb,p=PRMSL@mean sea level|PRMSL@mean sea level|
@@ -4898,6 +5122,7 @@ LEVELS RRFS-NA|2m_rh_10m_wnd|||
 LEVELS RRFS-NA|2m_rh_10m_wnd_derived|t=TMP@2 m above ground,d=DPT@2 m above ground,u=UGRD@10 m above ground,v=VGRD@10 m above ground,p=PRMSL@mean sea level|PRMSL@mean sea level|UGRD@10 m above ground
 LEVELS RRFS-NA|2m_temp_10m_wnd|t=TMP@2 m above ground,u=UGRD@10 m above ground,v=VGRD@10 m above ground||UGRD@10 m above ground
 LEVELS RRFS-NA|2m_tmpc|t=TMP@2 m above ground||
+LEVELS RRFS-NA|300_qvector_div|t=TMP@300 mb,z=HGT@300 mb|HGT@300 mb|
 LEVELS RRFS-NA|300_wnd_ht|z=HGT@300 mb,u=UGRD@300 mb,v=VGRD@300 mb|HGT@300 mb|
 LEVELS RRFS-NA|300_wnd|u=UGRD@300 mb,v=VGRD@300 mb||UGRD@300 mb
 LEVELS RRFS-NA|500_rh_ht|z=HGT@500 mb,rh=RH@500 mb,u=UGRD@500 mb,v=VGRD@500 mb|HGT@500 mb|UGRD@500 mb
@@ -4957,6 +5182,7 @@ LEVELS RRFS-NA|precip_rate|r=PRATE@surface||
 LEVELS RRFS-NA|precip_rate_type|||
 LEVELS RRFS-NA|precip_type|||
 LEVELS RRFS-NA|rh_700_300|r7=RH@700 mb,r5=RH@500 mb,r3=RH@300 mb,z=HGT@500 mb,u=UGRD@500 mb,v=VGRD@500 mb|HGT@500 mb|UGRD@500 mb
+LEVELS RRFS-NA|sbcape_crossover|c=CAPE@surface,u=UGRD@850 mb,v=VGRD@850 mb,u5=UGRD@500 mb,v5=VGRD@500 mb||UGRD@850 mb
 LEVELS RRFS-NA|sbcape_wind|c=CAPE@surface,u=UGRD@10 m above ground,v=VGRD@10 m above ground,p=PRMSL@mean sea level|PRMSL@mean sea level|UGRD@10 m above ground
 LEVELS RRFS-NA|sfc_cape_cin|c=CAPE@surface,n=CIN@surface|CIN@surface|
 LEVELS RRFS-NA|shear_850_200|u8=UGRD@850 mb,v8=VGRD@850 mb,u2=UGRD@200 mb,v2=VGRD@200 mb,p=PRMSL@mean sea level|PRMSL@mean sea level|
@@ -4997,6 +5223,7 @@ LEVELS RRFS-PR|2m_rh_10m_wnd|||
 LEVELS RRFS-PR|2m_rh_10m_wnd_derived|t=TMP@2 m above ground,d=DPT@2 m above ground,u=UGRD@10 m above ground,v=VGRD@10 m above ground,p=PRMSL@mean sea level|PRMSL@mean sea level|UGRD@10 m above ground
 LEVELS RRFS-PR|2m_temp_10m_wnd|t=TMP@2 m above ground,u=UGRD@10 m above ground,v=VGRD@10 m above ground||UGRD@10 m above ground
 LEVELS RRFS-PR|2m_tmpc|t=TMP@2 m above ground||
+LEVELS RRFS-PR|300_qvector_div|t=TMP@300 mb,z=HGT@300 mb|HGT@300 mb|
 LEVELS RRFS-PR|300_wnd_ht|z=HGT@300 mb,u=UGRD@300 mb,v=VGRD@300 mb|HGT@300 mb|
 LEVELS RRFS-PR|300_wnd|u=UGRD@300 mb,v=VGRD@300 mb||UGRD@300 mb
 LEVELS RRFS-PR|500_rh_ht|z=HGT@500 mb,rh=RH@500 mb,u=UGRD@500 mb,v=VGRD@500 mb|HGT@500 mb|UGRD@500 mb
@@ -5069,6 +5296,7 @@ LEVELS RRFS-PR|precip_rate|r=PRATE@surface||
 LEVELS RRFS-PR|precip_rate_type|||
 LEVELS RRFS-PR|precip_type|||
 LEVELS RRFS-PR|rh_700_300|r7=RH@700 mb,r5=RH@500 mb,r3=RH@300 mb,z=HGT@500 mb,u=UGRD@500 mb,v=VGRD@500 mb|HGT@500 mb|UGRD@500 mb
+LEVELS RRFS-PR|sbcape_crossover|c=CAPE@surface,u=UGRD@850 mb,v=VGRD@850 mb,u5=UGRD@500 mb,v5=VGRD@500 mb||UGRD@850 mb
 LEVELS RRFS-PR|sbcape_wind|c=CAPE@surface,u=UGRD@10 m above ground,v=VGRD@10 m above ground,p=PRMSL@mean sea level|PRMSL@mean sea level|UGRD@10 m above ground
 LEVELS RRFS-PR|sfc_cape_cin|c=CAPE@surface,n=CIN@surface|CIN@surface|
 LEVELS RRFS-PR|shear_850_200|u8=UGRD@850 mb,v8=VGRD@850 mb,u2=UGRD@200 mb,v2=VGRD@200 mb,p=PRMSL@mean sea level|PRMSL@mean sea level|
@@ -5087,6 +5315,7 @@ LEVELS RRFS-PR|z500_trend|||
 LEVELS RRFS|rh_700_300|r7=RH@700 mb,r5=RH@500 mb,r3=RH@300 mb,z=HGT@500 mb,u=UGRD@500 mb,v=VGRD@500 mb|HGT@500 mb|UGRD@500 mb
 LEVELS RRFS|runoff_1hr|||
 LEVELS RRFS|runoff_6hr|||
+LEVELS RRFS|sbcape_crossover|c=CAPE@surface,u=UGRD@850 mb,v=VGRD@850 mb,u5=UGRD@500 mb,v5=VGRD@500 mb||UGRD@850 mb
 LEVELS RRFS|sbcape_wind|c=CAPE@surface,u=UGRD@10 m above ground,v=VGRD@10 m above ground,p=PRMSL@mean sea level|PRMSL@mean sea level|UGRD@10 m above ground
 LEVELS RRFS|sfc_cape_cin|c=CAPE@surface,n=CIN@surface|CIN@surface|
 LEVELS RRFS|shear_850_200|u8=UGRD@850 mb,v8=VGRD@850 mb,u2=UGRD@200 mb,v2=VGRD@200 mb,p=PRMSL@mean sea level|PRMSL@mean sea level|
@@ -5365,8 +5594,10 @@ LEVELS UKMO|100_wnd_ht|z=HGT@100 mb,u=UGRD@100 mb,v=VGRD@100 mb|HGT@100 mb|UGRD@
 LEVELS UKMO|10m_wnd_2m_temp|t=TMP@2 m above ground,u=UGRD@10 m above ground,v=VGRD@10 m above ground,p=PRMSL@mean sea level|PRMSL@mean sea level|UGRD@10 m above ground
 LEVELS UKMO|200_div_wnd|z=HGT@200 mb,u=UGRD@200 mb,v=VGRD@200 mb|HGT@200 mb|UGRD@200 mb
 LEVELS UKMO|200_stream_div|z=HGT@200 mb,u=UGRD@200 mb,v=VGRD@200 mb||
+LEVELS UKMO|200_velocity_potential|u=UGRD@200 mb,v=VGRD@200 mb||
 LEVELS UKMO|200_wnd_ht|z=HGT@200 mb,u=UGRD@200 mb,v=VGRD@200 mb|HGT@200 mb|
 LEVELS UKMO|250_wnd_ht|z=HGT@250 mb,u=UGRD@250 mb,v=VGRD@250 mb|HGT@250 mb|
+LEVELS UKMO|300_qvector_div|t=TMP@300 mb,z=HGT@300 mb|HGT@300 mb|
 LEVELS UKMO|300_wnd_ht|z=HGT@300 mb,u=UGRD@300 mb,v=VGRD@300 mb|HGT@300 mb|
 LEVELS UKMO|500_rh_ht|z=HGT@500 mb,rh=RH@500 mb,u=UGRD@500 mb,v=VGRD@500 mb|HGT@500 mb|UGRD@500 mb
 LEVELS UKMO|500_vort_ht|z=HGT@500 mb,u=UGRD@500 mb,v=VGRD@500 mb|HGT@500 mb|UGRD@500 mb
@@ -5387,6 +5618,7 @@ LEVELS UKMO|cloud_layers|lo=LCDC@low cloud layer,mi=MCDC@middle cloud layer,hi=H
 LEVELS UKMO|mslp_10m_wind|u=UGRD@10 m above ground,v=VGRD@10 m above ground,p=PRMSL@mean sea level|PRMSL@mean sea level|UGRD@10 m above ground
 LEVELS UKMO|mslp_trend|||
 LEVELS UKMO|rh_700_300|r7=RH@700 mb,r5=RH@500 mb,r3=RH@300 mb,z=HGT@500 mb,u=UGRD@500 mb,v=VGRD@500 mb|HGT@500 mb|UGRD@500 mb
+LEVELS UKMO|sbcape_crossover|c=CAPE@surface,u=UGRD@850 mb,v=VGRD@850 mb,u5=UGRD@500 mb,v5=VGRD@500 mb||UGRD@850 mb
 LEVELS UKMO|sbcape_wind|c=CAPE@surface,u=UGRD@10 m above ground,v=VGRD@10 m above ground,p=PRMSL@mean sea level|PRMSL@mean sea level|UGRD@10 m above ground
 LEVELS UKMO|shear_850_200|u8=UGRD@850 mb,v8=VGRD@850 mb,u2=UGRD@200 mb,v2=VGRD@200 mb,p=PRMSL@mean sea level|PRMSL@mean sea level|
 LEVELS UKMO|steering_850_200|u0=UGRD@850 mb,v0=VGRD@850 mb,u1=UGRD@700 mb,v1=VGRD@700 mb,u2=UGRD@500 mb,v2=VGRD@500 mb,u3=UGRD@300 mb,v3=VGRD@300 mb,u4=UGRD@200 mb,v4=VGRD@200 mb,p=PRMSL@mean sea level|PRMSL@mean sea level|
@@ -5426,6 +5658,7 @@ LEVELS WOOF-NAM-HOSTED|200_wnd_ht|z=HGT@200 mb,u=UGRD@200 mb,v=VGRD@200 mb|HGT@2
 LEVELS WOOF-NAM-HOSTED|250_wnd_ht|z=HGT@250 mb,u=UGRD@250 mb,v=VGRD@250 mb|HGT@250 mb|
 LEVELS WOOF-NAM-HOSTED|2m_dewpoint|d=DPT@2 m above ground,u=UGRD@10 m above ground,v=VGRD@10 m above ground,p=PRMSL@mean sea level|PRMSL@mean sea level|UGRD@10 m above ground
 LEVELS WOOF-NAM-HOSTED|2m_rh_10m_wnd_derived|t=TMP@2 m above ground,d=DPT@2 m above ground,u=UGRD@10 m above ground,v=VGRD@10 m above ground,p=PRMSL@mean sea level|PRMSL@mean sea level|UGRD@10 m above ground
+LEVELS WOOF-NAM-HOSTED|300_qvector_div|t=TMP@300 mb,z=HGT@300 mb|HGT@300 mb|
 LEVELS WOOF-NAM-HOSTED|300_wnd_ht|z=HGT@300 mb,u=UGRD@300 mb,v=VGRD@300 mb|HGT@300 mb|
 LEVELS WOOF-NAM-HOSTED|500_rh_ht|z=HGT@500 mb,rh=RH@500 mb,u=UGRD@500 mb,v=VGRD@500 mb|HGT@500 mb|UGRD@500 mb
 LEVELS WOOF-NAM-HOSTED|500_vort_ht|z=HGT@500 mb,u=UGRD@500 mb,v=VGRD@500 mb|HGT@500 mb|UGRD@500 mb
@@ -5456,6 +5689,7 @@ LEVELS WOOF-NAM-HOSTED|precip_p48|||
 LEVELS WOOF-NAM-HOSTED|precip_p60|||
 LEVELS WOOF-NAM-HOSTED|precip_ptot|||
 LEVELS WOOF-NAM-HOSTED|rh_700_300|r7=RH@700 mb,r5=RH@500 mb,r3=RH@300 mb,z=HGT@500 mb,u=UGRD@500 mb,v=VGRD@500 mb|HGT@500 mb|UGRD@500 mb
+LEVELS WOOF-NAM-HOSTED|sbcape_crossover|c=CAPE@surface,u=UGRD@850 mb,v=VGRD@850 mb,u5=UGRD@500 mb,v5=VGRD@500 mb||UGRD@850 mb
 LEVELS WOOF-NAM-HOSTED|sbcape_wind|c=CAPE@surface,u=UGRD@10 m above ground,v=VGRD@10 m above ground,p=PRMSL@mean sea level|PRMSL@mean sea level|UGRD@10 m above ground
 LEVELS WOOF-NAM-HOSTED|shear_850_200|u8=UGRD@850 mb,v8=VGRD@850 mb,u2=UGRD@200 mb,v2=VGRD@200 mb,p=PRMSL@mean sea level|PRMSL@mean sea level|
 LEVELS WOOF-NAM-HOSTED|sim_radar_comp|r=REFC@entire atmosphere||

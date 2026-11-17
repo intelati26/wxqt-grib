@@ -34,6 +34,7 @@ namespace {
         ModelBias::Stat statA[8], statB[8];
         QString truthName{"ERA5"};
         bool station{false};
+        std::vector<ModelBias::Station> nearby;   // the stations near the place (for the station menu)
         // how each model's forecast for each day changed: model (0 = A, 1 = B) -> lead 0 to 7 -> day -> value (native units); and what happened by day
         std::map<double, float> evolution[2][8];
         std::map<double, float> happened;
@@ -442,6 +443,10 @@ ModelBiasViewer::ModelBiasViewer(Window * parent, double lat, double lon, const 
     judge->addItem("Judged on a station: daily lows (US)", 2);
     judge->addItem("Judged on a station: daily rain (US)", 3);
     judge->setToolTip("What happened: ERA5, a reanalysis about five days behind, or the nearest station's daily highs, lows or rain (NOAA's Regional Climate Centers; no lag, the United States only; the variable box is then ignored)");
+    stationPick = UiStandards::combo(body);
+    stationPick->addItem("Nearest station with the days", QString{});
+    stationPick->setToolTip("The station judged against: the nearest that has most of the days, or one you pick from the stations near the place (the forecasts are then read at that station's own place).");
+    stationPick->setVisible(false);
     status = new QLabel{"", body};
     status->setWordWrap(true);
     top->addWidget(place);
@@ -454,6 +459,7 @@ ModelBiasViewer::ModelBiasViewer(Window * parent, double lat, double lon, const 
     top->addWidget(modelB);
     top->addWidget(field);
     top->addWidget(judge);
+    top->addWidget(stationPick);
     top->addWidget(period);
     top->addWidget(lead);
     top->addWidget(lowerView);
@@ -472,8 +478,17 @@ ModelBiasViewer::ModelBiasViewer(Window * parent, double lat, double lon, const 
             load();
         }
     });
-    for (auto * box : {modelA, modelB, field, judge, period, lead, lowerView}) {
+    for (auto * box : {modelA, modelB, field, judge, period, lead, lowerView, stationPick}) {
         QObject::connect(box, &QComboBox::currentIndexChanged, this, [this] (int) { load(); });
+    }
+    for (auto * box : {latBox, lonBox}) {   // another place: its own stations (the menu goes back to the nearest)
+        QObject::connect(box, &QDoubleSpinBox::valueChanged, this, [this] (double) {
+            const QSignalBlocker quiet{stationPick};
+            while (stationPick->count() > 1) {
+                stationPick->removeItem(1);
+            }
+            stationPick->setCurrentIndex(0);
+        });
     }
     QObject::connect(go, &QPushButton::clicked, this, [this] { load(); });
     QObject::connect(whyButton, &QPushButton::clicked, this, [this] { why(); });
@@ -491,6 +506,8 @@ void ModelBiasViewer::load() {
         return;
     }
     const int how = judge->currentData().toInt();
+    stationPick->setVisible(how != 0);
+    const auto wantedStation = how != 0 ? stationPick->currentData().toString().toStdString() : std::string{};
     auto variable = *chosen;
     if (how == 1 || how == 2) {   // a station's highs and lows: the temperature
         variable = *E::findVariable("temperature_2m");
@@ -507,15 +524,17 @@ void ModelBiasViewer::load() {
     status->setText("reading the past forecasts and what happened...");
     QPointer<ModelBiasViewer> self{this};
     const bool evolution = lowerView->currentData().toInt() == 1;
-    std::thread{[self, mine, lat, lon, idA, idB, variable, days, leadDays, nameA, nameB, how, evolution] {
+    std::thread{[self, mine, lat, lon, idA, idB, variable, days, leadDays, nameA, nameB, how, evolution, wantedStation] {
         ModelBias::Forecasts forecasts;
         ModelBias::Truth truth;
         std::map<std::string, float> stationDays;
         ModelBias::Station found;
         std::string why;
         const auto judging = how == 1 ? ModelBias::Judge::StationHigh : how == 2 ? ModelBias::Judge::StationLow : how == 3 ? ModelBias::Judge::StationRain : ModelBias::Judge::Era5;
-        const bool ok = how == 0 ? ModelBias::fetch(lat, lon, variable.id, idA, idB, days, forecasts, truth, why) : ModelBias::fetchStation(lat, lon, judging, idA, idB, days, forecasts, stationDays, found, why);
+        std::vector<ModelBias::Station> nearby;
+        const bool ok = how == 0 ? ModelBias::fetch(lat, lon, variable.id, idA, idB, days, forecasts, truth, why) : ModelBias::fetchStation(lat, lon, judging, idA, idB, days, forecasts, stationDays, found, why, wantedStation, &nearby);
         Result result;
+        result.nearby = nearby;
         if (ok) {
             result.nameA = nameA;
             result.nameB = nameB;
@@ -557,6 +576,18 @@ void ModelBiasViewer::load() {
                 return;
             }
             self->go->setEnabled(true);
+            if (!result.nearby.empty()) {   // the station menu: the nearest-with-days choice, then the stations near the place (the choice kept)
+                const auto keep = self->stationPick->currentData().toString();
+                const QSignalBlocker quiet{self->stationPick};
+                while (self->stationPick->count() > 1) {
+                    self->stationPick->removeItem(1);
+                }
+                for (const auto& s : result.nearby) {
+                    self->stationPick->addItem(QString::fromStdString(s.name) + QString{" (%1 km)"}.arg(s.km, 0, 'f', 0), QString::fromStdString(s.uid));
+                }
+                const int at = self->stationPick->findData(keep);
+                self->stationPick->setCurrentIndex(at >= 0 ? at : 0);
+            }
             if (!ok) {
                 self->status->setText("could not read: " + QString::fromStdString(why));
                 self->chart->clear("No result: " + QString::fromStdString(why));
@@ -602,7 +633,7 @@ ModelViewer * ModelBiasViewer::why() {
         return std::string{};
     };
     QString message;
-    auto * viewer = ModelCompareViewer::showMaps(this, mapOf(modelA->currentData().toString().toStdString()), mapOf(modelB->currentData().toString().toStdString()), "500_wnd_ht", QDateTime::fromSecsSinceEpoch(static_cast<qint64>(day + 12 * 3600), QTimeZone::utc()), message);
+    auto * viewer = ModelCompareViewer::showMaps(this, mapOf(modelA->currentData().toString().toStdString()), mapOf(modelB->currentData().toString().toStdString()), "500_wnd_ht", QDateTime::fromSecsSinceEpoch(static_cast<qint64>(day + 12 * 3600), QTimeZone::utc()), message, latBox->value(), lonBox->value());
     status->setText(message);
     return viewer;
 }

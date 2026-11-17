@@ -12,7 +12,9 @@
 #include <QPainterPath>
 #include <QScrollBar>
 #include <QVBoxLayout>
+#include "gfs/GfsChart.h"
 #include "gfs/GfsRender.h"
+#include "ui/ClickableLabel.h"
 #include "objects/FutureVoid.h"
 #include "util/DisplayUnits.h"
 #include "ui/Window.h"
@@ -340,12 +342,28 @@ protected:
                     if (v == NbmText::missing) {
                         continue;
                     }
-                    const bool snow = col.get("PSN", 0) > 50;
-                    QColor fill = snow ? QColor{70, 110, 230} : QColor{60, 170, 90};
-                    fill.setAlpha(six ? 110 : 220);
-                    p.setBrush(fill);
-                    const double y = model.rain.y(v, row.top, row.height);
-                    p.drawRect(QRectF{c * columnWidth + 8.0, y, columnWidth - 16.0, row.top + row.height - 4 - y});
+                    // the bar split by the type the precipitation would be (the bulletin's PRA, PZR, PPL, PSN: the chance of each if it falls), rain at the bottom, then freezing
+                    // rain, sleet and snow; a column without the types (the NWS grid's) is all rain-green
+                    const double bottom = row.top + row.height - 4, top = model.rain.y(v, row.top, row.height);
+                    struct Part { const char * code; QColor color; };
+                    static const Part parts[] = {{"PRA", QColor{60, 170, 90}}, {"PZR", QColor{220, 70, 160}}, {"PPL", QColor{240, 150, 40}}, {"PSN", QColor{70, 110, 230}}};
+                    double total = 0.0;
+                    for (const auto& part : parts) {
+                        total += std::max(0, col.get(part.code, 0));
+                    }
+                    double y = bottom;
+                    for (const auto& part : parts) {
+                        const double share = total > 0.0 ? std::max(0, col.get(part.code, 0)) / total : (std::string{part.code} == "PRA" ? 1.0 : 0.0);
+                        if (share <= 0.0) {
+                            continue;
+                        }
+                        QColor fill = part.color;
+                        fill.setAlpha(six ? 110 : 220);
+                        p.setBrush(fill);
+                        const double h = (bottom - top) * share;
+                        p.drawRect(QRectF{c * columnWidth + 8.0, y - h, columnWidth - 16.0, h});
+                        y -= h;
+                    }
                 }
                 p.setBrush(Qt::NoBrush);
             }
@@ -420,6 +438,18 @@ protected:
                 for (double g = 0; g <= 100; g += 25) {
                     p.drawText(QRect{0, static_cast<int>(m.rain.y(g, row.top, row.height)) - 8, width() - 6, 16}, Qt::AlignRight | Qt::AlignVCenter, QString::number(static_cast<int>(g)) + (g == 0 ? " %" : ""));
                 }
+                // the key of the bar's colors: rain, freezing rain, sleet, snow
+                const std::pair<QColor, const char *> key[] = {{QColor{60, 170, 90}, "rain"}, {QColor{220, 70, 160}, "frz rain"}, {QColor{240, 150, 40}, "sleet"}, {QColor{70, 110, 230}, "snow"}};
+                QFont small = p.font();
+                small.setPointSizeF(small.pointSizeF() * 0.8);
+                p.save();
+                p.setFont(small);
+                for (size_t k = 0; k < 4; k++) {
+                    const int y = row.top + 6 + static_cast<int>(k) * 19;
+                    p.fillRect(QRect{4, y + 3, 9, 9}, key[k].first);
+                    p.drawText(QRect{16, y, 60, 15}, Qt::AlignLeft | Qt::AlignVCenter, key[k].second);
+                }
+                p.restore();
             }
         }
     }
@@ -484,6 +514,19 @@ ForecastPointExtended::ForecastPointExtended(Window * owner, QWidget * parent) :
     left->addStretch();
     row->addLayout(left);
     row->addWidget(scroll, 1);
+    thumb = new ClickableLabel{owner};
+    thumb->setFixedWidth(440);
+    thumb->setAlignment(Qt::AlignTop | Qt::AlignHCenter);
+    thumb->setWordWrap(true);
+    thumb->setToolTip("The GFS's sea level pressure, 10 m wind and precipitation type round the place at the time picked. Click for the heights and winds.");
+    thumb->setVisible(false);
+    thumb->connect([this] {
+        const int c = canvas->selectedColumn();
+        if (c >= 0 && openSynoptic) {
+            openSynoptic(QDateTime::fromSecsSinceEpoch(canvas->get().columns[static_cast<size_t>(c)].time, QTimeZone::utc()));
+        }
+    });
+    row->addWidget(thumb);
     column->addLayout(row, 1);
     auto * bar = new QHBoxLayout;
     pickText = new QLabel{"Click a column to pick a time.", this};
@@ -573,12 +616,43 @@ void ForecastPointExtended::fill() {
 void ForecastPointExtended::picked(int column) {
     canvas->select(column);
     const auto& columns = canvas->get().columns;
+    const int mine = ++thumbGeneration;
     if (column < 0 || column >= static_cast<int>(columns.size())) {
         pickText->setText("Click a column to pick a time.");
         pickButton->setEnabled(false);
+        thumb->setVisible(false);
         return;
     }
     const auto t = QDateTime::fromSecsSinceEpoch(columns[static_cast<size_t>(column)].time, QTimeZone::utc());
     pickText->setText("Valid " + t.toString("dddd d MMMM HH:mm 'UTC'") + " (" + t.toLocalTime().toString("ddd h ap") + " local)  -  " + QString::fromStdString(columns[static_cast<size_t>(column)].source));
     pickButton->setEnabled(true);
+    // the map of that time beside the table: the GFS (it reaches all 11 days) round the place, drawn off the screen's thread; only the newest pick is shown
+    if (!data) {
+        return;
+    }
+    thumb->setVisible(true);
+    thumb->setPixmap(QPixmap{});
+    thumb->setText("drawing the map of " + t.toString("ddd d HH'Z'") + " ...");
+    const auto area = GfsChart::localId(data->lat, data->lon, 1500.0, "the place");
+    const auto validTime = t.toString("yyyyMMddHH").toStdString();
+    auto bytes = std::make_shared<QByteArray>();
+    auto problem = std::make_shared<std::string>();
+    new FutureVoid{owner, [bytes, problem, area, validTime] {
+                       GfsRender::Session session;
+                       GfsRender::Variant variant;
+                       variant.validTime = validTime;
+                       variant.width = 440;
+                       *bytes = GfsRender::png(session, "GFS", "10m_wnd_precip_type", area, "", 0, {}, *problem, nullptr, variant);
+                   }, [this, bytes, problem, mine] {
+                       if (mine != thumbGeneration) {
+                           return;
+                       }
+                       QPixmap picture;
+                       if (bytes->isEmpty() || !picture.loadFromData(*bytes)) {
+                           thumb->setText("No map for this time: " + QString::fromStdString(problem->empty() ? std::string{"the GFS has no chart for it"} : *problem));
+                           return;
+                       }
+                       thumb->setText({});
+                       thumb->setPixmap(picture.scaledToWidth(440, Qt::SmoothTransformation));
+                   }};
 }

@@ -129,6 +129,9 @@ const auto adapt = [relativeHumidity] (const Product& gfs, const char * model, b
         p.push_back(std::move(x));
     };
     const auto fits = [&] (const Product& chart) {
+        if (chart.cloneTo && !chart.cloneTo(def.id)) {
+            return false;
+        }
         for (const auto& part : rule.skip) {
             if (chart.id.find(part) != std::string::npos) {
                 return false;

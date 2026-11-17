@@ -444,6 +444,151 @@ Grid divergence(const Grid& u, const Grid& v) {
     return spherical(u, v, true);
 }
 
+void gradient(const Grid& f, Grid& dx, Grid& dy) {
+    dx = f;
+    dy = f;
+    std::fill(dx.values.begin(), dx.values.end(), nan);
+    std::fill(dy.values.begin(), dy.values.end(), nan);
+    const double step = earthRadius * pi / 180.0 * f.step;
+    for (int row = 0; row < f.rows; row++) {
+        const double lat = f.lat0 - row * f.step;
+        const double cosLat = std::cos(lat * pi / 180.0);
+        if (cosLat < 0.02) {
+            continue;
+        }
+        const int north = row > 0 ? row - 1 : row, south = row < f.rows - 1 ? row + 1 : row;
+        for (int col = 0; col < f.columns; col++) {
+            const int left = col > 0 ? col - 1 : (f.global() ? f.columns - 1 : col);
+            const int right = col < f.columns - 1 ? col + 1 : (f.global() ? 0 : col);
+            const size_t i = static_cast<size_t>(row) * static_cast<size_t>(f.columns) + static_cast<size_t>(col);
+            if (left != right) {
+                dx.values[i] = static_cast<float>((f.at(right, row) - f.at(left, row)) / ((right == col || left == col ? 1.0 : 2.0) * step * cosLat));
+            }
+            if (north != south) {
+                dy.values[i] = static_cast<float>((f.at(col, north) - f.at(col, south)) / ((north == row || south == row ? 1.0 : 2.0) * step));
+            }
+        }
+    }
+}
+
+Grid velocityPotential(const Grid& div, int iterations) {
+    (void) iterations;   // (exact now: kept for the callers)
+    if (div.empty() || !div.global()) {
+        return Grid{};
+    }
+    // on a grid of about 1 degree; each row's zonal wavenumbers m (a real Fourier series), and for each m the equation in latitude
+    //   (1 / (a^2 cos)) d/dphi (cos dchi/dphi) - m^2 chi / (a^2 cos^2) = div
+    // as a tridiagonal system (no flux through the half-levels next to the poles), solved directly; m = 0 pinned at its first row (a constant is free)
+    const int factor = std::max(1, static_cast<int>(std::lround(1.0 / div.step)));
+    Grid g;
+    g.step = div.step * factor;
+    g.lon0 = div.lon0;
+    g.lat0 = div.lat0;
+    g.columns = div.columns / factor;
+    g.rows = (div.rows - 1) / factor + 1;
+    const int N = g.columns, R = g.rows;
+    g.values.assign(static_cast<size_t>(N) * static_cast<size_t>(R), 0.0f);
+    std::vector<double> rhs(static_cast<size_t>(N) * static_cast<size_t>(R), 0.0);
+    double mean = 0.0, weights = 0.0;
+    for (int r = 0; r < R; r++) {
+        const double w = std::cos((g.lat0 - r * g.step) * pi / 180.0);
+        for (int c = 0; c < N; c++) {
+            const float v = div.sample(g.lon0 + c * g.step, g.lat0 - r * g.step);
+            const double value = std::isnan(v) ? 0.0 : v;
+            rhs[static_cast<size_t>(r) * static_cast<size_t>(N) + static_cast<size_t>(c)] = value;
+            mean += value * w;
+            weights += w;
+        }
+    }
+    mean /= std::max(1e-12, weights);   // the whole sphere's divergence must be zero for a solution
+    for (auto& v : rhs) {
+        v -= mean;
+    }
+    const double h = g.step * pi / 180.0, a = earthRadius;
+    const int first = 1, last = R - 2;   // the rows solved (the pole rows take their neighbor's mean)
+    const int M = N / 2;
+    std::vector<double> cosRow(static_cast<size_t>(R)), cosHalf(static_cast<size_t>(R) + 1);   // cosHalf[r]: between row r - 1 and row r
+    for (int r = 0; r < R; r++) {
+        cosRow[static_cast<size_t>(r)] = std::cos((g.lat0 - r * g.step) * pi / 180.0);
+    }
+    for (int r = 0; r <= R; r++) {
+        cosHalf[static_cast<size_t>(r)] = (r <= first || r > last) ? 0.0 : std::cos((g.lat0 - (r - 0.5) * g.step) * pi / 180.0);
+    }
+    std::vector<double> cosTable(static_cast<size_t>(N) * static_cast<size_t>(M + 1)), sinTable(cosTable.size());
+    for (int m = 0; m <= M; m++) {
+        for (int c = 0; c < N; c++) {
+            const double t = 2.0 * pi * m * c / N;
+            cosTable[static_cast<size_t>(m) * static_cast<size_t>(N) + static_cast<size_t>(c)] = std::cos(t);
+            sinTable[static_cast<size_t>(m) * static_cast<size_t>(N) + static_cast<size_t>(c)] = std::sin(t);
+        }
+    }
+    std::vector<double> chi(rhs.size(), 0.0);
+    const int n = last - first + 1;
+    std::vector<double> lower(static_cast<size_t>(n)), diag(static_cast<size_t>(n)), upper(static_cast<size_t>(n)), re(static_cast<size_t>(n)), im(static_cast<size_t>(n));
+    for (int m = 0; m <= M; m++) {
+        for (int k = 0; k < n; k++) {   // the coefficients of wavenumber m on each row
+            const int r = first + k;
+            double sc = 0.0, ss = 0.0;
+            for (int c = 0; c < N; c++) {
+                const double v = rhs[static_cast<size_t>(r) * static_cast<size_t>(N) + static_cast<size_t>(c)];
+                sc += v * cosTable[static_cast<size_t>(m) * static_cast<size_t>(N) + static_cast<size_t>(c)];
+                ss += v * sinTable[static_cast<size_t>(m) * static_cast<size_t>(N) + static_cast<size_t>(c)];
+            }
+            re[static_cast<size_t>(k)] = sc;
+            im[static_cast<size_t>(k)] = ss;
+            const double cr = cosRow[static_cast<size_t>(r)];
+            const double cn = cosHalf[static_cast<size_t>(r)], cs = cosHalf[static_cast<size_t>(r) + 1];
+            const double scale = 1.0 / (a * a * h * h * cr);
+            lower[static_cast<size_t>(k)] = cn * scale;
+            upper[static_cast<size_t>(k)] = cs * scale;
+            diag[static_cast<size_t>(k)] = -(cn + cs) * scale - static_cast<double>(m) * m / (a * a * cr * cr);
+        }
+        if (m == 0) {   // the constant is free: the first row pinned to zero
+            lower[0] = 0.0;
+            upper[0] = 0.0;
+            diag[0] = 1.0;
+            re[0] = 0.0;
+            im[0] = 0.0;
+        }
+        // Thomas' algorithm for both parts
+        std::vector<double> cp(static_cast<size_t>(n)), dr(static_cast<size_t>(n)), di(static_cast<size_t>(n));
+        for (int k = 0; k < n; k++) {
+            const double l = k > 0 ? lower[static_cast<size_t>(k)] : 0.0;
+            const double denom = diag[static_cast<size_t>(k)] - (k > 0 ? l * cp[static_cast<size_t>(k) - 1] : 0.0);
+            cp[static_cast<size_t>(k)] = upper[static_cast<size_t>(k)] / denom;
+            dr[static_cast<size_t>(k)] = (re[static_cast<size_t>(k)] - (k > 0 ? l * dr[static_cast<size_t>(k) - 1] : 0.0)) / denom;
+            di[static_cast<size_t>(k)] = (im[static_cast<size_t>(k)] - (k > 0 ? l * di[static_cast<size_t>(k) - 1] : 0.0)) / denom;
+        }
+        for (int k = n - 2; k >= 0; k--) {
+            dr[static_cast<size_t>(k)] -= cp[static_cast<size_t>(k)] * dr[static_cast<size_t>(k) + 1];
+            di[static_cast<size_t>(k)] -= cp[static_cast<size_t>(k)] * di[static_cast<size_t>(k) + 1];
+        }
+        // back to the rows: the real series' weights (1/N for m = 0 and N/2, 2/N between)
+        const double weight = (m == 0 || (N % 2 == 0 && m == M)) ? 1.0 / N : 2.0 / N;
+        for (int k = 0; k < n; k++) {
+            const int r = first + k;
+            for (int c = 0; c < N; c++) {
+                chi[static_cast<size_t>(r) * static_cast<size_t>(N) + static_cast<size_t>(c)] += weight * (dr[static_cast<size_t>(k)] * cosTable[static_cast<size_t>(m) * static_cast<size_t>(N) + static_cast<size_t>(c)] +
+                                                                                                          di[static_cast<size_t>(k)] * sinTable[static_cast<size_t>(m) * static_cast<size_t>(N) + static_cast<size_t>(c)]);
+            }
+        }
+    }
+    for (const int pole : {0, R - 1}) {   // the pole rows: the mean of the next row
+        const int next = pole == 0 ? 1 : R - 2;
+        double sum = 0.0;
+        for (int c = 0; c < N; c++) {
+            sum += chi[static_cast<size_t>(next) * static_cast<size_t>(N) + static_cast<size_t>(c)];
+        }
+        for (int c = 0; c < N; c++) {
+            chi[static_cast<size_t>(pole) * static_cast<size_t>(N) + static_cast<size_t>(c)] = sum / N;
+        }
+    }
+    for (size_t i = 0; i < chi.size(); i++) {
+        g.values[i] = static_cast<float>(chi[i]);
+    }
+    return g;
+}
+
 Grid difference(const Grid& a, const Grid& b) {
     if (a.values.size() != b.values.size()) {   // a field that is missing (or of another grid): nothing to subtract, not a read past the end
         return Grid{};
