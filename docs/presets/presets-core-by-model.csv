@@ -132,6 +132,7 @@ GEFS,Value,Pressure,yes,,yes,1,1,10 m,10m_wnd_precip_type
 GEFS,Value,"Pressure, Temperature",,,,1,1,850 mb,850_temp_mslp_precip
 GEFS,Value,"Pressure, Temperature",,,yes,1,1,850 mb,850_temp_mslp_precip_type
 GEFS,Value,Other lines,yes,,,1,1,850-500 mb,sbcape_crossover
+GEFS,Value,Other lines,,,,1,1,,sfc_cape_cin
 GEFS,Value,"Heights, Omega",yes,,,1,1,700 mb,700_rh_ht
 GEFS-WAVE,Value,,,yes,,5,5,,peak_dir_per swell1_dir_per swell2_dir_per swell3_dir_per
 GEFS-WAVE,Value,,yes,,,5,5,,sig_wv_ht swell1_wv_ht swell2_wv_ht swell3_wv_ht
@@ -156,6 +157,7 @@ GEPS,Change,,,,,1,1,,snodpth_chng
 GEPS,Change,Heights,,,,1,1,500 mb,z500_trend
 GEPS,Value,"Pressure, Temperature",,,,1,1,850 mb,850_temp_mslp_precip
 GEPS,Value,Other lines,yes,,,1,1,850-500 mb,sbcape_crossover
+GEPS,Value,Other lines,,,,1,1,,sfc_cape_cin
 GEPS,Value,,,yes,,1,1,200 mb,200_stream_div
 GEPS,Value,,yes,,,1,1,200 mb,200_velocity_potential
 GEPS,Value,,,,,1,1,850-700 mb,850_700_rh
@@ -178,6 +180,7 @@ GFS,Value,Pressure,yes,,yes,1,1,10 m,10m_wnd_precip_type
 GFS,Value,"Pressure, Temperature",,,,1,1,850 mb,850_temp_mslp_precip
 GFS,Value,"Pressure, Temperature",,,yes,1,1,850 mb,850_temp_mslp_precip_type
 GFS,Value,Other lines,yes,,,1,1,850-500 mb,sbcape_crossover
+GFS,Value,Other lines,,,,1,1,,sfc_cape_cin
 GFS,Value,,,,yes,1,1,,cloud_layers
 GFS,Value,"Heights, Omega",yes,,,1,1,700 mb,700_rh_ht
 GFS-ANL,Value,Heights,yes,,,15,9,100 mb 200 mb 500 mb 700-300 mb 850 mb 925 mb,200_div_wnd 500_vort_ht 850_thetae_ht 850vor_500ht_200wd
@@ -188,6 +191,7 @@ GFS-ANL,Change,Pressure,,,,1,1,,mslp_trend
 GFS-ANL,Change,Heights,,,,1,1,500 mb,z500_trend
 GFS-ANL,Value,Pressure,,,,1,1,,mslp_pwat
 GFS-ANL,Value,Other lines,yes,,,1,1,850-500 mb,sbcape_crossover
+GFS-ANL,Value,Other lines,,,,1,1,,sfc_cape_cin
 GFS-ANL,Value,,yes,,,1,1,200 mb,200_velocity_potential
 GFS-ANL,Value,"Heights, Omega",yes,,,1,1,700 mb,700_rh_ht
 GFS-ANL,Value,,,,,1,1,850-700 mb,850_700_rh
@@ -201,6 +205,7 @@ GFS1-ANL,Change,Pressure,,,,1,1,,mslp_trend
 GFS1-ANL,Change,Heights,,,,1,1,500 mb,z500_trend
 GFS1-ANL,Value,Pressure,,,,1,1,,mslp_pwat
 GFS1-ANL,Value,Other lines,yes,,,1,1,850-500 mb,sbcape_crossover
+GFS1-ANL,Value,Other lines,,,,1,1,,sfc_cape_cin
 GFS1-ANL,Value,,yes,,,1,1,200 mb,200_velocity_potential
 GFS1-ANL,Value,"Heights, Omega",yes,,,1,1,700 mb,700_rh_ht
 GFS1-ANL,Value,,,,,1,1,850-700 mb,850_700_rh
@@ -401,6 +406,7 @@ NAM-ANL,Change,Pressure,,,,1,1,,mslp_trend
 NAM-ANL,Change,Heights,,,,1,1,500 mb,z500_trend
 NAM-ANL,Value,Pressure,,,,1,1,,mslp_pwat
 NAM-ANL,Value,Other lines,yes,,,1,1,850-500 mb,sbcape_crossover
+NAM-ANL,Value,Other lines,,,,1,1,,sfc_cape_cin
 NAM-ANL,Value,"Heights, Omega",yes,,,1,1,700 mb,700_rh_ht
 NARR,Value,Heights,yes,,,9,7,200 mb 500 mb 850 mb,200_div_wnd 850_thetae_ht 850vor_500ht_200wd 500_rh_ht
 NARR,Value,Pressure,yes,,,8,8,10 m 700 mb 850-200 mb,sbcape_wind 10m_wnd_2m_temp 2m_dewpoint 2m_rh_10m_wnd_derived
@@ -410,6 +416,7 @@ NARR,Change,Pressure,,,,1,1,,mslp_trend
 NARR,Change,Heights,,,,1,1,500 mb,z500_trend
 NARR,Value,Pressure,,,,1,1,,mslp_pwat
 NARR,Value,Other lines,yes,,,1,1,850-500 mb,sbcape_crossover
+NARR,Value,Other lines,,,,1,1,,sfc_cape_cin
 NARR,Value,,,,,1,1,850-700 mb,850_700_rh
 NBM,Chance of a limit,,,,,24,12,,12hour_precip_chance 1hour_precip_chance 6hour_precip_chance prob_ceil_1000ft
 NBM,Value,,,,,20,16,2 m,ceiling visibility 1hour_accu_snow nice_gross_weather
@@ -421,6 +428,7 @@ RAP-ANL,Value,,,,,2,2,850-700 mb,sim_radar_comp 850_700_rh
 RAP-ANL,Value,,,yes,,2,2,200 mb 850 mb,200_stream_div 850_stream_vort
 RAP-ANL,Change,Heights,,,,1,1,500 mb,z500_trend
 RAP-ANL,Value,Other lines,yes,,,1,1,850-500 mb,sbcape_crossover
+RAP-ANL,Value,Other lines,,,,1,1,,sfc_cape_cin
 REFS,Chance of a limit,,,,,29,11,10 m 2 m,ens_prob_ceil_1000ft ens_prob_ceil_2000ft ens_prob_ceil_3000ft ens_prob_ceil_500ft
 REFS,Ensemble: members / spread,,,,,14,12,2 m,member_cape member_gust member_refc member_tmp2m
 REFS,Ensemble: members / spread,Heights,yes,,,6,3,250 mb 700 mb 850 mb,ens_250_wnd ens_700_rh ens_700_temp ens_850_rh
@@ -602,6 +610,7 @@ WOOF-NAM-HOSTED,Change,Pressure,,,,1,1,,mslp_trend
 WOOF-NAM-HOSTED,Change,Heights,,,,1,1,500 mb,z500_trend
 WOOF-NAM-HOSTED,Value,"Pressure, Temperature",,,,1,1,850 mb,850_temp_mslp_precip
 WOOF-NAM-HOSTED,Value,Other lines,yes,,,1,1,850-500 mb,sbcape_crossover
+WOOF-NAM-HOSTED,Value,Other lines,,,,1,1,,sfc_cape_cin
 WPC-PPP,Chance of a limit,,,,,112,3,,ppp_24h_zr_prob_0p01 ppp_24h_zr_prob_0p10 ppp_24h_zr_prob_0p25 ppp_24h_zr_prob_0p50
 WPC-PPP,Amount: expected / percentile,,,,,96,6,,ppp_24h_zr_expected ppp_24h_zr_p05 ppp_24h_zr_p10 ppp_24h_zr_p25
 WPC-PPP,Value,,,,yes,4,1,,ppp_24h_median ppp_36h_median ppp_48h_median ppp_72h_median

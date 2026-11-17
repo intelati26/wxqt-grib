@@ -82,6 +82,7 @@ fill field,Height anomaly from the # mean,2,5,500_hgt_anom 700_hgt_anom
 fill field,Divergence,2,33,200_div_wnd 200_stream_div
 fill field,Spread of the # m temperature,2,3,2m_temp spread_2m_temp
 fill field,"Mean precipitation, # hours",2,1,precip_p06 precip_p24
+fill field,CAPE,2,19,best_cape_cin sfc_cape_cin
 fill field,Frontogenesis,2,2,700_frontogenesis 850_frontogenesis
 fill field,Temperature advection,2,2,700_temp_adv 850_temp_adv
 fill field,"Snowfall at #:#, hours #",2,1,snow_24h snow_total
@@ -100,7 +101,6 @@ fill field,Mean # m temperature,2,2,ens_2m_temp mean_2m_temp
 fill field,Visibility,2,20,vis visibility
 fill field,Boundary layer height,2,10,pbl_height pbl_rich_height
 fill field,Most unstable CAPE,2,12,best_cape mucape
-fill field,CAPE,2,10,best_cape_cin sfc_cape_cin
 fill field,Storm-relative helicity,2,10,helicity_1km helicity_3km
 fill field,Surface wind gust,2,11,10m_wnd_sfc_gust member_gust
 fill field,# m dew point,2,10,2m_dewp_10m_wnd 2m_dwpc

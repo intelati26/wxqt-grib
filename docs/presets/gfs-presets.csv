@@ -22,6 +22,7 @@ Snowfall in 24 hours (10:1),Precipitation and moisture,Value,"Snowfall at #:#, h
 Total Snowfall (10:1),Precipitation and moisture,Value,"Snowfall at #:#, hours #",,,,,,,1,snow_total
 Surface-Based CAPE and the 850-500mb Wind Crossover,Severe: instability,Value,Surface-based CAPE,,,Other lines derived field + Other lines derived field,barbs @ 850 mb (checked),,,1,sbcape_crossover
 "Surface-Based CAPE, MSLP and 10m Wind",Severe: instability,Value,Surface-based CAPE,,,Pressure MSLP (checked),barbs @ 10 m (checked),,,1,sbcape_wind
+Surface-Based CAPE and CIN,Severe: instability,Value,CAPE,,,Other lines derived field,,,,1,sfc_cape_cin
 Simulated Composite Radar Reflectivity,Severe: storm structure,Value,Composite reflectivity,,,,,,,1,sim_radar_comp
 "# K Isentropic Potential Vorticity, Wind and Pressure",Surface,Value,Potential vorticity on the surface,,Number: 330/500/530/600/650/850,Pressure derived field,"barbs @ derived wind, not in the files (no level in the label)",,,6,330K_pv 530K_pv 650K_pv 850K_pv 500K_pv 600K_pv
 "# K Isentropic Relative Humidity, Wind and Pressure",Surface,Value,Relative humidity on the surface,,Number: 290/300,Pressure derived field,"barbs @ derived wind, not in the files (no level in the label)",,,2,290K_isen 300K_isen

@@ -3,40 +3,40 @@ SPCGEFS,9,0,0,0,9,0,0,9,0,0,0,0,9 x no limit (fixed definition)
 SPCPOST,9,0,0,0,9,0,0,9,0,0,0,0,9 x no limit (fixed definition)
 HREF,71,55,77,0,71,9,6,56,0,0,0,0,9 x no limit (fixed definition); 7 x not a chance (a probability-matched mean amount)
 NBM,53,44,83,4,49,21,5,24,3,0,0,0,9 x no limit (fixed definition)
+GEFS,134,114,85,65,69,53,20,8,10,34,4,5,18 x statistic not read; 2 x line family outside the list: Other lines
 REFS,66,56,85,0,66,2,2,31,0,31,0,0,8 x statistic not read; 2 x not a chance family (chance contour over a base chart)
 CFS30,7,6,86,0,7,5,2,0,0,0,0,0,1 x line family outside the list: Other lines
-GEFS,133,114,86,64,69,52,20,8,10,34,4,5,18 x statistic not read; 1 x line family outside the list: Other lines
 HAFSA,13,12,92,2,11,13,0,0,0,0,0,0,1 x line family outside the list: Waves
 HAFSB,13,12,92,2,11,13,0,0,0,0,0,0,1 x line family outside the list: Waves
-MPAS-HT,66,61,92,26,40,63,1,0,0,0,0,2,5 x line family outside the list: Other lines
-MPAS-RN,66,61,92,26,40,63,1,0,0,0,0,2,5 x line family outside the list: Other lines
-HRRR,100,95,95,57,43,76,21,0,0,0,0,3,5 x line family outside the list: Other lines
-HRRR-AK,100,95,95,57,43,76,21,0,0,0,0,3,5 x line family outside the list: Other lines
+MPAS-HT,66,61,92,27,39,63,1,0,0,0,0,2,5 x line family outside the list: Other lines
+MPAS-RN,66,61,92,27,39,63,1,0,0,0,0,2,5 x line family outside the list: Other lines
+RAP-ANL,24,22,92,24,0,23,0,0,0,0,0,1,2 x line family outside the list: Other lines
+NARR,29,27,93,29,0,27,0,0,0,0,0,2,2 x line family outside the list: Other lines
+NAM-ANL,35,33,94,35,0,33,0,0,0,0,0,2,2 x line family outside the list: Other lines
+GFS-ANL,37,35,95,37,0,35,0,0,0,0,0,2,2 x line family outside the list: Other lines
+GFS1-ANL,37,35,95,37,0,35,0,0,0,0,0,2,2 x line family outside the list: Other lines
+HRRR,100,95,95,58,42,76,21,0,0,0,0,3,5 x line family outside the list: Other lines
+HRRR-AK,100,95,95,58,42,76,21,0,0,0,0,3,5 x line family outside the list: Other lines
 ICON-2I,20,19,95,20,0,18,0,0,0,0,0,2,1 x line family outside the list: Other lines
-RRFS,108,103,95,57,51,84,21,0,0,0,0,3,5 x line family outside the list: Other lines
-RRFS-AK,97,92,95,57,40,73,21,0,0,0,0,3,5 x line family outside the list: Other lines
-RRFS-FIREWX,97,92,95,57,40,73,21,0,0,0,0,3,5 x line family outside the list: Other lines
-RRFS-HI,97,92,95,57,40,73,21,0,0,0,0,3,5 x line family outside the list: Other lines
-RRFS-NA,97,92,95,57,40,73,21,0,0,0,0,3,5 x line family outside the list: Other lines
-RRFS-PR,97,92,95,57,40,73,21,0,0,0,0,3,5 x line family outside the list: Other lines
-NARR,28,27,96,28,0,26,0,0,0,0,0,2,1 x line family outside the list: Other lines
-RAP-ANL,23,22,96,23,0,22,0,0,0,0,0,1,1 x line family outside the list: Other lines
+RRFS,108,103,95,58,50,84,21,0,0,0,0,3,5 x line family outside the list: Other lines
+RRFS-AK,97,92,95,58,39,73,21,0,0,0,0,3,5 x line family outside the list: Other lines
+RRFS-FIREWX,97,92,95,58,39,73,21,0,0,0,0,3,5 x line family outside the list: Other lines
+RRFS-HI,97,92,95,58,39,73,21,0,0,0,0,3,5 x line family outside the list: Other lines
+RRFS-NA,97,92,95,58,39,73,21,0,0,0,0,3,5 x line family outside the list: Other lines
+RRFS-PR,97,92,95,58,39,73,21,0,0,0,0,3,5 x line family outside the list: Other lines
+WOOF-NAM-HOSTED,48,46,96,48,0,32,14,0,0,0,0,2,2 x line family outside the list: Other lines
 AROME,32,31,97,32,0,30,0,0,0,0,0,2,1 x line family outside the list: Other lines
 ARPEGE,34,33,97,34,0,32,0,0,0,0,0,2,1 x line family outside the list: Other lines
-GFS-ANL,36,35,97,36,0,34,0,0,0,0,0,2,1 x line family outside the list: Other lines
-GFS1-ANL,36,35,97,36,0,34,0,0,0,0,0,2,1 x line family outside the list: Other lines
+GEPS,58,56,97,46,12,30,13,8,0,4,0,3,2 x line family outside the list: Other lines
 GRAPES,34,33,97,34,0,32,0,0,0,0,0,2,1 x line family outside the list: Other lines
 HRDPS,30,29,97,30,0,28,0,0,0,0,0,2,1 x line family outside the list: Other lines
 ICON,34,33,97,34,0,32,0,0,0,0,0,2,1 x line family outside the list: Other lines
 ICON-EU,32,31,97,32,0,30,0,0,0,0,0,2,1 x line family outside the list: Other lines
-NAM-ANL,34,33,97,34,0,32,0,0,0,0,0,2,1 x line family outside the list: Other lines
 UKMO,34,33,97,34,0,32,0,0,0,0,0,2,1 x line family outside the list: Other lines
 ERA5,43,42,98,43,0,41,0,0,0,0,0,2,1 x line family outside the list: Other lines
-GEPS,57,56,98,45,12,29,13,8,0,4,0,3,1 x line family outside the list: Other lines
+GFS,106,104,98,106,0,77,20,0,0,0,6,3,2 x line family outside the list: Other lines
 IFS,66,65,98,66,0,41,19,0,0,0,4,2,1 x line family outside the list: Other lines
 SPCREFS,168,165,98,0,168,101,0,63,4,0,0,0,3 x two or more limits
-WOOF-NAM-HOSTED,47,46,98,47,0,31,14,0,0,0,0,2,1 x line family outside the list: Other lines
-GFS,105,104,99,105,0,76,20,0,0,0,6,3,1 x line family outside the list: Other lines
 AIFS,46,46,100,46,0,34,7,0,0,0,3,2,
 AIGFS,50,50,100,50,0,33,12,0,0,0,3,2,
 AROME-HD,1,1,100,1,0,1,0,0,0,0,0,0,

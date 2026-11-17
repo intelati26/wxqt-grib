@@ -291,6 +291,7 @@ GEFS,Probability of Ice Pellets over 0.25 in,Probability: precipitation,Chance o
 GEFS,Mean CAPE and Spread,Severe: instability,Value,Mean CAPE,Ensemble mean / spread,,,,,1,cape
 GEFS,Mean Surface-Based CAPE and the 850-500mb Wind Crossover,Severe: instability,Value,Surface-based CAPE,Other lines,yes,,,,1,sbcape_crossover
 GEFS,"Mean Surface-Based CAPE, MSLP and 10m Wind",Severe: instability,Value,Surface-based CAPE,Pressure,yes,,,,1,sbcape_wind
+GEFS,Mean Surface-Based CAPE and CIN,Severe: instability,Value,CAPE,Other lines,,,,,1,sfc_cape_cin
 GEFS,"Mean MSLP, 10m wind, 2m temperature",Surface,Value,# m temperature,Pressure,yes,,,,1,10m_wnd_2m_temp
 GEFS,Mean 10m Winds and Spread,Surface,Value,Spread of the # m wind speed,,yes,,,,1,10m_wnd
 GEFS,"Mean MSLP, 10m wind, 2m dewpoint",Surface,Value,# m dewpoint,Pressure,yes,,,,1,2m_dewpoint
@@ -377,6 +378,7 @@ GEPS,Probability of 2m Temperature at or over 90 F,Probability: temperature and 
 GEPS,Probability of 2m Temperature at or under Freezing,Probability: temperature and wind,Chance of a limit,Chance of # C or colder,,,,,,1,prob_2m_temp_freezing
 GEPS,Mean Surface-Based CAPE and the 850-500mb Wind Crossover,Severe: instability,Value,Surface-based CAPE,Other lines,yes,,,,1,sbcape_crossover
 GEPS,"Mean Surface-Based CAPE, MSLP and 10m Wind",Severe: instability,Value,Surface-based CAPE,Pressure,yes,,,,1,sbcape_wind
+GEPS,Mean Surface-Based CAPE and CIN,Severe: instability,Value,CAPE,Other lines,,,,,1,sfc_cape_cin
 GEPS,"Mean MSLP, 10m wind, 2m temperature",Surface,Value,# m temperature,Pressure,yes,,,,1,10m_wnd_2m_temp
 GEPS,Mean MSLP and 10m Wind,Surface,Value,# m wind speed,Pressure,yes,,,,1,mslp_10m_wind
 GEPS,"Mean 200mb Divergence, Wind and Height",Tropical and dynamics,Value,Divergence,Heights,yes,,,,1,200_div_wnd
@@ -421,6 +423,7 @@ GFS,Snowfall in 24 hours (10:1),Precipitation and moisture,Value,"Snowfall at #:
 GFS,Total Snowfall (10:1),Precipitation and moisture,Value,"Snowfall at #:#, hours #",,,,,,1,snow_total
 GFS,Surface-Based CAPE and the 850-500mb Wind Crossover,Severe: instability,Value,Surface-based CAPE,Other lines,yes,,,,1,sbcape_crossover
 GFS,"Surface-Based CAPE, MSLP and 10m Wind",Severe: instability,Value,Surface-based CAPE,Pressure,yes,,,,1,sbcape_wind
+GFS,Surface-Based CAPE and CIN,Severe: instability,Value,CAPE,Other lines,,,,,1,sfc_cape_cin
 GFS,Simulated Composite Radar Reflectivity,Severe: storm structure,Value,Composite reflectivity,,,,,,1,sim_radar_comp
 GFS,"MSLP, 10m wind, 2m temperature",Surface,Value,# m temperature,Pressure,yes,,,,1,10m_wnd_2m_temp
 GFS,"MSLP, 10m wind, 2m dewpoint",Surface,Value,# m dewpoint,Pressure,yes,,,,1,2m_dewpoint
@@ -455,6 +458,7 @@ GFS-ANL,500mb Height and 48-hour Change,Changes and trends,Change,#mb height cha
 GFS-ANL,MSLP and Precipitable Water,Precipitation and moisture,Value,Precipitable water,Pressure,,,,,1,mslp_pwat
 GFS-ANL,Surface-Based CAPE and the 850-500mb Wind Crossover,Severe: instability,Value,Surface-based CAPE,Other lines,yes,,,,1,sbcape_crossover
 GFS-ANL,"Surface-Based CAPE, MSLP and 10m Wind",Severe: instability,Value,Surface-based CAPE,Pressure,yes,,,,1,sbcape_wind
+GFS-ANL,Surface-Based CAPE and CIN,Severe: instability,Value,CAPE,Other lines,,,,,1,sfc_cape_cin
 GFS-ANL,"MSLP, 10m wind, 2m temperature",Surface,Value,# m temperature,Pressure,yes,,,,1,10m_wnd_2m_temp
 GFS-ANL,"MSLP, 10m wind, 2m dewpoint",Surface,Value,# m dewpoint,Pressure,yes,,,,1,2m_dewpoint
 GFS-ANL,"2 m Relative Humidity (from temperature and dewpoint), MSLP and 10m Wind",Surface,Value,# m relative humidity,Pressure,yes,,,,1,2m_rh_10m_wnd_derived
@@ -493,6 +497,7 @@ GFS1-ANL,500mb Height and 48-hour Change,Changes and trends,Change,#mb height ch
 GFS1-ANL,MSLP and Precipitable Water,Precipitation and moisture,Value,Precipitable water,Pressure,,,,,1,mslp_pwat
 GFS1-ANL,Surface-Based CAPE and the 850-500mb Wind Crossover,Severe: instability,Value,Surface-based CAPE,Other lines,yes,,,,1,sbcape_crossover
 GFS1-ANL,"Surface-Based CAPE, MSLP and 10m Wind",Severe: instability,Value,Surface-based CAPE,Pressure,yes,,,,1,sbcape_wind
+GFS1-ANL,Surface-Based CAPE and CIN,Severe: instability,Value,CAPE,Other lines,,,,,1,sfc_cape_cin
 GFS1-ANL,"MSLP, 10m wind, 2m temperature",Surface,Value,# m temperature,Pressure,yes,,,,1,10m_wnd_2m_temp
 GFS1-ANL,"MSLP, 10m wind, 2m dewpoint",Surface,Value,# m dewpoint,Pressure,yes,,,,1,2m_dewpoint
 GFS1-ANL,"2 m Relative Humidity (from temperature and dewpoint), MSLP and 10m Wind",Surface,Value,# m relative humidity,Pressure,yes,,,,1,2m_rh_10m_wnd_derived
@@ -1132,6 +1137,7 @@ NAM-ANL,500mb Height and 48-hour Change,Changes and trends,Change,#mb height cha
 NAM-ANL,MSLP and Precipitable Water,Precipitation and moisture,Value,Precipitable water,Pressure,,,,,1,mslp_pwat
 NAM-ANL,Surface-Based CAPE and the 850-500mb Wind Crossover,Severe: instability,Value,Surface-based CAPE,Other lines,yes,,,,1,sbcape_crossover
 NAM-ANL,"Surface-Based CAPE, MSLP and 10m Wind",Severe: instability,Value,Surface-based CAPE,Pressure,yes,,,,1,sbcape_wind
+NAM-ANL,Surface-Based CAPE and CIN,Severe: instability,Value,CAPE,Other lines,,,,,1,sfc_cape_cin
 NAM-ANL,Simulated Composite Radar Reflectivity,Severe: storm structure,Value,Composite reflectivity,,,,,,1,sim_radar_comp
 NAM-ANL,"MSLP, 10m wind, 2m temperature",Surface,Value,# m temperature,Pressure,yes,,,,1,10m_wnd_2m_temp
 NAM-ANL,"MSLP, 10m wind, 2m dewpoint",Surface,Value,# m dewpoint,Pressure,yes,,,,1,2m_dewpoint
@@ -1158,6 +1164,7 @@ NARR,500mb Height and 48-hour Change,Changes and trends,Change,#mb height change
 NARR,MSLP and Precipitable Water,Precipitation and moisture,Value,Precipitable water,Pressure,,,,,1,mslp_pwat
 NARR,Surface-Based CAPE and the 850-500mb Wind Crossover,Severe: instability,Value,Surface-based CAPE,Other lines,yes,,,,1,sbcape_crossover
 NARR,"Surface-Based CAPE, MSLP and 10m Wind",Severe: instability,Value,Surface-based CAPE,Pressure,yes,,,,1,sbcape_wind
+NARR,Surface-Based CAPE and CIN,Severe: instability,Value,CAPE,Other lines,,,,,1,sfc_cape_cin
 NARR,"MSLP, 10m wind, 2m temperature",Surface,Value,# m temperature,Pressure,yes,,,,1,10m_wnd_2m_temp
 NARR,"MSLP, 10m wind, 2m dewpoint",Surface,Value,# m dewpoint,Pressure,yes,,,,1,2m_dewpoint
 NARR,"2 m Relative Humidity (from temperature and dewpoint), MSLP and 10m Wind",Surface,Value,# m relative humidity,Pressure,yes,,,,1,2m_rh_10m_wnd_derived
@@ -1217,6 +1224,7 @@ RAP-ANL,#mb Wind and Height,Upper air,Value,Wind speed,Heights,yes,,,500/850,2,5
 RAP-ANL,"#mb Temperature, Wind and Height",Upper air,Value,Temperature,Heights,yes,,,850/925,2,850_temp_ht 925_temp_ht
 RAP-ANL,500mb Height and 48-hour Change,Changes and trends,Change,#mb height change,Heights,,,,,1,z500_trend
 RAP-ANL,Surface-Based CAPE and the 850-500mb Wind Crossover,Severe: instability,Value,Surface-based CAPE,Other lines,yes,,,,1,sbcape_crossover
+RAP-ANL,Surface-Based CAPE and CIN,Severe: instability,Value,CAPE,Other lines,,,,,1,sfc_cape_cin
 RAP-ANL,Simulated Composite Radar Reflectivity,Severe: storm structure,Value,Composite reflectivity,,,,,,1,sim_radar_comp
 RAP-ANL,"200mb Divergence, Wind and Height",Tropical and dynamics,Value,Divergence,Heights,yes,,,,1,200_div_wnd
 RAP-ANL,200mb Divergence and Streamlines,Tropical and dynamics,Value,Divergence,,,yes,,,1,200_stream_div
@@ -2040,6 +2048,7 @@ WOOF-NAM-HOSTED,MSLP and Precipitable Water,Precipitation and moisture,Value,Pre
 WOOF-NAM-HOSTED,Total Accumulated Precipitation of Period,Precipitation and moisture,Value,"Precipitation, hours #",Pressure,,,,,1,precip_ptot
 WOOF-NAM-HOSTED,Surface-Based CAPE and the 850-500mb Wind Crossover,Severe: instability,Value,Surface-based CAPE,Other lines,yes,,,,1,sbcape_crossover
 WOOF-NAM-HOSTED,"Surface-Based CAPE, MSLP and 10m Wind",Severe: instability,Value,Surface-based CAPE,Pressure,yes,,,,1,sbcape_wind
+WOOF-NAM-HOSTED,Surface-Based CAPE and CIN,Severe: instability,Value,CAPE,Other lines,,,,,1,sfc_cape_cin
 WOOF-NAM-HOSTED,Simulated Composite Radar Reflectivity,Severe: storm structure,Value,Composite reflectivity,,,,,,1,sim_radar_comp
 WOOF-NAM-HOSTED,"MSLP, 10m wind, 2m temperature",Surface,Value,# m temperature,Pressure,yes,,,,1,10m_wnd_2m_temp
 WOOF-NAM-HOSTED,"MSLP, 10m wind, 2m dewpoint",Surface,Value,# m dewpoint,Pressure,yes,,,,1,2m_dewpoint
@@ -2059,7 +2068,7 @@ WOOF-NAM-HOSTED,"850mb Height, Precipitable Water and Wind",Upper air,Value,Prec
 WOOF-NAM-HOSTED,"700-300mb Mean Relative Humidity, 500mb Height and Wind",Upper air,Value,"Mean relative humidity, #mb",Heights,yes,,,,1,rh_700_300
 WPC-PPP,"# hr Rain, chance of # in or more",Rain: chance of an amount,Chance of a limit,WPC # hour liquid: chance of # in or more,,,,,24/36/48/72 | 0/1/2/3/4/6/8/12 | 0/00/01/10/25/50,44,ppp_24h_qpf_prob_0p01 ppp_24h_qpf_prob_0p10 ppp_24h_qpf_prob_0p25 ppp_24h_qpf_prob_0p50 ppp_24h_qpf_prob_12p0 ...
 WPC-PPP,"# hr Ice, chance of # in or more",Ice: chance of an amount,Chance of a limit,WPC # hour freezing rain: chance of # in or more,,,,,24/36/48/72 | 0/1/2 | 00/01/10/25/50/75,36,ppp_24h_zr_prob_0p01 ppp_24h_zr_prob_0p10 ppp_24h_zr_prob_0p25 ppp_24h_zr_prob_0p50 ppp_24h_zr_prob_0p75 ...
-WPC-PPP,"# hr Snow, chance of # in or more",Snow: chance of an amount,Chance of a limit,WPC # hour snow: chance of # in or more,,,,,24/36/48/72 | 0/1/2/4/6/8/12/18 | 00/0/10,32,ppp_24h_sn_prob_0p10 ppp_24h_sn_prob_12p0 ppp_24h_sn_prob_18p0 ppp_24h_sn_prob_1p00 ppp_24h_sn_prob_2p00 ...
+WPC-PPP,"# hr Snow, chance of # in or more",Snow: chance of an amount,Chance of a limit,WPC # hour snow: chance of # in or more,,,,,24/36/48/72 | 0/1/2/4/6/8/12/18 | 0/00/10,32,ppp_24h_sn_prob_0p10 ppp_24h_sn_prob_12p0 ppp_24h_sn_prob_18p0 ppp_24h_sn_prob_1p00 ppp_24h_sn_prob_2p00 ...
 WPC-PPP,"# hr Ice, #th percentile","Ice: amount in the period (expected, percentiles)",Amount: expected / percentile,"WPC # hour freezing rain, #th percentile of the members",,,,,24/36/48/72 | 05/10/25/50/75/90/95,28,ppp_24h_zr_p05 ppp_24h_zr_p10 ppp_24h_zr_p25 ppp_24h_zr_p50 ppp_24h_zr_p75 ...
 WPC-PPP,"# hr Rain, #th percentile","Rain: amount in the period (expected, percentiles)",Amount: expected / percentile,"WPC # hour liquid, #th percentile of the members",,,,,24/36/48/72 | 05/10/25/50/75/90/95,28,ppp_24h_qpf_p05 ppp_24h_qpf_p10 ppp_24h_qpf_p25 ppp_24h_qpf_p50 ppp_24h_qpf_p75 ...
 WPC-PPP,"# hr Snow, #th percentile","Snow: amount in the period (expected, percentiles)",Amount: expected / percentile,"WPC # hour snow, #th percentile of the members",,,,,24/36/48/72 | 05/10/25/50/75/90/95,28,ppp_24h_sn_p05 ppp_24h_sn_p10 ppp_24h_sn_p25 ppp_24h_sn_p50 ppp_24h_sn_p75 ...

@@ -22,6 +22,7 @@ Contours: Heights,Height,50,500_hgt_anom 700_hgt_anom 850_temp_anom z500_trend
 Contours: Omega,Omega,1,700_rh_ht
 Contours: Other lines,"Veering 850-500 mb (degrees, from 45",1,sbcape_crossover
 Contours: Other lines,where CAPE is 100 J/kg or more),1,sbcape_crossover
+Contours: Other lines,CIN,1,sfc_cape_cin
 Contours: Pressure,Sea level pressure,33,2m_temp_anom mslp_anom pwat_anom mslp_trend
 Contours: Pressure,Pressure of the 290 K surface,1,290K_isen
 Contours: Pressure,Pressure of the 330 K surface,1,330K_pv
@@ -59,6 +60,7 @@ Fill field,Sea level pressure change,1,mslp_trend
 Fill field,Snow depth change,1,snodpth_chng
 Fill field,#mb height change,1,z500_trend
 Fill field,Precipitation rate per hour,1,precip_rate_type
+Fill field,CAPE,1,sfc_cape_cin
 Fill field,Composite reflectivity,1,sim_radar_comp
 Fill field,# m temperature,1,10m_wnd_2m_temp
 Fill field,# m dewpoint,1,2m_dewpoint
@@ -98,7 +100,7 @@ Level / layer,850-500 mb,1,sbcape_crossover
 Level / layer,250 mb,1,250_wnd_ht
 Level / layer,925 mb,1,925_temp_ht
 Level / layer,700-300 mb,1,rh_700_300
-Mode,Value,96,1000_500_thick 1000_850_thick 1000_850_thick_type 10m_wnd_precip
+Mode,Value,97,1000_500_thick 1000_850_thick 1000_850_thick_type 10m_wnd_precip
 Mode,Anomaly,6,2m_temp_anom 500_hgt_anom 700_hgt_anom 850_temp_anom
 Mode,Change,3,mslp_trend snodpth_chng z500_trend
 Period,total / since start,15,1000_500_thick 1000_850_thick 1000_850_thick_type 10m_wnd_precip

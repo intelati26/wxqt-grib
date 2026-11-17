@@ -26,7 +26,7 @@ Satellite,Value,,,,,4,yes,2,sat_ir (Brightness temperature); sat_wv_low (Brightn
 Severe: composite indices,Value,,,,,5,yes,10,"dcp (Derecho composite parameter); scp (Supercell composite paramete); stp (STP: over #, most significan); stp_eff (STP, effective layer: over #); stp_fix (STP, fixed layer: over #, mo)"
 Severe: composite indices,Value,Other lines,,,,1,,12,ship (SHIP: under # not significan)
 Severe: instability,Value,,,,,14,yes,10,best_cape (Most unstable CAPE); dcape (Downdraft CAPE); lapse_0_3km (# km lapse rate); lapse_700_500 (# mb lapse rate); lcl_ml (Mixed-layer LCL height above)
-Severe: instability,Value,Other lines,,,,2,yes,10,best_cape_cin (CAPE); sfc_cape_cin (CAPE)
+Severe: instability,Value,Other lines,,,,2,yes,19,best_cape_cin (CAPE); sfc_cape_cin (CAPE)
 Severe: instability,Value,Ensemble mean / spread,,,,1,,2,cape (Mean CAPE)
 Severe: instability,Value,Other lines,yes,,,1,,29,sbcape_crossover (Surface-based CAPE)
 Severe: instability,Value,Pressure,yes,,,1,,29,sbcape_wind (Surface-based CAPE)

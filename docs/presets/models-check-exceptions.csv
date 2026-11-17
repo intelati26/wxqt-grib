@@ -22,10 +22,15 @@ GEFS,mslp_1012_1052_iso,MSLP 1012/1052 Isobar Contours,"Ensemble (members, sprea
 GEFS,mslp_984_1024_iso,MSLP 984/1024 Isobar Contours,"Ensemble (members, spread)",statistic not read
 GEFS,mslp_996_1036_iso,MSLP 996/1036 Isobar Contours,"Ensemble (members, spread)",statistic not read
 GEFS,sbcape_crossover,Mean Surface-Based CAPE and the 850-500mb Wind Crossover,Value (field at a level),line family outside the list: Other lines
+GEFS,sfc_cape_cin,Mean Surface-Based CAPE and CIN,Value (field at a level),line family outside the list: Other lines
 GEPS,sbcape_crossover,Mean Surface-Based CAPE and the 850-500mb Wind Crossover,Value (field at a level),line family outside the list: Other lines
+GEPS,sfc_cape_cin,Mean Surface-Based CAPE and CIN,Value (field at a level),line family outside the list: Other lines
 GFS,sbcape_crossover,Surface-Based CAPE and the 850-500mb Wind Crossover,Value (field at a level),line family outside the list: Other lines
+GFS,sfc_cape_cin,Surface-Based CAPE and CIN,Value (field at a level),line family outside the list: Other lines
 GFS-ANL,sbcape_crossover,Surface-Based CAPE and the 850-500mb Wind Crossover,Value (field at a level),line family outside the list: Other lines
+GFS-ANL,sfc_cape_cin,Surface-Based CAPE and CIN,Value (field at a level),line family outside the list: Other lines
 GFS1-ANL,sbcape_crossover,Surface-Based CAPE and the 850-500mb Wind Crossover,Value (field at a level),line family outside the list: Other lines
+GFS1-ANL,sfc_cape_cin,Surface-Based CAPE and CIN,Value (field at a level),line family outside the list: Other lines
 GRAPES,sbcape_crossover,Surface-Based CAPE and the 850-500mb Wind Crossover,Value (field at a level),line family outside the list: Other lines
 HAFSA,waves,"Significant Wave Height, Peak Period and Wind",Value (field at a level),line family outside the list: Waves
 HAFSB,waves,"Significant Wave Height, Peak Period and Wind",Value (field at a level),line family outside the list: Waves
@@ -71,7 +76,9 @@ MPAS-RN,sbcape_crossover,Surface-Based CAPE and the 850-500mb Wind Crossover,Val
 MPAS-RN,sfc_cape_cin,Surface-Based CAPE and CIN,Value (field at a level),line family outside the list: Other lines
 MPAS-RN,sim_radar_comp,Composite Reflectivity with Updraft Helicity of 40 or more,Value (field at a level),line family outside the list: Other lines
 NAM-ANL,sbcape_crossover,Surface-Based CAPE and the 850-500mb Wind Crossover,Value (field at a level),line family outside the list: Other lines
+NAM-ANL,sfc_cape_cin,Surface-Based CAPE and CIN,Value (field at a level),line family outside the list: Other lines
 NARR,sbcape_crossover,Surface-Based CAPE and the 850-500mb Wind Crossover,Value (field at a level),line family outside the list: Other lines
+NARR,sfc_cape_cin,Surface-Based CAPE and CIN,Value (field at a level),line family outside the list: Other lines
 NBM,12hour_precip_chance,12-hour Chance of Precipitation,Chance,no limit (fixed definition)
 NBM,1hour_precip_chance,1-hour Chance of Precipitation,Chance,no limit (fixed definition)
 NBM,6hour_precip_chance,6-hour Chance of Precipitation,Chance,no limit (fixed definition)
@@ -82,6 +89,7 @@ NBM,prob_snow,Probability of Snow,Chance,no limit (fixed definition)
 NBM,prob_tstm,Thunderstorm Probability,Chance,no limit (fixed definition)
 NBM,tstm_prob,Thunderstorm Probability (6 hours ending),Chance,no limit (fixed definition)
 RAP-ANL,sbcape_crossover,Surface-Based CAPE and the 850-500mb Wind Crossover,Value (field at a level),line family outside the list: Other lines
+RAP-ANL,sfc_cape_cin,Surface-Based CAPE and CIN,Value (field at a level),line family outside the list: Other lines
 REFS,combo_uphl_chance,RRFS Updraft Helicity with the Members' Chance of 75 or more,Chance,not a chance family (chance contour over a base chart)
 REFS,combo_refc_chance,RRFS Radar with the Members' Chance of 40 dBZ or more,Chance,not a chance family (chance contour over a base chart)
 REFS,ens_250_vort_ht,250mb Vorticity and Height,"Ensemble (members, spread)",statistic not read
@@ -145,3 +153,4 @@ SPCREFS,bliz_prob_t<0p500_t>030_t>0p010,"Blizzard Probability: visibility < 0.5 
 SPCREFS,pwat_prob_t>0p500_t<0p800,Precipitable Water between 0.5 and 0.8 in (ensemble probability),Chance,two or more limits
 UKMO,sbcape_crossover,Surface-Based CAPE and the 850-500mb Wind Crossover,Value (field at a level),line family outside the list: Other lines
 WOOF-NAM-HOSTED,sbcape_crossover,Surface-Based CAPE and the 850-500mb Wind Crossover,Value (field at a level),line family outside the list: Other lines
+WOOF-NAM-HOSTED,sfc_cape_cin,Surface-Based CAPE and CIN,Value (field at a level),line family outside the list: Other lines

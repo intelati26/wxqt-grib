@@ -970,6 +970,25 @@ const auto thickness = [&] (const char * id, const char * label, const char * lo
     };
     p.push_back(x);
 }
+{   // the SPC mesoanalysis picture for the models: surface-based CAPE filled, the CIN (the cap) as dashed lines every 100 J/kg (the HRRR, RRFS and MPAS have their own, in GfsProductsRrfs.cpp)
+    Product x;
+    x.id = "sfc_cape_cin";
+    x.label = "Surface-Based CAPE and CIN";
+    x.wants = {want("c", "CAPE", "surface"), want("n", "CIN", "surface")};
+    x.fill = [] (const Grids& g) { return pick(g, "c"); };
+    x.ramp = capeRamp();
+    x.fillTitle = "CAPE (J/kg)";
+    x.legendStep = 500;
+    ContourSet cin;
+    cin.key = "n";
+    cin.interval = 100;
+    cin.title = "CIN (J/kg)";
+    cin.color = QColor{70, 70, 70};
+    cin.dashed = true;
+    x.contours = {cin};
+    x.cloneTo = [] (const std::string& model) { return model != "HRRR" && model != "HRRR-AK" && model.compare(0, 4, "RRFS") != 0 && model.compare(0, 4, "MPAS") != 0; };
+    p.push_back(x);
+}
 {   // surface-based CAPE and the wind crossover: how far the wind turns from 850 to 500 mb (veering, clockwise, positive), drawn as lines from 45 degrees; barbs at 850 mb
     Product x;
     x.id = "sbcape_crossover";

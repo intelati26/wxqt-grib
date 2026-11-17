@@ -413,6 +413,7 @@ CHART GEFS|Probability: severe and storms|prob_cape_500|Probability of CAPE over
 CHART GEFS|Severe: instability|cape|Mean CAPE and Spread|Mean CAPE (J/kg)|Spread of the CAPE (J/kg)|||0
 CHART GEFS|Severe: instability|sbcape_crossover|Mean Surface-Based CAPE and the 850-500mb Wind Crossover|Surface-based CAPE (J/kg)|Veering 850-500 mb (degrees, from 45; where CAPE is 100 J/kg or more)|own||0
 CHART GEFS|Severe: instability|sbcape_wind|Mean Surface-Based CAPE, MSLP and 10m Wind|Surface-based CAPE (J/kg)|Sea level pressure (mb)|own||0
+CHART GEFS|Severe: instability|sfc_cape_cin|Mean Surface-Based CAPE and CIN|CAPE (J/kg)|CIN (J/kg)|||0
 CHART GEFS|Surface|10m_wnd_2m_temp|Mean MSLP, 10m wind, 2m temperature|2 m temperature|Sea level pressure (mb)|own||0
 CHART GEFS|Surface|10m_wnd|Mean 10m Winds and Spread|Spread of the 10 m wind speed (m/s)||own||0
 CHART GEFS|Surface|2m_dewpoint|Mean MSLP, 10m wind, 2m dewpoint|2 m dewpoint|Sea level pressure (mb)|own||0
@@ -566,6 +567,7 @@ CHART GEPS|Probability: temperature and wind|prob_2m_temp_90f|Probability of 2m 
 CHART GEPS|Probability: temperature and wind|prob_2m_temp_freezing|Probability of 2m Temperature at or under Freezing|Chance of 0 C or colder (% of the 21 members)||||0
 CHART GEPS|Severe: instability|sbcape_crossover|Mean Surface-Based CAPE and the 850-500mb Wind Crossover|Surface-based CAPE (J/kg)|Veering 850-500 mb (degrees, from 45; where CAPE is 100 J/kg or more)|own||0
 CHART GEPS|Severe: instability|sbcape_wind|Mean Surface-Based CAPE, MSLP and 10m Wind|Surface-based CAPE (J/kg)|Sea level pressure (mb)|own||0
+CHART GEPS|Severe: instability|sfc_cape_cin|Mean Surface-Based CAPE and CIN|CAPE (J/kg)|CIN (J/kg)|||0
 CHART GEPS|Surface|10m_wnd_2m_temp|Mean MSLP, 10m wind, 2m temperature|2 m temperature|Sea level pressure (mb)|own||0
 CHART GEPS|Surface|mslp_10m_wind|Mean MSLP and 10m Wind|10 m wind speed (kt)|Sea level pressure (mb)|own||0
 CHART GEPS|Tropical and dynamics|200_div_wnd|Mean 200mb Divergence, Wind and Height|Divergence (1e-5 /s)|Height (dam)|own||0
@@ -597,6 +599,7 @@ CHART GFS1-ANL|Changes and trends|z500_trend|500mb Height and 48-hour Change|500
 CHART GFS1-ANL|Precipitation and moisture|mslp_pwat|MSLP and Precipitable Water|Precipitable water|Sea level pressure (mb)|||0
 CHART GFS1-ANL|Severe: instability|sbcape_crossover|Surface-Based CAPE and the 850-500mb Wind Crossover|Surface-based CAPE (J/kg)|Veering 850-500 mb (degrees, from 45; where CAPE is 100 J/kg or more)|own||0
 CHART GFS1-ANL|Severe: instability|sbcape_wind|Surface-Based CAPE, MSLP and 10m Wind|Surface-based CAPE (J/kg)|Sea level pressure (mb)|own||0
+CHART GFS1-ANL|Severe: instability|sfc_cape_cin|Surface-Based CAPE and CIN|CAPE (J/kg)|CIN (J/kg)|||0
 CHART GFS1-ANL|Surface|10m_wnd_2m_temp|MSLP, 10m wind, 2m temperature|2 m temperature|Sea level pressure (mb)|own||0
 CHART GFS1-ANL|Surface|2m_dewpoint|MSLP, 10m wind, 2m dewpoint|2 m dewpoint|Sea level pressure (mb)|own||0
 CHART GFS1-ANL|Surface|2m_rh_10m_wnd_derived|2 m Relative Humidity (from temperature and dewpoint), MSLP and 10m Wind|2 m relative humidity (%)|Sea level pressure (mb)|own||0
@@ -633,6 +636,7 @@ CHART GFS-ANL|Changes and trends|z500_trend|500mb Height and 48-hour Change|500m
 CHART GFS-ANL|Precipitation and moisture|mslp_pwat|MSLP and Precipitable Water|Precipitable water|Sea level pressure (mb)|||0
 CHART GFS-ANL|Severe: instability|sbcape_crossover|Surface-Based CAPE and the 850-500mb Wind Crossover|Surface-based CAPE (J/kg)|Veering 850-500 mb (degrees, from 45; where CAPE is 100 J/kg or more)|own||0
 CHART GFS-ANL|Severe: instability|sbcape_wind|Surface-Based CAPE, MSLP and 10m Wind|Surface-based CAPE (J/kg)|Sea level pressure (mb)|own||0
+CHART GFS-ANL|Severe: instability|sfc_cape_cin|Surface-Based CAPE and CIN|CAPE (J/kg)|CIN (J/kg)|||0
 CHART GFS-ANL|Surface|10m_wnd_2m_temp|MSLP, 10m wind, 2m temperature|2 m temperature|Sea level pressure (mb)|own||0
 CHART GFS-ANL|Surface|2m_dewpoint|MSLP, 10m wind, 2m dewpoint|2 m dewpoint|Sea level pressure (mb)|own||0
 CHART GFS-ANL|Surface|2m_rh_10m_wnd_derived|2 m Relative Humidity (from temperature and dewpoint), MSLP and 10m Wind|2 m relative humidity (%)|Sea level pressure (mb)|own||0
@@ -698,6 +702,7 @@ CHART GFS|Precipitation and moisture|snow_24h|Snowfall in 24 hours (10:1)|Snowfa
 CHART GFS|Precipitation and moisture|snow_total|Total Snowfall (10:1)|Snowfall at 10:1, hours 0-12||||0
 CHART GFS|Severe: instability|sbcape_crossover|Surface-Based CAPE and the 850-500mb Wind Crossover|Surface-based CAPE (J/kg)|Veering 850-500 mb (degrees, from 45; where CAPE is 100 J/kg or more)|own||0
 CHART GFS|Severe: instability|sbcape_wind|Surface-Based CAPE, MSLP and 10m Wind|Surface-based CAPE (J/kg)|Sea level pressure (mb)|own||0
+CHART GFS|Severe: instability|sfc_cape_cin|Surface-Based CAPE and CIN|CAPE (J/kg)|CIN (J/kg)|||0
 CHART GFS|Severe: storm structure|sim_radar_comp|Simulated Composite Radar Reflectivity|Composite reflectivity (dBZ)||||0
 CHART GFS|Surface|10m_wnd_2m_temp|MSLP, 10m wind, 2m temperature|2 m temperature|Sea level pressure (mb)|own||0
 CHART GFS|Surface|290K_isen|290 K Isentropic Relative Humidity, Wind and Pressure|Relative humidity on the surface (%)|Pressure of the 290 K surface (mb)|own||0
@@ -1561,6 +1566,7 @@ CHART NAM-ANL|Changes and trends|z500_trend|500mb Height and 48-hour Change|500m
 CHART NAM-ANL|Precipitation and moisture|mslp_pwat|MSLP and Precipitable Water|Precipitable water|Sea level pressure (mb)|||0
 CHART NAM-ANL|Severe: instability|sbcape_crossover|Surface-Based CAPE and the 850-500mb Wind Crossover|Surface-based CAPE (J/kg)|Veering 850-500 mb (degrees, from 45; where CAPE is 100 J/kg or more)|own||0
 CHART NAM-ANL|Severe: instability|sbcape_wind|Surface-Based CAPE, MSLP and 10m Wind|Surface-based CAPE (J/kg)|Sea level pressure (mb)|own||0
+CHART NAM-ANL|Severe: instability|sfc_cape_cin|Surface-Based CAPE and CIN|CAPE (J/kg)|CIN (J/kg)|||0
 CHART NAM-ANL|Severe: storm structure|sim_radar_comp|Simulated Composite Radar Reflectivity|Composite reflectivity (dBZ)||||0
 CHART NAM-ANL|Surface|10m_wnd_2m_temp|MSLP, 10m wind, 2m temperature|2 m temperature|Sea level pressure (mb)|own||0
 CHART NAM-ANL|Surface|2m_dewpoint|MSLP, 10m wind, 2m dewpoint|2 m dewpoint|Sea level pressure (mb)|own||0
@@ -1595,6 +1601,7 @@ CHART NARR|Changes and trends|z500_trend|500mb Height and 48-hour Change|500mb h
 CHART NARR|Precipitation and moisture|mslp_pwat|MSLP and Precipitable Water|Precipitable water|Sea level pressure (mb)|||0
 CHART NARR|Severe: instability|sbcape_crossover|Surface-Based CAPE and the 850-500mb Wind Crossover|Surface-based CAPE (J/kg)|Veering 850-500 mb (degrees, from 45; where CAPE is 100 J/kg or more)|own||0
 CHART NARR|Severe: instability|sbcape_wind|Surface-Based CAPE, MSLP and 10m Wind|Surface-based CAPE (J/kg)|Sea level pressure (mb)|own||0
+CHART NARR|Severe: instability|sfc_cape_cin|Surface-Based CAPE and CIN|CAPE (J/kg)|CIN (J/kg)|||0
 CHART NARR|Surface|10m_wnd_2m_temp|MSLP, 10m wind, 2m temperature|2 m temperature|Sea level pressure (mb)|own||0
 CHART NARR|Surface|2m_dewpoint|MSLP, 10m wind, 2m dewpoint|2 m dewpoint|Sea level pressure (mb)|own||0
 CHART NARR|Surface|2m_rh_10m_wnd_derived|2 m Relative Humidity (from temperature and dewpoint), MSLP and 10m Wind|2 m relative humidity (%)|Sea level pressure (mb)|own||0
@@ -1673,6 +1680,7 @@ CHART NBM|Surface|total_cloud_cover|Total Cloud Cover and 10 m Wind|Total cloud 
 CHART NBM|Surface|tstm_coverage|Thunderstorm Coverage|Thunderstorm coverage in the hour: isolated, scattered, numerous||||0
 CHART RAP-ANL|Changes and trends|z500_trend|500mb Height and 48-hour Change|500mb height change (dam)|Height (dam)|||0
 CHART RAP-ANL|Severe: instability|sbcape_crossover|Surface-Based CAPE and the 850-500mb Wind Crossover|Surface-based CAPE (J/kg)|Veering 850-500 mb (degrees, from 45; where CAPE is 100 J/kg or more)|own||0
+CHART RAP-ANL|Severe: instability|sfc_cape_cin|Surface-Based CAPE and CIN|CAPE (J/kg)|CIN (J/kg)|||0
 CHART RAP-ANL|Severe: storm structure|sim_radar_comp|Simulated Composite Radar Reflectivity|Composite reflectivity (dBZ)||||0
 CHART RAP-ANL|Tropical and dynamics|200_div_wnd|200mb Divergence, Wind and Height|Divergence (1e-5 /s)|Height (dam)|own||0
 CHART RAP-ANL|Tropical and dynamics|200_stream_div|200mb Divergence and Streamlines|Divergence (1e-5 /s)|||streamlines|0
@@ -2719,6 +2727,7 @@ CHART WOOF-NAM-HOSTED|Precipitation and moisture|precip_p60|Total Precipitation 
 CHART WOOF-NAM-HOSTED|Precipitation and moisture|precip_ptot|Total Accumulated Precipitation of Period|Precipitation, hours 0-12|Sea level pressure (mb)|||0
 CHART WOOF-NAM-HOSTED|Severe: instability|sbcape_crossover|Surface-Based CAPE and the 850-500mb Wind Crossover|Surface-based CAPE (J/kg)|Veering 850-500 mb (degrees, from 45; where CAPE is 100 J/kg or more)|own||0
 CHART WOOF-NAM-HOSTED|Severe: instability|sbcape_wind|Surface-Based CAPE, MSLP and 10m Wind|Surface-based CAPE (J/kg)|Sea level pressure (mb)|own||0
+CHART WOOF-NAM-HOSTED|Severe: instability|sfc_cape_cin|Surface-Based CAPE and CIN|CAPE (J/kg)|CIN (J/kg)|||0
 CHART WOOF-NAM-HOSTED|Severe: storm structure|sim_radar_comp|Simulated Composite Radar Reflectivity|Composite reflectivity (dBZ)||||0
 CHART WOOF-NAM-HOSTED|Surface|10m_wnd_2m_temp|MSLP, 10m wind, 2m temperature|2 m temperature|Sea level pressure (mb)|own||0
 CHART WOOF-NAM-HOSTED|Surface|2m_dewpoint|MSLP, 10m wind, 2m dewpoint|2 m dewpoint|Sea level pressure (mb)|own||0
@@ -3403,6 +3412,7 @@ LEVELS GEFS|pwat_anom|f=PWAT@entire atmosphere (considered as a single layer),p=
 LEVELS GEFS|rh_700_300|r7=RH@700 mb,r5=RH@500 mb,r3=RH@300 mb,z=HGT@500 mb,u=UGRD@500 mb,v=VGRD@500 mb|HGT@500 mb|UGRD@500 mb
 LEVELS GEFS|sbcape_crossover|c=CAPE@surface,u=UGRD@850 mb,v=VGRD@850 mb,u5=UGRD@500 mb,v5=VGRD@500 mb||UGRD@850 mb
 LEVELS GEFS|sbcape_wind|c=CAPE@surface,u=UGRD@10 m above ground,v=VGRD@10 m above ground,p=PRMSL@mean sea level|PRMSL@mean sea level|UGRD@10 m above ground
+LEVELS GEFS|sfc_cape_cin|c=CAPE@surface,n=CIN@surface|CIN@surface|
 LEVELS GEFS|shear_850_200|u8=UGRD@850 mb,v8=VGRD@850 mb,u2=UGRD@200 mb,v2=VGRD@200 mb,p=PRMSL@mean sea level|PRMSL@mean sea level|
 LEVELS GEFS|snodpth_chng|||
 LEVELS GEFS|snodpth_chng_mean|||
@@ -3548,6 +3558,7 @@ LEVELS GEPS|prob_total_1in|||
 LEVELS GEPS|prob_total_2in|||
 LEVELS GEPS|sbcape_crossover|c=CAPE@surface,u=UGRD@850 mb,v=VGRD@850 mb,u5=UGRD@500 mb,v5=VGRD@500 mb||UGRD@850 mb
 LEVELS GEPS|sbcape_wind|c=CAPE@surface,u=UGRD@10 m above ground,v=VGRD@10 m above ground,p=PRMSL@mean sea level|PRMSL@mean sea level|UGRD@10 m above ground
+LEVELS GEPS|sfc_cape_cin|c=CAPE@surface,n=CIN@surface|CIN@surface|
 LEVELS GEPS|shear_850_200|u8=UGRD@850 mb,v8=VGRD@850 mb,u2=UGRD@200 mb,v2=VGRD@200 mb,p=PRMSL@mean sea level|PRMSL@mean sea level|
 LEVELS GEPS|snodpth_chng|||
 LEVELS GEPS|spread_2m_temp|s=TMP@2 m above ground||
@@ -3601,6 +3612,7 @@ LEVELS GFS1-ANL|mslp_trend|||
 LEVELS GFS1-ANL|rh_700_300|r7=RH@700 mb,r5=RH@500 mb,r3=RH@300 mb,z=HGT@500 mb,u=UGRD@500 mb,v=VGRD@500 mb|HGT@500 mb|UGRD@500 mb
 LEVELS GFS1-ANL|sbcape_crossover|c=CAPE@surface,u=UGRD@850 mb,v=VGRD@850 mb,u5=UGRD@500 mb,v5=VGRD@500 mb||UGRD@850 mb
 LEVELS GFS1-ANL|sbcape_wind|c=CAPE@surface,u=UGRD@10 m above ground,v=VGRD@10 m above ground,p=PRMSL@mean sea level|PRMSL@mean sea level|UGRD@10 m above ground
+LEVELS GFS1-ANL|sfc_cape_cin|c=CAPE@surface,n=CIN@surface|CIN@surface|
 LEVELS GFS1-ANL|shear_850_200|u8=UGRD@850 mb,v8=VGRD@850 mb,u2=UGRD@200 mb,v2=VGRD@200 mb,p=PRMSL@mean sea level|PRMSL@mean sea level|
 LEVELS GFS1-ANL|steering_850_200|u0=UGRD@850 mb,v0=VGRD@850 mb,u1=UGRD@700 mb,v1=VGRD@700 mb,u2=UGRD@500 mb,v2=VGRD@500 mb,u3=UGRD@300 mb,v3=VGRD@300 mb,u4=UGRD@200 mb,v4=VGRD@200 mb,p=PRMSL@mean sea level|PRMSL@mean sea level|
 LEVELS GFS1-ANL|z500_trend|||
@@ -3700,6 +3712,7 @@ LEVELS GFS-ANL|mslp_trend|||
 LEVELS GFS-ANL|rh_700_300|r7=RH@700 mb,r5=RH@500 mb,r3=RH@300 mb,z=HGT@500 mb,u=UGRD@500 mb,v=VGRD@500 mb|HGT@500 mb|UGRD@500 mb
 LEVELS GFS-ANL|sbcape_crossover|c=CAPE@surface,u=UGRD@850 mb,v=VGRD@850 mb,u5=UGRD@500 mb,v5=VGRD@500 mb||UGRD@850 mb
 LEVELS GFS-ANL|sbcape_wind|c=CAPE@surface,u=UGRD@10 m above ground,v=VGRD@10 m above ground,p=PRMSL@mean sea level|PRMSL@mean sea level|UGRD@10 m above ground
+LEVELS GFS-ANL|sfc_cape_cin|c=CAPE@surface,n=CIN@surface|CIN@surface|
 LEVELS GFS-ANL|shear_850_200|u8=UGRD@850 mb,v8=VGRD@850 mb,u2=UGRD@200 mb,v2=VGRD@200 mb,p=PRMSL@mean sea level|PRMSL@mean sea level|
 LEVELS GFS-ANL|steering_850_200|u0=UGRD@850 mb,v0=VGRD@850 mb,u1=UGRD@700 mb,v1=VGRD@700 mb,u2=UGRD@500 mb,v2=VGRD@500 mb,u3=UGRD@300 mb,v3=VGRD@300 mb,u4=UGRD@200 mb,v4=VGRD@200 mb,p=PRMSL@mean sea level|PRMSL@mean sea level|
 LEVELS GFS-ANL|z500_trend|||
@@ -3725,6 +3738,7 @@ LEVELS GFS|pwat_anom|f=PWAT@entire atmosphere (considered as a single layer),p=P
 LEVELS GFS|rh_700_300|r7=RH@700 mb,r5=RH@500 mb,r3=RH@300 mb,z=HGT@500 mb,u=UGRD@500 mb,v=VGRD@500 mb|HGT@500 mb|UGRD@500 mb
 LEVELS GFS|sbcape_crossover|c=CAPE@surface,u=UGRD@850 mb,v=VGRD@850 mb,u5=UGRD@500 mb,v5=VGRD@500 mb||UGRD@850 mb
 LEVELS GFS|sbcape_wind|c=CAPE@surface,u=UGRD@10 m above ground,v=VGRD@10 m above ground,p=PRMSL@mean sea level|PRMSL@mean sea level|UGRD@10 m above ground
+LEVELS GFS|sfc_cape_cin|c=CAPE@surface,n=CIN@surface|CIN@surface|
 LEVELS GFS|shear_850_200|u8=UGRD@850 mb,v8=VGRD@850 mb,u2=UGRD@200 mb,v2=VGRD@200 mb,p=PRMSL@mean sea level|PRMSL@mean sea level|
 LEVELS GFS|sim_ir|olr=ULWRF@top of atmosphere||
 LEVELS GFS|sim_radar_comp|r=REFC@entire atmosphere||
@@ -4550,6 +4564,7 @@ LEVELS NAM-ANL|mslp_trend|||
 LEVELS NAM-ANL|rh_700_300|r7=RH@700 mb,r5=RH@500 mb,r3=RH@300 mb,z=HGT@500 mb,u=UGRD@500 mb,v=VGRD@500 mb|HGT@500 mb|UGRD@500 mb
 LEVELS NAM-ANL|sbcape_crossover|c=CAPE@surface,u=UGRD@850 mb,v=VGRD@850 mb,u5=UGRD@500 mb,v5=VGRD@500 mb||UGRD@850 mb
 LEVELS NAM-ANL|sbcape_wind|c=CAPE@surface,u=UGRD@10 m above ground,v=VGRD@10 m above ground,p=PRMSL@mean sea level|PRMSL@mean sea level|UGRD@10 m above ground
+LEVELS NAM-ANL|sfc_cape_cin|c=CAPE@surface,n=CIN@surface|CIN@surface|
 LEVELS NAM-ANL|shear_850_200|u8=UGRD@850 mb,v8=VGRD@850 mb,u2=UGRD@200 mb,v2=VGRD@200 mb,p=PRMSL@mean sea level|PRMSL@mean sea level|
 LEVELS NAM-ANL|sim_radar_comp|r=REFC@entire atmosphere||
 LEVELS NAM-ANL|steering_850_200|u0=UGRD@850 mb,v0=VGRD@850 mb,u1=UGRD@700 mb,v1=VGRD@700 mb,u2=UGRD@500 mb,v2=VGRD@500 mb,u3=UGRD@300 mb,v3=VGRD@300 mb,u4=UGRD@200 mb,v4=VGRD@200 mb,p=PRMSL@mean sea level|PRMSL@mean sea level|
@@ -4579,6 +4594,7 @@ LEVELS NARR|mslp_pwat|pw=PWAT@entire atmosphere (considered as a single layer),p
 LEVELS NARR|mslp_trend|||
 LEVELS NARR|sbcape_crossover|c=CAPE@surface,u=UGRD@850 mb,v=VGRD@850 mb,u5=UGRD@500 mb,v5=VGRD@500 mb||UGRD@850 mb
 LEVELS NARR|sbcape_wind|c=CAPE@surface,u=UGRD@10 m above ground,v=VGRD@10 m above ground,p=PRMSL@mean sea level|PRMSL@mean sea level|UGRD@10 m above ground
+LEVELS NARR|sfc_cape_cin|c=CAPE@surface,n=CIN@surface|CIN@surface|
 LEVELS NARR|shear_850_200|u8=UGRD@850 mb,v8=VGRD@850 mb,u2=UGRD@200 mb,v2=VGRD@200 mb,p=PRMSL@mean sea level|PRMSL@mean sea level|
 LEVELS NARR|steering_850_200|u0=UGRD@850 mb,v0=VGRD@850 mb,u1=UGRD@700 mb,v1=VGRD@700 mb,u2=UGRD@500 mb,v2=VGRD@500 mb,u3=UGRD@300 mb,v3=VGRD@300 mb,u4=UGRD@200 mb,v4=VGRD@200 mb,p=PRMSL@mean sea level|PRMSL@mean sea level|
 LEVELS NARR|z500_trend|||
@@ -4656,6 +4672,7 @@ LEVELS RAP-ANL|850_wnd_ht|z=HGT@850 mb,u=UGRD@850 mb,v=VGRD@850 mb|HGT@850 mb|UG
 LEVELS RAP-ANL|925_temp_ht|z=HGT@925 mb,u=UGRD@925 mb,v=VGRD@925 mb,t=TMP@925 mb|HGT@925 mb|UGRD@925 mb
 LEVELS RAP-ANL|rh_700_300|r7=RH@700 mb,r5=RH@500 mb,r3=RH@300 mb,z=HGT@500 mb,u=UGRD@500 mb,v=VGRD@500 mb|HGT@500 mb|UGRD@500 mb
 LEVELS RAP-ANL|sbcape_crossover|c=CAPE@surface,u=UGRD@850 mb,v=VGRD@850 mb,u5=UGRD@500 mb,v5=VGRD@500 mb||UGRD@850 mb
+LEVELS RAP-ANL|sfc_cape_cin|c=CAPE@surface,n=CIN@surface|CIN@surface|
 LEVELS RAP-ANL|sim_radar_comp|r=REFC@entire atmosphere||
 LEVELS RAP-ANL|z500_trend|||
 LEVELS REFS|combo_refc_chance|r1=REFC@entire atmosphere (considered as a single layer),r2=REFC@entire atmosphere (considered as a single layer),r3=REFC@entire atmosphere (considered as a single layer),r4=REFC@entire atmosphere (considered as a single layer),r5=REFC@entire atmosphere (considered as a single layer),d=REFC@entire atmosphere (considered as a single layer)||
@@ -5707,6 +5724,7 @@ LEVELS WOOF-NAM-HOSTED|precip_ptot|||
 LEVELS WOOF-NAM-HOSTED|rh_700_300|r7=RH@700 mb,r5=RH@500 mb,r3=RH@300 mb,z=HGT@500 mb,u=UGRD@500 mb,v=VGRD@500 mb|HGT@500 mb|UGRD@500 mb
 LEVELS WOOF-NAM-HOSTED|sbcape_crossover|c=CAPE@surface,u=UGRD@850 mb,v=VGRD@850 mb,u5=UGRD@500 mb,v5=VGRD@500 mb||UGRD@850 mb
 LEVELS WOOF-NAM-HOSTED|sbcape_wind|c=CAPE@surface,u=UGRD@10 m above ground,v=VGRD@10 m above ground,p=PRMSL@mean sea level|PRMSL@mean sea level|UGRD@10 m above ground
+LEVELS WOOF-NAM-HOSTED|sfc_cape_cin|c=CAPE@surface,n=CIN@surface|CIN@surface|
 LEVELS WOOF-NAM-HOSTED|shear_850_200|u8=UGRD@850 mb,v8=VGRD@850 mb,u2=UGRD@200 mb,v2=VGRD@200 mb,p=PRMSL@mean sea level|PRMSL@mean sea level|
 LEVELS WOOF-NAM-HOSTED|sim_radar_comp|r=REFC@entire atmosphere||
 LEVELS WOOF-NAM-HOSTED|steering_850_200|u0=UGRD@850 mb,v0=VGRD@850 mb,u1=UGRD@700 mb,v1=VGRD@700 mb,u2=UGRD@500 mb,v2=VGRD@500 mb,u3=UGRD@300 mb,v3=VGRD@300 mb,u4=UGRD@200 mb,v4=VGRD@200 mb,p=PRMSL@mean sea level|PRMSL@mean sea level|
