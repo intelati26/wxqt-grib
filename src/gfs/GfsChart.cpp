@@ -698,14 +698,26 @@ std::string areaFor(const std::string& model, const std::string& sector) {
     return std::find(ids.begin(), ids.end(), sector) != ids.end() ? sector : std::string{"CONUS"};
 }
 
+bool regionalModel(const std::string& source) {
+    const auto * def = GfsModels::find(source);
+    if (def == nullptr) {
+        return false;
+    }
+    const auto warp = def->source("").warp;
+    return warp.enabled && (warp.east - warp.west) * (warp.north - warp.south) < 1000.0;   // (square degrees: the nests, Hawaii, Puerto Rico, Guam; the contiguous United States is about 1900, a model of a whole country or the globe has no edge to show)
+}
+
 std::vector<std::string> sectorIds(const std::string& source) {
     const auto * def = GfsModels::find(source);
     if (def && def->sectors == GfsModels::Sectors::Conus) {   // the contiguous United States and its regions
-        return {"CONUS", "NORTHEAST", "MID-ATLANTIC", "SOUTHEAST", "GREAT-LAKES", "OHIO-VALLEY", "S-PLAINS", "C-PLAINS", "N-PLAINS", "ROCKIES", "SOUTHWEST", "PACIFIC-NW", "CALIFORNIA", "GULF-COAST"};
+        return regionalModel(source) ? std::vector<std::string>{"CONUS", "AREA", "NORTHEAST", "MID-ATLANTIC", "SOUTHEAST", "GREAT-LAKES", "OHIO-VALLEY", "S-PLAINS", "C-PLAINS", "N-PLAINS", "ROCKIES", "SOUTHWEST", "PACIFIC-NW", "CALIFORNIA", "GULF-COAST"} : std::vector<std::string>{"CONUS", "NORTHEAST", "MID-ATLANTIC", "SOUTHEAST", "GREAT-LAKES", "OHIO-VALLEY", "S-PLAINS", "C-PLAINS", "N-PLAINS", "ROCKIES", "SOUTHWEST", "PACIFIC-NW", "CALIFORNIA", "GULF-COAST"};
     }
     std::vector<std::string> all;
     for (const auto& s : sectors()) {
         all.push_back(s.id);
+    }
+    if (regionalModel(source)) {   // the box the model's data fills, second in the list
+        all.insert(all.begin() + std::min<size_t>(1, all.size()), "AREA");
     }
     return all;
 }
@@ -3232,6 +3244,7 @@ struct FillResult {
     QImage map;
     float fillMax, fillMin, anyMax, anyMin;
     QPointF maxAt;   // where the largest value the picture shows is, in the picture's own pixels (1x)
+    QImage valid;    // Format_Grayscale8, the size of the map: 255 where the fill has a value (the model's data), 0 where it has none
 };
 
 // The fill, a pixel at a time (the ramp is in the grid's units; fully clear parts show the pale ground).
@@ -3241,14 +3254,18 @@ FillResult paintFill(MapFrame& f, const GfsGrid::Grid& fill, const Ramp * ramp) 
     const double S = f.S;
     QImage map(static_cast<int>(std::lround(area.width() * S)), static_cast<int>(std::lround(area.height() * S)), QImage::Format_ARGB32_Premultiplied);
     map.fill(QColor{244, 244, 244});
+    QImage valid(map.size(), QImage::Format_Grayscale8);
+    valid.fill(0);
     float fillMax = std::nanf(""), fillMin = std::nanf(""), anyMax = std::nanf(""), anyMin = std::nanf("");   // the largest and smallest value on view: marked on the legend
     QPointF maxAt;
     for (int y = 0; y < map.height(); y++) {
         auto * row = reinterpret_cast<QRgb *>(map.scanLine(y));
+        auto * validRow = valid.scanLine(y);
         const double lat = view.latAt(area.top() + (y + 0.5) / S);
         for (int x = 0; x < map.width(); x++) {
             const float value = fill.sample(view.lonAt(area.left() + (x + 0.5) / S), lat);
             if (!std::isnan(value)) {
+                validRow[x] = 255;
                 if (std::isnan(anyMax) || value > anyMax) {
                     anyMax = value;
                 }
@@ -3275,7 +3292,84 @@ FillResult paintFill(MapFrame& f, const GfsGrid::Grid& fill, const Ramp * ramp) 
             }
         }
     }
-    return {std::move(map), fillMax, fillMin, anyMax, anyMin, maxAt};
+    return {std::move(map), fillMax, fillMin, anyMax, anyMin, maxAt, std::move(valid)};
+}
+
+// The edge of the model's data, drawn dark on the map: the pixels that have a value and touch a pixel without one that is joined to the picture's edge through pixels without (a hole inside the data,
+// the sea of a land-only field, is not the model's edge). Nothing is drawn when the data fills the picture.
+void outlineData(QImage& map, const QImage& valid, double S) {
+    const int w = valid.width(), h = valid.height();
+    if (w < 3 || h < 3) {
+        return;
+    }
+    std::vector<unsigned char> outside(static_cast<size_t>(w) * static_cast<size_t>(h), 0);
+    std::vector<int> queue;
+    const auto at = [w] (int x, int y) { return static_cast<size_t>(y) * static_cast<size_t>(w) + static_cast<size_t>(x); };
+    const auto empty = [&] (int x, int y) { return valid.constScanLine(y)[x] == 0; };
+    const auto push = [&] (int x, int y) {
+        if (empty(x, y) && !outside[at(x, y)]) {
+            outside[at(x, y)] = 1;
+            queue.push_back(y * w + x);
+        }
+    };
+    for (int x = 0; x < w; x++) {
+        push(x, 0);
+        push(x, h - 1);
+    }
+    for (int y = 0; y < h; y++) {
+        push(0, y);
+        push(w - 1, y);
+    }
+    for (size_t head = 0; head < queue.size(); head++) {
+        const int x = queue[head] % w, y = queue[head] / w;
+        if (x > 0) push(x - 1, y);
+        if (x < w - 1) push(x + 1, y);
+        if (y > 0) push(x, y - 1);
+        if (y < h - 1) push(x, y + 1);
+    }
+    if (queue.empty() || queue.size() == static_cast<size_t>(w) * static_cast<size_t>(h)) {   // the data fills the picture, or there is none
+        return;
+    }
+    const QRgb line = qRgb(45, 45, 45);
+    std::vector<std::pair<int, int>> edge;
+    for (int y = 0; y < h; y++) {
+        for (int x = 0; x < w; x++) {
+            if (valid.constScanLine(y)[x] == 0) {
+                continue;
+            }
+            if ((x > 0 && outside[at(x - 1, y)]) || (x < w - 1 && outside[at(x + 1, y)]) || (y > 0 && outside[at(x, y - 1)]) || (y < h - 1 && outside[at(x, y + 1)])) {
+                edge.emplace_back(x, y);
+            }
+        }
+    }
+    // the hull of those pixels, not the edge itself: a field that is empty in places (the ceiling where the sky is clear) still shows the whole box the model covers
+    std::sort(edge.begin(), edge.end());
+    edge.erase(std::unique(edge.begin(), edge.end()), edge.end());
+    std::vector<std::pair<int, int>> hull(edge.size() * 2 + 2);
+    const auto cross = [] (const std::pair<int, int>& o, const std::pair<int, int>& a, const std::pair<int, int>& b) {
+        return static_cast<long long>(a.first - o.first) * (b.second - o.second) - static_cast<long long>(a.second - o.second) * (b.first - o.first);
+    };
+    size_t k = 0;
+    for (size_t i = 0; i < edge.size(); i++) {
+        while (k >= 2 && cross(hull[k - 2], hull[k - 1], edge[i]) <= 0) k--;
+        hull[k++] = edge[i];
+    }
+    for (size_t i = edge.size() - 1, t = k + 1; i > 0; i--) {
+        while (k >= t && cross(hull[k - 2], hull[k - 1], edge[i - 1]) <= 0) k--;
+        hull[k++] = edge[i - 1];
+    }
+    if (k < 4) {
+        return;
+    }
+    QPolygonF polygon;
+    for (size_t i = 0; i + 1 < k; i++) {
+        polygon << QPointF{hull[i].first + 0.5, hull[i].second + 0.5};
+    }
+    QPainter painter{&map};
+    painter.setRenderHint(QPainter::Antialiasing);
+    painter.setPen(QPen{QColor{line}, 2.0 * S, Qt::SolidLine, Qt::SquareCap, Qt::MiterJoin});
+    painter.setBrush(Qt::NoBrush);
+    painter.drawPolygon(polygon);
 }
 
 // The fills painted over the first where they have a value (the snow and the mixed precipitation over the rain; the ticked fills).
@@ -3456,6 +3550,9 @@ QImage render(const Product& drawn, const Sector& sector, const Grids& fetched, 
     float fillMax = made.fillMax, fillMin = made.fillMin, anyMax = made.anyMax, anyMin = made.anyMin;
     lap("fill");
     paintOverlays(mapFrame, map);
+    if (options.outlineArea) {
+        outlineData(map, made.valid, S);
+    }
     QPainter p{&image};
     p.setRenderHint(QPainter::Antialiasing);
     p.scale(S, S);

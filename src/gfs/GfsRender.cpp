@@ -1208,6 +1208,7 @@ GfsRender::OptionPrefs GfsRender::OptionPrefs::read() {
     prefs.magColors = Utility::readPref("MAG_COLORS", "true").compare(0, 1, "t") == 0;   // the settings switch: the model guidance site's color bands
     prefs.windRadii = Utility::readPref("HAFS_RADII", "true").compare(0, 1, "t") == 0;   // the quadrant wind field toggle of the hurricane model screen
     prefs.fahrenheit = UIPreferences::unitsF;
+    prefs.outlineArea = Utility::readPref("MODEL_OUTLINE_AREA", "true").compare(0, 1, "t") == 0;
     return prefs;
 }
 
@@ -1317,6 +1318,13 @@ QByteArray GfsRender::png(Session& session, const std::string& model, const std:
         }
         local = GfsChart::localSector(sectorId, west, south, east, north);
         sector = &local;
+    }
+    GfsChart::Sector area;   // "AREA": the box the model's data fills (its warp box for the first fetch, then the extent of the data as loaded)
+    const bool areaView = sectorId == "AREA" && GfsChart::regionalModel(model);
+    if (areaView) {
+        const auto warp = GfsModels::find(model)->source("").warp;
+        area = GfsChart::Sector{"AREA", warp.west, warp.south, warp.east, warp.north};
+        sector = &area;
     }
     GfsChart::Sector boxed;   // the exact view of the scrollable map
     if (!isHafs(model) && GfsChart::parseBoxId(sectorId, boxed)) {
@@ -1462,6 +1470,17 @@ QByteArray GfsRender::png(Session& session, const std::string& model, const std:
             storm = GfsChart::gridSector(sectorId, g);
         }
     }
+    if (areaView) {   // the extent of the data of the first field, a little outside
+        for (const auto& need : GfsChart::needs(*product, hour)) {
+            const auto found = grids.find(need.want.key);
+            if (found != grids.end() && !found->second.empty()) {
+                auto extent = GfsChart::gridSector("AREA", found->second);
+                const double padLon = (extent.east - extent.west) * 0.04, padLat = (extent.north - extent.south) * 0.04;
+                area = GfsChart::Sector{"AREA", std::max(area.west, extent.west - padLon), std::max(area.south, extent.south - padLat), std::min(area.east, extent.east + padLon), std::min(area.north, extent.north + padLat)};
+                break;
+            }
+        }
+    }
     if (!product->extras.empty()) {
         addExtras(session, *product, run, hour, grids);
     }
@@ -1481,6 +1500,7 @@ QByteArray GfsRender::png(Session& session, const std::string& model, const std:
     const auto prefs = OptionPrefs::read();
     GfsChart::Probe bareProbe;   // (a bare chart needs the place of its map to cut it out)
     auto options = chartOptions(prefs, sectorId, localLat, localLon, localName, variant, probe, &bareProbe);
+    options.outlineArea = prefs.outlineArea && GfsChart::regionalModel(model);
     static const GfsClimate climate{UtilityGrib::gdalBinDir()};
     options.climate = &climate;
     options.palettes = PaletteStore::all();   // the user's own scales (the Colors editor)

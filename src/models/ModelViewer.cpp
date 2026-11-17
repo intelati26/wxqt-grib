@@ -265,6 +265,17 @@ ModelViewer::ModelViewer(Window * parent, const string& modelType)
             refreshLoaded();
             reload();
         });
+        buttonOutline = entry(menuMap, "Outline the model's area", "A dark line round the edge of the data of a regional model (a nest, the HRRR, the RRFS), so the area it covers can be told from the empty map. Off leaves the map as it was, in the window and in what is saved or exported.", true);
+        buttonOutline->setChecked(Utility::readPref("MODEL_OUTLINE_AREA", "true").compare(0, 1, "t") == 0);
+        QObject::connect(buttonOutline, &QAction::toggled, this, [this] (bool on) {
+            Utility::writePref("MODEL_OUTLINE_AREA", on ? "true" : "false");
+            frames.clear();   // every picture drawn so far has the line (or has not)
+            frameOrder.clear();
+            frameBytes = 0;
+            failedAhead.clear();
+            refreshLoaded();
+            reload();
+        });
         buttonOnMap = entry(menuMap, "On the map...", "This chart on the master map (scroll and zoom it, put radar, satellite, storms or rivers with it): the same model, chart, area and valid time", false);
         QObject::connect(buttonOnMap, &QAction::triggered, this, [this] {
             if (GfsRender::drawsModel(objectModel.model) && openMap) {

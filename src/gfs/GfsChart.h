@@ -311,6 +311,8 @@ namespace GfsChart {
     // the names for under a chart, and the sectors a model can show (the blend covers only the contiguous United States)
     std::string sourceLabel(const std::string& source, const std::string& runId = "");
     std::vector<std::string> sectorIds(const std::string& source);
+    // A model whose data covers a small box (a nest: under 1000 square degrees, against the contiguous United States' 1900): it has an "AREA" sector (the box its data fills) and its edge is outlined on the map
+    bool regionalModel(const std::string& source);
 
     // One point of a forecast track (the hurricane model's ATCF file): position, intensity and the radii of 34, 50 and 64 kt wind in nautical miles by quadrant (NE, SE, SW, NW; 0: none)
     struct TrackPoint {
@@ -374,6 +376,7 @@ namespace GfsChart {
         double scale{1.0};                     // a picture this many times larger in each direction, drawn at the same design (text, lines and barbs scaled, the fill computed at the larger size): for exports
         const GfsClimate * climate{nullptr};   // for the anomaly charts
         bool ticks{false};                     // latitude and longitude marks along the frame, numbered
+        bool outlineArea{false};               // a dark line round the edge of the model's data where it stops short of the picture's frame (a nest, a regional model): the area it covers
         bool hasMarker{false};                 // a mark at a place (the saved location a local area is round) with its name
         double markerLat{0}, markerLon{0};
         std::string markerName;

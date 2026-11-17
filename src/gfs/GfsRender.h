@@ -29,6 +29,7 @@ namespace GfsRender {
         bool magColors{true};
         bool windRadii{true};
         bool fahrenheit{true};
+        bool outlineArea{true};   // the settings switch (MODEL_OUTLINE_AREA): the dark line round a regional model's data
         static OptionPrefs read();
     };
 

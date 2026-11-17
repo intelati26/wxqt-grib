@@ -232,6 +232,7 @@ private:
     string stationPinKey;                    // the map the pins were placed on
     void refreshStationPins();
     QAction * buttonPlace{nullptr};
+    QAction * buttonOutline{nullptr};   // the dark line round a regional model's data (a pref, MODEL_OUTLINE_AREA)
     QAction * buttonMaxMark{nullptr};   // the ring and the number at the largest value of the chart (a pref, MODEL_MAX_MARK)
     QAction * buttonOnMap{nullptr};   // the chart on the master map
     QAction * buttonStormPage{nullptr};   // the hurricane models: the hurricane screen's page of the storm (CiraStorm)

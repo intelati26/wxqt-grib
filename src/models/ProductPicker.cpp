@@ -449,6 +449,9 @@ std::string ProductPicker::sectorGroup(const std::string& id) {
     if (Hafs::isStormId(id)) {
         return "Storms in the model";
     }
+    if (id == "AREA") {
+        return "The model's own area";
+    }
     const auto found = groups.find(id);
     return found == groups.end() ? "Other" : found->second;
 }
