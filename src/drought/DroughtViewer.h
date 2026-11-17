@@ -113,6 +113,7 @@ private:
     struct Product {
         std::string label;
         std::string url;
+        std::string grid;   // a GeoTIFF of the same thing (CPC's soil moisture percentile): drawn as a zoomable map, not as the picture
     };
     struct Result;   // what a background load of the Monitor brings back
     void loadAreas();
@@ -122,6 +123,9 @@ private:
     void refreshMonitor();
     void loadSeries();
     void loadPrecip();
+    void loadRainTotal();
+    void tickPrecip(int generation, const std::function<std::string()>& text);   // the line over the Normals tab's map says how far the reading has got, until a newer one starts or this one is done
+    bool precipLoading{false};
     void loadPrecipArea();
     void updateHistory();    // adds what the area's history file lacks (in the background), then shows it
     void loadDaily();        // the Daily tab: the days of the period against the 1991-2020 normals, in the background
@@ -153,7 +157,11 @@ private:
     QTableWidget * precipTable{};
     int precipAreaGeneration{0};
     Text textMonitor;
-    ZoomImage precipImage, outlookImage;
+    ZoomImage outlookImage;
+    DroughtMap * soilMap{};     // the Outlooks tab's soil moisture percentile (a field layer), over the picture when an entry has a grid
+    void loadSoil(const std::string& url, const std::string& label);
+    int soilGeneration{0};
+    DroughtMap * precipMap{};   // the Normals tab's map of a measure against the normal (a field layer)
     ComboBox comboKind, comboPeriod, comboOutlook, comboMetric;
     Text textPrecip, textOutlook;
     HBox rowPrecip, rowOutlook;

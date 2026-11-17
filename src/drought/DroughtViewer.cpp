@@ -7,7 +7,13 @@
 #include "ui/ChartPainter.h"
 #include "drought/DroughtViewer.h"
 #include "drought/DroughtDaily.h"
+#include "climate/GridAnalysis.h"
+#include "drought/DroughtRain.h"
+#include "hurricane/Coast.h"
+#include "climate/UtilityAcisClimate.h"
 #include <algorithm>
+#include <atomic>
+#include <functional>
 #include <cmath>
 #include <QHeaderView>
 #include <QDir>
@@ -18,6 +24,7 @@
 #include <QRegularExpression>
 #include <QPainterPath>
 #include <QSplitter>
+#include <QTimer>
 #include <QVBoxLayout>
 #include "common/GlobalVariables.h"
 #include <QAction>
@@ -574,10 +581,9 @@ DroughtViewer::DroughtViewer(Window * parent)
     , comboCompare{this, {"This week only", "Change since 1 week earlier", "Change since 2 weeks earlier", "Change since 4 weeks earlier", "Change since 8 weeks earlier", "Change since 12 weeks earlier",
                           "Change since 26 weeks earlier", "Change since 52 weeks earlier"}}
     , textMonitor{this, ""}
-    , precipImage{this}
     , outlookImage{this}
-    , comboKind{this, {"Total precipitation", "Departure from normal", "Percent of normal"}}
-    , comboPeriod{this, {"1 and 2 weeks, 1 and 2 months", "3, 4, 5 and 6 months", "9, 12, 18 and 24 months", "2, 3, 4 and 5 years (percent of normal)"}}
+    , comboKind{this, {"Average temperature, departure", "Maximum temperature, departure", "Minimum temperature, departure", "Rain, departure from normal", "Rain, percent of normal", "Rain, total (MRMS radar and gauges)"}}
+    , comboPeriod{this, {"Last 7 days", "Last 14 days", "Last 30 days", "Last 60 days", "Last 90 days", "This month so far", "Last month", "Last 6 months", "Last 9 months", "Last 12 months"}}
     , comboOutlook{this}
     , comboDailyElement{this, {"Maximum temperature", "Minimum temperature"}}
     , comboDailySmooth{this, {"Daily values", "7-day mean", "14-day mean", "30-day mean"}}
@@ -673,8 +679,10 @@ DroughtViewer::DroughtViewer(Window * parent)
         column->addLayout(rowPrecip.getView());
         column->addWidget(textPrecip.getView());
         auto * vertical = new QSplitter{Qt::Vertical, widget};
-        precipImage.setMinimumHeight(320);
-        vertical->addWidget(&precipImage);
+        precipMap = new DroughtMap{vertical};
+        precipMap->setMinimumHeight(320);
+        precipMap->setBackdrop(Coast::worldLines());
+        vertical->addWidget(precipMap);
         auto * panel = new QWidget{vertical};
         auto * panelRow = new QHBoxLayout{panel};
         panelRow->setContentsMargins(0, 0, 0, 0);
@@ -696,6 +704,13 @@ DroughtViewer::DroughtViewer(Window * parent)
         tabs->addTab(widget, "Normals");   // rain and temperature against the normal
     }
     page("Outlooks and soil moisture", rowOutlook, outlookImage, textOutlook);
+    if (auto * column = qobject_cast<QVBoxLayout *>(tabs->widget(tabs->count() - 1)->layout())) {   // the soil moisture grids are drawn on a map of their own over the picture's place
+        soilMap = new DroughtMap{tabs->widget(tabs->count() - 1)};
+        soilMap->setMinimumHeight(380);
+        soilMap->setBackdrop(Coast::worldLines());
+        soilMap->hide();
+        column->addWidget(soilMap, 1);
+    }
     {   // the history tab: one column of the area's history file as a chart
         auto * widget = new QWidget{tabs};
         auto * column = new QVBoxLayout{widget};
@@ -748,9 +763,9 @@ DroughtViewer::DroughtViewer(Window * parent)
     const std::string cpc = "https://www.cpc.ncep.noaa.gov/products/";
     outlooks = {{"Drought outlook, this month (CPC)", cpc + "expert_assessment/mdohomeweb.png"},
                 {"Drought outlook, the season (CPC)", cpc + "expert_assessment/sdohomeweb.png"},
-                {"Soil moisture percentile, ensemble (CPC)", cpc + "Drought/Figures/smp/ens.png"},
-                {"Soil moisture percentile, change over 7 days", cpc + "Drought/Figures/smp/ens_7.png"},
-                {"Soil moisture percentile, change over 30 days", cpc + "Drought/Figures/smp/ens_30.png"},
+                {"Soil moisture percentile, ensemble, latest day (CPC; zoomable)", cpc + "Drought/Figures/smp/ens.png", cpc + "Drought/Figures/smp/ens.tif"},
+                {"Soil moisture percentile, ensemble, last 7 days (CPC; zoomable)", cpc + "Drought/Figures/smp/ens_7.png", cpc + "Drought/Figures/smp/ens_7.tif"},
+                {"Soil moisture percentile, ensemble, last 30 days (CPC; zoomable)", cpc + "Drought/Figures/smp/ens_30.png", cpc + "Drought/Figures/smp/ens_30.tif"},
                 {"Soil moisture rank, daily (CPC leaky bucket)", cpc + "Soilmst_Monitoring/Figures/daily/curr.w.rank.daily.gif"},
                 {"Standardized precipitation index, 3 months", cpc + "Drought/Figures/index/spi3.web.gif"},
                 {"Standardized precipitation index, 6 months", cpc + "Drought/Figures/index/spi6.web.gif"},
@@ -771,6 +786,20 @@ DroughtViewer::DroughtViewer(Window * parent)
     loadAreas();
     loadPrecip();
     loadOutlook();
+    if (const auto env = qgetenv("WXQT_OUTLOOK"); !env.isEmpty()) {   // dev: the Outlooks tab's entry (the number in the list), set a moment after the window is up
+        QTimer::singleShot(1500, this, [this, env] {
+            comboOutlook.setIndex(env.toInt());
+            loadOutlook();
+        });
+    }
+    if (const auto env = qgetenv("WXQT_NORMALS"); !env.isEmpty()) {   // dev: the Normals tab's map, "<measure 0-5>,<period 0-6>", set a moment after the window is up
+        QTimer::singleShot(1500, this, [this, env] {
+            const auto parts = env.split(',');
+            comboKind.setIndex(parts.value(0).toInt());
+            comboPeriod.setIndex(parts.value(1).toInt());
+            loadPrecip();
+        });
+    }
 }
 
 // the date (yyyymmdd) of the Tuesday `weeksBack` weeks before the newest map that is out
@@ -844,6 +873,10 @@ void DroughtViewer::loadAreas() {
                        *meso = UtilityDrought::spcMesoanalysisSectors();
                        map->setLand(states);
                        map->setCounties(counties);
+                       precipMap->setLand(states);
+                       precipMap->setCounties(counties);
+                       soilMap->setLand(states);
+                       soilMap->setCounties(counties);
                        loadSpc();
                        if (const auto env = qgetenv("WXQT_HISTORY"); !env.isEmpty()) {   // dev: the history column to chart
                            comboHistory.setIndex(env.toInt());
@@ -923,6 +956,8 @@ void DroughtViewer::selectArea(const std::string& id) {
     }
     buttonArea->setText(QString::fromStdString("Area: " + label) + "  \xE2\x96\xBE");
     map->setArea(id == "US" ? std::vector<UtilityDrought::Area>{} : areas, true);
+    precipMap->setArea(id == "US" ? std::vector<UtilityDrought::Area>{} : areas, true);
+    soilMap->setArea(id == "US" ? std::vector<UtilityDrought::Area>{} : areas, true);
     refreshMonitor();
     loadPrecipArea();
     updateHistory();
@@ -1519,24 +1554,392 @@ void DroughtViewer::showPicture(ZoomImage * target, Text * status, const std::st
     }};
 }
 
+// The Normals tab's map: the stations' departure from the 1991-2020 normal (temperature, rain) over the last days or the month, carried to a grid as the master map's climate layer does
+// (climate/GridAnalysis), drawn like the Monitor's map: sharp at any zoom, the borders, the chosen area outlined, the value under the pointer.
 void DroughtViewer::loadPrecip() {
-    static const char * sets[] = {"1wk,2wk,1,2months", "3,4,5,6months", "9,12,18,24months", "2,3,4,5yrs"};
-    static const char * kinds[] = {"total", "anom", "percent"};
-    int kind = std::max(0, comboKind.getIndex());
-    const int period = std::max(0, comboPeriod.getIndex());
-    if (period == 3 && kind != 2) {   // the years are only drawn as a percent of normal
-        kind = 2;
-        comboKind.block();
-        comboKind.setIndex(2);
-        comboKind.unblock();
+    static const int periodDays[] = {7, 14, 30, 60, 90, 0, -1, 183, 274, 365};   // > 0: the last this many days; 0: the month so far; -1: last month
+    static const char * measures[] = {"avgt-dep", "maxt-dep", "mint-dep", "pcpn-dep", "pcpn-pct"};
+    if (precipMap == nullptr) {
+        return;
     }
-    const std::string url = std::string{"https://www.cpc.ncep.noaa.gov/products/Drought/Figures/precip/us.4panel.fordrought.briefing.recent."} + sets[period] + ".rain." + kinds[kind] + ".png";
-    showPicture(&precipImage, &textPrecip, url, std::string{comboKind.getValue()} + ", " + comboPeriod.getValue() + " (the whole country: NOAA Climate Prediction Center, from gauge and radar analyses).", &precipGeneration);
+    if (comboKind.getIndex() == 5) {
+        loadRainTotal();
+        return;
+    }
+    const auto * product = AcisClimate::product(measures[std::clamp(comboKind.getIndex(), 0, 4)]);
+    if (product == nullptr) {
+        return;
+    }
+    const int days = periodDays[std::clamp(comboPeriod.getIndex(), 0, 9)];
+    const QDate end = QDate::currentDate().addDays(-1);
+    QDate from, to;
+    if (days > 0) {
+        to = end;
+        from = end.addDays(-(days - 1));
+    } else if (days == 0) {
+        to = end;
+        from = QDate{end.year(), end.month(), 1};
+    } else {
+        to = QDate{end.year(), end.month(), 1}.addDays(-1);
+        from = QDate{to.year(), to.month(), 1};
+    }
+    // the rain departure's bands are a month's: a longer period's departure is that many times larger, so the bands are too
+    const double bandScale = product->id == "pcpn-dep" && days > 30 ? std::min(12.0, days / 30.0) : 1.0;
+    const int mine = ++precipGeneration;
+    textPrecip.setText(std::string{"Reading the stations of the Regional Climate Centers' ACIS for "} + from.toString("MMM d").toStdString() + " to " + to.toString("MMM d").toStdString() + " ...");
+    struct Loaded {
+        std::shared_ptr<DroughtMap::FieldLayer> layer;
+        std::string error;
+        int stations{0};
+    };
+    auto result = std::make_shared<Loaded>();
+    precipLoading = true;
+    tickPrecip(mine, [from, to] { return "Reading the stations of the Regional Climate Centers' ACIS for " + from.toString("MMM d").toStdString() + " to " + to.toString("MMM d").toStdString() + ": " + AcisClimate::progressText(); });
+    new FutureVoid{this, [product, from, to, result, bandScale] {
+                       const NetManager::Scope background{NetManager::Priority::Ahead};
+                       const auto& region = AcisClimate::regions().front();   // the contiguous United States
+                       const auto read = AcisClimate::read(*product, region, from, to);
+                       result->error = read.error;
+                       result->stations = static_cast<int>(read.stations.size());
+                       if (read.stations.empty()) {
+                           return;
+                       }
+                       std::vector<GridAnalysis::Point> points;
+                       points.reserve(read.stations.size());
+                       for (const auto& s : read.stations) {
+                           points.push_back({s.lat, s.lon, s.value});
+                       }
+                       GridAnalysis::Spec spec;
+                       spec.west = region.west;
+                       spec.south = region.south;
+                       spec.east = region.east;
+                       spec.north = region.north;
+                       spec.step = region.step;
+                       spec.reachKm = region.reachKm;
+                       spec.fillGapsKm = region.nearestKm * 1.7;
+                       spec.baseKm = region.reachKm * 0.35;
+                       spec.nearestKm = region.nearestKm;
+                       const auto field = GridAnalysis::analyze(points, spec);
+                       auto layer = std::make_shared<DroughtMap::FieldLayer>();
+                       layer->west = region.west;
+                       layer->north = region.north;
+                       layer->step = region.step;
+                       layer->columns = field.columns;
+                       layer->rows = field.rows;
+                       layer->values = field.values;
+                       layer->unit = product->unit;
+                       layer->decimals = product->decimals;
+                       layer->image = QImage{field.columns, field.rows, QImage::Format_ARGB32_Premultiplied};
+                       layer->image.fill(Qt::transparent);
+                       for (int row = 0; row < field.rows; row++) {
+                           auto * line = reinterpret_cast<QRgb *>(layer->image.scanLine(row));
+                           for (int column = 0; column < field.columns; column++) {
+                               const float v = field.values[static_cast<size_t>(row) * static_cast<size_t>(field.columns) + static_cast<size_t>(column)];
+                               if (!std::isnan(v)) {
+                                   const QColor c = product->bands[static_cast<size_t>(AcisClimate::bandOf(*product, v / bandScale))].color;
+                                   line[column] = qPremultiply(qRgba(c.red(), c.green(), c.blue(), 255));
+                               }
+                           }
+                       }
+                       const auto& bands = product->bands;
+                       const auto edge = [bandScale, product] (const QString& label) { return bandScale == 1.0 ? label : QString::number(label.toDouble() * bandScale, 'f', 0); };
+                       for (size_t i = bands.size(); i > 0; i--) {   // the key, the highest band first: "9 and over", "7 to 9", ... "under -9"
+                           const auto& band = bands[i - 1];
+                           QString text;
+                           if (i == bands.size()) {
+                               text = edge(band.label) + " and over";
+                           } else if (i == 1) {
+                               text = "under " + edge(bands[1].label);
+                           } else {
+                               text = edge(band.label) + " to " + edge(bands[i].label);
+                           }
+                           layer->key.emplace_back(band.color, text + " " + product->unit);
+                       }
+                       result->layer = layer;
+                   },
+                   [this, result, mine, product, from, to] {
+                       if (closed || mine != precipGeneration) {
+                           return;
+                       }
+                       precipLoading = false;
+                       if (!result->layer) {
+                           textPrecip.setText("No station data came back" + (result->error.empty() ? std::string{"."} : ": " + result->error));
+                           precipMap->setField(nullptr);
+                           return;
+                       }
+                       precipMap->setField(result->layer);
+                       precipMap->setCaption(product->label + "\n" + from.toString(from.daysTo(to) > 150 ? "MMM d, yyyy" : "MMM d") + " to " + to.toString("MMM d, yyyy"));
+                       textPrecip.setText(std::string{"Stations of the Regional Climate Centers (ACIS) against the 1991-2020 normals, "} + std::to_string(result->stations) + " stations, carried to a grid. Wheel to zoom, drag to move, double click to fit the area.");
+                   }};
+}
+
+// The rain that fell (NOAA's MRMS multi-sensor totals added up over the period, DroughtRain) on the Normals tab's map: the contiguous United States and the populated strip of Canada, in inches or
+// millimeters as the person's units say; the bands grow with the length of the period.
+void DroughtViewer::loadRainTotal() {
+    static const int periodDays[] = {7, 14, 30, 60, 90, 0, -1, 183, 274, 365};   // as loadPrecip: > 0 the last days, 0 the month so far, -1 last month
+    static const double bandScale[] = {1.0, 1.7, 3.0, 5.0, 7.0, 3.0, 3.0, 1.0, 1.5, 2.0};   // (the last three: the long table below)   // the inches of the first band's step for a week, taken to the period
+    const int choice = std::clamp(comboPeriod.getIndex(), 0, 9);
+    QDateTime end = DroughtRain::latestEnd();
+    int days = periodDays[choice];
+    if (days == 0) {
+        days = end.date().day();   // the days of this month so far (the totals end at 12 UTC)
+    } else if (days < 0) {
+        const QDate first{end.date().year(), end.date().month(), 1};
+        end = QDateTime{first, QTime{12, 0}, QTimeZone::utc()};
+        days = first.addMonths(-1).daysInMonth();
+    }
+    const int mine = ++precipGeneration;
+    const bool inches = UIPreferences::unitsF;
+    const double scale = bandScale[choice];
+    const QDateTime from = end.addDays(-days);
+    textPrecip.setText("Adding up NOAA's MRMS rain totals for " + from.toString("MMM d").toStdString() + " to " + end.toString("MMM d").toStdString() + " (the first time a day is read it is downloaded, about 4 MB) ...");
+    struct Loaded {
+        std::shared_ptr<DroughtMap::FieldLayer> layer;
+        std::string error;
+        int files{0};
+    };
+    auto result = std::make_shared<Loaded>();
+    const bool longPeriod = choice >= 7;
+    auto done = std::make_shared<std::atomic<int>>(0);
+    const int total = DroughtRain::pieces(days);
+    precipLoading = true;
+    tickPrecip(mine, [done, total, from, end] {
+        return "Adding up NOAA's MRMS rain totals for " + from.toString("MMM d").toStdString() + " to " + end.toString("MMM d").toStdString() + ": " + std::to_string(done->load()) + " of " + std::to_string(total) +
+               " files read (a day not read before is downloaded, about 4 MB; it is kept after that) ...";
+    });
+    new FutureVoid{this, [result, end, days, inches, scale, longPeriod, done] {
+                       const NetManager::Scope background{NetManager::Priority::Ahead};
+                       const auto grid = DroughtRain::total(end, days, done.get());
+                       result->error = grid.error;
+                       result->files = grid.files;
+                       if (grid.empty()) {
+                           return;
+                       }
+                       struct Band {
+                           double inch;
+                           const char * color;
+                       };
+                       static const Band shortBands[] = {{0.01, "#c9efc4"}, {0.25, "#7fd68a"}, {0.5, "#2fb34a"}, {1.0, "#35b6e6"}, {2.0, "#1f78d1"}, {3.0, "#4a3fc4"}, {4.0, "#8a3fc4"}, {6.0, "#c43fa8"},
+                                                         {8.0, "#e8344f"}, {12.0, "#9b1010"}};
+                       static const Band longBands[] = {{0.01, "#c9efc4"}, {2.0, "#7fd68a"}, {5.0, "#2fb34a"}, {10.0, "#35b6e6"}, {15.0, "#1f78d1"}, {20.0, "#4a3fc4"}, {30.0, "#8a3fc4"}, {40.0, "#c43fa8"},
+                                                        {60.0, "#e8344f"}, {80.0, "#9b1010"}};   // a half year to a year
+                       const Band * bands = longPeriod ? longBands : shortBands;
+                       const int count = 10;
+                       std::vector<double> edges;   // in the person's unit
+                       for (int i = 0; i < 10; i++) {
+                           edges.push_back(bands[i].inch * (bands[i].inch < 0.02 ? 1.0 : scale) * (inches ? 1.0 : 25.4));
+                       }
+                       auto layer = std::make_shared<DroughtMap::FieldLayer>();
+                       layer->west = grid.west;
+                       layer->north = grid.north;
+                       layer->step = grid.step;
+                       layer->columns = grid.columns;
+                       layer->rows = grid.rows;
+                       layer->unit = inches ? "in" : "mm";
+                       layer->decimals = inches ? 2 : 0;
+                       layer->values.resize(grid.mm.size());
+                       layer->image = QImage{grid.columns, grid.rows, QImage::Format_ARGB32_Premultiplied};
+                       layer->image.fill(Qt::transparent);
+                       for (int row = 0; row < grid.rows; row++) {
+                           auto * line = reinterpret_cast<QRgb *>(layer->image.scanLine(row));
+                           for (int column = 0; column < grid.columns; column++) {
+                               const size_t at = static_cast<size_t>(row) * static_cast<size_t>(grid.columns) + static_cast<size_t>(column);
+                               const float v = std::isnan(grid.mm[at]) ? grid.mm[at] : static_cast<float>(grid.mm[at] / (inches ? 25.4 : 1.0));
+                               layer->values[at] = v;
+                               if (std::isnan(v)) {
+                                   continue;
+                               }
+                               int band = -1;
+                               for (int i = 0; i < count; i++) {
+                                   if (v >= edges[static_cast<size_t>(i)]) {
+                                       band = i;
+                                   }
+                               }
+                               if (band >= 0) {
+                                   const QColor c{bands[band].color};
+                                   line[column] = qPremultiply(qRgba(c.red(), c.green(), c.blue(), 235));
+                               }
+                           }
+                       }
+                       for (int i = count - 1; i >= 0; i--) {
+                           const double e = edges[static_cast<size_t>(i)];
+                           layer->key.emplace_back(QColor{bands[i].color}, (i == count - 1 ? QString{"%1 and over "} : i == 0 ? QString{"%1 to %2 "} : QString{"%1 to %2 "}).arg(e, 0, 'f', inches ? 2 : 0).arg(i == count - 1 ? 0.0 : edges[static_cast<size_t>(i) + 1], 0, 'f', inches ? 2 : 0) + layer->unit);
+                       }
+                       result->layer = layer;
+                   },
+                   [this, result, mine, from, end, inches] {
+                       if (closed || mine != precipGeneration) {
+                           return;
+                       }
+                       precipLoading = false;
+                       if (!result->layer) {
+                           textPrecip.setText("No MRMS rain came back" + (result->error.empty() ? std::string{"."} : ": " + result->error));
+                           precipMap->setField(nullptr);
+                           return;
+                       }
+                       precipMap->setField(result->layer);
+                       precipMap->setCaption(QString{"Rain total (%1)\n%2 to %3, 12 UTC to 12 UTC"}.arg(inches ? "inches" : "mm").arg(from.toString(from.daysTo(end) > 150 ? "MMM d, yyyy" : "MMM d")).arg(end.toString("MMM d, yyyy")));
+                       textPrecip.setText("NOAA's MRMS multi-sensor rain (radar corrected by gauges), " + std::to_string(result->files) + " files added up. Over Canada mostly radar: it says where it rained, less sure how much. Wheel to zoom, drag to move, double click to fit the area.");
+                   }};
+}
+
+void DroughtViewer::tickPrecip(int generation, const std::function<std::string()>& text) {
+    // the label's own text, not Text::setText (it adjusts the label's size to the new words, and a line set again and again shrinks to a narrow column)
+    const auto show = [this, text] {
+        if (auto * label = textPrecip.getView()) {
+            label->setText(QString::fromStdString(text()));
+        }
+    };
+    show();
+    auto * timer = new QTimer{this};
+    QObject::connect(timer, &QTimer::timeout, this, [this, timer, generation, show] {
+        if (closed || generation != precipGeneration || !precipLoading) {   // a newer reading started, or this one is done: its own line takes over
+            timer->deleteLater();
+            return;
+        }
+        show();
+    });
+    timer->start(500);
 }
 
 void DroughtViewer::loadOutlook() {
     const int i = std::clamp(comboOutlook.getIndex(), 0, static_cast<int>(outlooks.size()) - 1);
-    showPicture(&outlookImage, &textOutlook, outlooks[static_cast<size_t>(i)].url, outlooks[static_cast<size_t>(i)].label + ".  NOAA Climate Prediction Center.", &outlookGeneration);
+    const auto& entry = outlooks[static_cast<size_t>(i)];
+    const bool grid = !entry.grid.empty() && soilMap != nullptr;
+    outlookImage.setVisible(!grid);
+    if (soilMap != nullptr) {
+        soilMap->setVisible(grid);
+    }
+    if (grid) {
+        loadSoil(entry.grid, entry.label);
+        return;
+    }
+    ++soilGeneration;   // a grid still on its way is no longer wanted
+    showPicture(&outlookImage, &textOutlook, entry.url, entry.label + ".  NOAA Climate Prediction Center.", &outlookGeneration);
+}
+
+// CPC's soil moisture percentile (the ensemble of the NLDAS land models, 1/8 degree over the contiguous United States, a few days behind) as a field layer: where the soil is among the same
+// days of 1979 to now, in the picture's bands (under 2 the driest, 30 to 70 the middle, over 98 the wettest).
+void DroughtViewer::loadSoil(const std::string& url, const std::string& label) {
+    const int mine = ++soilGeneration;
+    textOutlook.setText("Reading " + label + " ...");
+    struct Loaded {
+        std::shared_ptr<DroughtMap::FieldLayer> layer;
+        std::string error, valid;
+    };
+    auto result = std::make_shared<Loaded>();
+    new FutureVoid{this, [url, result] {
+                       const NetManager::Scope background{NetManager::Priority::Visible};
+                       const auto bytes = URL::getBytes(url).toStdString();
+                       const auto bin = UtilityGrib::gdalBinDir();
+                       if (bytes.size() < 1000 || bin.empty()) {
+                           result->error = bytes.size() < 1000 ? "the grid could not be downloaded" : "GDAL not found";
+                           return;
+                       }
+                       QTemporaryFile tif{QDir::tempPath() + "/wxqt_soil_XXXXXX.tif"};
+                       if (!tif.open()) {
+                           return;
+                       }
+                       tif.write(bytes.data(), static_cast<qint64>(bytes.size()));
+                       tif.flush();
+                       const QString raw = tif.fileName() + ".raw";
+                       QProcess translate;
+                       translate.start(QString::fromStdString(bin) + "/gdal_translate", {"-q", "-of", "ENVI", "-ot", "Float32", tif.fileName(), raw});
+                       translate.waitForFinished(60000);
+                       QProcess info;
+                       info.start(QString::fromStdString(bin) + "/gdalinfo", {"-mdd", "all", tif.fileName()});
+                       info.waitForFinished(30000);
+                       const auto date = QRegularExpression{"VALID_DATE=(\\d{8})"}.match(QString::fromUtf8(info.readAllStandardOutput()));
+                       if (date.hasMatch()) {
+                           result->valid = date.captured(1).toStdString();
+                       }
+                       QFile data{raw}, header{raw.left(raw.size() - 4) + ".hdr"};
+                       const auto cells = data.open(QIODevice::ReadOnly) ? data.readAll() : QByteArray{};
+                       const auto hdr = header.open(QIODevice::ReadOnly) ? QString::fromUtf8(header.readAll()) : QString{};
+                       QFile::remove(raw);
+                       QFile::remove(raw + ".aux.xml");
+                       QFile::remove(raw.left(raw.size() - 4) + ".hdr");
+                       const auto number = [&hdr] (const char * key) {
+                           const auto m = QRegularExpression{QString{"\\b%1\\s*=\\s*([-0-9.]+)"}.arg(key)}.match(hdr);
+                           return m.hasMatch() ? m.captured(1).toInt() : -1;
+                       };
+                       const auto info2 = QRegularExpression{"map info = \\{[^,]*,\\s*1(?:\\.0+)?,\\s*1(?:\\.0+)?,\\s*([-0-9.]+),\\s*([-0-9.]+),\\s*([-0-9.]+),\\s*([-0-9.]+)"}.match(hdr);
+                       const int columns = number("samples"), rows = number("lines");
+                       if (columns < 2 || rows < 2 || !info2.hasMatch() || cells.size() != static_cast<qsizetype>(columns) * rows * 4) {
+                           result->error = "the grid is not on a plain latitude / longitude grid";
+                           return;
+                       }
+                       std::vector<float> values(static_cast<size_t>(columns) * static_cast<size_t>(rows));
+                       std::memcpy(values.data(), cells.constData(), static_cast<size_t>(cells.size()));
+                       if (QRegularExpression{"byte order\\s*=\\s*1"}.match(hdr).hasMatch()) {
+                           for (auto& v : values) {
+                               unsigned char b[4];
+                               std::memcpy(b, &v, 4);
+                               std::swap(b[0], b[3]);
+                               std::swap(b[1], b[2]);
+                               std::memcpy(&v, b, 4);
+                           }
+                       }
+                       for (auto& v : values) {
+                           if (v < -1.0f || v > 100.5f) {   // -999: no value
+                               v = std::nanf("");
+                           }
+                       }
+                       struct Band {
+                           float from;
+                           const char * color;
+                           const char * text;
+                       };
+                       static const Band bands[] = {{0.0f, "#a50000", "under 2"}, {2.0f, "#e31a1c", "2 to 5"}, {5.0f, "#ff6a00", "5 to 10"}, {10.0f, "#fdb63f", "10 to 20"}, {20.0f, "#ffe27a", "20 to 30"},
+                                                    {30.0f, "#ffffff", "30 to 70 (middle)"}, {70.0f, "#dff5d8", "70 to 80"}, {80.0f, "#b2f0a0", "80 to 90"}, {90.0f, "#6fdc6f", "90 to 95"},
+                                                    {95.0f, "#3cb94b", "95 to 98"}, {98.0f, "#14962b", "98 and over"}};
+                       auto layer = std::make_shared<DroughtMap::FieldLayer>();
+                       layer->west = info2.captured(1).toDouble();
+                       layer->north = info2.captured(2).toDouble();
+                       layer->step = info2.captured(3).toDouble();
+                       layer->columns = columns;
+                       layer->rows = rows;
+                       layer->values = values;
+                       layer->unit = "percentile";
+                       layer->decimals = 0;
+                       layer->image = QImage{columns, rows, QImage::Format_ARGB32_Premultiplied};
+                       layer->image.fill(Qt::transparent);
+                       for (int row = 0; row < rows; row++) {
+                           auto * line = reinterpret_cast<QRgb *>(layer->image.scanLine(row));
+                           for (int column = 0; column < columns; column++) {
+                               const float v = values[static_cast<size_t>(row) * static_cast<size_t>(columns) + static_cast<size_t>(column)];
+                               if (std::isnan(v) || (v >= 30.0f && v < 70.0f)) {   // the middle is left clear, so the land shows through
+                                   continue;
+                               }
+                               int band = 0;
+                               for (int k = 0; k < 11; k++) {
+                                   if (v >= bands[k].from) {
+                                       band = k;
+                                   }
+                               }
+                               const QColor c{bands[band].color};
+                               line[column] = qPremultiply(qRgba(c.red(), c.green(), c.blue(), 235));
+                           }
+                       }
+                       for (int k = 10; k >= 0; k--) {
+                           layer->key.emplace_back(QColor{bands[k].color}, QString{bands[k].text});
+                       }
+                       result->layer = layer;
+                   },
+                   [this, result, mine, label] {
+                       if (closed || mine != soilGeneration) {
+                           return;
+                       }
+                       if (!result->layer) {
+                           textOutlook.setText("No soil moisture grid came back" + (result->error.empty() ? std::string{"."} : ": " + result->error));
+                           soilMap->setField(nullptr);
+                           return;
+                       }
+                       soilMap->setField(result->layer);
+                       const auto valid = QDate::fromString(QString::fromStdString(result->valid), "yyyyMMdd");
+                       soilMap->setCaption(QString::fromStdString(label) + (valid.isValid() ? "\nvalid " + valid.toString("MMM d, yyyy") : QString{}));
+                       textOutlook.setText(std::string{"NOAA Climate Prediction Center: the soil moisture percentile of the NLDAS land models' ensemble (1/8 degree), against 1979 to now. Wheel to zoom, drag to move, double click to fit the area."});
+                   }};
 }
 
 void DroughtViewer::loadDaily() {

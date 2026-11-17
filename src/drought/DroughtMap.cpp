@@ -97,6 +97,33 @@ void DroughtMap::setChange(std::shared_ptr<const ChangeLayer> c) {
     update();
 }
 
+void DroughtMap::setBackdrop(const std::vector<std::vector<std::pair<float, float>>>& lines) {
+    backdropPath = QPainterPath{};
+    for (const auto& line : lines) {
+        bool inside = false;   // only what is near the contiguous United States and the strips round it
+        for (const auto& [lon, lat] : line) {
+            if (lon > -135.0f && lon < -50.0f && lat > 12.0f && lat < 62.0f) {
+                inside = true;
+                break;
+            }
+        }
+        if (!inside || line.size() < 2) {
+            continue;
+        }
+        QPolygonF poly;
+        for (const auto& [lon, lat] : line) {
+            poly << QPointF{lon, lat};
+        }
+        backdropPath.addPolygon(poly);
+    }
+    update();
+}
+
+void DroughtMap::setField(std::shared_ptr<const FieldLayer> f) {
+    field = std::move(f);
+    update();
+}
+
 void DroughtMap::setCaption(const QString& text) {
     caption = text;
     update();
@@ -172,6 +199,11 @@ void DroughtMap::paintEvent(QPaintEvent *) {
         }
     }
     p.restore();
+    if (field && !field->image.isNull()) {   // smooth: a cell of the grid is many pixels when zoomed in
+        const QRectF box = t.mapRect(QRectF{field->west, field->north - field->rows * field->step, field->columns * field->step, field->rows * field->step});
+        p.setRenderHint(QPainter::SmoothPixmapTransform, true);
+        p.drawImage(box, field->image);
+    }
     if (change && !change->image.isNull()) {
         const QRectF box = t.mapRect(QRectF{change->west, change->north - change->rows * change->step, change->columns * change->step, change->rows * change->step});
         p.setRenderHint(QPainter::SmoothPixmapTransform, false);
@@ -179,6 +211,13 @@ void DroughtMap::paintEvent(QPaintEvent *) {
     }
     p.save();
     p.setTransform(t);
+    if (!backdropPath.isEmpty()) {
+        QPen coast{QColor{60, 60, 60, 170}, 0.9};
+        coast.setCosmetic(true);
+        p.setPen(coast);
+        p.setBrush(Qt::NoBrush);
+        p.drawPath(backdropPath);
+    }
     QPen border{QColor{60, 60, 60, 190}, 1.0};
     border.setCosmetic(true);
     p.setBrush(Qt::NoBrush);
@@ -207,7 +246,9 @@ void DroughtMap::paintEvent(QPaintEvent *) {
     p.setFont(font);
     const int rowHeight = p.fontMetrics().height() + 3;
     std::vector<std::pair<QColor, QString>> keys;
-    if (change) {
+    if (field) {
+        keys = field->key;
+    } else if (change) {
         keys = {{changeColor(-3), "improved 3 or more categories"}, {changeColor(-2), "improved 2"}, {changeColor(-1), "improved 1"}, {changeColor(1), "worse by 1"},
                 {changeColor(2), "worse by 2"}, {changeColor(3), "worse by 3 or more"}};
     } else {
@@ -239,7 +280,13 @@ void DroughtMap::paintEvent(QPaintEvent *) {
 
 QString DroughtMap::readout(const QPointF& w) const {
     QString text = QString::number(std::abs(w.y()), 'f', 2) + (w.y() >= 0 ? "° N  " : "° S  ") + QString::number(std::abs(w.x()), 'f', 2) + (w.x() >= 0 ? "° E" : "° W");
-    if (change && change->columns > 0) {
+    if (field && field->columns > 0) {
+        const int x = static_cast<int>(std::floor((w.x() - field->west) / field->step)), y = static_cast<int>(std::floor((field->north - w.y()) / field->step));
+        if (x >= 0 && y >= 0 && x < field->columns && y < field->rows) {
+            const float v = field->values[static_cast<size_t>(y) * static_cast<size_t>(field->columns) + static_cast<size_t>(x)];
+            text += std::isnan(v) ? QString{"\nno analysis here"} : QString{"\n%1%2 %3"}.arg(v > 0 && field->unit != "%" ? "+" : "").arg(v, 0, 'f', field->decimals).arg(field->unit);
+        }
+    } else if (change && change->columns > 0) {
         const int x = static_cast<int>(std::floor((w.x() - change->west) / change->step)), y = static_cast<int>(std::floor((change->north - w.y()) / change->step));
         if (x >= 0 && y >= 0 && x < change->columns && y < change->rows) {
             const int moved = change->moved[static_cast<size_t>(y) * static_cast<size_t>(change->columns) + static_cast<size_t>(x)];
@@ -265,7 +312,14 @@ QString DroughtMap::readout(const QPointF& w) const {
     return text;
 }
 
+void DroughtMap::resizeEvent(QResizeEvent *) {
+    if (!moved && width() > 50 && height() > 50) {   // the first size the window gets: fit the area to it
+        fitArea();
+    }
+}
+
 void DroughtMap::wheelEvent(QWheelEvent * event) {
+    moved = true;
     const auto before = toWorld(event->position());
     pixelsPerDegree = std::clamp(pixelsPerDegree * std::pow(1.0015, event->angleDelta().y()), 4.0, 2500.0);
     const auto after = toWorld(event->position());   // keep the point under the pointer where it is
@@ -277,6 +331,7 @@ void DroughtMap::wheelEvent(QWheelEvent * event) {
 void DroughtMap::mousePressEvent(QMouseEvent * event) {
     if (event->button() == Qt::LeftButton) {
         dragging = true;
+        moved = true;
         dragFrom = event->position();
     }
 }
@@ -298,5 +353,6 @@ void DroughtMap::mouseReleaseEvent(QMouseEvent *) {
 }
 
 void DroughtMap::mouseDoubleClickEvent(QMouseEvent *) {
+    moved = false;
     fitArea();
 }

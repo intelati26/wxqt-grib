@@ -26,17 +26,29 @@ public:
         std::vector<int8_t> moved;       // the categories each cell moved (for the pointer's read-out)
         int columns{0}, rows{0};
     };
+    struct FieldLayer {                  // a measure on a grid (the departure from normal of the temperature or the rain): drawn smooth under the borders, read out under the pointer
+        QImage image;                    // one pixel a cell, transparent where there is no value
+        double west{0}, north{0}, step{0.05};
+        int columns{0}, rows{0};
+        std::vector<float> values;       // columns x rows, row 0 the northern; NaN where empty
+        QString unit;                    // "F", "in", "%"
+        int decimals{1};
+        std::vector<std::pair<QColor, QString>> key;   // the bands, the highest first, each with the words for the key
+    };
     explicit DroughtMap(QWidget * parent = nullptr);
     void setLand(std::shared_ptr<const std::vector<UtilityDrought::Area>> states);
     void setCounties(std::shared_ptr<const std::vector<UtilityDrought::Area>> counties);
     void setMonitor(std::shared_ptr<const UtilityDrought::Monitor> monitor);
     void setChange(std::shared_ptr<const ChangeLayer> change);   // null: show the categories
+    void setBackdrop(const std::vector<std::vector<std::pair<float, float>>>& lines);   // coasts and country borders (lon, lat) drawn over the field: Canada and Mexico have no state shapes
+    void setField(std::shared_ptr<const FieldLayer> field);      // a measure on a grid in place of the categories (a map with no Monitor set)
     void setArea(std::vector<UtilityDrought::Area> area, bool fit);   // empty: the whole country
     void setCaption(const QString& text);
     void fitArea();
 
 private:
     void paintEvent(QPaintEvent *) override;
+    void resizeEvent(QResizeEvent *) override;
     void wheelEvent(QWheelEvent *) override;
     void mousePressEvent(QMouseEvent *) override;
     void mouseMoveEvent(QMouseEvent *) override;
@@ -48,12 +60,14 @@ private:
     std::shared_ptr<const std::vector<UtilityDrought::Area>> land, counties;
     std::shared_ptr<const UtilityDrought::Monitor> monitor;
     std::shared_ptr<const ChangeLayer> change;
+    std::shared_ptr<const FieldLayer> field;
     std::vector<UtilityDrought::Area> area;
     QPainterPath categoryPath[5];       // world coordinates (longitude, latitude)
+    QPainterPath backdropPath;
     QPainterPath landPath, bordersPath, countyPath, areaPath, outsidePath;
     QString caption;
     double centerLon{-96.0}, centerLat{38.0}, pixelsPerDegree{16.0};   // pixels for a degree of latitude; a degree of longitude is shorter by the cosine of the center latitude
-    bool dragging{false};
+    bool dragging{false}, moved{false};   // moved: the person has zoomed or dragged, so a new size no longer refits the area
     QPointF dragFrom;
 };
 
