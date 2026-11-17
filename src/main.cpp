@@ -356,6 +356,19 @@ int main(int argc, char * argv[]) {
             } else if (route.startsWith("sun:")) {   // WXQT_OPEN=sun:<out.png>[:width]: the labelled Sun picture saved, then the program goes on
                 const auto parts = route.split(':');
                 UtilitySun::labelled(parts.value(2, "900").toInt()).save(parts.value(1));
+            } else if (route.startsWith("chart:")) {   // WXQT_OPEN=chart:<model>:<chart id>:<hour>:<out.png>[:<sector>[:<cycle yyyyMMddHH>]]: one model chart drawn with the program's own settings and saved, then the program quits (exit 1 and the error on stderr when it could not be drawn)
+                const auto parts = route.split(':');
+                GfsRender::Session session;
+                std::string error;
+                const auto cycle = parts.value(6).toStdString();
+                const auto bytes = GfsRender::png(session, parts.value(1).toStdString(), parts.value(2).toStdString(), parts.value(5, "CONUS").toStdString(), cycle, parts.value(3).toInt(), {}, error, nullptr);
+                bool saved = false;
+                if (!bytes.isEmpty()) {
+                    QFile out{parts.value(4)};
+                    saved = out.open(QIODevice::WriteOnly) && out.write(bytes) == bytes.size();
+                }
+                fprintf(stderr, "MAGCHART %s %s F%d %s %s\n", parts.value(1).toUtf8().constData(), parts.value(2).toUtf8().constData(), parts.value(3).toInt(), saved ? "ok" : "FAILED", error.c_str());
+                QTimer::singleShot(100, [saved] { QApplication::exit(saved ? 0 : 1); });
             } else if (route == "solarfleet") {   // WXQT_OPEN=solarfleet: the plan view of the spacecraft that watch the Sun
                 new SolarFleetViewer{&w};
             } else if (route == "sunviewer" || route.startsWith("sunviewer:")) {   // WXQT_OPEN=sunviewer[:<picture number>]: the Sun window with the hover on its regions, on that picture of its list

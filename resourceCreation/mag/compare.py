@@ -12,10 +12,11 @@ for mag, prod, prodOurs, ours, run, hour in pairs:
     if only and f"{mag}/{prod}" not in only: continue
     ref = f"{R}/docs/mag-reference/{mag}/{prod}.gif"
     mine = f"/tmp/claude-1000/mag/cmp_{mag}_{prod}.png"
-    env = dict(os.environ, DEMO_RUN=run)
-    r = subprocess.run([R + "/tests/gfs/demo.sh", prodOurs, "CONUS", str(hour), mine, ours], capture_output=True, text=True, env=env, timeout=900)
-    if not os.path.exists(mine) or "wrote" not in r.stdout:
-        print(f"{mag}/{prod}: FAILED {r.stdout.strip().splitlines()[-1:]}", flush=True); continue
+    # the program draws the chart itself: WXQT_OPEN=chart:<model>:<chart>:<hour>:<out.png>:<sector>:<cycle> (plans, section 25)
+    env = dict(os.environ, WXQT_OPEN=f"chart:{ours}:{prodOurs}:{hour}:{mine}:CONUS:{run}", QT_QPA_PLATFORM="offscreen")
+    r = subprocess.run([R + "/build/release/wxqt"], capture_output=True, text=True, env=env, timeout=900)
+    if not os.path.exists(mine) or "MAGCHART" not in r.stderr or " ok" not in r.stderr:
+        print(f"{mag}/{prod}: FAILED {[l for l in r.stderr.splitlines() if 'MAGCHART' in l][-1:]}", flush=True); continue
     a = Image.open(ref).convert("RGB"); b = Image.open(mine).convert("RGB")
     h = 900
     a = a.resize((int(a.width * h / a.height), h), Image.LANCZOS); b = b.resize((int(b.width * h / b.height), h), Image.LANCZOS)
