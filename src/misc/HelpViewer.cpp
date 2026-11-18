@@ -176,6 +176,10 @@ HelpViewer::HelpViewer(QWidget * parent, const std::string& topic)
         item->setData(0, Qt::UserRole, id);
     }
     tree->expandItem(customizing);
+    auto * background = new QTreeWidgetItem{tree, {"What things mean"}};   // background pages, one each (docs/help-*.md)
+    auto * resolution = new QTreeWidgetItem{background, {"What is model resolution?"}};
+    resolution->setData(0, Qt::UserRole, "guide:help-resolution");
+    tree->expandItem(background);
     auto * howTo = new QTreeWidgetItem{tree, {"Adding a model"}};
     howTo->setData(0, Qt::UserRole, "add");
     auto * check = new QTreeWidgetItem{tree, {"Model sources"}};

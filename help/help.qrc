@@ -6,6 +6,8 @@
     <file alias="guides/ensemble-file.md">../docs/ensemble-file.md</file>
     <file alias="guides/model-files.md">../docs/model-files.md</file>
     <file alias="guides/help-colors.md">../docs/help-colors.md</file>
+    <file alias="guides/help-resolution.md">../docs/help-resolution.md</file>
+    <file alias="guides/images/resolution-ladder.png">../docs/images/resolution-ladder.png</file>
     <file alias="guides/help-presets-views.md">../docs/help-presets-views.md</file>
     <file alias="guides/help-home-toolbar.md">../docs/help-home-toolbar.md</file>
     <file alias="guides/help-locations.md">../docs/help-locations.md</file>
