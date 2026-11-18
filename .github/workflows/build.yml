@@ -85,7 +85,7 @@ jobs:
 
       - name: Restore GDAL build
         id: gdal-cache
-        uses: actions/cache@v6
+        uses: actions/cache/restore@v6
         with:
           path: D:/gdal-vcpkg
           key: ${{ steps.vcpkg-key.outputs.key }}
@@ -105,11 +105,19 @@ jobs:
             --clean-after-build
           if ($LASTEXITCODE -ne 0) { throw "vcpkg install failed" }
 
+      # saved at once, not by the job's last step: a later failure must not throw away a long build
+      - name: Keep the build (gdal-cache)
+        if: steps.gdal-cache.outputs.cache-hit != 'true'
+        uses: actions/cache/save@v6
+        with:
+          path: D:/gdal-vcpkg
+          key: ${{ steps.vcpkg-key.outputs.key }}
+
       # img2webp (libwebp) for the Save dialog's WebP export - bundled in the
       # package's tools/ folder. Its own manifest and cache, a few minutes to build.
       - name: Restore img2webp build
         id: webp-cache
-        uses: actions/cache@v6
+        uses: actions/cache/restore@v6
         with:
           path: D:/webp-vcpkg
           key: ${{ steps.vcpkg-key.outputs.webp }}
@@ -125,6 +133,14 @@ jobs:
             --triplet x64-windows-release `
             --clean-after-build
           if ($LASTEXITCODE -ne 0) { throw "vcpkg install failed" }
+
+      # saved at once, not by the job's last step: a later failure must not throw away a long build
+      - name: Keep the build (webp-cache)
+        if: steps.webp-cache.outputs.cache-hit != 'true'
+        uses: actions/cache/save@v6
+        with:
+          path: D:/webp-vcpkg
+          key: ${{ steps.vcpkg-key.outputs.webp }}
 
       - name: Generate resources + .pro
         shell: pwsh
@@ -394,7 +410,7 @@ jobs:
 
       - name: Restore GDAL build
         id: gdal-cache
-        uses: actions/cache@v6
+        uses: actions/cache/restore@v6
         with:
           path: ~/gdal-vcpkg
           key: ${{ steps.vcpkg-key.outputs.key }}
@@ -410,6 +426,13 @@ jobs:
             --overlay-ports=.github/vcpkg/ports \
             --triplet x64-linux-dynamic-release \
             --clean-after-build
+
+      - name: Keep the build (gdal-cache)
+        if: steps.gdal-cache.outputs.cache-hit != 'true'
+        uses: actions/cache/save@v6
+        with:
+          path: ~/gdal-vcpkg
+          key: ${{ steps.vcpkg-key.outputs.key }}
 
       - name: Generate resources + .pro
         run: |

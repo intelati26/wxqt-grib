@@ -21,11 +21,11 @@ jobs:
         shell: pwsh
         run: |
           $manifest = (Get-FileHash .github/vcpkg-qt/vcpkg.json).Hash + (Get-FileHash .github/vcpkg/triplets/x64-windows-release.cmake).Hash.Substring(0, 8)
-          "key=qt-x64-windows-release-v1-$manifest" >> $env:GITHUB_OUTPUT
+          "key=qt-x64-windows-release-v2-$manifest" >> $env:GITHUB_OUTPUT
 
       - name: Restore Qt build
         id: qt-cache
-        uses: actions/cache@v6
+        uses: actions/cache/restore@v6
         with:
           path: D:/qt-vcpkg
           key: ${{ steps.qt-key.outputs.key }}
@@ -42,14 +42,32 @@ jobs:
             --x-buildtrees-root=D:/vbq `
             --overlay-triplets=.github/vcpkg/triplets `
             --triplet x64-windows-release `
+            --host-triplet x64-windows-release `
             --clean-after-build
           if ($LASTEXITCODE -ne 0) { throw "vcpkg install failed" }
+
+      # (the first trial built Qt twice, for the host triplet x64-windows with debug and release and then for ours: 83 minutes; and the moc, rcc, uic, qmake and windeployqt that
+      # the build needs were in the host's tree, not in ours. The host triplet is now the release triplet: one build, the tools in tools/Qt6/bin.) Saved at once: the first trial's cache
+      # was lost because a later step failed.
+      - name: Keep the Qt build
+        if: steps.qt-cache.outputs.cache-hit != 'true'
+        uses: actions/cache/save@v6
+        with:
+          path: D:/qt-vcpkg
+          key: ${{ steps.qt-key.outputs.key }}
 
       - name: What vcpkg made
         shell: pwsh
         run: |
           $root = "D:/qt-vcpkg/x64-windows-release"
-          Get-ChildItem "$root/tools/Qt6" -Recurse -Depth 2 | Select-Object -First 60 | ForEach-Object { $_.FullName }
+          "---- the trees vcpkg made"
+          Get-ChildItem D:/qt-vcpkg -Directory | ForEach-Object { $_.FullName }
+          "---- the programs (exe) in tools/Qt6/bin"
+          Get-ChildItem "$root/tools/Qt6/bin" -Filter *.exe -ErrorAction SilentlyContinue | ForEach-Object { $_.Name }
+          "---- and in the host tree, if there is one"
+          Get-ChildItem "D:/qt-vcpkg/x64-windows/tools/Qt6/bin" -Filter *.exe -ErrorAction SilentlyContinue | ForEach-Object { $_.Name }
+          "---- tools/Qt6"
+          Get-ChildItem "$root/tools/Qt6" | ForEach-Object { $_.Name }
           "---- qt_release.conf"
           Get-Content "$root/tools/Qt6/qt_release.conf" -ErrorAction SilentlyContinue
           "---- plugins"

@@ -80,7 +80,7 @@ jobs:
 
       - name: Restore GDAL build
         id: gdal-cache
-        uses: actions/cache@v6
+        uses: actions/cache/restore@v6
         with:
           path: ~/gdal-vcpkg
           key: ${{ steps.vcpkg-key.outputs.key }}
@@ -96,6 +96,13 @@ jobs:
             --overlay-ports=.github/vcpkg/ports \
             --triplet x64-linux-dynamic-release \
             --clean-after-build
+
+      - name: Keep the build (gdal-cache)
+        if: steps.gdal-cache.outputs.cache-hit != 'true'
+        uses: actions/cache/save@v6
+        with:
+          path: ~/gdal-vcpkg
+          key: ${{ steps.vcpkg-key.outputs.key }}
 
       # The tools are found on the PATH by the program. Each is a small script that puts the build's libraries on the library path for that one run: the libraries are
       # kept off the whole job's path, so they do not meet Qt's or the system's (the AppImage keeps them apart in the same way).
