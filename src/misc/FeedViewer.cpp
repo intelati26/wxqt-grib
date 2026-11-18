@@ -45,7 +45,7 @@ const FeedViewer::Source& FeedViewer::iem() {
     static const Source source{"iem-feature", "Iowa Environmental Mesonet: the daily feature", "https://mesonet.agron.iastate.edu/feature_rss.php",
                                "The Iowa Environmental Mesonet's daily feature (Iowa State University; Daryl Herzmann): a chart of the day and a note about it, shown as they publish it. "
                                "\"The chart on the IEM site\" makes the same chart with their tools.",
-                               "https://mesonet.agron.iastate.edu/onsite/features/"};
+                               "https://mesonet.agron.iastate.edu/onsite/features/", "https://mesonet.agron.iastate.edu/"};
     return source;
 }
 
@@ -191,11 +191,14 @@ FeedViewer::FeedViewer(Window * parent, const Source& s)
     openItem = UiStandards::button(top, "On the site...", "This item on the site it comes from");
     openChart = UiStandards::button(top, "The chart on the IEM site...", "Makes the same chart with the site's own tools");
     openChart->setVisible(false);
+    openVote = UiStandards::button(top, "Good chart survey...", "The site asks readers to rate each feature Good, Bad or Abstain: the newest on its front page, an older one on its own page. Your vote is theirs, made on their site");
+    openVote->setVisible(!source.vote.empty());
     topLayout->addWidget(items, 1);
     topLayout->addWidget(newer);
     topLayout->addWidget(older);
     topLayout->addWidget(openItem);
     topLayout->addWidget(openChart);
+    topLayout->addWidget(openVote);
     box.addWidgetReal(top, 0, Qt::Alignment{});
     note = new QLabel{"Reading the feed...", this};
     note->setWordWrap(true);
@@ -223,6 +226,10 @@ FeedViewer::FeedViewer(Window * parent, const Source& s)
     QObject::connect(openItem, &QPushButton::clicked, this, [this] {
         const int i = items->currentIndex();
         QDesktopServices::openUrl(QUrl{i >= 0 && static_cast<size_t>(i) < list.size() && !list[static_cast<size_t>(i)].link.isEmpty() ? list[static_cast<size_t>(i)].link : QString::fromStdString(source.site)});
+    });
+    QObject::connect(openVote, &QPushButton::clicked, this, [this] {   // the front page asks about the newest item; an older one has its question on its own page
+        const int i = items->currentIndex();
+        QDesktopServices::openUrl(QUrl{i > 0 && static_cast<size_t>(i) < list.size() && !list[static_cast<size_t>(i)].link.isEmpty() ? list[static_cast<size_t>(i)].link : QString::fromStdString(source.vote)});
     });
     QObject::connect(openChart, &QPushButton::clicked, this, [this] {
         const int i = items->currentIndex();

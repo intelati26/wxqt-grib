@@ -32,6 +32,7 @@ public:
         string url;      // the feed
         string credit;   // under the picture
         string site;     // the place the items come from
+        string vote;     // where the site asks "was it a good one?" for its newest item (its front page; an older item has the question on its own page): "" none
     };
     struct Item {
         QString title;
@@ -64,7 +65,7 @@ private:
     VBox box;
     QComboBox * items{};
     QLabel * note{};
-    QPushButton * openItem{}, * openChart{};
+    QPushButton * openItem{}, * openChart{}, * openVote{};
     QPlainTextEdit * text{};
     ZoomImage image;
     vector<Item> list;
