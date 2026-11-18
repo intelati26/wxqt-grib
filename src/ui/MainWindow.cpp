@@ -195,24 +195,85 @@ void MainWindow::reload() {
                 new FutureText{this, item.getPrefToken(), [this, t] (const auto& s) { textWidgets.at(t).setText(s); }};
             }
         }
-        for (const auto& item : UIPreferences::homeScreenItemsImage) {
-            if (item.isEnabled()) {
-                loadThumbnail(item.getPrefToken());
-            }
-        }
+        const auto generation = ++stageGeneration;
         if (UIPreferences::mainScreenSevereDashboard) {
-            new FutureVoid{this, [this] { downloadWatch(); }, [this] { updateWatch(); }};
+            new FutureVoid{this, [this] { downloadWatch(); }, [this, generation] {
+                               updateWatch();
+                               startStage(generation, 1);
+                           }};
+            QTimer::singleShot(25000, this, [this, generation] { startStage(generation, 1); });   // (a dashboard that does not come must not hold the pictures back)
         } else {
             boxSevereDashboard.removeChildren();
+            startStage(generation, 1);
         }
     // }
 }
 
-void MainWindow::loadThumbnail(const string& token) {
+namespace {
+    // 1 the pictures that are a download, 2 MRMS, 3 the model charts, 4 the Nice weather day
+    int stageOf(const string& token) {
+        if (token.compare(0, 5, "MRMS_") == 0) {
+            return 2;
+        }
+        if (token == "NICE_DAY1") {
+            return 4;
+        }
+        if (token == "RTMA_AREA" || token == "RTMA_SECOND" || token == "GRIB_LATEST" || token == "CFS_30DAY" || token.compare(0, 8, "WPC_PPP_") == 0 || token.compare(0, 7, "VORTEX_") == 0) {
+            return 3;
+        }
+        return 1;
+    }
+}
+
+void MainWindow::startStage(unsigned generation, int stage) {
+    static int started = 0;   // (per generation: the stage the pictures are at; the dashboard's callback and its timer both call, the second is ignored)
+    static unsigned startedGeneration = 0;
+    if (generation != stageGeneration) {
+        return;   // the screen was reloaded meanwhile: this chain is the old one
+    }
+    if (startedGeneration != generation) {
+        startedGeneration = generation;
+        started = 0;
+    }
+    if (stage <= started) {
+        return;
+    }
+    started = stage;
+    for (; stage <= 4; stage++) {
+        started = stage;
+        std::vector<string> tokens;
+        for (const auto& token : UIPreferences::homeScreenImageOrder.getTokens()) {   // the order of the home screen: the person's own
+            for (const auto& item : UIPreferences::homeScreenItemsImage) {
+                if (item.getPrefToken() == token && item.isEnabled() && stageOf(token) == stage) {
+                    tokens.push_back(token);
+                }
+            }
+        }
+        if (tokens.empty()) {
+            continue;
+        }
+        const auto waiting = std::make_shared<int>(static_cast<int>(tokens.size()));
+        const auto advance = [this, generation, stage, waiting] {
+            if (--*waiting == 0) {
+                startStage(generation, stage + 1);
+            }
+        };
+        for (const auto& token : tokens) {
+            loadThumbnail(token, advance);
+        }
+        QTimer::singleShot(25000, this, [this, generation, stage] { startStage(generation, stage + 1); });   // (a stage that is slow does not hold the next one for more than that)
+        return;
+    }
+}
+
+void MainWindow::loadThumbnail(const string& token, std::function<void()> done) {
     const auto bytes = std::make_shared<QByteArray>();
     new FutureVoid{this,
         [token, bytes] { *bytes = HomeThumbnails::fetch(token); },
-        [this, token, bytes] {
+        [this, token, bytes, done] {
+            if (done) {
+                done();
+            }
             const auto found = imageWidgets.find(token);   // the layout may have been rebuilt meanwhile
             const auto * entry = HomeThumbnails::find(token);
             if (found != imageWidgets.end() && !bytes->isEmpty()) {

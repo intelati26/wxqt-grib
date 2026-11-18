@@ -6,6 +6,7 @@
 #ifndef MAINWINDOW_H
 #define MAINWINDOW_H
 
+#include <functional>
 #include <string>
 #include <unordered_map>
 #include <vector>
@@ -65,7 +66,12 @@ private:
     static string computeTokenString();
     void locationChange();
     void addWidgets();
-    void loadThumbnail(const string& token);   // fetch and show one home picture
+    void loadThumbnail(const string& token, std::function<void()> done = {});   // fetch and show one home picture (done: called on the interface thread when it has come or failed)
+    // The pictures at start are fetched in stages, not all at once: the severe dashboard, then the plain downloaded pictures in the order of the home screen, then MRMS, then the model charts,
+    // then the Nice weather day (each stage once the one before has finished, or after 25 seconds)
+    void startStage(unsigned generation, int stage);
+    unsigned stageGeneration{0};
+    int stageWaiting{0};
     void arrangeColumns();
     void launchImageScreen(const string&);
 public:
