@@ -4,6 +4,7 @@
 // *****************************************************************************
 
 #include "util/HomeThumbnails.h"
+#include "misc/FeedViewer.h"
 #include "misc/NiceWeatherCache.h"
 #include <QBuffer>
 #include "space/UtilitySun.h"
@@ -82,6 +83,7 @@ const vector<HomeThumbnails::Entry>& HomeThumbnails::all() {
         {"GRIB_LATEST", "Model viewer - your last model, chart and area, newest run", "grib.png", true, false},
         {"VORTEX_10MB", "Polar vortex - 10 mb wind and height, north pole (GFS)", "", true, false},
         {"VORTEX_THETA", "Polar vortex - isentropic potential vorticity, 850 K, north pole (GFS)", "", true, false},
+        {"IEM_FEATURE", "Chart of the day (Iowa Environmental Mesonet's daily feature: someone else's interesting data, credited and linked)", "", false, false},
     };
     return entries;
 }
@@ -129,6 +131,7 @@ namespace {
         {"NICE_DAY1", {"Nice weather: day 1", "Where the daytime weather is best for being outside today or tomorrow in five levels (Decent, Fair, Nice, Beautiful, Perfect), made from the National Blend of Models' temperature, dewpoint, cloud, gusts and rain chance. A work in progress. Click for the days 1 to 7."}},
         {"GRIB_LATEST", {"Model chart", "The model, chart and area you last looked at in the Model Viewer, from the newest run."}},
         {"VORTEX_10MB", {"Polar vortex, 10 mb", "The stratospheric polar vortex as the GFS has it now: the wind speed and height at 10 mb (about 30 km) from the pole to 30 N on a polar map, the newest analysis. A click opens the master map with the same chart; its Export has the history of the vortex through the season."}},
+        {"IEM_FEATURE", {"Chart of the day", "The Iowa Environmental Mesonet's daily feature (Iowa State University; Daryl Herzmann): a chart of the day with a note about it, as they publish it. A click opens the feed: the notes of the last weeks, with links to their site and to the tool that makes the same chart."}},
         {"VORTEX_THETA", {"Polar vortex, 850 K", "The polar vortex on the 850 K isentropic surface (near 10 mb): potential vorticity, wind and pressure as the GFS has it now, from the pole to 30 N on a polar map. The air does not cross an isentropic surface, so the vortex is its edge. A click opens the master map with the same chart."}},
         };
         return table;
@@ -232,6 +235,11 @@ namespace {
 }
 
 QByteArray HomeThumbnails::fetch(const string& token) {
+    if (token == "IEM_FEATURE") {   // the newest item of the feed (kept 30 minutes) and its picture
+        FeedViewer::Item item;
+        QByteArray image;
+        return FeedViewer::newest(FeedViewer::iem(), item, image) ? image : QByteArray{};
+    }
     if (token == "VORTEX_10MB") {
         return polarPicture("10_wnd_ht", "Polar vortex: 10 mb wind and height");
     }

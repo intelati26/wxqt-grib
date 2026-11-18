@@ -84,7 +84,8 @@ for (const std::string source : {"NBM"}) {
         std::vector<int> hours;
         for (int f = std::max(3, 24 * (day - 1) - 12); f <= 24 * (day - 1) + 30; f += 3) {   // (the daytime of the day is about 12Z to 04Z the next day, by the sun from the east coast to the west: from a 23Z run, 11 hours
                                                                                           // before the run's 24 (day - 1), from a 00Z run 28 hours after)
-            if (!blend || f <= 36 || f % 6 == 0) {
+            static const bool everySix = qEnvironmentVariableIsSet("WXQT_NICE_6H");   // (a test: the blend's 3 hourly hours to 36 are left out, only the 6 hourly ones are read)
+            if (!blend || (f <= 36 && !everySix) || f % 6 == 0) {
                 hours.push_back(f);
             }
         }

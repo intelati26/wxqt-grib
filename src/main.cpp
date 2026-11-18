@@ -69,6 +69,7 @@
 #include "gfs/Hdf5Range.h"
 #include "tropical/PhaseViewer.h"
 #include "misc/AhdViewer.h"
+#include "misc/FeedViewer.h"
 #include "rivers/RiverForecastList.h"
 #include "misc/ProductViewer.h"
 #include "misc/SevereDashboard.h"
@@ -486,6 +487,8 @@ int main(int argc, char * argv[]) {
                 if (!qEnvironmentVariable("WXQT_TABLE_OUT").isEmpty()) {
                     QTimer::singleShot(qEnvironmentVariableIntValue("WXQT_TABLE_DELAY") > 0 ? qEnvironmentVariableIntValue("WXQT_TABLE_DELAY") : 20000, list, [list] { QMetaObject::invokeMethod(list, [list] { list->exportNow(); }); });
                 }
+            } else if (route == "feed") {   // WXQT_OPEN=feed: the daily feature window (the Iowa Environmental Mesonet)
+                new FeedViewer{&w, FeedViewer::iem()};
             } else if (route == "ahd") {   // WXQT_OPEN=ahd: the Area Hydrologic Discussion window
                 new AhdViewer{&w};
             } else if (route == "radar") {   // WXQT_OPEN=radar: the radar doorway (the master map at the current location with MRMS, warnings and discussions)

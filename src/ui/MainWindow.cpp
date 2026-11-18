@@ -9,6 +9,7 @@
 #include "models/ModelScreen.h"
 #include "models/AnalysisLoop.h"
 #include "gfs/GfsModels.h"
+#include "misc/FeedViewer.h"
 #include "misc/OutlookScreen.h"
 #include "misc/UtilityOpenMeteoPressure.h"
 #include "vis/GoesViewer.h"
@@ -536,6 +537,8 @@ void MainWindow::launchImageScreen(const string& token) {
         chosen.param = "cfs30_t2m_precip";
         chosen.sector = "CONUS";
         toolbar.launchModelViewer()->applySelection(chosen);   // the Model Viewer on the CFS 30 day chart
+    } else if (token == "IEM_FEATURE") {
+        new FeedViewer{this, FeedViewer::iem()};   // the feed: the notes of the last weeks, with the links to the site that makes them
     } else if (token == "NICE_DAY1") {
         OutlookScreen::open(this, OutlookNav::NiceDay, 0);   // the outlook window's page of the nice weather outlook, on day 1
     } else if (token.compare(0, 8, "WPC_PPP_") == 0) {
