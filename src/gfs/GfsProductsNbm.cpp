@@ -84,8 +84,11 @@ for (const std::string source : {"NBM"}) {
         std::vector<int> hours;
         for (int f = std::max(3, 24 * (day - 1) - 12); f <= 24 * (day - 1) + 30; f += 3) {   // (the daytime of the day is about 12Z to 04Z the next day, by the sun from the east coast to the west: from a 23Z run, 11 hours
                                                                                           // before the run's 24 (day - 1), from a 00Z run 28 hours after)
-            static const bool everySix = qEnvironmentVariableIsSet("WXQT_NICE_6H");   // (a test: the blend's 3 hourly hours to 36 are left out, only the 6 hourly ones are read)
-            if (!blend || (f <= 36 && !everySix) || f % 6 == 0) {
+            // The blend's 3 hourly hours to 36 are left out: only the 6 hourly ones are read (the user, 2026-11-18: "six hour only for now"). Measured against his levels on 11 days (16 to 18 Nov, days
+            // 1 and 2): the same level in +0.75 points more of the cities on average (-1.2 to +2.8), within one level the same (+0.0), 2 to 8% of the cells change level; and days 1 and 2 are
+            // 56 and 45 MB lighter (a day of 3 hourly hours is 10 to 12 hours of 11.2 MB). WXQT_NICE_3H brings the 3 hourly hours back (a test; the marks were fitted with them).
+            static const bool threeHourly = qEnvironmentVariableIsSet("WXQT_NICE_3H");
+            if (!blend || (f <= 36 && threeHourly) || f % 6 == 0) {
                 hours.push_back(f);
             }
         }
