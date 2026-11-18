@@ -1,0 +1,122 @@
+# TRIAL: Qt built by vcpkg (qtbase, .github/vcpkg-qt/vcpkg.json) instead of aqtinstall's download, so that Qt, GDAL and the other libraries come from one place and move with vcpkg's ports.
+# Run by hand (gh workflow run "Qt from vcpkg (trial)" --ref main); it builds Qt (cached), builds wxqt with it and deploys it, and the packages' workflow (build.yml) is not touched until
+# this passes. The Windows job first: Linux needs the X11 development packages (vcpkg lists them) and is the second step.
+name: Qt from vcpkg (trial)
+
+on:
+  workflow_dispatch:
+
+concurrency:
+  group: qt-vcpkg-trial
+  cancel-in-progress: true
+
+jobs:
+  windows-x64:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v7
+
+      - name: Qt cache key
+        id: qt-key
+        shell: pwsh
+        run: |
+          $manifest = (Get-FileHash .github/vcpkg-qt/vcpkg.json).Hash + (Get-FileHash .github/vcpkg/triplets/x64-windows-release.cmake).Hash.Substring(0, 8)
+          "key=qt-x64-windows-release-v1-$manifest" >> $env:GITHUB_OUTPUT
+
+      - name: Restore Qt build
+        id: qt-cache
+        uses: actions/cache@v6
+        with:
+          path: D:/qt-vcpkg
+          key: ${{ steps.qt-key.outputs.key }}
+
+      # qtbase takes a long while to build (an hour or more the first time): the install tree is cached
+      - name: Build Qt (vcpkg)
+        if: steps.qt-cache.outputs.cache-hit != 'true'
+        shell: pwsh
+        timeout-minutes: 300
+        run: |
+          & "$env:VCPKG_INSTALLATION_ROOT/vcpkg.exe" install `
+            --x-manifest-root=.github/vcpkg-qt `
+            --x-install-root=D:/qt-vcpkg `
+            --x-buildtrees-root=D:/vbq `
+            --overlay-triplets=.github/vcpkg/triplets `
+            --triplet x64-windows-release `
+            --clean-after-build
+          if ($LASTEXITCODE -ne 0) { throw "vcpkg install failed" }
+
+      - name: What vcpkg made
+        shell: pwsh
+        run: |
+          $root = "D:/qt-vcpkg/x64-windows-release"
+          Get-ChildItem "$root/tools/Qt6" -Recurse -Depth 2 | Select-Object -First 60 | ForEach-Object { $_.FullName }
+          "---- qt_release.conf"
+          Get-Content "$root/tools/Qt6/qt_release.conf" -ErrorAction SilentlyContinue
+          "---- plugins"
+          Get-ChildItem "$root/Qt6/plugins", "$root/plugins" -ErrorAction SilentlyContinue | ForEach-Object { $_.FullName }
+
+      - name: Set up MSVC environment
+        shell: pwsh
+        run: |
+          $vswhere = "${env:ProgramFiles(x86)}\Microsoft Visual Studio\Installer\vswhere.exe"
+          $vs = & $vswhere -latest -products * -requires Microsoft.VisualStudio.Component.VC.Tools.x86.x64 -property installationPath
+          if (-not $vs) { throw "Visual Studio with the C++ x64 tools was not found" }
+          $vcvars = Join-Path $vs 'VC\Auxiliary\Build\vcvars64.bat'
+          cmd /c "`"$vcvars`" >nul && set" | ForEach-Object {
+            if ($_ -match '^([^=]+)=(.*)$') {
+              "$($Matches[1])=$($Matches[2])" | Out-File -Append -Encoding utf8 $env:GITHUB_ENV
+            }
+          }
+
+      # vcpkg's Qt: the tools (qmake, moc, rcc, uic, windeployqt) are in tools/Qt6/bin, the DLLs in bin
+      - name: Put Qt on the PATH
+        shell: pwsh
+        run: |
+          $root = "D:/qt-vcpkg/x64-windows-release"
+          "$root/tools/Qt6/bin" | Out-File -Append -Encoding utf8 $env:GITHUB_PATH
+          "$root/bin" | Out-File -Append -Encoding utf8 $env:GITHUB_PATH
+          "QT_PLUGIN_PATH=$root/Qt6/plugins" | Out-File -Append -Encoding utf8 $env:GITHUB_ENV
+
+      - name: qmake works
+        shell: pwsh
+        run: |
+          qmake -v
+          qmake -query
+
+      - name: Generate resources + .pro
+        shell: pwsh
+        run: |
+          cd resourceCreation
+          python createResourcesImage.py
+          python createResourcesRes.py
+          cd ..
+          python makeAll.py --pro --qt5
+
+      - name: Get jom (parallel nmake)
+        shell: pwsh
+        run: |
+          Invoke-WebRequest -Uri https://download.qt.io/official_releases/jom/jom.zip -OutFile jom.zip
+          Expand-Archive jom.zip -DestinationPath D:/jom
+          "D:/jom" | Out-File -Append -Encoding utf8 $env:GITHUB_PATH
+
+      - name: Build
+        shell: cmd
+        run: |
+          jom -j %NUMBER_OF_PROCESSORS%
+
+      - name: windeployqt
+        shell: pwsh
+        run: |
+          New-Item -ItemType Directory -Force dist/trial | Out-Null
+          Copy-Item build/release/wxqt.exe dist/trial/
+          windeployqt --release --compiler-runtime --no-translations --no-opengl-sw --no-system-d3d-compiler dist/trial/wxqt.exe
+          if ($LASTEXITCODE -ne 0) { throw "windeployqt failed" }
+          Get-ChildItem dist/trial -Recurse | Select-Object -First 80 | ForEach-Object { $_.FullName.Replace((Get-Location).Path, '') }
+          $size = (Get-ChildItem dist/trial -Recurse | Measure-Object Length -Sum).Sum / 1MB
+          "Qt trial package folder: {0:N0} MB" -f $size
+          # it must start: the platform plugin is found next to it
+          $p = Start-Process -FilePath dist/trial/wxqt.exe -PassThru
+          Start-Sleep -Seconds 12
+          if ($p.HasExited) { throw "wxqt.exe exited at once (code $($p.ExitCode))" }
+          $p.Kill()
+          "wxqt.exe started with vcpkg's Qt"

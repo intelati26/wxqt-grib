@@ -1,0 +1,51 @@
+{
+  "name": "wxqt-qt",
+  "version-string": "0",
+  "description": "Qt for the packages, built by vcpkg (see .github/workflows/qt-vcpkg-trial.yml): only what wxqt uses - QtCore, QtGui, QtWidgets, QtNetwork (QT += core gui network widgets in wxqt.pro) - with the platform plugin, image formats and TLS it needs, and windeployqt on Windows. No SQL, no D-Bus, no ICU on Windows (Windows has its own), no Vulkan, no Wayland.",
+  "dependencies": [
+    {
+      "name": "qtbase",
+      "default-features": false,
+      "features": [
+        "concurrent",
+        "doubleconversion",
+        "freetype",
+        "gui",
+        "harfbuzz",
+        "jpeg",
+        "network",
+        "opengl",
+        "pcre2",
+        "png",
+        "thread",
+        "widgets",
+        "zstd"
+      ]
+    },
+    {
+      "name": "qtbase",
+      "platform": "windows",
+      "default-features": false,
+      "features": [
+        "windeployqt"
+      ]
+    },
+    {
+      "name": "qtbase",
+      "platform": "linux",
+      "default-features": false,
+      "features": [
+        "dbus",
+        "fontconfig",
+        "icu",
+        "openssl",
+        "xcb",
+        "xcb-xlib",
+        "xkb",
+        "xkbcommon-x11",
+        "xlib",
+        "xrender"
+      ]
+    }
+  ]
+}
