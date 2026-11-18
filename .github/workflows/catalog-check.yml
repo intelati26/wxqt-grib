@@ -173,7 +173,7 @@ jobs:
               open(os.environ['GITHUB_OUTPUT'], 'a').write('trouble=0\n')
               raise SystemExit(0)
           # the catalogue check runs after this one and may add "Changed"; the state read here is the source's own
-          trouble = [m for m in data if m['state'] in ('Moved', 'Down', 'Retired')]
+          trouble = [m for m in data if not m['skipped'] and m['state'] in ('Moved', 'Down', 'Retired')]   # (a model left out of the check, source_check = off, is never trouble)
           counts = {}
           for m in data:
               if not m['skipped']:

@@ -517,6 +517,15 @@ GfsModelFile::Parsed GfsModelFile::parse(const std::string& original, const std:
             def.legacyLabel = value;
         } else if (key == "group") {
             def.group = value;
+        } else if (key == "source_check") {   // source_check = off | why: the daily checks leave the model out (archive only; a run on this computer; a source that is gone for good)
+            const auto bar = value.find('|');
+            auto word = value.substr(0, bar);
+            word.erase(word.find_last_not_of(' ') + 1);
+            def.noCheck = word == "off";
+            if (bar != std::string::npos) {
+                def.noCheckWhy = value.substr(bar + 1);
+                def.noCheckWhy.erase(0, def.noCheckWhy.find_first_not_of(' '));
+            }
         } else if (key == "alternate") {
             const auto bar = value.find('|');
             def.alternate = value.substr(0, bar);

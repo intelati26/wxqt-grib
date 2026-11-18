@@ -63,6 +63,8 @@ namespace GfsModels {
         bool hourlyRuns{false};                        // a run every hour in the run list, not four a day
         bool subhourly{false};                         // its 15 minute surface files are read (the RRFS and HRRR): the model screen has a button for the 15 minute viewer
         int cycleStep{6};                              // hours between runs when not hourly (GEPS: 12, so the run list is 00Z and 12Z)
+        bool noCheck{false};                           // `source_check = off | why`: the daily checks (the state of the source, the catalogue) leave it out: archive only, or a source that is not a server (a run on this computer)
+        std::string noCheckWhy;                        // the words after the "|"
         bool storm{false};                             // the model is run for a storm: its screen picks the storm, and its grid is the storm's
         bool overlays{false};                          // the GFS set of lines and wind barbs can be ticked onto its charts (a model may have overlays of its own besides)
         bool recipeList{false};                        // the model screen lists the charts in the registry (false: the older list kept from the model guidance site)

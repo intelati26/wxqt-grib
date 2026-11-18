@@ -265,6 +265,7 @@ list = true
 # one tar of gzipped GRIB2 files, an hour each; the tar is read by range and only the hour it needs is taken out (kind = tar). The tar appears when the run is done, about 8 hours after
 # its time. Experimental research output of the NOAA National Severe Storms Laboratory: not for forecasting.
 id = MPAS-HT
+source_check = off | experimental NSSL run, its server is not kept up
 label = NSSL experimental MPAS-HTPO, 3 km (research output, not for forecasting)
 source_label = NOAA/NSSL experimental MPAS-HTPO (started from the HRRR), research output: not for forecasting
 group = Convection allowing
@@ -291,6 +292,7 @@ clone_pieces = false
 # NSSL's second experimental MPAS run on its data server ("mpasrn" tars, 00Z and 12Z, about 15 hours after the run time), started from the experimental EMC RRFS with the NSSL 2-moment microphysics (the CAMs page says so): 3 km over the contiguous United States,
 # the same GRIB2 files and the same loader as the MPAS-HT. Experimental research output of the NOAA National Severe Storms Laboratory: not for forecasting.
 id = MPAS-RN
+source_check = off | experimental NSSL run, its server is not kept up
 label = NSSL experimental MPAS-RN, 3 km, started from the RRFS (research output, not for forecasting)
 source_label = NOAA/NSSL experimental MPAS-RN (started from the EMC RRFS), research output: not for forecasting
 group = Convection allowing
@@ -1727,6 +1729,7 @@ clone_pieces = false
 # the run's own (Lambert conformal), put on latitude / longitude from the file's XLAT / XLONG; the winds are turned east / north with its SINALPHA / COSALPHA; there is no sea level pressure in the files, so it is
 # worked out from the surface pressure, the 2 m temperature and the terrain.
 id = ARWEN
+source_check = off | a run on this computer: no server to ask
 group = Convection allowing
 label = ArWen regional run (WRF history on this computer)
 source_label = ArWen regional run (local)
@@ -1757,6 +1760,7 @@ clone_pieces = false
 # WOOF-NAM (recastsystems/woof-nam), the GPU port of the NAM's NMMB that NCEP retired on 2026-11-03, as it ran on this computer: the hourly wrfout_d01 history files of each run (`runs/<name>/run` under
 # ~/woof-nam or ~/Claude/woof-nam; the setting WRF_FOLDERS_WOOFNAM says where else). Its nests are on the NAM's rotated latitude / longitude grid, put on a regular one from the file's XLAT / XLONG.
 id = WOOF-NAM
+source_check = off | a run on this computer: no server to ask
 group = Convection allowing
 label = WOOF-NAM, the NAM's NMMB on a GPU (runs on this computer)
 source_label = WOOF-NAM (local run)
@@ -2094,6 +2098,7 @@ clone_rename = PRMSL:MSLMA
         {"HREF", R"MODEL(
 # the High-Resolution Ensemble Forecast on NOMADS: its own ready-made products (mean, pmmn, lpmm, avrg, sprd, prob, eas, ffri)
 id = HREF
+source_check = off | archive only: retired in Nov 2026, NOMADS no longer has it
 alternate = REFS | its successor, the RRFS ensemble, from NOAA's AWS bucket
 label = NOAA/NCEP HREF, 10 member 3 km ensemble, retired Nov 2026
 group = Archive

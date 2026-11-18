@@ -208,6 +208,11 @@ GfsRender::SourceCheck GfsRender::checkSource(Session& session, const std::strin
         result.detail = "needs an active storm to look at";
         return finish();
     }
+    if (def->noCheck) {   // (source_check = off in its file)
+        result.skipped = true;
+        result.detail = "not checked" + (def->noCheckWhy.empty() ? std::string{} : ": " + def->noCheckWhy);
+        return finish();
+    }
     if (UtilityGrib::gdalBinDir().empty()) {
         result.detail = "GDAL not found";
         return finish();
@@ -271,6 +276,10 @@ CatalogCheck::Report GfsRender::checkCatalog(Session& session, const std::string
     skipped.label = def->label;
     if (def->storm) {
         skipped.note = "needs an active storm to look at";
+        return skipped;
+    }
+    if (def->noCheck) {
+        skipped.note = def->noCheckWhy.empty() ? std::string{"left out of the check (source_check = off)"} : def->noCheckWhy;
         return skipped;
     }
     if (UtilityGrib::gdalBinDir().empty()) {
