@@ -8,6 +8,7 @@
 #include "drought/DroughtViewer.h"
 #include "drought/DroughtDaily.h"
 #include "climate/GridAnalysis.h"
+#include "util/UtilityZip.h"
 #include "drought/DroughtRain.h"
 #include "hurricane/Coast.h"
 #include "climate/UtilityAcisClimate.h"
@@ -763,11 +764,17 @@ DroughtViewer::DroughtViewer(Window * parent)
     box.getAndShow(this);
 
     const std::string cpc = "https://www.cpc.ncep.noaa.gov/products/";
+    const std::string gis = "https://ftp.cpc.ncep.noaa.gov/GIS/USDM_Products/";
     outlooks = {{"Drought outlook, this month (CPC; zoomable)", cpc + "expert_assessment/mdohomeweb.png", "", "mdo"},
                 {"Drought outlook, the season (CPC; zoomable)", cpc + "expert_assessment/sdohomeweb.png", "", "sdo"},
                 {"Soil moisture percentile, ensemble, latest day (CPC; zoomable)", cpc + "Drought/Figures/smp/ens.png", cpc + "Drought/Figures/smp/ens.tif"},
                 {"Soil moisture percentile, ensemble, last 7 days (CPC; zoomable)", cpc + "Drought/Figures/smp/ens_7.png", cpc + "Drought/Figures/smp/ens_7.tif"},
                 {"Soil moisture percentile, ensemble, last 30 days (CPC; zoomable)", cpc + "Drought/Figures/smp/ens_30.png", cpc + "Drought/Figures/smp/ens_30.tif"},
+                {"Evaporative demand (EDDI), last 1 week (CPC; zoomable)", "", "eddi:" + gis + "EDDI/EDDI_Weekly_TIFFS.zip|EDDI_ETrs_01wk.tif"},
+                {"Evaporative demand (EDDI), last 4 weeks (CPC; zoomable)", "", "eddi:" + gis + "EDDI/EDDI_Weekly_TIFFS.zip|EDDI_ETrs_04wk.tif"},
+                {"Evaporative demand (EDDI), last 12 weeks (CPC; zoomable)", "", "eddi:" + gis + "EDDI/EDDI_Weekly_TIFFS.zip|EDDI_ETrs_12wk.tif"},
+                {"Evaporative demand (EDDI), last 3 months (CPC; zoomable)", "", "eddi:" + gis + "EDDI/EDDI_Monthly_TIFFS.zip|EDDI_ETrs_03mn.tif"},
+                {"Evaporative demand (EDDI), last 12 months (CPC; zoomable)", "", "eddi:" + gis + "EDDI/EDDI_Monthly_TIFFS.zip|EDDI_ETrs_12mn.tif"},
                 {"Soil moisture rank, daily (CPC leaky bucket)", cpc + "Soilmst_Monitoring/Figures/daily/curr.w.rank.daily.gif"},
                 {"Standardized precipitation index, 3 months", cpc + "Drought/Figures/index/spi3.web.gif"},
                 {"Standardized precipitation index, 6 months", cpc + "Drought/Figures/index/spi6.web.gif"},
@@ -1920,9 +1927,20 @@ void DroughtViewer::loadSoil(const std::string& url, const std::string& label) {
         std::string error, valid;
     };
     auto result = std::make_shared<Loaded>();
-    new FutureVoid{this, [url, result] {
+    const bool eddi = url.rfind("eddi:", 0) == 0;   // "eddi:<zip url>|<file in it>": the CPC's evaporative demand index, a zip of GeoTIFFs
+    new FutureVoid{this, [url, result, eddi] {
                        const NetManager::Scope background{NetManager::Priority::Visible};
-                       const auto bytes = URL::getBytes(url).toStdString();
+                       std::string bytes;
+                       if (eddi) {
+                           const auto bar = url.find('|');
+                           const auto zip = URL::getBytes(url.substr(5, bar - 5)).toStdString();
+                           std::map<std::string, std::string> files;
+                           UtilityZip::read(zip, files);
+                           const auto found = files.find(url.substr(bar + 1));
+                           bytes = found == files.end() ? std::string{} : found->second;
+                       } else {
+                           bytes = URL::getBytes(url).toStdString();
+                       }
                        const auto bin = UtilityGrib::gdalBinDir();
                        if (bytes.size() < 1000 || bin.empty()) {
                            result->error = bytes.size() < 1000 ? "the grid could not be downloaded" : "GDAL not found";
@@ -1941,9 +1959,14 @@ void DroughtViewer::loadSoil(const std::string& url, const std::string& label) {
                        QProcess info;
                        info.start(QString::fromStdString(bin) + "/gdalinfo", {"-mdd", "all", tif.fileName()});
                        info.waitForFinished(30000);
-                       const auto date = QRegularExpression{"VALID_DATE=(\\d{8})"}.match(QString::fromUtf8(info.readAllStandardOutput()));
+                       const auto infoText = QString::fromUtf8(info.readAllStandardOutput());
+                       const auto date = QRegularExpression{"VALID_DATE=(\\d{8})"}.match(infoText);
                        if (date.hasMatch()) {
                            result->valid = date.captured(1).toStdString();
+                       }
+                       const auto validTime = QRegularExpression{"ValidTime=(\\d{4})-(\\d{2})-(\\d{2})"}.match(infoText);
+                       if (validTime.hasMatch()) {
+                           result->valid = (validTime.captured(1) + validTime.captured(2) + validTime.captured(3)).toStdString();
                        }
                        QFile data{raw}, header{raw.left(raw.size() - 4) + ".hdr"};
                        const auto cells = data.open(QIODevice::ReadOnly) ? data.readAll() : QByteArray{};
@@ -1973,7 +1996,7 @@ void DroughtViewer::loadSoil(const std::string& url, const std::string& label) {
                            }
                        }
                        for (auto& v : values) {
-                           if (v < -1.0f || v > 100.5f) {   // -999: no value
+                           if (eddi ? (v < -20.0f || v > 20.0f) : (v < -1.0f || v > 100.5f)) {   // -999 (or the huge no-data number): no value
                                v = std::nanf("");
                            }
                        }
@@ -1982,9 +2005,15 @@ void DroughtViewer::loadSoil(const std::string& url, const std::string& label) {
                            const char * color;
                            const char * text;
                        };
+                       static const Band eddiBands[] = {{-99.0f, "#0b3d91", "-2 and under (wet: low demand)"}, {-2.0f, "#2166ac", "-2 to -1.5"}, {-1.5f, "#4393c3", "-1.5 to -1"}, {-1.0f, "#92c5de", "-1 to -0.5"},
+                                                        {-0.5f, "#ffffff", "-0.5 to 0.5 (normal)"}, {0.5f, "#ffe27a", "0.5 to 1"}, {1.0f, "#fdb63f", "1 to 1.5"}, {1.5f, "#ff6a00", "1.5 to 2"},
+                                                        {2.0f, "#a50000", "2 and over (dry: high demand)"}};
                        static const Band bands[] = {{0.0f, "#a50000", "under 2"}, {2.0f, "#e31a1c", "2 to 5"}, {5.0f, "#ff6a00", "5 to 10"}, {10.0f, "#fdb63f", "10 to 20"}, {20.0f, "#ffe27a", "20 to 30"},
                                                     {30.0f, "#ffffff", "30 to 70 (middle)"}, {70.0f, "#dff5d8", "70 to 80"}, {80.0f, "#b2f0a0", "80 to 90"}, {90.0f, "#6fdc6f", "90 to 95"},
                                                     {95.0f, "#3cb94b", "95 to 98"}, {98.0f, "#14962b", "98 and over"}};
+                       const Band * table = eddi ? eddiBands : bands;
+                       const int count = eddi ? 9 : 11;
+                       const float clearFrom = eddi ? -0.5f : 30.0f, clearTo = eddi ? 0.5f : 70.0f;
                        auto layer = std::make_shared<DroughtMap::FieldLayer>();
                        layer->west = info2.captured(1).toDouble();
                        layer->north = info2.captured(2).toDouble();
@@ -1992,33 +2021,33 @@ void DroughtViewer::loadSoil(const std::string& url, const std::string& label) {
                        layer->columns = columns;
                        layer->rows = rows;
                        layer->values = values;
-                       layer->unit = "percentile";
-                       layer->decimals = 0;
+                       layer->unit = eddi ? "EDDI" : "percentile";
+                       layer->decimals = eddi ? 2 : 0;
                        layer->image = QImage{columns, rows, QImage::Format_ARGB32_Premultiplied};
                        layer->image.fill(Qt::transparent);
                        for (int row = 0; row < rows; row++) {
                            auto * line = reinterpret_cast<QRgb *>(layer->image.scanLine(row));
                            for (int column = 0; column < columns; column++) {
                                const float v = values[static_cast<size_t>(row) * static_cast<size_t>(columns) + static_cast<size_t>(column)];
-                               if (std::isnan(v) || (v >= 30.0f && v < 70.0f)) {   // the middle is left clear, so the land shows through
+                               if (std::isnan(v) || (v >= clearFrom && v < clearTo)) {   // the middle is left clear, so the land shows through
                                    continue;
                                }
                                int band = 0;
-                               for (int k = 0; k < 11; k++) {
-                                   if (v >= bands[k].from) {
+                               for (int k = 0; k < count; k++) {
+                                   if (v >= table[k].from) {
                                        band = k;
                                    }
                                }
-                               const QColor c{bands[band].color};
+                               const QColor c{table[band].color};
                                line[column] = qPremultiply(qRgba(c.red(), c.green(), c.blue(), 235));
                            }
                        }
-                       for (int k = 10; k >= 0; k--) {
-                           layer->key.emplace_back(QColor{bands[k].color}, QString{bands[k].text});
+                       for (int k = count - 1; k >= 0; k--) {
+                           layer->key.emplace_back(QColor{table[k].color}, QString{table[k].text});
                        }
                        result->layer = layer;
                    },
-                   [this, result, mine, label] {
+                   [this, result, mine, label, eddi] {
                        if (closed || mine != soilGeneration) {
                            return;
                        }
@@ -2030,7 +2059,9 @@ void DroughtViewer::loadSoil(const std::string& url, const std::string& label) {
                        soilMap->setField(result->layer);
                        const auto valid = QDate::fromString(QString::fromStdString(result->valid), "yyyyMMdd");
                        soilMap->setCaption(QString::fromStdString(label) + (valid.isValid() ? "\nvalid " + valid.toString("MMM d, yyyy") : QString{}));
-                       textOutlook.setText(std::string{"NOAA Climate Prediction Center: the soil moisture percentile of the NLDAS land models' ensemble (1/8 degree), against 1979 to now. Wheel to zoom, drag to move, double click to fit the area."});
+                       textOutlook.setText(eddi ? std::string{"NOAA Physical Sciences Laboratory and Climate Prediction Center: the Evaporative Demand Drought Index (1/8 degree), how much more (red) or less (blue) the air is pulling water from the land than usual for the time of year, "
+                                                              "in standard units. It rises before the soil dries, so it is an early warning. Wheel to zoom, drag to move, double click to fit the area."}
+                                           : std::string{"NOAA Climate Prediction Center: the soil moisture percentile of the NLDAS land models' ensemble (1/8 degree), against 1979 to now. Wheel to zoom, drag to move, double click to fit the area."});
                    }};
 }
 
