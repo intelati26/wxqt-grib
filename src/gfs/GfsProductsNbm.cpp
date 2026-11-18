@@ -539,10 +539,20 @@ for (const std::string source : {"NBM"}) {
             g[partKeys[k]] = std::move(parts[k]);
         }
     };
-    // the smoke is the RRFS's (the blend has none): its near-surface fine particles at the same hours, for the first days it reaches
+    // the smoke is the RRFS's (the blend has none): its near-surface fine particles at the same hours, as far as its runs reach (hour 84)
     x.extras.push_back({"RRFS", nbmWant("s", "MASSDEN", "8 m above ground", "", "aerosol=Total aerosol|aerosol_size <2.5e-06"), "RRFS smoke", 0, [sampleHours] (int hour) { return sampleHours(std::clamp(hour / 24, 1, 8)); }, 6});
     {   // GEOS-FP's fine particles at the same hours (the daytime of the days it has): the dust, sea salt, black carbon, organic matter and sulfate of its 3 hour surface averages
-        const auto geosHours = [sampleHours] (int hour) { return sampleHours(std::clamp(hour / 24, 1, 8)); };
+        // (the user, 2026-11-18: "RRFS for smoke to hour 84") the RRFS's smoke is used as far as it reaches and GEOS-FP's only beyond: the RRFS's main runs go to hour 84 and the run that is
+        // taken may be up to 11 hours older than the blend's, so the blend's hours up to 72 are the RRFS's alone and the later ones have GEOS-FP's too (the larger of the two where both are there)
+        const auto geosHours = [sampleHours] (int hour) {
+            std::vector<int> later;
+            for (const int f : sampleHours(std::clamp(hour / 24, 1, 8))) {
+                if (f > 72) {
+                    later.push_back(f);
+                }
+            }
+            return later;
+        };
         x.extras.push_back({"GEOS-FP", GfsData::Want{"y", "PM25", "aerosol", "", "", "", "-127,22,-65,52"}, "GEOS-FP particles", 0, geosHours, 0});
     }
     x.fill = [] (const Grids& g) { return pick(g, "level"); };
