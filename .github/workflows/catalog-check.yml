@@ -139,33 +139,10 @@ jobs:
           path: |
             .xdg-data/wxqt/servers/catalog-status.json
             .xdg-data/wxqt/servers/servers-status.json
+            .xdg-data/wxqt/servers/sources-last.json
           key: catalog-status-none
           restore-keys: |
             catalog-status-
-
-      # What this check ran on, in the run's summary: the versions, and which of the caches were hit (a miss on GDAL means this run built it, about 20 minutes)
-      - name: Summary of what the check ran on
-        env:
-          QT_VERSION: ${{ steps.qt.outputs.version }}
-          GDAL_CACHE_HIT: ${{ steps.gdal-cache.outputs.cache-hit }}
-          GDAL_CACHE_KEY: ${{ steps.vcpkg-key.outputs.key }}
-          LAST_CACHE_HIT: ${{ steps.last.outputs.cache-hit }}
-          LAST_CACHE_KEY: ${{ steps.last.outputs.cache-matched-key }}
-        run: |
-          # (the cache action says "true" only for an exact key; the last check's results are found by the newest key that begins as theirs, so "false" with a key is a restore from an older one)
-          yesno() { if [ "$1" = true ]; then echo "hit"; elif [ -n "$2" ]; then echo "restored from an older key"; else echo "miss"; fi; }
-          gdal="$(PATH="$HOME/gdalbin:$PATH" gdalinfo --version 2>/dev/null | head -1)"
-          {
-            echo "## What the check ran on"
-            echo
-            echo "| | | |"
-            echo "|---|---|---|"
-            echo "| Qt | ${QT_VERSION:-unknown} | official binaries (aqtinstall; the packages' version) |"
-            echo "| GDAL | ${gdal:-unknown} | build cache: **$(yesno "$GDAL_CACHE_HIT" "")** (\`${GDAL_CACHE_KEY}\`) |"
-            echo "| the last check's results | $( [ -n "$LAST_CACHE_KEY" ] && echo found || echo "none: nothing can be gone on a first run" ) | cache: **$(yesno "$LAST_CACHE_HIT" "$LAST_CACHE_KEY")**${LAST_CACHE_KEY:+ (\`$LAST_CACHE_KEY\`)} |"
-            echo "| compiler | $(g++ --version | head -1) | sccache: see the Build step |"
-            echo "| qmake | $(qmake -v 2>/dev/null | sed -n 2p) | |"
-          } >> "$GITHUB_STEP_SUMMARY"
 
       - name: Ask every model's server (the state of each source)
         run: |
@@ -201,11 +178,36 @@ jobs:
           for m in data:
               if not m['skipped']:
                   counts[m['state'] or 'Unknown'] = counts.get(m['state'] or 'Unknown', 0) + 1
-          lines = ['## Sources', '', ', '.join(f'{n} {k}' for k, n in sorted(counts.items())) + '.', '']
-          if trouble:
-              lines += ['| model | state | server | answered by | what was found |', '|---|---|---|---|---|']
-              for m in trouble:
-                  lines.append(f"| {m['model']} | {m['state']} | {m['server']} | {m['moved_to']} | {m['detail'][:120]} |")
+          order = ['Down', 'Retired', 'Moved', 'Failing', 'Late', 'Changed', 'Unknown', 'OK']
+          rank = lambda m: order.index(m['state'] or 'Unknown') if (m['state'] or 'Unknown') in order else len(order)
+          lines = ['## Model sources', '', 'The state of each model\'s server, asked just now: ' + ', '.join(f'**{n} {k}**' for k, n in sorted(counts.items(), key=lambda kv: order.index(kv[0]) if kv[0] in order else 99)) + '.', '']
+          # what changed since the last check (its states are kept with the cache beside the history of the failures)
+          try:
+              before = {m['model']: (m['state'] or 'Unknown') for m in json.load(open('.xdg-data/wxqt/servers/sources-last.json')) if not m['skipped']}
+          except Exception:
+              before = None
+          if before is None:
+              lines += ['_No earlier check to compare with (the first run, or its record was lost)._', '']
+          else:
+              moved = [(m['model'], before[m['model']], m['state'] or 'Unknown') for m in data if not m['skipped'] and m['model'] in before and before[m['model']] != (m['state'] or 'Unknown')]
+              new = [m['model'] for m in data if not m['skipped'] and m['model'] not in before]
+              if moved or new:
+                  lines += ['### Changed since the last check', '', '| model | was | now |', '|---|---|---|']
+                  lines += [f'| {name} | {was} | {now} |' for name, was, now in sorted(moved)]
+                  lines += [f'| {name} | (not checked then) | {next(m["state"] or "Unknown" for m in data if m["model"] == name)} |' for name in sorted(new)]
+                  lines += ['']
+              else:
+                  lines += ['No model changed state since the last check.', '']
+          problems = sorted([m for m in data if not m['skipped'] and (m['state'] or 'Unknown') != 'OK'], key=lambda m: (rank(m), m['model']))
+          if problems:
+              lines += ['### Not OK', '', '| model | state | server | answered by | what was found |', '|---|---|---|---|---|']
+              for m in problems:
+                  lines.append(f"| {m['model']} | {m['state'] or 'Unknown'} | {m['server']} | {m['moved_to']} | {m['detail'][:120]} |")
+              lines += ['']
+          good = sorted(m['model'] for m in data if not m['skipped'] and (m['state'] or 'Unknown') == 'OK')
+          lines += [f'<details><summary>The {len(good)} models that are OK</summary>', '', ', '.join(good), '', '</details>', '']
+          os.makedirs('.xdg-data/wxqt/servers', exist_ok=True)
+          json.dump(data, open('.xdg-data/wxqt/servers/sources-last.json', 'w'))   # (kept with the cache for the next check)
           body = ['These models\' sources are Moved (the first place of the server did not answer and a fallback did), Down (the last checks failed) or Retired (down, and last OK over a week ago):', '']
           for m in trouble:
               body.append(f"- **{m['model']}** ({m['state']}): server `{m['server'] or 'none'}`" + (f", answered by `{m['moved_to']}`" if m['moved_to'] else '') + f": {m['detail'][:160]}")
@@ -248,6 +250,30 @@ jobs:
           PY
           cat summary.md >> "$GITHUB_STEP_SUMMARY"
 
+      # What this check ran on, in the run's summary: the versions, and which of the caches were hit (a miss on GDAL means this run built it, about 20 minutes)
+      - name: Summary of what the check ran on
+        env:
+          QT_VERSION: ${{ steps.qt.outputs.version }}
+          GDAL_CACHE_HIT: ${{ steps.gdal-cache.outputs.cache-hit }}
+          GDAL_CACHE_KEY: ${{ steps.vcpkg-key.outputs.key }}
+          LAST_CACHE_HIT: ${{ steps.last.outputs.cache-hit }}
+          LAST_CACHE_KEY: ${{ steps.last.outputs.cache-matched-key }}
+        run: |
+          # (the cache action says "true" only for an exact key; the last check's results are found by the newest key that begins as theirs, so "false" with a key is a restore from an older one)
+          yesno() { if [ "$1" = true ]; then echo "hit"; elif [ -n "$2" ]; then echo "restored from an older key"; else echo "miss"; fi; }
+          gdal="$(PATH="$HOME/gdalbin:$PATH" gdalinfo --version 2>/dev/null | head -1)"
+          {
+            echo "## What the check ran on"
+            echo
+            echo "| | | |"
+            echo "|---|---|---|"
+            echo "| Qt | ${QT_VERSION:-unknown} | official binaries (aqtinstall; the packages' version) |"
+            echo "| GDAL | ${gdal:-unknown} | build cache: **$(yesno "$GDAL_CACHE_HIT" "")** (\`${GDAL_CACHE_KEY}\`) |"
+            echo "| the last check's results | $( [ -n "$LAST_CACHE_KEY" ] && echo found || echo "none: nothing can be gone on a first run" ) | cache: **$(yesno "$LAST_CACHE_HIT" "$LAST_CACHE_KEY")**${LAST_CACHE_KEY:+ (\`$LAST_CACHE_KEY\`)} |"
+            echo "| compiler | $(g++ --version | head -1) | sccache: see the Build step |"
+            echo "| qmake | $(qmake -v 2>/dev/null | sed -n 2p) | |"
+          } >> "$GITHUB_STEP_SUMMARY"
+
       - name: Make the field catalogue (families, which models have which)
         if: always() && hashFiles('catalog.json') != ''
         run: python3 tools/catalog_report.py catalog.json catalog-report
@@ -259,6 +285,7 @@ jobs:
           path: |
             .xdg-data/wxqt/servers/catalog-status.json
             .xdg-data/wxqt/servers/servers-status.json
+            .xdg-data/wxqt/servers/sources-last.json
           key: catalog-status-${{ github.run_id }}
 
       - name: Keep the full result
