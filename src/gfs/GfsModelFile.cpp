@@ -1012,8 +1012,8 @@ GfsModelFile::Parsed GfsModelFile::parse(const std::string& original, const std:
             };
         }
         if (d->partial == "geos-opendap") {
-            made.partial = [] (const Run& run, int hour, const std::string& file, const std::string& variable, GfsGrid::Grid& out, std::string& error) {
-                return GeosOpendap::read(run, hour, file, variable, out, error);
+            made.partial = [] (const Run& run, int hour, const std::string& file, const std::string& variable, const std::string& region, GfsGrid::Grid& out, std::string& error) {
+                return GeosOpendap::read(run, hour, file, variable, region, out, error);
             };
         }
         if (ecmwf) {

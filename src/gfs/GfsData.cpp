@@ -479,6 +479,9 @@ bool GfsData::one(const Run& run, int hour, const std::string& file, const std::
     if (!want.stat.empty()) {   // an ensemble member of the same file and record is a field of its own
         name += "_" + QString::fromStdString(want.stat);
     }
+    if (!want.region.empty()) {   // a part of the world is another entry than the whole of it
+        name += "_r" + QString::fromStdString(want.region);
+    }
     name.replace(QRegularExpression{"[^A-Za-z0-9_.-]"}, "-");
     if (name.size() > 170) {   // a file name has a limit: the head tells which run and hour (the partial file is found by it), a hash the rest
         name = name.left(110) + "_" + QString::number(qHash(name), 16);
@@ -752,6 +755,9 @@ bool GfsData::oneWhole(const Run& run, int hour, const std::string& file, const 
     }
     if (const double factor = source.valueScale ? source.valueScale(want) : 1.0; factor != 1.0) {   // (kept scaled: another scale is another entry, as in the indexed path)
         name += "x" + QString::number(factor, 'g', 8) + "_";
+    }
+    if (!want.region.empty()) {   // a part of the world (GEOS-FP's OPeNDAP) is another entry than the whole of it
+        name += "r" + QString::fromStdString(want.region) + "_";
     }
     name.replace(QRegularExpression{"[^A-Za-z0-9_.-]"}, "-");
     if (name.size() > 110) {
@@ -1097,7 +1103,7 @@ bool GfsData::oneWhole(const Run& run, int hour, const std::string& file, const 
     if (source.partial && !noPartial) {   // the part of the file that is wanted, from a server that gives it: kept like the others; when it cannot, the file is read as usual
         GfsGrid::Grid g;
         std::string why;
-        if (source.partial(run, hour, file, variable, g, why) && !g.values.empty()) {
+        if (source.partial(run, hour, file, variable, want.region, g, why) && !g.values.empty()) {
             const double factor = source.valueScale ? source.valueScale(want) : 1.0;
             const double offset = source.valueOffset ? source.valueOffset(want) : 0.0;
             for (auto& v : g.values) {

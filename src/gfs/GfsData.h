@@ -43,6 +43,7 @@ public:
         std::string forecast;      // "" for any, or "0-6 hour acc fcst"
         std::string detail;        // "" for the plain field; the blend's "prob >0.254", "50% level" ask for those records instead
         std::string stat;          // an ensemble's statistic or member: "" the mean, "spr" the spread, "c00" the control and "p01" ... "p30" the members (GEFS); "m001" ... (REFS)
+        std::string region;        // "west,south,east,north" (degrees): the part of the world that is wanted, for a source that can give a part of the field (GEOS-FP's OPeNDAP); "" the whole field. It is in the cache name.
     };
     // One model's files. A grid that is not latitude / longitude (the blend's Lambert grid) is warped to one of `step` degrees over the box.
     struct Source {
@@ -79,7 +80,7 @@ public:
         bool custom{false};
         // A reader of part of a file (NASA's GrADS Data Server gives one variable at one time of a file the data portal gives whole): tried first for a `wholeFile` field; `file` and the variable are as the model
         // file names them. It returns the field on the model's grid, before the scale and the offset; false (with a reason) and the field is read from the file as usual.
-        std::function<bool(const Run&, int forecastHour, const std::string& file, const std::string& variable, GfsGrid::Grid& out, std::string& error)> partial;
+        std::function<bool(const Run&, int forecastHour, const std::string& file, const std::string& variable, const std::string& region, GfsGrid::Grid& out, std::string& error)> partial;
         // Open-Meteo's .om files (open-meteo/om-file-format): `wholeFile`, one file for each hour holding every variable, read by range (OmFile). The variable is the want's `variableOf` (the model file's
         // `nc_variable` rules) and the grid is what the file's folder says (meta.json): `gaussian` > 0 is an octahedral reduced Gaussian grid O<gaussian> (ECMWF's IFS, EC46), interpolated to `step`
         // degrees; 0 is a regular latitude / longitude grid, copied as it is.

@@ -543,7 +543,7 @@ for (const std::string source : {"NBM"}) {
     x.extras.push_back({"RRFS", nbmWant("s", "MASSDEN", "8 m above ground", "", "aerosol=Total aerosol|aerosol_size <2.5e-06"), "RRFS smoke", 0, [sampleHours] (int hour) { return sampleHours(std::clamp(hour / 24, 1, 8)); }, 6});
     {   // GEOS-FP's fine particles at the same hours (the daytime of the days it has): the dust, sea salt, black carbon, organic matter and sulfate of its 3 hour surface averages
         const auto geosHours = [sampleHours] (int hour) { return sampleHours(std::clamp(hour / 24, 1, 8)); };
-        x.extras.push_back({"GEOS-FP", GfsData::Want{"y", "PM25", "aerosol", "", ""}, "GEOS-FP particles", 0, geosHours, 0});
+        x.extras.push_back({"GEOS-FP", GfsData::Want{"y", "PM25", "aerosol", "", "", "", "-127,22,-65,52"}, "GEOS-FP particles", 0, geosHours, 0});
     }
     x.fill = [] (const Grids& g) { return pick(g, "level"); };
     x.hoverValues = {{"gate", "Limited by", {"Temperature", "Chance of rain", "Heat", "Dewpoint (humidity)", "Cloud cover (sky)", "Wind", "How far off the day is (a later day is held to a lower level)", "Smoke (fine particles)", "Air quality (AirNow)",

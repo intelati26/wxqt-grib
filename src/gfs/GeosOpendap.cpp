@@ -6,10 +6,12 @@
 #include "gfs/GeosOpendap.h"
 #include <algorithm>
 #include <cmath>
+#include <cstdio>
 #include <cstring>
 #include <ctime>
 #include <map>
 #include <mutex>
+#include <vector>
 #include <QDateTime>
 #include <QRegularExpression>
 #include <QTimeZone>
@@ -99,62 +101,109 @@ bool GeosOpendap::parseDods(const std::string& reply, size_t expected, std::vect
     return true;
 }
 
-bool GeosOpendap::read(const GfsData::Run& run, int forecastHour, const std::string& file, const std::string& variable, GfsGrid::Grid& out, std::string& error) {
+bool GeosOpendap::read(const GfsData::Run& run, int forecastHour, const std::string& file, const std::string& variable, const std::string& region, GfsGrid::Grid& out, std::string& error) {
     const bool aerosol = file == "tavg3_2d_aer_Nx";   // the 3 hour averages of the aerosol species (260 MB a file; stamped in the middle of the 3 hours)
     if ((file != "tavg1_2d_slv_Nx" && !aerosol) || variable.empty()) {   // (the other collections are read as files)
         error = "not a collection read this way";
         return false;
     }
+    double west = -180.0, south = -90.0, east = 180.0, north = 90.0;
+    const bool part = !region.empty() && std::sscanf(region.c_str(), "%lf,%lf,%lf,%lf", &west, &south, &east, &north) == 4 && west < east && south < north;
     std::string name = variable;
     std::transform(name.begin(), name.end(), name.begin(), [] (unsigned char c) { return static_cast<char>(std::tolower(c)); });
-    const std::string dataset = base + file + "/" + file + "." + run.date + "_" + run.cycle;
-    const auto axis = axisOf(dataset);
-    if (!axis.ok) {
-        error = "the GrADS Data Server has no dataset for this run";
-        return false;
-    }
     auto t = QDateTime::fromString(QString::fromStdString(run.id()), "yyyyMMddHH");
     t.setTimeZone(QTimeZone::utc());
-    const long long valid = t.toSecsSinceEpoch() + static_cast<long long>(forecastHour) * 3600 + (aerosol ? -90 : 30) * 60;   // (an average is stamped in the middle of its hour: the 3 hour ones end at the forecast hour)
-    const long long offset = valid - axis.start;
-    if (offset < 0 || offset % (static_cast<long long>(axis.stepMinutes) * 60) != 0 || offset / (static_cast<long long>(axis.stepMinutes) * 60) >= axis.count) {
-        error = "the hour is not in the server's dataset of this run";
+    const long long valid = t.toSecsSinceEpoch() + static_cast<long long>(forecastHour) * 3600 + (aerosol ? -90 : 30) * 60;   // (an average is stamped in the middle of its hour: the 3 hour ones end at the hour)
+    // the datasets to try: the run asked for; for a part of the world also the newest 00Z or 12Z run before it, and the one before that (the server keeps only those two a day)
+    std::vector<std::string> datasets{base + file + "/" + file + "." + run.date + "_" + run.cycle};
+    if (part) {
+        auto later = t;
+        for (int k = 0; k < 3; k++) {
+            later = later.addSecs(-3600 * (later.time().hour() % 12 == 0 ? 12 : later.time().hour() % 12));   // the 12Z or 00Z before
+            datasets.push_back(base + file + "/" + file + "." + later.toString("yyyyMMdd").toStdString() + "_" + later.toString("HH").toStdString());
+        }
+    }
+    std::string dataset;
+    Axis axis;
+    long long index = 0;
+    for (const auto& candidate : datasets) {
+        axis = axisOf(candidate);
+        if (!axis.ok) {
+            continue;
+        }
+        const long long offset = valid - axis.start;
+        const long long step = static_cast<long long>(axis.stepMinutes) * 60;
+        if (offset < 0 || offset % step != 0 || offset / step >= axis.count) {
+            continue;
+        }
+        dataset = candidate;
+        index = offset / step;
+        break;
+    }
+    if (dataset.empty()) {
+        error = "the GrADS Data Server has no dataset with this hour" + std::string{part ? " (this run or the 00Z / 12Z before it)" : " of this run"};
         return false;
     }
-    const long long index = offset / (static_cast<long long>(axis.stepMinutes) * 60);
-    const std::string request = dataset + ".dods?" + name + "[" + std::to_string(index) + ":" + std::to_string(index) + "][0:" + std::to_string(nativeRows - 1) + "][0:" + std::to_string(nativeColumns - 1) + "]";
+    // the native cells to ask for: the whole grid, or the box and a degree round it
+    int x0 = 0, x1 = nativeColumns - 1, y0 = 0, y1 = nativeRows - 1;
+    if (part) {
+        constexpr double margin = 1.0;
+        x0 = std::clamp(static_cast<int>(std::floor((std::max(-180.0, west - margin) + 180.0) / 0.3125)), 0, nativeColumns - 1);
+        x1 = std::clamp(static_cast<int>(std::ceil((std::min(179.6875, east + margin) + 180.0) / 0.3125)), x0 + 1, nativeColumns - 1);
+        y0 = std::clamp(static_cast<int>(std::floor((std::max(-90.0, south - margin) + 90.0) / 0.25)), 0, nativeRows - 2);
+        y1 = std::clamp(static_cast<int>(std::ceil((std::min(90.0, north + margin) + 90.0) / 0.25)), y0 + 1, nativeRows - 1);
+    }
+    const int columnsAsked = x1 - x0 + 1, rowsAsked = y1 - y0 + 1;
+    const std::string request = dataset + ".dods?" + name + "[" + std::to_string(index) + ":" + std::to_string(index) + "][" + std::to_string(y0) + ":" + std::to_string(y1) + "][" + std::to_string(x0) + ":" + std::to_string(x1) + "]";
     const auto reply = UtilityIO::downloadAsByteArray(request).toStdString();
     std::vector<float> native;
-    if (!parseDods(reply, static_cast<size_t>(nativeRows) * nativeColumns, native)) {
+    if (!parseDods(reply, static_cast<size_t>(rowsAsked) * static_cast<size_t>(columnsAsked), native)) {
         error = "the GrADS Data Server did not give " + name;
         return false;
     }
-    // onto the model's grid: 0.25 degrees over the world, the cell centres at -179.875 and 89.875 (the way the file is warped); bilinear between the native points
+    // onto the model's grid: 0.25 degrees, the cell centres at -179.875 and 89.875 (the way the file is warped), the whole world or the part; bilinear between the native points
     GfsGrid::Grid g;
-    g.columns = 1440;
-    g.rows = 720;
-    g.lon0 = -179.875;
-    g.lat0 = 89.875;
+    int c0 = 0, c1 = 1439, r0 = 0, r1 = 719;
+    if (part) {
+        c0 = std::max(0, static_cast<int>(std::ceil((-180.0 + x0 * 0.3125 + 0.3125 - -179.875) / 0.25)));   // (inside the native cells asked for, so that the interpolation has both neighbours)
+        c1 = std::min(1439, static_cast<int>(std::floor((-180.0 + x1 * 0.3125 - 0.3125 - -179.875) / 0.25)));
+        r0 = std::max(0, static_cast<int>(std::ceil((89.875 - (-90.0 + y1 * 0.25 - 0.25)) / 0.25)));
+        r1 = std::min(719, static_cast<int>(std::floor((89.875 - (-90.0 + y0 * 0.25 + 0.25)) / 0.25)));
+        if (c1 <= c0 || r1 <= r0) {
+            error = "the part asked for is too small";
+            return false;
+        }
+    }
+    g.columns = c1 - c0 + 1;
+    g.rows = r1 - r0 + 1;
+    g.lon0 = -179.875 + c0 * 0.25;
+    g.lat0 = 89.875 - r0 * 0.25;
     g.step = 0.25;
     g.values.assign(static_cast<size_t>(g.columns) * static_cast<size_t>(g.rows), std::nanf(""));
     for (int r = 0; r < g.rows; r++) {
         const double lat = g.lat0 - r * g.step;
-        const double fy = std::clamp((lat + 90.0) / 0.25, 0.0, static_cast<double>(nativeRows - 1));
-        const int y0 = std::min(static_cast<int>(fy), nativeRows - 2);
-        const double wy = fy - y0;
+        const double fy = std::clamp((lat + 90.0) / 0.25 - y0, 0.0, static_cast<double>(rowsAsked - 1));
+        const int ya = std::min(static_cast<int>(fy), rowsAsked - 2);
+        const double wy = fy - ya;
         for (int c = 0; c < g.columns; c++) {
             const double lon = g.lon0 + c * g.step;
             double fx = (lon + 180.0) / 0.3125;
-            fx = std::fmod(fx + nativeColumns, nativeColumns);
-            const int x0 = static_cast<int>(fx) % nativeColumns, x1 = (x0 + 1) % nativeColumns;
+            if (!part) {
+                fx = std::fmod(fx + nativeColumns, nativeColumns);
+            }
+            fx -= x0;
+            if (fx < 0.0 || fx > columnsAsked - 1) {
+                continue;
+            }
+            const int xa = std::min(static_cast<int>(fx), columnsAsked - 1), xb = part ? std::min(xa + 1, columnsAsked - 1) : (xa + 1) % nativeColumns;
             const double wx = fx - std::floor(fx);
-            const float a = native[static_cast<size_t>(y0) * nativeColumns + x0], b = native[static_cast<size_t>(y0) * nativeColumns + x1];
-            const float c0 = native[static_cast<size_t>(y0 + 1) * nativeColumns + x0], d = native[static_cast<size_t>(y0 + 1) * nativeColumns + x1];
-            if (!std::isfinite(a) || !std::isfinite(b) || !std::isfinite(c0) || !std::isfinite(d)) {
+            const float a = native[static_cast<size_t>(ya) * columnsAsked + xa], b = native[static_cast<size_t>(ya) * columnsAsked + xb];
+            const float c0v = native[static_cast<size_t>(ya + 1) * columnsAsked + xa], d = native[static_cast<size_t>(ya + 1) * columnsAsked + xb];
+            if (!std::isfinite(a) || !std::isfinite(b) || !std::isfinite(c0v) || !std::isfinite(d)) {
                 continue;
             }
             g.values[static_cast<size_t>(r) * static_cast<size_t>(g.columns) + static_cast<size_t>(c)] =
-                static_cast<float>((a * (1 - wx) + b * wx) * (1 - wy) + (c0 * (1 - wx) + d * wx) * wy);
+                static_cast<float>((a * (1 - wx) + b * wx) * (1 - wy) + (c0v * (1 - wx) + d * wx) * wy);
         }
     }
     out = std::move(g);
