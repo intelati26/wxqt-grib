@@ -8,6 +8,9 @@
 #     (the run of failures) is kept in the cache with the last catalogue check, so "Down" and "Retired" mean what they say across days;
 #   - asks GitHub for the newest GDAL release (the project's own, OSGeo/gdal) and compares it with the one the packages are built with (the overlay port in
 #     .github/vcpkg/ports/gdal): a newer release opens (or updates, or closes) a third issue, label gdal-update, so the bundled GDAL is not left behind again;
+#   - compares the other dependencies the packages are built with (vcpkg's ports, the Qt and the Actions of the workflows) with their newest releases (tools/deps_check.py: GitHub
+#     releases, GitLab's tag feed for libtiff, the SQLite project's GitHub mirror feed): a major or minor version behind opens (updates, closes) a fourth issue, label deps-update;
+#     patch-only differences are in the run's summary;
 #   - keeps the full result (the lists of "never found" and "not cataloged" fields too) as an artifact and in the run's summary, with the field catalogue
 #     (tools/catalog_report.py: families, which models have which, as CSV and Markdown).
 # The last check's found fields are kept between runs in the Actions cache: the first run has nothing to compare with (nothing is gone then).
@@ -38,13 +41,25 @@ jobs:
     steps:
       - uses: actions/checkout@v7
 
+      # The same Qt as the packages (the official binaries, see build.yml), not Ubuntu's 6.4.2
+      - name: Install Qt (official binaries)
+        uses: jurplel/install-qt-action@v4
+        with:
+          version: '6.10.3'
+          host: 'linux'
+          target: 'desktop'
+          arch: 'linux_gcc_64'
+          cache: true
+
       - name: Install build dependencies
         timeout-minutes: 15
         run: |
           apt_opts="-o Acquire::Retries=3 -o Acquire::http::Timeout=20 -o Acquire::https::Timeout=20"
           for attempt in 1 2 3; do
             if sudo apt-get $apt_opts update && sudo apt-get $apt_opts install -y --no-install-recommends \
-                g++ make qt6-base-dev webp gdal-bin; then
+                g++ make \
+                libgl1-mesa-dev libglu1-mesa-dev libxkbcommon-x11-0 libxkbcommon-dev libxcb-cursor0 libfontconfig1-dev libfreetype-dev libdbus-1-3 \
+                webp; then
               exit 0
             fi
             echo "apt failed (attempt $attempt of 3); trying again in $((attempt * 20)) seconds"
@@ -52,13 +67,59 @@ jobs:
           done
           exit 1
 
+      # The same GDAL as the packages (the vcpkg build of the overlay port in .github/vcpkg/ports/gdal: the newest release), not Ubuntu's gdal-bin, which is
+      # years behind: the check should read the files as the program does. The key and the build are those of build.yml's Linux job, so the install tree
+      # the packages made (the cache is shared by the workflows of a branch) is taken when it is there, and built here (about 20 minutes, once) when not.
+      - name: vcpkg cache key
+        id: vcpkg-key
+        run: |
+          commit="$(git -C "$VCPKG_INSTALLATION_ROOT" rev-parse HEAD)"
+          inputs="$(cat .github/vcpkg/vcpkg.json .github/vcpkg/triplets/x64-linux-dynamic-release.cmake $(find .github/vcpkg/ports -type f | sort) | sha256sum | cut -c1-16)"
+          echo "key=gdal-x64-linux-dynamic-release-$commit-$inputs" >> "$GITHUB_OUTPUT"
+
+      - name: Restore GDAL build
+        id: gdal-cache
+        uses: actions/cache@v6
+        with:
+          path: ~/gdal-vcpkg
+          key: ${{ steps.vcpkg-key.outputs.key }}
+
+      - name: Build GDAL (vcpkg)
+        if: steps.gdal-cache.outputs.cache-hit != 'true'
+        run: |
+          "$VCPKG_INSTALLATION_ROOT/vcpkg" install \
+            --x-manifest-root=.github/vcpkg \
+            --x-install-root="$HOME/gdal-vcpkg" \
+            --x-buildtrees-root="$HOME/vb" \
+            --overlay-triplets=.github/vcpkg/triplets \
+            --overlay-ports=.github/vcpkg/ports \
+            --triplet x64-linux-dynamic-release \
+            --clean-after-build
+
+      # The tools are found on the PATH by the program. Each is a small script that puts the build's libraries on the library path for that one run: the libraries are
+      # kept off the whole job's path, so they do not meet Qt's or the system's (the AppImage keeps them apart in the same way).
+      - name: Put the GDAL tools on the PATH
+        run: |
+          prefix="$HOME/gdal-vcpkg/x64-linux-dynamic-release"
+          mkdir -p "$HOME/gdalbin"
+          for tool in "$prefix"/tools/gdal/*; do
+            [ -x "$tool" ] && [ -f "$tool" ] || continue
+            printf '#!/bin/sh\nLD_LIBRARY_PATH="%s/lib${LD_LIBRARY_PATH:+:$LD_LIBRARY_PATH}" exec "%s" "$@"\n' "$prefix" "$tool" > "$HOME/gdalbin/$(basename "$tool")"
+            chmod +x "$HOME/gdalbin/$(basename "$tool")"
+          done
+          echo "$HOME/gdalbin" >> "$GITHUB_PATH"
+          echo "GDAL_DATA=$prefix/share/gdal" >> "$GITHUB_ENV"
+          echo "PROJ_DATA=$prefix/share/proj" >> "$GITHUB_ENV"
+          echo "PROJ_LIB=$prefix/share/proj" >> "$GITHUB_ENV"
+          LD_LIBRARY_PATH="$prefix/lib" "$prefix/tools/gdal/gdalinfo" --version
+
       - name: Generate resources + .pro
         run: |
           cd resourceCreation
           ./createResourcesImage.py
           ./createResourcesRes.py
           cd ..
-          ./makeAll.py --pro
+          ./makeAll.py --pro --qt5   # (the official Qt has the plain 'qmake', no qmake6)
 
       - name: Set up sccache
         uses: mozilla-actions/sccache-action@v0.0.11
@@ -72,7 +133,7 @@ jobs:
 
       - name: Restore what the last check found
         id: last
-        uses: actions/cache/restore@v5
+        uses: actions/cache/restore@v6
         with:
           path: |
             .xdg-data/wxqt/servers/catalog-status.json
@@ -168,7 +229,7 @@ jobs:
 
       - name: Keep what this check found for the next one
         if: always() && hashFiles('.xdg-data/wxqt/servers/catalog-status.json') != ''
-        uses: actions/cache/save@v5
+        uses: actions/cache/save@v6
         with:
           path: |
             .xdg-data/wxqt/servers/catalog-status.json
@@ -186,6 +247,7 @@ jobs:
             sources.json
             sources.log
             catalog-report/
+            deps.md
           retention-days: 30
           if-no-files-found: warn
 
@@ -277,6 +339,34 @@ jobs:
             fi
           elif [ -n "$number" ]; then
             gh issue close "$number" --comment "The packages have GDAL $BUNDLED, the newest release, at $(date -u +%F)."
+          fi
+
+      - name: Dependencies (what the packages are built with against the newest releases)
+        id: deps
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          python3 tools/deps_check.py --workflows .github/workflows --out deps.md --issue deps-issue.md | tee deps.out
+          sed -n 's/^behind=\([0-9]*\) patch=.*/behind=\1/p' deps.out >> "$GITHUB_OUTPUT"
+          cat deps.md >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Open, update or close the dependencies issue
+        if: always() && steps.deps.outputs.behind != ''
+        env:
+          GH_TOKEN: ${{ github.token }}
+          BEHIND: ${{ steps.deps.outputs.behind }}
+        run: |
+          title="Dependencies: some are behind their newest release"
+          number="$(gh issue list --label deps-update --state open --json number --jq '.[0].number // empty')"
+          gh label create deps-update --description "A dependency of the packages is a major or minor version behind its newest release" --color 5319E7 2>/dev/null || true
+          if [ "${BEHIND:-0}" -gt 0 ]; then
+            if [ -n "$number" ]; then
+              gh issue edit "$number" --body-file deps-issue.md
+            else
+              gh issue create --title "$title" --label deps-update --body-file deps-issue.md
+            fi
+          elif [ -n "$number" ]; then
+            gh issue close "$number" --comment "Every dependency is at its newest major and minor version at $(date -u +%F)."
           fi
 
       - name: Fail when a field is gone

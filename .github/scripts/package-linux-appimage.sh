@@ -110,7 +110,10 @@ for so in "$appDir"/usr/gdal/bin/*.so*; do
     [ -e "$so" ] && mv "$so" "$appDir/usr/gdal/lib/"
 done
 
-pluginsDir="/usr/lib/x86_64-linux-gnu/qt6/plugins"
+# the plugins of the Qt the program was built with: the official Qt's (QT_PLUGIN_PATH / QT_ROOT_DIR, set by the workflow's Qt step), else the system's
+pluginsDir="${QT_PLUGIN_PATH:-${QT_ROOT_DIR:+$QT_ROOT_DIR/plugins}}"
+pluginsDir="${pluginsDir%%:*}"
+[ -d "$pluginsDir" ] || pluginsDir="/usr/lib/x86_64-linux-gnu/qt6/plugins"
 for sub in platforms imageformats tls iconengines; do
     [ -d "$pluginsDir/$sub" ] && cp -r "$pluginsDir/$sub" "$appDir/usr/plugins/"
 done

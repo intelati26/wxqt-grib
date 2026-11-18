@@ -35,7 +35,9 @@ jobs:
       - name: Install Qt (MSVC, official binaries)
         uses: jurplel/install-qt-action@v4
         with:
-          version: '6.8.3'
+          # 6.10.3 is the newest aqtinstall (3.3) can fetch for Windows: Qt 6.11 and 6.12 are in a repository layout it does not read yet (Linux has them). The
+          # Linux job below uses the same version, so both packages are built with one Qt. Move both up when aqtinstall reads the new layout.
+          version: '6.10.3'
           host: 'windows'
           target: 'desktop'
           arch: 'win64_msvc2022_64'
@@ -83,7 +85,7 @@ jobs:
 
       - name: Restore GDAL build
         id: gdal-cache
-        uses: actions/cache@v5
+        uses: actions/cache@v6
         with:
           path: D:/gdal-vcpkg
           key: ${{ steps.vcpkg-key.outputs.key }}
@@ -107,7 +109,7 @@ jobs:
       # package's tools/ folder. Its own manifest and cache, a few minutes to build.
       - name: Restore img2webp build
         id: webp-cache
-        uses: actions/cache@v5
+        uses: actions/cache@v6
         with:
           path: D:/webp-vcpkg
           key: ${{ steps.vcpkg-key.outputs.webp }}
@@ -347,6 +349,17 @@ jobs:
       # The runners' apt mirror (azure.archive.ubuntu.com) sometimes fails to resolve; apt then
       # retries for tens of minutes and the job fails. Short network timeouts, a few tries of the
       # whole step, and a step limit, so a bad moment costs minutes and is usually survived.
+      # Qt: the official binaries (aqtinstall), as the Windows job has them, not Ubuntu's 6.4.2. What the system still has to give: the libraries Qt's xcb plugin and
+      # OpenGL support load (the AppImage takes them along, see the packaging script) and the headers for the build.
+      - name: Install Qt (official binaries)
+        uses: jurplel/install-qt-action@v4
+        with:
+          version: '6.10.3'
+          host: 'linux'
+          target: 'desktop'
+          arch: 'linux_gcc_64'
+          cache: true
+
       - name: Install build dependencies
         timeout-minutes: 15
         run: |
@@ -354,7 +367,8 @@ jobs:
           for attempt in 1 2 3; do
             if sudo apt-get $apt_opts update && sudo apt-get $apt_opts install -y --no-install-recommends \
                 g++ make \
-                qt6-base-dev \
+                libgl1-mesa-dev libglu1-mesa-dev libxkbcommon-x11-0 libxkbcommon-dev libxcb-cursor0 libxcb-icccm4 libxcb-image0 libxcb-keysyms1 \
+                libxcb-render-util0 libxcb-shape0 libxcb-xinerama0 libxcb-xkb1 libfontconfig1-dev libfreetype-dev libdbus-1-3 \
                 webp; then
               exit 0
             fi
@@ -379,7 +393,7 @@ jobs:
 
       - name: Restore GDAL build
         id: gdal-cache
-        uses: actions/cache@v5
+        uses: actions/cache@v6
         with:
           path: ~/gdal-vcpkg
           key: ${{ steps.vcpkg-key.outputs.key }}
@@ -402,7 +416,7 @@ jobs:
           ./createResourcesImage.py
           ./createResourcesRes.py
           cd ..
-          ./makeAll.py --pro
+          ./makeAll.py --pro --qt5   # (--qt5: call the plain 'qmake' of the official Qt, which has no qmake6)
 
       - name: Set up sccache
         uses: mozilla-actions/sccache-action@v0.0.11
