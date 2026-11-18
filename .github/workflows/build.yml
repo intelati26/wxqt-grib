@@ -223,6 +223,19 @@ jobs:
           WEBP_PREFIX: D:/webp-vcpkg/x64-windows-release
         run: .github/scripts/package-windows.ps1
 
+      # The portable folder must start with only itself and Windows on the PATH: the Qt libraries of vcpkg's tree were on the build machine's PATH, which hid that the first
+      # package of this kind (0.2.0) did not have libpng, freetype, harfbuzz and md4c. wxqt.exe is run for 12 seconds with a clean PATH; it must still be running.
+      - name: Smoke-test the portable folder starts (clean PATH)
+        shell: pwsh
+        run: |
+          $dir = (Resolve-Path dist/wxqt-portable).Path
+          $env:PATH = "$env:SystemRoot\System32;$env:SystemRoot"
+          $p = Start-Process -FilePath "$dir\wxqt.exe" -WorkingDirectory $dir -PassThru
+          Start-Sleep -Seconds 12
+          if ($p.HasExited) { throw "wxqt.exe exited at once (code $($p.ExitCode)) with only its own folder and Windows on the PATH: a DLL is missing" }
+          $p.Kill()
+          "wxqt.exe started with a clean PATH"
+
       # Runs the bundled GDAL tools the way wxqt does, with only the package's
       # own gdal/ folder (plus Windows itself) on PATH: fails on a missing DLL
       # or a driver the app needs that the minimal build left out.

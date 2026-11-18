@@ -132,7 +132,8 @@ jobs:
           Get-ChildItem dist/trial -Recurse | Select-Object -First 80 | ForEach-Object { $_.FullName.Replace((Get-Location).Path, '') }
           $size = (Get-ChildItem dist/trial -Recurse | Measure-Object Length -Sum).Sum / 1MB
           "Qt trial package folder: {0:N0} MB" -f $size
-          # it must start: the platform plugin is found next to it
+          # it must start: the platform plugin is found next to it (with a clean PATH: the first trial's PATH had Qt's own bin folder and hid the DLLs windeployqt does not copy)
+          $env:PATH = "$env:SystemRoot\System32;$env:SystemRoot"
           $p = Start-Process -FilePath dist/trial/wxqt.exe -PassThru
           Start-Sleep -Seconds 12
           if ($p.HasExited) { throw "wxqt.exe exited at once (code $($p.ExitCode))" }

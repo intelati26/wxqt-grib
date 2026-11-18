@@ -55,6 +55,68 @@ if (-not $crtDir) {
 Copy-Item "$($crtDir.FullName)/*.dll" $distDir
 Write-Host "==> VC++ runtime DLLs copied from $($crtDir.FullName)"
 
+# ---------------------------------------------------------------------------
+# The libraries vcpkg's Qt is built against (libpng, freetype, harfbuzz, md4c, zlib, zstd, brotli,
+# bzip2, pcre2, double-conversion): windeployqt copies Qt's own DLLs and plugins, not these, and
+# the package that went out as 0.2.0 started only on a computer that had them on its PATH (the
+# build machine did). They are found by what the DLLs of the folder import (dumpbin /dependents),
+# repeatedly, and copied from the Qt tree's bin folder. Then the whole folder is checked: every
+# import of wxqt.exe, Qt's DLLs and the plugins must be a DLL of the folder, of Windows, or an
+# API set; one that is not stops the build.
+# ---------------------------------------------------------------------------
+function Get-Dependents([string]$file) {
+    $text = & dumpbin /nologo /dependents $file 2>$null
+    if ($LASTEXITCODE -ne 0) { return @() }
+    return @($text | ForEach-Object { if ($_ -match '^\s+(\S+\.dll)\s*$') { $Matches[1] } })
+}
+$windeploy = (Get-Command windeployqt -ErrorAction SilentlyContinue).Source
+$qtBin = $null
+if ($windeploy) {
+    foreach ($candidate in @((Join-Path (Split-Path $windeploy) "../../../bin"), (Join-Path (Split-Path $windeploy) "../bin"))) {
+        if (Test-Path (Join-Path $candidate "Qt6Core.dll")) { $qtBin = (Resolve-Path $candidate).Path; break }
+    }
+}
+$haveDumpbin = [bool](Get-Command dumpbin -ErrorAction SilentlyContinue)
+if (-not $haveDumpbin) {
+    Write-Error "dumpbin (the MSVC tools) is not on the PATH: cannot check what the folder's DLLs need"
+    exit 1
+}
+$systemDir = Join-Path $env:SystemRoot "System32"
+$ours = {
+    Get-ChildItem $distDir -Recurse -File -Include *.dll, *.exe | Where-Object { $_.FullName -notmatch '[\\/](gdal|tools)[\\/]' }
+}
+$copied = @()
+for ($round = 0; $round -lt 8; $round++) {
+    $added = $false
+    foreach ($file in (& $ours)) {
+        foreach ($dep in (Get-Dependents $file.FullName)) {
+            if ($dep -match '^(api|ext)-ms-') { continue }
+            if (Test-Path (Join-Path $distDir $dep)) { continue }
+            if (Test-Path (Join-Path $systemDir $dep)) { continue }
+            if ($qtBin -and (Test-Path (Join-Path $qtBin $dep))) {
+                Copy-Item (Join-Path $qtBin $dep) $distDir
+                $copied += $dep
+                $added = $true
+            }
+        }
+    }
+    if (-not $added) { break }
+}
+Write-Host "==> libraries of Qt copied from $qtBin : $($copied -join ', ')"
+$missing = @()
+foreach ($file in (& $ours)) {
+    foreach ($dep in (Get-Dependents $file.FullName)) {
+        if ($dep -match '^(api|ext)-ms-') { continue }
+        if ((Test-Path (Join-Path $distDir $dep)) -or (Test-Path (Join-Path $systemDir $dep))) { continue }
+        $missing += "$($file.Name) needs $dep"
+    }
+}
+if ($missing.Count -gt 0) {
+    Write-Error ("DLLs the package needs and does not have:`n" + (($missing | Sort-Object -Unique) -join "`n"))
+    exit 1
+}
+Write-Host "==> every import of the folder's programs and Qt DLLs is in the folder or in Windows"
+
 # Direct3D shader compiler DLLs (~14 MB) are only for Qt's D3D12 rendering backend,
 # not the software/raster path this widget app uses.
 Remove-Item "$distDir/dxcompiler.dll", "$distDir/dxil.dll" -ErrorAction SilentlyContinue
