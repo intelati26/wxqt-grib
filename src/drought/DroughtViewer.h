@@ -114,6 +114,7 @@ private:
         std::string label;
         std::string url;
         std::string grid;   // a GeoTIFF of the same thing (CPC's soil moisture percentile): drawn as a zoomable map, not as the picture
+        std::string zones;  // "mdo" or "sdo": the CPC's drought outlook polygons of the same thing, drawn as a zoomable map
     };
     struct Result;   // what a background load of the Monitor brings back
     void loadAreas();
@@ -159,6 +160,7 @@ private:
     Text textMonitor;
     ZoomImage outlookImage;
     DroughtMap * soilMap{};     // the Outlooks tab's soil moisture percentile (a field layer), over the picture when an entry has a grid
+    void loadOutlookZones(const std::string& kind, const std::string& label);
     void loadSoil(const std::string& url, const std::string& label);
     int soilGeneration{0};
     DroughtMap * precipMap{};   // the Normals tab's map of a measure against the normal (a field layer)

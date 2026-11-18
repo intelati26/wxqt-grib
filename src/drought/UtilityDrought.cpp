@@ -174,6 +174,76 @@ namespace UtilityDrought {
         return true;
     }
 
+    bool parseOutlookZip(const std::string& zip, Outlook& out, std::string& error) {
+        out = Outlook{};
+        std::map<std::string, std::string> files;
+        UtilityZip::read(zip, files);
+        std::string kmz, kml;
+        for (const auto& [name, bytes] : files) {
+            if (name.size() >= 4 && name.compare(name.size() - 4, 4, ".kmz") == 0) {
+                kmz = bytes;
+            }
+        }
+        if (!kmz.empty()) {
+            std::map<std::string, std::string> inner;
+            UtilityZip::read(kmz, inner);
+            for (const auto& [name, bytes] : inner) {
+                if (name.size() >= 4 && name.compare(name.size() - 4, 4, ".kml") == 0) {
+                    kml = bytes;
+                }
+            }
+        }
+        if (kml.empty()) {
+            error = "no outlook map in the file";
+            return false;
+        }
+        size_t titleAt = 0;
+        element(kml, "name", titleAt, out.title);
+        size_t from = 0;
+        std::string placemark;
+        while (element(kml, "Placemark", from, placemark)) {
+            size_t at = 0;
+            Outlook::Zone zone;
+            if (!element(placemark, "name", at, zone.name) || placemark.find("<Polygon") == std::string::npos) {
+                continue;   // the island territories are points
+            }
+            size_t pAt = 0;
+            std::string polygon;
+            while (element(placemark, "Polygon", pAt, polygon)) {
+                Polygon shape;
+                size_t oAt = 0;
+                std::string outer;
+                if (element(polygon, "outerBoundaryIs", oAt, outer)) {
+                    size_t cAt = 0;
+                    std::string coordinates;
+                    if (element(outer, "coordinates", cAt, coordinates)) {
+                        shape.push_back(parseCoordinates(coordinates));
+                    }
+                }
+                size_t iAt = 0;
+                std::string inner;
+                while (element(polygon, "innerBoundaryIs", iAt, inner)) {
+                    size_t cAt = 0;
+                    std::string coordinates;
+                    if (element(inner, "coordinates", cAt, coordinates)) {
+                        shape.push_back(parseCoordinates(coordinates));
+                    }
+                }
+                if (!shape.empty() && shape.front().size() >= 3) {
+                    zone.shapes.push_back(std::move(shape));
+                }
+            }
+            if (!zone.shapes.empty()) {
+                out.zones.push_back(std::move(zone));
+            }
+        }
+        if (out.zones.empty()) {
+            error = "the outlook file has no areas";
+            return false;
+        }
+        return true;
+    }
+
     bool parseAreas(const std::string& zip, bool counties, bool all, std::vector<Area>& out, std::string& error) {
         std::map<std::string, std::string> files;
         UtilityZip::read(zip, files);

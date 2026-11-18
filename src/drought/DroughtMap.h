@@ -35,6 +35,11 @@ public:
         int decimals{1};
         std::vector<std::pair<QColor, QString>> key;   // the bands, the highest first, each with the words for the key
     };
+    struct Zone {                        // an outlook's area of one outcome (Persistence, Removal ...): its colour, its words and its shapes
+        QString name;
+        QColor color;
+        std::vector<UtilityDrought::Polygon> shapes;
+    };
     explicit DroughtMap(QWidget * parent = nullptr);
     void setLand(std::shared_ptr<const std::vector<UtilityDrought::Area>> states);
     void setCounties(std::shared_ptr<const std::vector<UtilityDrought::Area>> counties);
@@ -43,6 +48,7 @@ public:
     void setBackdrop(const std::vector<std::vector<std::pair<float, float>>>& lines);   // coasts and country borders (lon, lat) drawn over the field: Canada and Mexico have no state shapes
     void setField(std::shared_ptr<const FieldLayer> field);      // a measure on a grid in place of the categories (a map with no Monitor set)
     void setArea(std::vector<UtilityDrought::Area> area, bool fit);   // empty: the whole country
+    void setZones(std::vector<Zone> zones);                      // named areas in place of the categories (a map with no Monitor set); empty: none
     void setCaption(const QString& text);
     void fitArea();
 
@@ -64,6 +70,8 @@ private:
     std::vector<UtilityDrought::Area> area;
     QPainterPath categoryPath[5];       // world coordinates (longitude, latitude)
     QPainterPath backdropPath;
+    std::vector<Zone> zoneList;
+    std::vector<QPainterPath> zonePaths;    // one for each zone, the contiguous states only (Alaska and Hawaii would be far off the map)
     QPainterPath landPath, bordersPath, countyPath, areaPath, outsidePath;
     QString caption;
     double centerLon{-96.0}, centerLat{38.0}, pixelsPerDegree{16.0};   // pixels for a degree of latitude; a degree of longitude is shorter by the cosine of the center latitude

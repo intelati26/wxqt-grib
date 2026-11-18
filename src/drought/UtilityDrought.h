@@ -27,6 +27,19 @@ namespace UtilityDrought {
     // the KMZ file's bytes; false with the reason when it is not a drought map
     bool parseKmz(const std::string& kmz, Monitor& out, std::string& error);
 
+    // The CPC's drought outlook (monthly or seasonal: MDO.kmz / SDO.kmz inside its polygon zip): the areas of each outcome, named as the file names them (Persistence, Improvement, Removal,
+    // Development, Worsens; No_Drought is kept too), and the words of its title ("Monthly Drought Outlook Created: 2026/10/31 Valid: 2026/11/01 - 2026/11/30").
+    struct Outlook {
+        struct Zone {
+            std::string name;
+            std::vector<Polygon> shapes;
+        };
+        std::string title;
+        std::vector<Zone> zones;
+    };
+    // the zip the CPC posts (it holds the KMZ); false with the reason when there is no outlook in it
+    bool parseOutlookZip(const std::string& zip, Outlook& out, std::string& error);
+
     struct Area {
         std::string id;                                       // "08" (a state's FIPS code), "08031" (a county's)
         std::string name;                                     // "Colorado", "Denver County, CO"

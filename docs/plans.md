@@ -30,6 +30,7 @@ What was planned and what is left. Check the code before acting on a line.
 - 24. The RRFS aerosols, and what else the files had (finished 2026-11-16: smoke and dust, emissions, haze, runoff, PLPL, ceiling, cloud by height on 26 models; seen on the map; checked against AirNow on a clean day, a smoky day still to try)
 - 27. The drought window's temperature and rain maps drawn from the data, zoomable like the Monitor's map (planned 2026-11-17: the CPC picture of the Normals tab to be replaced)
 - 28. The sheet: a template of panels over one view (sketch 2026-11-17: sheet from a view, the template, the cases to check; nothing built)
+- 29. The pictures of the drought window and the climate window that are still flat rasters, to zoomable layers (sketch 2026-11-18; the CPC drought outlooks first)
 
 **Next (2026-11-16), in this order:**
 1. (Section 24: done 2026-11-16; on a smoky day, repeat the AirNow comparison.)
@@ -2324,3 +2325,18 @@ The cases above are accepted as the sheet's requirements (the user: "everything 
 ### What the panels need to be (see section 27's notes)
 
 A cell must be drawable **without a window**: a model chart is (`GfsRender::png`, a size and a view), the drought maps are (paint to a size), pictures are; the master map's layers are not yet (a headless `MapHost`, and a signal for "this layer has finished loading", are missing).
+
+## 29. The flat pictures of the drought and climate windows, to zoomable layers (sketch, 2026-11-18)
+
+Asked: "any climate cleanup, raster PNG to zoomable?" The drought window's Normals tab and the CPC soil moisture percentile are zoomable (section 27); these are not yet. Sources found on 2026-11-18, in the order they would be done.
+
+| picture now | zoomable source | needs |
+|---|---|---|
+| **Drought outlook, this month and the season** (CPC `mdohomeweb.png`, `sdohomeweb.png`) | `https://ftp.cpc.ncep.noaa.gov/GIS/droughtlook/mdo_polygons_latest.zip` and `sdo_polygons_latest.zip` (17 MB each; dated copies `mdo_polygons_YYYYMMDD.zip`, `sdo_polygons_YYYYMMDD.zip`, and `sdo_update_polygons_YYYYMMDD.zip` for the seasonal update). Inside: `DO_Merge_Clip.shp` (12.8 MB, polygons, field `Outlook`: No_Drought, Persistence, Improvement, Removal, Development, Worsens; `Fcst_Date`, `Target` "Nov 2026") and **`MDO.kmz` / `SDO.kmz` (3.9 MB; the same polygons, one placemark for each category)** | a KMZ reader that keeps the placemark's name (the Monitor's `parseKmz` keeps only a D-number), and a zone layer in `DroughtMap` (named colours, a key, the name under the pointer). No new library: the Monitor's KMZ reader and `DroughtMap` do the rest. Issued on the last day of each month (the season's on the third Thursday as an update); the file name changes, `..._latest.zip` does not: keep it by `Fcst_Date`. |
+| **Soil moisture rank, daily** (leaky bucket GIF) | not found: `Soilmst_Monitoring/Figures/daily/curr.w.rank.daily.gif` has no grid beside it that was found in `ftp.cpc.ncep.noaa.gov/GIS` | find the CPC leaky bucket's grid (the `GIS/USDM_Products/soil/percentile` 1 degree grids are the nearest, the same family as the Normals tab's) |
+| **Standardized precipitation index, 3, 6, 12, 24 months** (GIFs) | no SPI grid in `GIS`. `GIS/USDM_Products/precip/percentile` is the precipitation percentile (1 degree) | either that grid, or SPI computed from the ACIS / MRMS totals the Normals tab already reads (a gamma fit by place and month: new code) |
+| **EDDI** (new, not a conversion) | `GIS/USDM_Products/EDDI/EDDI_Weekly_TIFFS.zip`, `EDDI_Monthly_TIFFS.zip` and the `-change_` pairs (0.6 MB each, updated every Thursday) | the zip reader and `loadSoil`'s GeoTIFF path: a new entry in the Outlooks list |
+| **Climate window: sea surface temperature** (OSPO PNG / GIF) | OSPO CoralTemp NetCDF `https://www.star.nesdis.noaa.gov/pub/sod/mecb/crw/data/5km/v3.1_op/nc/v1.0/daily/sst/YYYY/coraltemp_v3.1_YYYYMMDD.nc` (answers 200 for 2026-11-16) | GDAL NetCDF read (already used for other layers), a 5 km global grid: a master-map raster layer, not a window |
+| **Climate window: ocean currents** (ocean.weather.gov GRTOFS / NCOM PNGs) | NOAA RTOFS on AWS (`noaa-nws-rtofs-pds`, `rtofs.YYYYMMDD/`) | big NetCDF on a tripolar grid: later, as particles on the master map |
+
+**Order:** the drought outlooks (built next, 2026-11-18), then EDDI (small), then the SPI question, then the climate window's layers with the master map's.

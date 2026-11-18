@@ -124,6 +124,22 @@ void DroughtMap::setField(std::shared_ptr<const FieldLayer> f) {
     update();
 }
 
+void DroughtMap::setZones(std::vector<Zone> zones) {
+    zoneList = std::move(zones);
+    zonePaths.clear();
+    for (const auto& zone : zoneList) {
+        std::vector<UtilityDrought::Polygon> here;
+        for (const auto& polygon : zone.shapes) {
+            const auto& first = polygon.front();
+            if (!first.empty() && first.front().first > -130.0 && first.front().first < -63.0 && first.front().second > 23.0 && first.front().second < 53.0) {
+                here.push_back(polygon);
+            }
+        }
+        zonePaths.push_back(pathOf(here));
+    }
+    update();
+}
+
 void DroughtMap::setCaption(const QString& text) {
     caption = text;
     update();
@@ -192,7 +208,13 @@ void DroughtMap::paintEvent(QPaintEvent *) {
     p.setPen(Qt::NoPen);
     p.setBrush(QColor{"#f6f4ee"});
     p.drawPath(landPath);
-    if (!change) {
+    for (size_t z = 0; z < zonePaths.size(); z++) {
+        QColor fill = zoneList[z].color;
+        fill.setAlpha(225);
+        p.setBrush(fill);
+        p.drawPath(zonePaths[z]);
+    }
+    if (!change && zonePaths.empty()) {
         for (int c = 0; c < 5; c++) {   // the milder first, the worse over it
             p.setBrush(categoryColors[c]);
             p.drawPath(categoryPath[c]);
@@ -248,6 +270,12 @@ void DroughtMap::paintEvent(QPaintEvent *) {
     std::vector<std::pair<QColor, QString>> keys;
     if (field) {
         keys = field->key;
+    } else if (!zoneList.empty()) {
+        for (const auto& zone : zoneList) {
+            if (zone.color.alpha() > 0) {
+                keys.emplace_back(zone.color, zone.name);
+            }
+        }
     } else if (change) {
         keys = {{changeColor(-3), "improved 3 or more categories"}, {changeColor(-2), "improved 2"}, {changeColor(-1), "improved 1"}, {changeColor(1), "worse by 1"},
                 {changeColor(2), "worse by 2"}, {changeColor(3), "worse by 3 or more"}};
@@ -292,6 +320,14 @@ QString DroughtMap::readout(const QPointF& w) const {
             const int moved = change->moved[static_cast<size_t>(y) * static_cast<size_t>(change->columns) + static_cast<size_t>(x)];
             text += moved == 0 ? "\nno change" : moved > 0 ? QString{"\nworse by %1 categor%2"}.arg(moved).arg(moved == 1 ? "y" : "ies") : QString{"\nimproved by %1 categor%2"}.arg(-moved).arg(moved == -1 ? "y" : "ies");
         }
+    } else if (!zoneList.empty()) {
+        QString here;
+        for (size_t z = 0; z < zonePaths.size(); z++) {
+            if (zonePaths[z].contains(w)) {
+                here += (here.isEmpty() ? "" : ", ") + zoneList[z].name;
+            }
+        }
+        text += here.isEmpty() ? "\nno drought now or expected" : "\n" + here;
     } else if (monitor) {
         int found = -1;
         for (int c = 4; c >= 0 && found < 0; c--) {

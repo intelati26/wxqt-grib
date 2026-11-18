@@ -763,8 +763,8 @@ DroughtViewer::DroughtViewer(Window * parent)
     box.getAndShow(this);
 
     const std::string cpc = "https://www.cpc.ncep.noaa.gov/products/";
-    outlooks = {{"Drought outlook, this month (CPC)", cpc + "expert_assessment/mdohomeweb.png"},
-                {"Drought outlook, the season (CPC)", cpc + "expert_assessment/sdohomeweb.png"},
+    outlooks = {{"Drought outlook, this month (CPC; zoomable)", cpc + "expert_assessment/mdohomeweb.png", "", "mdo"},
+                {"Drought outlook, the season (CPC; zoomable)", cpc + "expert_assessment/sdohomeweb.png", "", "sdo"},
                 {"Soil moisture percentile, ensemble, latest day (CPC; zoomable)", cpc + "Drought/Figures/smp/ens.png", cpc + "Drought/Figures/smp/ens.tif"},
                 {"Soil moisture percentile, ensemble, last 7 days (CPC; zoomable)", cpc + "Drought/Figures/smp/ens_7.png", cpc + "Drought/Figures/smp/ens_7.tif"},
                 {"Soil moisture percentile, ensemble, last 30 days (CPC; zoomable)", cpc + "Drought/Figures/smp/ens_30.png", cpc + "Drought/Figures/smp/ens_30.tif"},
@@ -1807,10 +1807,21 @@ void DroughtViewer::tickPrecip(int generation, const std::function<std::string()
 void DroughtViewer::loadOutlook() {
     const int i = std::clamp(comboOutlook.getIndex(), 0, static_cast<int>(outlooks.size()) - 1);
     const auto& entry = outlooks[static_cast<size_t>(i)];
-    const bool grid = !entry.grid.empty() && soilMap != nullptr;
+    const bool zones = !entry.zones.empty() && soilMap != nullptr;
+    const bool grid = (!entry.grid.empty() || zones) && soilMap != nullptr;
     outlookImage.setVisible(!grid);
     if (soilMap != nullptr) {
         soilMap->setVisible(grid);
+        if (!zones) {
+            soilMap->setZones({});
+        }
+        if (!zones && !grid) {
+            soilMap->setField(nullptr);
+        }
+    }
+    if (zones) {
+        loadOutlookZones(entry.zones, entry.label);
+        return;
     }
     if (grid) {
         loadSoil(entry.grid, entry.label);
@@ -1818,6 +1829,85 @@ void DroughtViewer::loadOutlook() {
     }
     ++soilGeneration;   // a grid still on its way is no longer wanted
     showPicture(&outlookImage, &textOutlook, entry.url, entry.label + ".  NOAA Climate Prediction Center.", &outlookGeneration);
+}
+
+// The CPC's drought outlook (the month's or the season's, issued on the last day of each month) as named areas on the zoomable map: the zip of its polygons (17 MB, kept for good under its issue
+// date), the KMZ inside it. Persistence is brown, improvement tan, removal green, development yellow; where nothing is drawn there is no drought now and none expected.
+void DroughtViewer::loadOutlookZones(const std::string& kind, const std::string& label) {
+    const int mine = ++soilGeneration;
+    soilMap->setField(nullptr);
+    textOutlook.setText("Reading " + label + " ...");
+    struct Loaded {
+        std::shared_ptr<UtilityDrought::Outlook> outlook;
+        std::string error;
+    };
+    auto result = std::make_shared<Loaded>();
+    new FutureVoid{this, [kind, result] {
+                       const NetManager::Scope background{NetManager::Priority::Visible};
+                       const PermanentCache store{"drought"};
+                       const auto today = QDate::currentDate();
+                       // the files the CPC posts: the monthly outlook on the last day of each month; the seasonal one on the third Thursday and updated on the last day (sdo_update_...)
+                       std::vector<std::pair<QDate, std::string>> files;
+                       for (int back = 0; back < 3; back++) {
+                           const QDate first = QDate{today.year(), today.month(), 1}.addMonths(-back);
+                           files.emplace_back(QDate{first.year(), first.month(), first.daysInMonth()}, (kind == "sdo" ? "sdo_update_polygons_" : "mdo_polygons_") + QDate{first.year(), first.month(), first.daysInMonth()}.toString("yyyyMMdd").toStdString());
+                           if (kind == "sdo") {
+                               QDate thursday = first;
+                               while (thursday.dayOfWeek() != 4) {
+                                   thursday = thursday.addDays(1);
+                               }
+                               thursday = thursday.addDays(14);
+                               files.emplace_back(thursday, "sdo_polygons_" + thursday.toString("yyyyMMdd").toStdString());
+                           }
+                       }
+                       std::sort(files.begin(), files.end(), [] (const auto& x, const auto& y) { return x.first > y.first; });
+                       for (const auto& [issue, base] : files) {
+                           if (issue > today) {
+                               continue;
+                           }
+                           const auto name = base + ".zip";
+                           const auto got = store.fetch(name, name, 1000000, [&name] { return URL::getBytes("https://ftp.cpc.ncep.noaa.gov/GIS/droughtlook/" + name).toStdString(); });
+                           if (got.text.empty()) {
+                               continue;
+                           }
+                           auto outlook = std::make_shared<UtilityDrought::Outlook>();
+                           if (UtilityDrought::parseOutlookZip(got.text, *outlook, result->error)) {
+                               result->outlook = outlook;
+                               return;
+                           }
+                       }
+                       if (result->error.empty()) {
+                           result->error = "the outlook's file could not be downloaded";
+                       }
+                   },
+                   [this, result, mine, label] {
+                       if (closed || mine != soilGeneration) {
+                           return;
+                       }
+                       if (!result->outlook) {
+                           textOutlook.setText("No outlook came back: " + result->error);
+                           soilMap->setZones({});
+                           soilMap->setCaption("");
+                           return;
+                       }
+                       struct Style {
+                           const char * name, * words, * color;
+                       };
+                       static const Style styles[] = {{"Persistence", "drought persists", "#a0724c"}, {"Improvement", "drought remains but improves", "#e6cd9a"}, {"Removal", "drought removal", "#7fbf6a"},
+                                                      {"Development", "drought development", "#f0e442"}, {"Worsens", "drought worsens", "#e08a2b"}};
+                       std::vector<DroughtMap::Zone> zones;
+                       for (const auto& style : styles) {
+                           for (const auto& z : result->outlook->zones) {
+                               if (z.name == style.name) {
+                                   zones.push_back({QString{style.words}, QColor{style.color}, z.shapes});
+                               }
+                           }
+                       }
+                       soilMap->setZones(std::move(zones));
+                       soilMap->setCaption(QString::fromStdString(result->outlook->title.empty() ? label : result->outlook->title));
+                       textOutlook.setText(std::string{"NOAA Climate Prediction Center, drawn from its polygons: brown where drought persists, tan where it remains but improves, green where it is removed, yellow where it develops. "
+                                                       "No colour: no drought now or expected. Wheel to zoom, drag to move, double click to fit the area."});
+                   }};
 }
 
 // CPC's soil moisture percentile (the ensemble of the NLDAS land models, 1/8 degree over the contiguous United States, a few days behind) as a field layer: where the soil is among the same
