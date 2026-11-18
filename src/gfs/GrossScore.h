@@ -20,6 +20,29 @@ namespace GrossScore {
         hot = std::min(100.0, 85.0 + shift);
     }
 
+    // The air temperature again from what the blend gives anyway, so that its own temperature and relative humidity need not be fetched (3.4 MB an hour of 14.6, a quarter of what a day of
+    // the outlook downloads): the blend's feels like (APTMP) is the wind chill below 50 F with wind over 3 mph, which is a formula that can be turned round, and the sustained wind is
+    // in the day already. Measured on the 12Z run of 2026-11-18, nine hours, 3.7 million cells: the temperature is found to 0.05 F on average (0.15 F at the 99th percentile) and the
+    // Gross tier of a cell changed in 0.002% of the cells. Above 50 F, or in a light wind, the feels like is the temperature as far as this score cares (it uses the temperature only
+    // below 50 F: chilly dampness).
+    inline double temperatureFrom(double feels, double windMph) {
+        if (std::isnan(feels) || std::isnan(windMph) || windMph <= 3.0) {
+            return feels;
+        }
+        const double v = std::pow(windMph, 0.16);
+        const double t = (feels - 35.74 + 35.75 * v) / (0.6215 + 0.4275 * v);
+        return t <= 50.0 ? t : feels;
+    }
+    // The relative humidity (percent) from the temperature and the dew point (F), the Magnus formula: within 0.3 of the blend's own humidity on average, so that the chilly dampness line
+    // (over 85%) falls on the other side for 0.5% of the cells (the ones within a few tenths of it).
+    inline double humidityFrom(double tempF, double dewF) {
+        if (std::isnan(tempF) || std::isnan(dewF)) {
+            return std::nan("");
+        }
+        const double t = (tempF - 32.0) / 1.8, d = (dewF - 32.0) / 1.8;
+        return std::min(100.0, 100.0 * std::exp(17.625 * d / (243.04 + d) - 17.625 * t / (243.04 + t)));
+    }
+
     struct Hour {
         double feels{std::nan("")}, dew{std::nan("")}, temp{std::nan("")}, humidity{std::nan("")}, wind{std::nan("")};
         double rainChance{std::nan("")};   // the chance of precipitation

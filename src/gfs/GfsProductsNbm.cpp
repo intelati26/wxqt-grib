@@ -568,8 +568,6 @@ for (const std::string source : {"NBM"}) {
             auto needs = niceNeeds(hour);
             for (const int f : sampleHours(std::clamp(hour / 24, 1, lastDay))) {
                 const std::string at = std::to_string(f);
-                needs.push_back({f, nbmWant("t" + at, "TMP", "2 m above ground", atHour(f))});
-                needs.push_back({f, nbmWant("h" + at, "RH", "2 m above ground", atHour(f))});
                 needs.push_back({f, nbmWant("zr" + at, "PTYPE", "surface", atHour(f), "prob >=3 <4")});   // freezing rain, if it falls
                 needs.push_back({f, nbmWant("ip" + at, "PTYPE", "surface", atHour(f), "prob >=8 <9")});   // ice pellets (sleet), if it falls
             }
@@ -613,8 +611,9 @@ for (const std::string source : {"NBM"}) {
                         }
                         const std::string n = std::to_string(f);
                         const auto value = [&] (const std::string& key) { const auto found = g.find(key + n); return found == g.end() || found->second.values.empty() ? std::nan("") : static_cast<double>(found->second.values[at]); };
-                        const double feels = value("a") * 1.8 + 32.0, dew = value("d") * 1.8 + 32.0, temp = value("t") * 1.8 + 32.0, rh = value("h");
+                        const double feels = value("a") * 1.8 + 32.0, dew = value("d") * 1.8 + 32.0;
                         const double wind = value("u") * 2.23694, chance = value("p");
+                        const double temp = GrossScore::temperatureFrom(feels, wind), rh = GrossScore::humidityFrom(temp, dew);   // (not fetched: see GrossScore.h)
                         const double icy = (std::isnan(value("zr")) ? 0.0 : value("zr")) + (std::isnan(value("ip")) ? 0.0 : value("ip"));
                         if (std::isnan(feels) || std::isnan(dew)) {
                             continue;

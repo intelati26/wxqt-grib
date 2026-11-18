@@ -12,6 +12,15 @@ namespace {
             failures++;
         }
     }
+    void windChill() {   // the NWS wind chill: 20 F with 15 mph feels like 6.2 F; the temperature comes back from it
+        const double feels = 35.74 + 0.6215 * 20.0 - 35.75 * std::pow(15.0, 0.16) + 0.4275 * 20.0 * std::pow(15.0, 0.16);
+        expect("wind chill 20 F 15 mph", feels, 6.2, 0.1);
+        expect("temperature from the wind chill", GrossScore::temperatureFrom(feels, 15.0), 20.0, 0.01);
+        expect("light wind: feels like is the temperature", GrossScore::temperatureFrom(40.0, 2.0), 40.0);
+        expect("warm: no wind chill", GrossScore::temperatureFrom(70.0, 20.0), 70.0);
+        expect("humidity, dew point at the temperature", GrossScore::humidityFrom(50.0, 50.0), 100.0, 0.01);
+        expect("humidity 50 F with a 41 F dew point", GrossScore::humidityFrom(50.0, 41.0), 70.0, 3.0);
+    }
     GrossScore::Hour hour(double temp, double feels, double humidity, double dew, double wind, double rain = std::nan(""), double icy = std::nan("")) {
         GrossScore::Hour h;
         h.temp = temp;
@@ -26,6 +35,7 @@ namespace {
 }
 
 int main() {
+    windChill();
     // the specification's function, the same hours (its lines 45 and 85 F)
     expect("mild", GrossScore::score(hour(72, 72, 40, 50, 5)), 0.0);
     expect("sticky", GrossScore::score(hour(90, 98, 70, 72, 8)), 37.0);
