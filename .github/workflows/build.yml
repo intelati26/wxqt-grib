@@ -202,9 +202,10 @@ jobs:
           Write-Host "Bundled GDAL: $version"
           "Bundled GDAL (Windows): $version" >> $env:GITHUB_STEP_SUMMARY
           if ($version -notmatch "GDAL (\d+)\.(\d+)\.(\d+)") { throw "cannot read the GDAL version from: $version" }
+          $bundledMajor = $Matches[1]   # (kept here: the next -notmatch overwrites $Matches)
           $asked = (Get-Content .github/vcpkg/ports/gdal/vcpkg.json -Raw | ConvertFrom-Json).'version-semver'
           if ($version -notmatch "GDAL $([regex]::Escape($asked))\b") { throw "the packages were to carry GDAL $asked (.github/vcpkg/ports/gdal) and have: $version" }
-          if ($Matches[1] -ne $expectedMajor) { throw "GDAL major version is $($Matches[1]), wxqt is built and tried on $expectedMajor.x: look at the release notes, then change `$expectedMajor in this step" }
+          if ($bundledMajor -ne $expectedMajor) { throw "GDAL major version is $bundledMajor, wxqt is built and tried on $expectedMajor.x: look at the release notes, then change `$expectedMajor in this step" }
           $t = New-Item -ItemType Directory -Force -Path "$env:RUNNER_TEMP/gdalsmoke"
           $rows = foreach ($j in 0..59) { (0..89 | ForEach-Object { 50 + 30 * [math]::Sin($_ / 13) * [math]::Cos($j / 9) }) -join " " }
           (@("ncols 90", "nrows 60", "xllcorner -110", "yllcorner 25", "cellsize 0.2", "NODATA_value -9999") + $rows) | Set-Content "$t/f.asc"
