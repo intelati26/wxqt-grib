@@ -13,6 +13,7 @@
 #include "gfs/GfsChart.h"
 #include "gfs/GfsRender.h"
 #include "misc/ImageViewer.h"
+#include "misc/OutlookScreen.h"
 #include "models/ChartHover.h"
 #include "misc/NiceWeatherCache.h"
 #include "objects/FutureVoid.h"
@@ -162,7 +163,9 @@ NiceWeatherOutlook::NiceWeatherOutlook(Window * parent, int day)
     leftBox.addWidget(header);
     leftBox.addWidget(photo);
     leftBox.addStretch();
-    leftBox.addWidgetReal(new ActivityLabel{this});   // what is downloading for the chart (and a click for the network list)
+    if (dynamic_cast<OutlookScreen *>(parent) == nullptr) {   // in the Outlook screen the screen has the one (two of them said the same thing twice)
+        leftBox.addWidgetReal(new ActivityLabel{this});   // what is downloading for the chart (and a click for the network list)
+    }
     comboDay.setIndex(static_cast<size_t>(std::clamp(day, 0, 7)));
     comboDay.connect([this] { showDay(); });
     hover = std::make_unique<ChartHover>(photo.getView());   // the values under the pointer, and what limits the level there (the day's probe, kept with the day)
