@@ -114,7 +114,7 @@ private:
     void tick();
     void exportView();
     bool modelSpec(string& chart, vector<string>& models, QDateTime& when) const;   // the model chart or combo on the map
-    void exportWorld();
+    void exportWorld(bool fullResolution = false);   // fullResolution: the model data at its own resolution is ticked to start with
     void showAreaPicker();   // MAG's area picker on the globe: point at an area, see it; click, go there                          // the whole world, equal area, as one picture (asks)
 
 public:

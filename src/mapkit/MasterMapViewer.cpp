@@ -2186,7 +2186,7 @@ bool MasterMapViewer::saveModelChart(const QString& path, string& problem) {
 }
 
 // the whole world on an equal-area projection as one picture (the layers painted into a skin of the world, then projected), with the header, the legend and the credits
-void MasterMapViewer::exportWorld() {
+void MasterMapViewer::exportWorld(bool fullResolution) {
     QDialog dialog{this};
     dialog.setWindowTitle("Export the whole world");
     auto * column = new QVBoxLayout{&dialog};
@@ -2268,6 +2268,9 @@ void MasterMapViewer::exportWorld() {
             }
             widthBox->setCurrentIndex(0);
         });
+        if (fullResolution) {
+            highBox->setChecked(true);
+        }
     }
     auto * buttons = new QDialogButtonBox{QDialogButtonBox::Ok | QDialogButtonBox::Cancel, &dialog};
     QObject::connect(buttons, &QDialogButtonBox::accepted, &dialog, &QDialog::accept);
@@ -2731,6 +2734,7 @@ void MasterMapViewer::exportView() {
     ask.addKind("view", "The view as it is (PNG or PDF)", "What is on the screen, with its header, legend and credits");
     ask.addKind("world", "The whole world on a world map projection", "Robinson, Equal Earth, Mollweide or the poles: nothing stretched toward the poles");
     if (chart != nullptr) {
+        ask.addKind("worldhigh", "The model chart at full resolution, whole world or polar (the polar vortex)", "The model data at its own resolution on a world map or from the pole: pick Automatic (the view you have) or the North polar map in the next question");
         ask.addKind("titled", "The model chart, titled (the Model Viewer's picture)", "With its title, run and valid times, the legend and the credit");
         ask.addKind("loop", "The model chart as a loop of hours, titled", "Every hour of the run drawn so far, as a loop");
         ask.addKind("history", "The model chart's initial states from a date, as a loop (the polar vortex)", "The first hour of each run, from one date to another, on a polar or world map");
@@ -2762,6 +2766,10 @@ void MasterMapViewer::exportView() {
     const auto kind = ask.kind();
     if (kind == "world") {
         exportWorld();
+        return;
+    }
+    if (kind == "worldhigh") {
+        exportWorld(true);
         return;
     }
     if (kind == "loop") {
