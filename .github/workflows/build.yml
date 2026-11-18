@@ -405,7 +405,7 @@ jobs:
       - name: Install Qt (official binaries)
         uses: jurplel/install-qt-action@v4
         with:
-          version: '6.12.1'   # (6.10 has had its last patch release; aqtinstall reads Linux's 6.11 and 6.12)
+          version: '6.11.3'   # (the series of Windows' vcpkg Qt; 6.12.1's checksum files were not on the mirror on the day it came out, 18 Nov 2026: the install stopped there)
           host: 'linux'
           target: 'desktop'
           arch: 'linux_gcc_64'

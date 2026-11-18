@@ -46,7 +46,7 @@ jobs:
         id: qt
         uses: jurplel/install-qt-action@v4
         with:
-          version: '6.12.1'
+          version: '6.11.3'   # (as the packages' job: 6.12.1's checksums were not on the mirror the day it came out)
           host: 'linux'
           target: 'desktop'
           arch: 'linux_gcc_64'
