@@ -650,10 +650,10 @@ for (const std::string source : {"NBM"}) {
                 }
                 const int t = GrossScore::tier(v);
                 tier.values[i] = t >= 2 ? -static_cast<float>(t - 1) : 0.0f;   // Gross -1, Nasty -2, Miserable -3; Mild 0 (the user, 2026-11-17: the gross side as negatives)
-                // 6 Gross, 7 Nasty, 8 Miserable; else the nice level from Fair (2 to 5); else 1, "meh": a Decent day (or no level) that is not Gross either, left blank
-                // (the user, 2026-11-16: meh days blank, Decent only; Fair stays a nice level)
-                named.values[i] = t >= 2 ? static_cast<float>(4 + t) : level.values[i] >= 2.0f ? level.values[i] : 1.0f;   // for the name in the hover (0 to 8)
-                both.values[i] = t >= 2 ? -static_cast<float>(t - 1) : level.values[i] >= 2.0f ? level.values[i] : 1.0f;   // the one scale: -3 Miserable, -2 Nasty, -1 Gross, 1 meh (blank), 2 Fair to 5 Perfect
+                // 6 Gross, 7 Nasty, 8 Miserable; else the nice level (0 none, 1 Decent, 2 Fair to 5 Perfect). One day, the nice outlook with the rules of the gross side in it: a place is either a nice level or a
+                // gross tier, never both (the user, 2026-11-18: "combine the nice and gross day", Decent shown as the nice page has it; before, a Decent day that was not gross was left blank as "meh")
+                named.values[i] = t >= 2 ? static_cast<float>(4 + t) : level.values[i];   // for the name in the hover (0 to 8)
+                both.values[i] = t >= 2 ? -static_cast<float>(t - 1) : level.values[i];   // the one scale: -3 Miserable, -2 Nasty, -1 Gross, 0 none (clear), 1 Decent, 2 Fair to 5 Perfect
             }
             for (auto& v : score.values) {
                 v = -v;   // the discomfort as a negative number, 0 down: the other side of the nice levels
@@ -684,10 +684,10 @@ for (const std::string source : {"NBM"}) {
             cx.needs = grossNeeds;
             cx.derive = grossDerive;
             cx.fill = [] (const Grids& g) { return pick(g, "nice_gross"); };
-            cx.ramp = Ramp{{{-3.0, miserable}, {-2.0, nasty}, {-1.0, gross}, {0.0, QColor{0, 0, 0, 0}}, {2.0, QColor{"#9fd486"}}, {3.0, QColor{"#4fb868"}}, {4.0, QColor{"#1a8c9a"}},
-                                {5.0, QColor{"#f5b800"}}}, true};   // (0 up to 2: the meh days, 1, are left clear)
-            cx.fillTitle = "2 Fair, 3 Nice, 4 Beautiful, 5 Perfect; -1 Gross, -2 Nasty, -3 Miserable; blank: meh (Decent, not gross)";
-            cx.hoverValues.push_back({"nice_gross_name", "Day", {"", "Meh (Decent or no level, not gross)", "Fair", "Nice", "Beautiful", "Perfect", "Gross", "Nasty", "Miserable"}});
+            cx.ramp = Ramp{{{-3.0, miserable}, {-2.0, nasty}, {-1.0, gross}, {0.0, QColor{0, 0, 0, 0}}, {1.0, QColor{"#d6e7a3"}}, {2.0, QColor{"#9fd486"}}, {3.0, QColor{"#4fb868"}}, {4.0, QColor{"#1a8c9a"}},
+                                {5.0, QColor{"#f5b800"}}}, true};   // (0, no level: clear; the nice levels as the nice outlook has them)
+            cx.fillTitle = "Nice weather in the daytime: 1 Decent, 2 Fair, 3 Nice, 4 Beautiful, 5 Perfect; the gross side: -1 Gross, -2 Nasty, -3 Miserable; blank: none (rain likely)";
+            cx.hoverValues.push_back({"nice_gross_name", "Day", {"None (rain likely)", "Decent", "Fair", "Nice", "Beautiful", "Perfect", "Gross", "Nasty", "Miserable"}});
             cx.hoverValues.push_back({"level", "Nice level (without the gross side)", {"None", "Decent", "Fair", "Nice", "Beautiful", "Perfect"}});
             cx.hoverValues.push_back({"gross", "Gross score, negative (the day's worst hour)", {}});
             cx.legendStep = 1;

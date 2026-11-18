@@ -42,7 +42,7 @@ std::shared_ptr<const NiceWeatherCache::Day> NiceWeatherCache::make(int day, std
     GfsRender::Variant variant;
     variant.width = 1100;
     result->probe = std::make_shared<GfsChart::Probe>();
-    result->png = GfsRender::png(session, "NBM", "nice_weather", "CONUS", "", 24 * (day + 1), {}, error, result->probe.get(), variant);
+    result->png = GfsRender::png(session, "NBM", "nice_gross_weather", "CONUS", "", 24 * (day + 1), {}, error, result->probe.get(), variant);
     if (result->png.isEmpty()) {
         return nullptr;   // (not kept: the next asks again)
     }
@@ -50,6 +50,7 @@ std::shared_ptr<const NiceWeatherCache::Day> NiceWeatherCache::make(int day, std
         const auto& levels = result->probe->fields.front().grid;
         result->summary = NiceWeatherOutlook::summaryOf(levels);
         result->headline = NiceWeatherOutlook::headlineOf(levels);
+        result->shares = NiceWeatherOutlook::sharesOf(levels);
         result->valid = result->probe->validUtc;
     }
     result->made = QDateTime::currentDateTimeUtc();

@@ -10,7 +10,7 @@ Ocean and waves,Value,,,yes,,2,yes,3,peak_dir_per (Significant Wave Height peri)
 Ocean and waves,Value,,yes,,,2,yes,3,sig_wv_ht (Significant Wave Height); wsea_wv_ht (Wind Sea height)
 Ocean and waves,Value,Pressure,,,,1,,3,sst (Sea surface temperature)
 Ocean and waves,Value,Waves,yes,,,1,,2,waves (Significant wave height)
-Precipitation and moisture,Value,,,,,11,yes,11,"1hour_accu_snow (#-hour accumulated snow, the); mean_pwat (Mean precipitable water); mean_snow_total (Mean snowfall since the star); nice_gross_weather (# Fair, # Nice, # Beautiful,); nice_weather (Nice weather in the daytime:)"
+Precipitation and moisture,Value,,,,,11,yes,11,"1hour_accu_snow (#-hour accumulated snow, the); mean_pwat (Mean precipitable water); mean_snow_total (Mean snowfall since the star); nice_gross_weather (Nice weather in the daytime:); nice_weather (Nice weather in the daytime:)"
 Precipitation and moisture,Chance of a limit,,,,,6,yes,1,12hour_precip_chance (Chance of # in or more of pr); 1hour_precip_chance (Chance of # in or more of pr); 6hour_precip_chance (Chance of # in or more of pr); lpmm_mean_precip_p01 (Localized probability-matche); lpmm_mean_precip_p03 (Localized probability-matche)
 Precipitation and moisture,Value,Pressure,,,,2,yes,23,mslp_pwat (Precipitable water); rain_total (Rainfall since the start of )
 Precipitation and moisture,Value,Other lines,,,,1,,1,"cfs30_t2m_precip (CFSv#, next # days vs its no)"

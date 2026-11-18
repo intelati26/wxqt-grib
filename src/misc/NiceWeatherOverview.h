@@ -6,7 +6,9 @@
 #ifndef NICEWEATHEROVERVIEW_H
 #define NICEWEATHEROVERVIEW_H
 
+#include <memory>
 #include <vector>
+#include "misc/NiceWeatherCache.h"
 #include <QLabel>
 #include "ui/Image.h"
 #include "ui/ScrolledWindow.h"
@@ -20,8 +22,10 @@ public:
 
 private:
     void resizeEventCustom() override;
+    void colourDays();   // each day's box as the SPC summary has it: the highest level of the day on its colour; a day with dangerous gross weather says so instead
     void load(int day);   // 0..7: one day after another, so the data are fetched once and the machine is not asked for eight maps at a time
     std::vector<QLabel *> labels;
+    std::vector<std::shared_ptr<const class NiceWeatherCache::Day>> made;   // each day as it was shown, for the best day
     std::vector<Image> images;
     VBox box;
     ScrolledWindow sw;

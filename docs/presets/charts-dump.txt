@@ -1634,7 +1634,7 @@ CHART NBM|Precipitation and moisture|1hour_precip_chance|1-hour Chance of Precip
 CHART NBM|Precipitation and moisture|50th_percentile_1hr_snow|50th Percentile Hourly Snowfall|50th percentile of the snow in the hour||||0
 CHART NBM|Precipitation and moisture|6hour_precip_chance|6-hour Chance of Precipitation|Chance of 0.01 in or more of precipitation in 6 hours (%)||||0
 CHART NBM|Precipitation and moisture|90th_percentile_1hr_snow|90th Percentile Hourly Snowfall|90th percentile of the snow in the hour||||0
-CHART NBM|Precipitation and moisture|nice_gross_weather|Nice and Gross Weather Outlook (hour 24 = day 1)|2 Fair, 3 Nice, 4 Beautiful, 5 Perfect; -1 Gross, -2 Nasty, -3 Miserable; blank: meh (Decent, not gross)||||0
+CHART NBM|Precipitation and moisture|nice_gross_weather|Nice and Gross Weather Outlook (hour 24 = day 1)|Nice weather in the daytime: 1 Decent, 2 Fair, 3 Nice, 4 Beautiful, 5 Perfect; the gross side: -1 Gross, -2 Nasty, -3 Miserable; blank: none (rain likely)||||0
 CHART NBM|Precipitation and moisture|nice_weather|Nice Weather Outlook (hour 24 = day 1)|Nice weather in the daytime: 0 none (rain likely), 1 Decent, 2 Fair, 3 Nice, 4 Beautiful, Perfect 5/5||||0
 CHART NBM|Precipitation and moisture|precip_duration|Precipitation duration|Hours with precipitation in the last 12 (0.01 in or more in the hour)||||0
 CHART NBM|Precipitation and moisture|precip_p01|Total Precipitation|Total Precipitation, the 1 hours ending at hour 12||||0

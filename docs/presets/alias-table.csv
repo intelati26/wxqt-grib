@@ -338,7 +338,7 @@ mslp_trend,MSLP and 48-hour Change,Changes and trends,41,Change,yes,Sea level pr
 mucape,Most Unstable CAPE,Severe: instability,2,Value (field at a level),yes,Most unstable CAPE,,Value,,,,,,,,,,,,mucape,1,yes,
 mucape_mean,Most-Unstable CAPE (ensemble mean),SPC REFS: Instability and shear,1,"Product grid (product, hour, type)",yes,Most-Unstable CAPE (ensemble mean),,Value,Most-Unstable CAPE | instant | Ensemble mean,Most-Unstable CAPE,instant,,Ensemble mean,,,,,,,mucape_mean,1,yes,
 mucin,Most Unstable CIN,Severe: instability,2,Value (field at a level),yes,Most unstable CIN,,Value,,,,,,,,,,,,mucin,1,yes,
-nice_gross_weather,Nice and Gross Weather Outlook (hour 24 = day 1),Precipitation and moisture,1,Value (field at a level),yes,"# Fair, # Nice, # Beautiful, # Perfect; -# Gross, -# Nasty, -# Miserable; blank: meh",,Value,,,,,,,,,,,,nice_gross_weather,1,yes,
+nice_gross_weather,Nice and Gross Weather Outlook (hour 24 = day 1),Precipitation and moisture,1,Value (field at a level),yes,"Nice weather in the daytime: # Decent, # Fair, # Nice, # Beautiful, # Perfect; the gross side: -# Gross, -# Nasty, -# Miserable; blank: none",,Value,,,,,,,,,,,,nice_gross_weather,1,yes,
 nice_weather,Nice Weather Outlook (hour 24 = day 1),Precipitation and moisture,1,Value (field at a level),yes,"Nice weather in the daytime: # none (rain likely), # Decent, # Fair, # Nice, # Beautiful, Perfect #/#",,Value,,,,,,,,,,,,nice_weather,1,yes,
 no2_aq,Nitrogen dioxide,Air quality and smoke,1,Value (field at a level),yes,Nitrogen dioxide,,Value,,,,,,,2,,,,,no#_aq,1,yes,
 no_aq,Nitrogen monoxide,Air quality and smoke,1,Value (field at a level),yes,Nitrogen monoxide,,Value,,,,,,,,,,,,no_aq,1,yes,

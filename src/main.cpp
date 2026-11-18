@@ -392,6 +392,8 @@ int main(int argc, char * argv[]) {
                         }
                     }
                 });
+            } else if (route == "niceoverview") {   // WXQT_OPEN=niceoverview: the Nice weather outlook, days 1-8 (WXQT_GRAB with a long wait: the eight days are made one after another)
+                OutlookNav::open(&w, OutlookNav::NiceOverview, 0);
             } else if (route.startsWith("nicepage:")) {   // WXQT_OPEN=nicepage:<day 1-8>:<fx>:<fy>: the Nice weather page of that day, and (after WXQT_WAIT seconds) the read-out at that point of the picture
                 const auto parts = route.split(':');
                 OutlookNav::open(&w, OutlookNav::NiceDay, std::max(0, parts.value(1, "1").toInt() - 1));
@@ -1047,7 +1049,7 @@ int main(int argc, char * argv[]) {
                 }
                 GfsChart::Probe probe;
                 const auto bytes = GfsRender::png(session, parts.value(1).toStdString(), parts.value(2).toStdString(), parts.value(4).toStdString(), parts.value(6).toStdString(), parts.value(3).toInt(), ticked, error, &probe, variant);
-                if (parts.value(2) == "nice_weather" && probe.valid()) {   // the area at each level, as the nice weather page counts it
+                if ((parts.value(2) == "nice_weather" || parts.value(2) == "nice_gross_weather") && probe.valid()) {   // the area at each level, as the nice weather page counts it
                     fprintf(stderr, "%s\n", NiceWeatherOutlook::summaryOf(probe.fields.front().grid).c_str());
                 }
                 if (const auto samples = qEnvironmentVariable("WXQT_SAMPLES"); !samples.isEmpty() && probe.valid()) {   // WXQT_SAMPLES=<in.csv>,<out.csv>: the chart's value at each "lat,lon" line (the fill grid at those places)

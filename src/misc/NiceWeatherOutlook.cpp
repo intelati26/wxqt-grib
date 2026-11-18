@@ -24,6 +24,7 @@
 namespace {
     const std::vector<std::string> dayLabels{"Day 1", "Day 2", "Day 3", "Day 4", "Day 5", "Day 6", "Day 7", "Day 8"};
     const char * const levelNames[6] = {"Below Decent", "Decent (1)", "Fair (2)", "Nice (3)", "Beautiful (4)", "Perfect (5/5)"};
+    const char * const grossNames[3] = {"Gross (-1)", "Nasty (-2)", "Miserable (-3)"};   // the gross side of the day: the same map has both
 
     bool insideUnitedStates(double lon, double lat) {
         return GfsChart::insideUnitedStates(lon, lat);
@@ -54,6 +55,7 @@ namespace {
     // how the grid of levels is colored: the area at each level, and the regions
     std::string summary(const GfsGrid::Grid& grid) {
         std::array<double, 6> area{};
+        std::array<double, 3> grossArea{};   // Gross, Nasty, Miserable
         double total = 0.0;
         struct Sum {
             double area{0}, level{0}, nicer{0};
@@ -74,15 +76,20 @@ namespace {
                 if (!insideUnitedStates(lon, lat)) {
                     continue;
                 }
-                const int level = std::clamp(static_cast<int>(std::lround(value)), 0, 5);
-                area[static_cast<size_t>(level)] += weight;
+                const int tier = value <= -0.5f ? std::clamp(static_cast<int>(std::lround(-value)), 1, 3) : 0;   // the gross side: -1 Gross, -2 Nasty, -3 Miserable
+                const int level = tier > 0 ? 0 : std::clamp(static_cast<int>(std::lround(value)), 0, 5);
+                if (tier > 0) {
+                    grossArea[static_cast<size_t>(tier - 1)] += weight;
+                } else {
+                    area[static_cast<size_t>(level)] += weight;
+                }
                 total += weight;
                 for (size_t r = 0; r < regions().size(); r++) {
                     const auto& region = regions()[r];
                     if (lon >= region.west && lon < region.east && lat >= region.south && lat < region.north) {
                         sums[r].area += weight;
-                        sums[r].level += weight * level;
-                        sums[r].nicer += level >= 3 ? weight : 0.0;
+                        sums[r].level += weight * (tier > 0 ? -tier : level);   // (a gross place counts as -1 to -3 in the region's average)
+                        sums[r].nicer += tier == 0 && level >= 3 ? weight : 0.0;
                         break;
                     }
                 }
@@ -96,6 +103,9 @@ namespace {
             const double share = 100.0 * area[static_cast<size_t>(level)] / total;
             out += std::string{levelNames[level]} + ": " + QString::number(share, 'f', 1).toStdString() + "%\n";
         }
+        for (int tier = 0; tier < 3; tier++) {   // the gross side, as the day's rules make it (Gross from 20, Nasty from 45, Miserable from 70)
+            out += std::string{grossNames[tier]} + ": " + QString::number(100.0 * grossArea[static_cast<size_t>(tier)] / total, 'f', 1).toStdString() + "%\n";
+        }
         const double niceOrBetter = 100.0 * (area[3] + area[4] + area[5]) / total;
         const double beautiful = 100.0 * (area[4] + area[5]) / total;
         out += QString{"\nNice or better: %1% of the area. Beautiful or better: %2%.\n"}.arg(niceOrBetter, 0, 'f', 0).arg(beautiful, 0, 'f', 0).toStdString();
@@ -106,11 +116,13 @@ namespace {
             }
         }
         std::sort(order.begin(), order.end(), [&sums] (size_t a, size_t b) { return sums[a].level / sums[a].area > sums[b].level / sums[b].area; });
-        out += "\nThe regions, the best first (the average level, then the share of the region at Nice or better):\n\n";
+        out += "\nThe regions, the best first (the average level, a gross place counting -1 to -3, then the share of the region at Nice or better):\n\n";
         for (const size_t r : order) {
             out += std::string{regions()[r].name} + ": " + QString::number(sums[r].level / sums[r].area, 'f', 1).toStdString() + ", " + QString::number(100.0 * sums[r].nicer / sums[r].area, 'f', 0).toStdString() + "% Nice or better\n";
         }
-        out += "\nThe levels are made from the National Blend of Models' apparent temperature, dewpoint, cloud cover, wind gusts and chance of rain through the hours of the local daytime, smoothed over 50 miles, "
+        out += "\nThe gross side: the worst hour of the daytime (9 to 19 by the sun) is scored from feels like over 85 F or under 45 F (the lines move a little with the place's normal high), dewpoint over 65 F, rain 50% likely or more, "
+               "wind over 15 mph, chilly dampness, smoke; Gross from 20, Nasty from 45, Miserable from 70 (dangerous heat or cold). A place is either a nice level or a gross tier, never both: the tier is shown where there is one.\n"
+               "\nThe levels are made from the National Blend of Models' apparent temperature, dewpoint, cloud cover, wind gusts and chance of rain through the hours of the local daytime, smoothed over 50 miles, "
                "and the air quality: the near-surface fine particles of the RRFS (days 1 to 3) and GEOS-FP, and EPA's AirNow forecasts and observations for the cities (about five days out). A top level needs every one of them to be good; the further the day, the lower the level the forecast can reach (a day 3 map stops at Beautiful, "
                "day 4 and later at Nice). The levels follow the idea of a published city outlook; the scoring is our own, a work in progress.";
         return out;
@@ -123,7 +135,7 @@ std::string NiceWeatherOutlook::summaryOf(const GfsGrid::Grid& grid) {
 }
 
 std::string NiceWeatherOutlook::headlineOf(const GfsGrid::Grid& grid) {
-    double nice = 0.0, beautiful = 0.0, total = 0.0;
+    double nice = 0.0, beautiful = 0.0, gross = 0.0, total = 0.0;
     for (int row = 0; row < grid.rows; row++) {
         const double lat = grid.lat0 - row * grid.step;
         const double weight = std::cos(lat * M_PI / 180.0);
@@ -136,16 +148,65 @@ std::string NiceWeatherOutlook::headlineOf(const GfsGrid::Grid& grid) {
             if (std::isnan(value) || !insideUnitedStates(lon, lat)) {
                 continue;
             }
-            const int level = std::clamp(static_cast<int>(std::lround(value)), 0, 5);
+            const int level = value <= -0.5f ? 0 : std::clamp(static_cast<int>(std::lround(value)), 0, 5);
             total += weight;
             nice += level >= 3 ? weight : 0.0;
             beautiful += level >= 4 ? weight : 0.0;
+            gross += value <= -0.5f ? weight : 0.0;
         }
     }
     if (total <= 0.0) {
         return "no forecast yet";
     }
-    return QString{"Nice or better %1%, Beautiful or better %2%"}.arg(100.0 * nice / total, 0, 'f', 0).arg(100.0 * beautiful / total, 0, 'f', 0).toStdString();
+    auto text = QString{"Nice or better %1%, Beautiful or better %2%"}.arg(100.0 * nice / total, 0, 'f', 0).arg(100.0 * beautiful / total, 0, 'f', 0);
+    if (100.0 * gross / total >= 1.0) {
+        text += QString{", Gross or worse %1%"}.arg(100.0 * gross / total, 0, 'f', 0);
+    }
+    return text.toStdString();
+}
+
+NiceWeatherCache::Shares NiceWeatherOutlook::sharesOf(const GfsGrid::Grid& grid) {
+    NiceWeatherCache::Shares s;
+    std::array<double, 6> atLevel{};
+    double total = 0.0;
+    for (int row = 0; row < grid.rows; row++) {
+        const double lat = grid.lat0 - row * grid.step;
+        const double weight = std::cos(lat * M_PI / 180.0);
+        for (int column = 0; column < grid.columns; column++) {
+            const float value = grid.values[static_cast<size_t>(row) * static_cast<size_t>(grid.columns) + static_cast<size_t>(column)];
+            double lon = grid.lon0 + column * grid.step;
+            if (lon > 180.0) {
+                lon -= 360.0;
+            }
+            if (std::isnan(value) || !insideUnitedStates(lon, lat)) {
+                continue;
+            }
+            total += weight;
+            if (value <= -0.5f) {
+                s.gross += weight;
+                s.nasty += value <= -1.5f ? weight : 0.0;
+                s.miserable += value <= -2.5f ? weight : 0.0;
+            } else {
+                s.nice += value >= 2.5f ? weight : 0.0;
+                s.beautiful += value >= 3.5f ? weight : 0.0;
+                atLevel[static_cast<size_t>(std::clamp(static_cast<int>(std::lround(value)), 0, 5))] += weight;
+            }
+        }
+    }
+    if (total > 0.0) {
+        s.nice *= 100.0 / total;
+        s.beautiful *= 100.0 / total;
+        s.gross *= 100.0 / total;
+        s.nasty *= 100.0 / total;
+        s.miserable *= 100.0 / total;
+        for (int level = 5; level >= 1 && s.highest == 0; level--) {
+            if (100.0 * atLevel[static_cast<size_t>(level)] / total >= 1.0) {
+                s.highest = level;
+            }
+        }
+        s.valid = true;
+    }
+    return s;
 }
 
 NiceWeatherOutlook::NiceWeatherOutlook(Window * parent, int day)

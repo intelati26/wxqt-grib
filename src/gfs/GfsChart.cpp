@@ -2562,7 +2562,7 @@ void drawLegend(LegendState& state, const Label& drawLabel) {
         p.drawRect(QRectF{keyLeft + nameWidth, top, width, 9});
         keyLeft += nameWidth + width + 22;
     }
-    if (product.id == "nice_weather") {   // the places with no value (outside the blend's grid, or no normal) are left as the map: a key for them
+    if (product.id == "nice_weather" || product.id == "nice_gross_weather") {   // the places with no value (outside the blend's grid, or no normal) are left as the map: a key for them
         const double top = image.height() / S - 15.0;
         p.setBrush(QColor{244, 244, 244});
         p.setPen(QColor{60, 60, 60});

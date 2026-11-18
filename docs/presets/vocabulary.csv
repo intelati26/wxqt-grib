@@ -300,7 +300,7 @@ fill field,Surface current speed (m/s); lines: where it flows,1,1,ocean_current
 fill field,Sea surface height above the mean,1,1,sea_level_height
 fill field,"#-hour accumulated snow, the # hours ending at hour #",1,1,1hour_accu_snow
 fill field,Chance of # in or more of precipitation in the hour,1,1,1hour_precip_chance
-fill field,"# Fair, # Nice, # Beautiful, # Perfect; -# Gross, -# Nasty, -# Miserable; blank: meh",1,1,nice_gross_weather
+fill field,"Nice weather in the daytime: # Decent, # Fair, # Nice, # Beautiful, # Perfect; the gross side: -# Gross, -# Nasty, -# Miserable; blank: none",1,1,nice_gross_weather
 fill field,"Nice weather in the daytime: # none (rain likely), # Decent, # Fair, # Nice, # Beautiful, Perfect #/#",1,1,nice_weather
 fill field,Hours with precipitation in the last #,1,1,precip_duration
 fill field,"Accumulated Precipitation, from the start to hour #",1,1,precip_ptot

@@ -1192,7 +1192,7 @@ NBM,Ceiling,Aviation and visibility,Value,Ceiling,,,,,,1,ceiling
 NBM,2-meter Visibility,Aviation and visibility,Value,Visibility,,,,,,1,visibility
 NBM,1-hour accumulated snow,Precipitation and moisture,Value,"#-hour accumulated snow, the # hours ending at hour #",,,,,,1,1hour_accu_snow
 NBM,1-hour Chance of Precipitation,Precipitation and moisture,Chance of a limit,Chance of # in or more of precipitation in the hour,,,,,,1,1hour_precip_chance
-NBM,Nice and Gross Weather Outlook (hour 24 = day 1),Precipitation and moisture,Value,"# Fair, # Nice, # Beautiful, # Perfect; -# Gross, -# Nasty, -# Miserable; blank: meh",,,,,,1,nice_gross_weather
+NBM,Nice and Gross Weather Outlook (hour 24 = day 1),Precipitation and moisture,Value,"Nice weather in the daytime: # Decent, # Fair, # Nice, # Beautiful, # Perfect; the gross side: -# Gross, -# Nasty, -# Miserable; blank: none",,,,,,1,nice_gross_weather
 NBM,Nice Weather Outlook (hour 24 = day 1),Precipitation and moisture,Value,"Nice weather in the daytime: # none (rain likely), # Decent, # Fair, # Nice, # Beautiful, Perfect #/#",,,,,,1,nice_weather
 NBM,Precipitation duration,Precipitation and moisture,Value,Hours with precipitation in the last #,,,,,,1,precip_duration
 NBM,Accumulated Precipitation,Precipitation and moisture,Value,"Accumulated Precipitation, from the start to hour #",,,,,,1,precip_ptot
