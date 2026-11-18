@@ -1294,8 +1294,8 @@ MapHit DeepMindGenesisLayer::pick(const QPointF& pixels, MapHost& host) const {
         best.distance = d;
         const auto init = QDateTime::fromString(QString::fromStdString(cycle), "yyyyMMddHH");
         const auto valid = QDateTime{init.date(), init.time(), QTimeZone::utc()}.addSecs(static_cast<qint64>(std::lround(c.hourMedian)) * 3600);
-        QString text = "A storm that does not exist yet (DeepMind 1000-member ensemble, " + QString::fromStdString(cycle.size() == 10 ? cycle.substr(8, 2) : string{}) + "z run)\\n" +
-            QString::number(c.points.size()) + " of " + QString::number(members) + " members (" + QString::number(c.chance * 100.0, 'f', c.chance < 0.1 ? 1 : 0) + "%) form it\\n" +
+        QString text = "A storm that does not exist yet (DeepMind 1000-member ensemble, " + QString::fromStdString(cycle.size() == 10 ? cycle.substr(8, 2) : string{}) + "z run)\n" +
+            QString::number(c.points.size()) + " of " + QString::number(members) + " members (" + QString::number(c.chance * 100.0, 'f', c.chance < 0.1 ? 1 : 0) + "%) form it\n" +
             "typically " + valid.toString("yyyy-MM-dd HH") + "Z (+" + QString::number(std::lround(c.hourMedian)) + " h) near " + QString::number(std::abs(c.lat), 'f', 1) + (c.lat < 0 ? "S " : "N ") +
             QString::number(std::abs(c.lon), 'f', 1) + (c.lon < 0 ? "W" : "E");
         if (c.pressureMedian > -9000.0) text += "\nwhen it first appears: " + QString::number(std::lround(c.pressureMedian)) + " mb" + (c.windMedian > -9000.0 ? ", " + QString::number(std::lround(c.windMedian)) + " kt" : QString{});

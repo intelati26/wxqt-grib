@@ -81,10 +81,10 @@ MapHit ForecastPointLayer::pick(const QPointF& pixels, MapHost& host) const {
             QString text = QString::fromStdString(entry.name) + "  (NWS " + entry.data->office + ")";
             for (size_t d = 0; d < std::min<size_t>(3, entry.data->days.size()); d++) {
                 const auto& day = entry.data->days[d];
-                text += "\\n" + day.date.toString("ddd M/d") + ":  " + (has(day.maxTemp) ? QString::number(static_cast<int>(std::lround(day.maxTemp))) : QString{"-"}) + " / " + (has(day.minTemp) ? QString::number(static_cast<int>(std::lround(day.minTemp))) : QString{"-"}) +
+                text += "\n" + day.date.toString("ddd M/d") + ":  " + (has(day.maxTemp) ? QString::number(static_cast<int>(std::lround(day.maxTemp))) : QString{"-"}) + " / " + (has(day.minTemp) ? QString::number(static_cast<int>(std::lround(day.minTemp))) : QString{"-"}) +
                     " F,  wind " + (has(day.maxWind) ? QString::number(static_cast<int>(std::lround(day.maxWind))) : QString{"-"}) + " mph,  rain " + (has(day.maxPop) ? QString::number(static_cast<int>(std::lround(day.maxPop))) : QString{"-"}) + "%";
             }
-            hit.text = text + "\\nClick for the full page";
+            hit.text = text + "\nClick for the full page";
             const auto data = entry.data;
             hit.open = [data] (Window * parent) { new ForecastPointViewer{parent, data}; };
         }
