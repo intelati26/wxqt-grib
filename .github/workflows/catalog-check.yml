@@ -43,6 +43,7 @@ jobs:
 
       # The same Qt as the packages (the official binaries, see build.yml), not Ubuntu's 6.4.2
       - name: Install Qt (official binaries)
+        id: qt
         uses: jurplel/install-qt-action@v4
         with:
           version: '6.10.3'
@@ -141,6 +142,30 @@ jobs:
           key: catalog-status-none
           restore-keys: |
             catalog-status-
+
+      # What this check ran on, in the run's summary: the versions, and which of the caches were hit (a miss on GDAL means this run built it, about 20 minutes)
+      - name: Summary of what the check ran on
+        env:
+          QT_VERSION: ${{ steps.qt.outputs.version }}
+          GDAL_CACHE_HIT: ${{ steps.gdal-cache.outputs.cache-hit }}
+          GDAL_CACHE_KEY: ${{ steps.vcpkg-key.outputs.key }}
+          LAST_CACHE_HIT: ${{ steps.last.outputs.cache-hit }}
+          LAST_CACHE_KEY: ${{ steps.last.outputs.cache-matched-key }}
+        run: |
+          # (the cache action says "true" only for an exact key; the last check's results are found by the newest key that begins as theirs, so "false" with a key is a restore from an older one)
+          yesno() { if [ "$1" = true ]; then echo "hit"; elif [ -n "$2" ]; then echo "restored from an older key"; else echo "miss"; fi; }
+          gdal="$(PATH="$HOME/gdalbin:$PATH" gdalinfo --version 2>/dev/null | head -1)"
+          {
+            echo "## What the check ran on"
+            echo
+            echo "| | | |"
+            echo "|---|---|---|"
+            echo "| Qt | ${QT_VERSION:-unknown} | official binaries (aqtinstall; the packages' version) |"
+            echo "| GDAL | ${gdal:-unknown} | build cache: **$(yesno "$GDAL_CACHE_HIT" "")** (\`${GDAL_CACHE_KEY}\`) |"
+            echo "| the last check's results | $( [ -n "$LAST_CACHE_KEY" ] && echo found || echo "none: nothing can be gone on a first run" ) | cache: **$(yesno "$LAST_CACHE_HIT" "$LAST_CACHE_KEY")**${LAST_CACHE_KEY:+ (\`$LAST_CACHE_KEY\`)} |"
+            echo "| compiler | $(g++ --version | head -1) | sccache: see the Build step |"
+            echo "| qmake | $(qmake -v 2>/dev/null | sed -n 2p) | |"
+          } >> "$GITHUB_STEP_SUMMARY"
 
       - name: Ask every model's server (the state of each source)
         run: |
