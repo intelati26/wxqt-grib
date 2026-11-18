@@ -6,6 +6,8 @@
 #   - first asks every model's server the question of Settings > Model Sources (WXQT_OPEN=sourcecheck:*): the state of each source (OK, Late, Moved,
 #     Failing, Down, Retired); Moved, Down and Retired open (or update, or close) a second issue, label source-status. The history of the checks
 #     (the run of failures) is kept in the cache with the last catalogue check, so "Down" and "Retired" mean what they say across days;
+#   - asks GitHub for the newest GDAL release (the project's own, OSGeo/gdal) and compares it with the one the packages are built with (the overlay port in
+#     .github/vcpkg/ports/gdal): a newer release opens (or updates, or closes) a third issue, label gdal-update, so the bundled GDAL is not left behind again;
 #   - keeps the full result (the lists of "never found" and "not cataloged" fields too) as an artifact and in the run's summary, with the field catalogue
 #     (tools/catalog_report.py: families, which models have which, as CSV and Markdown).
 # The last check's found fields are kept between runs in the Actions cache: the first run has nothing to compare with (nothing is gone then).
@@ -224,6 +226,57 @@ jobs:
             fi
           elif [ -n "$number" ]; then
             gh issue close "$number" --comment "Every source answers at its first place at $(date -u +%F)."
+          fi
+
+      - name: GDAL release (the version the packages are built with against the newest)
+        id: gdal
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          latest="$(gh api repos/OSGeo/gdal/releases/latest --jq .tag_name 2>/dev/null | sed 's/^v//')"
+          bundled="$(python3 -c "import json; print(json.load(open('.github/vcpkg/ports/gdal/vcpkg.json'))['version-semver'])")"
+          if [ -z "$latest" ]; then
+            echo "::warning::GitHub did not give the newest GDAL release"
+            echo "behind=" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          newest="$(printf '%s\n%s\n' "$bundled" "$latest" | sort -V | tail -1)"
+          behind=0
+          [ "$newest" != "$bundled" ] && behind=1
+          echo "behind=$behind" >> "$GITHUB_OUTPUT"
+          echo "latest=$latest" >> "$GITHUB_OUTPUT"
+          echo "bundled=$bundled" >> "$GITHUB_OUTPUT"
+          {
+            echo "## GDAL"
+            echo
+            if [ "$behind" = 1 ]; then echo "The packages are built with GDAL **$bundled**; the newest release is **$latest**."; else echo "The packages are built with GDAL **$bundled**, the newest release ($latest)."; fi
+          } >> "$GITHUB_STEP_SUMMARY"
+          {
+            echo "GDAL $latest is out (https://github.com/OSGeo/gdal/releases/tag/v$latest); the packages are built with $bundled."
+            echo
+            echo "To move: in .github/vcpkg/ports/gdal set \`version-semver\` in vcpkg.json and \`SHA512\` in portfile.cmake (the hash of \`https://github.com/OSGeo/gdal/archive/v$latest.tar.gz\`: \`sha512sum\`), compare the patches with vcpkg's own gdal port (ports/gdal at microsoft/vcpkg; they apply with \`patch -p1\` to the new source), then run the \"Build portable packages\" workflow: its smoke tests print \"Bundled GDAL\"."
+            echo
+            echo "Run: $GITHUB_SERVER_URL/$GITHUB_REPOSITORY/actions/runs/$GITHUB_RUN_ID"
+          } > gdal-issue.md
+
+      - name: Open, update or close the GDAL issue
+        if: always() && steps.gdal.outputs.behind != ''
+        env:
+          GH_TOKEN: ${{ github.token }}
+          BEHIND: ${{ steps.gdal.outputs.behind }}
+          LATEST: ${{ steps.gdal.outputs.latest }}
+          BUNDLED: ${{ steps.gdal.outputs.bundled }}
+        run: |
+          number="$(gh issue list --label gdal-update --state open --json number --jq '.[0].number // empty')"
+          gh label create gdal-update --description "A newer GDAL release is out than the one the packages are built with" --color 0E8A16 2>/dev/null || true
+          if [ "$BEHIND" = 1 ]; then
+            if [ -n "$number" ]; then
+              gh issue edit "$number" --title "GDAL $LATEST is out (the packages have $BUNDLED)" --body-file gdal-issue.md
+            else
+              gh issue create --title "GDAL $LATEST is out (the packages have $BUNDLED)" --label gdal-update --body-file gdal-issue.md
+            fi
+          elif [ -n "$number" ]; then
+            gh issue close "$number" --comment "The packages have GDAL $BUNDLED, the newest release, at $(date -u +%F)."
           fi
 
       - name: Fail when a field is gone

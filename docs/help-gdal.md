@@ -12,7 +12,12 @@ by itself. If there is no `gdalwarp` in the folder you gave, the default is used
 `gdal` package.
 
 **Check for a newer GDAL** asks GitHub (`api.github.com`, OSGeo/gdal) for the newest release, only when you press it, and
-shows the version you have beside it.
+shows the version you have beside it. **Keeping it current is worth the few minutes:** every release fixes bugs and security
+problems and widens what GDAL can read (the GRIB2 and NetCDF files the models are made of); the model files change faster than
+the old libraries learn them. The Windows portable package and the Linux AppImage are built with the project's choice of GDAL
+release (the newest it has been tried with; the project checks GitHub for a newer one every day and opens an issue when there is
+one), so the newest package carries it. Your own install (OSGeo4W, QGIS, conda, your distribution's `gdal` package) is updated the
+way you updated it, and then chosen here.
 
 ## NetCDF files read whole (Windows and macOS)
 

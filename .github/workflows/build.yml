@@ -74,7 +74,9 @@ jobs:
         shell: pwsh
         run: |
           $commit = 'v1'   # bump to force a clean rebuild
-          $manifest = (Get-FileHash .github/vcpkg/vcpkg.json).Hash + (Get-FileHash .github/vcpkg/triplets/x64-windows-release.cmake).Hash.Substring(0, 8)
+          $ports = (Get-ChildItem .github/vcpkg/ports -Recurse -File | Sort-Object FullName | ForEach-Object { (Get-FileHash $_.FullName).Hash }) -join ''   # the overlay port (the GDAL release) is part of the key
+          $portsKey = [System.BitConverter]::ToString([System.Security.Cryptography.SHA256]::Create().ComputeHash([System.Text.Encoding]::UTF8.GetBytes($ports))).Replace('-', '').Substring(0, 8)
+          $manifest = (Get-FileHash .github/vcpkg/vcpkg.json).Hash + (Get-FileHash .github/vcpkg/triplets/x64-windows-release.cmake).Hash.Substring(0, 8) + $portsKey
           "key=gdal-x64-windows-release-$commit-$manifest" >> $env:GITHUB_OUTPUT
           $webpManifest = (Get-FileHash .github/vcpkg-webp/vcpkg.json).Hash
           "webp=webp-x64-windows-release-$commit-$webpManifest" >> $env:GITHUB_OUTPUT
@@ -96,6 +98,7 @@ jobs:
             --x-install-root=D:/gdal-vcpkg `
             --x-buildtrees-root=D:/vb `
             --overlay-triplets=.github/vcpkg/triplets `
+            --overlay-ports=.github/vcpkg/ports `
             --triplet x64-windows-release `
             --clean-after-build
           if ($LASTEXITCODE -ne 0) { throw "vcpkg install failed" }
@@ -197,6 +200,8 @@ jobs:
           Write-Host "Bundled GDAL: $version"
           "Bundled GDAL (Windows): $version" >> $env:GITHUB_STEP_SUMMARY
           if ($version -notmatch "GDAL (\d+)\.(\d+)\.(\d+)") { throw "cannot read the GDAL version from: $version" }
+          $asked = (Get-Content .github/vcpkg/ports/gdal/vcpkg.json -Raw | ConvertFrom-Json).'version-semver'
+          if ($version -notmatch "GDAL $([regex]::Escape($asked))\b") { throw "the packages were to carry GDAL $asked (.github/vcpkg/ports/gdal) and have: $version" }
           if ($Matches[1] -ne $expectedMajor) { throw "GDAL major version is $($Matches[1]), wxqt is built and tried on $expectedMajor.x: look at the release notes, then change `$expectedMajor in this step" }
           $t = New-Item -ItemType Directory -Force -Path "$env:RUNNER_TEMP/gdalsmoke"
           $rows = foreach ($j in 0..59) { (0..89 | ForEach-Object { 50 + 30 * [math]::Sin($_ / 13) * [math]::Cos($j / 9) }) -join " " }
@@ -369,7 +374,7 @@ jobs:
         id: vcpkg-key
         run: |
           commit="$(git -C "$VCPKG_INSTALLATION_ROOT" rev-parse HEAD)"
-          inputs="$(cat .github/vcpkg/vcpkg.json .github/vcpkg/triplets/x64-linux-dynamic-release.cmake | sha256sum | cut -c1-16)"
+          inputs="$(cat .github/vcpkg/vcpkg.json .github/vcpkg/triplets/x64-linux-dynamic-release.cmake $(find .github/vcpkg/ports -type f | sort) | sha256sum | cut -c1-16)"
           echo "key=gdal-x64-linux-dynamic-release-$commit-$inputs" >> "$GITHUB_OUTPUT"
 
       - name: Restore GDAL build
@@ -387,6 +392,7 @@ jobs:
             --x-install-root="$HOME/gdal-vcpkg" \
             --x-buildtrees-root="$HOME/vb" \
             --overlay-triplets=.github/vcpkg/triplets \
+            --overlay-ports=.github/vcpkg/ports \
             --triplet x64-linux-dynamic-release \
             --clean-after-build
 

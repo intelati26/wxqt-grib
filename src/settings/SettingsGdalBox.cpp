@@ -184,15 +184,18 @@ void SettingsGdalBox::checkNewest() {
         const int haveMajor = have[0].toInt(), haveMinor = have[1].toInt(), havePatch = have[2].toInt();
         const QString latest = tag.startsWith('v') ? tag.mid(1) : tag;
         QString text = "Newest release: " + latest + "   In use: " + mine + "\n";
+        const QString how = "\nWorth doing: each release fixes bugs and security problems and reads more of the files the models are made of (GRIB2, NetCDF). The program's packages (Windows portable, Linux AppImage) are built "
+                            "with the release the project's daily check last saw, so the newest package has it; or choose the bin folder of a newer install (OSGeo4W, QGIS, a conda environment; on Linux the gdal package of "
+                            "your distribution) above.";
         if (major > haveMajor) {
             text += "A NEW MAJOR VERSION is out (" + QString::number(major) + ".x; yours is " + QString::number(haveMajor) + ".x). Nothing is suggested: this is left for you to look at by eye "
                     "(the program is built and tried on GDAL " + QString::number(haveMajor) + ".x; read the release notes at gdal.org first).";
         } else if (major < haveMajor || std::tie(minor, patch) < std::tie(haveMinor, havePatch)) {
             text += "The GDAL in use is newer than the newest release (a development build).";
         } else if (minor > haveMinor) {
-            text += "A newer minor release is out (" + latest + "), in the same major version " + QString::number(haveMajor) + ".";
+            text += "A newer minor release is out (" + latest + "), in the same major version " + QString::number(haveMajor) + "." + how;
         } else if (patch > havePatch) {
-            text += "A newer patch release is out (" + latest + "): bug and security fixes, same series.";
+            text += "A newer patch release is out (" + latest + "): bug and security fixes, same series." + how;
         } else {
             text += "This is the newest release.";
         }
