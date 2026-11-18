@@ -111,7 +111,7 @@ ModelViewer::ModelViewer(Window * parent, const string& modelType)
     , hover{mainPane->hover}
     , buttonProducts{this, None, "Charts..."}
     , buttonChecks{this, None, "Checks..."}
-    , comboPreload{this, {"Preload: automatic", "Preload: nearby hours only", "Preload: next 12 hours", "Preload: next 24 hours", "Preload: the whole run"}}
+    , comboPreload{this, {"Preload: the neighbouring hours", "Preload: off", "Preload: automatic", "Preload: next 12 hours", "Preload: next 24 hours", "Preload: the whole run"}}
     , comboCompare{this, ModelBar::changeLabels(true)}
     , comboTiles{this, {"One chart", "Two charts (1 x 2)", "Three charts (1 x 3)", "Four charts (2 x 2)"}}
     , comboTilesShow{this, {"Compare: charts", "Compare: models (same hour)", "Compare: runs", "Compare: members", "Compare: models (same valid time)", "Compare: ensemble parts", "Compare: ENS-ALL, REFS, PPP vs deterministic", "Compare: seasonal models (same dates)", "Compare: difference from the main model (same valid time)"}}
@@ -411,12 +411,13 @@ ModelViewer::ModelViewer(Window * parent, const string& modelType)
         buttonBuild->setMenu(menuBuild);
         boxH2.addWidgetReal(buttonBuild);
         {   // how far ahead the hours are drawn on their own
-            const auto mode = Utility::readPref("MODEL_PRELOAD", "auto");
-            comboPreload.setIndex(mode == "around" ? 1 : mode == "12" ? 2 : mode == "24" ? 3 : mode == "all" ? 4 : 0);
-            comboPreload.getView()->setToolTip("The hours after the one shown are drawn in the background so that stepping and play find them ready. Automatic: 24 hours for the GFS, 12 for the 84 hour RRFS runs, the whole run when it is under a day (the 18 hour hourly RRFS runs).");
+            const auto mode = Utility::readPref("MODEL_PRELOAD", "around");
+            comboPreload.setIndex(mode == "off" ? 1 : mode == "auto" ? 2 : mode == "12" ? 3 : mode == "24" ? 4 : mode == "all" ? 5 : 0);
+            comboPreload.getView()->setToolTip("The hours round the one shown are drawn in the background so that stepping finds them ready. The neighbouring hours (the default): the next two and the one before. Off: nothing is drawn "
+                                               "until you ask for it (stepping and play wait for each hour). Automatic: 24 hours for the GFS, 12 for the 84 hour RRFS runs, the whole run when it is under a day (the 18 hour hourly RRFS runs).");
             comboPreload.connect([this] {
-                static const char * modes[] = {"auto", "around", "12", "24", "all"};
-                Utility::writePref("MODEL_PRELOAD", modes[std::clamp(comboPreload.getIndex(), 0, 4)]);
+                static const char * modes[] = {"around", "off", "auto", "12", "24", "all"};
+                Utility::writePref("MODEL_PRELOAD", modes[std::clamp(comboPreload.getIndex(), 0, 5)]);
                 prefetch(prefetchGeneration);
                 refreshLoaded();
             });
@@ -1598,11 +1599,11 @@ void ModelViewer::storeFrame(const string& key, const Frame& frame) {
     }
 }
 
-// How many hours ahead of the one shown to draw without being asked, from the setting: nothing but the neighbours, 12 or 24 hours, the whole run, or (the default) what suits the model: the
-// registry says how far it goes (24 for the GFS, 12 for the 84 hour RRFS) and how long the run is (a run under a day is drawn whole).
+// How many hours ahead of the one shown to draw without being asked, from the setting: nothing but the neighbours (the default: the next two hours and the one before) or not even those ("off"),
+// 12 or 24 hours, the whole run, or "auto": what suits the model: the registry says how far it goes (24 for the GFS, 12 for the 84 hour RRFS) and how long the run is (a run under a day is drawn whole).
 int ModelViewer::preloadAhead() const {
-    const auto mode = Utility::readPref("MODEL_PRELOAD", "auto");
-    if (mode == "around") return 0;
+    const auto mode = Utility::readPref("MODEL_PRELOAD", "around");
+    if (mode == "around" || mode == "off") return 0;
     if (mode == "12") return 12;
     if (mode == "24") return 24;
     if (mode == "all") return 100000;
@@ -1650,6 +1651,10 @@ void ModelViewer::refreshLoaded() {
 // every hour of the loop as far as it gets; otherwise the neighbours first and then as far ahead as the setting says. It stops when they are drawn or the chart changes.
 void ModelViewer::prefetch(int generation) {
     if (generation != prefetchGeneration || !strip->isVisible() || variant.kind == GfsRender::Variant::Kind::Max || !GfsRender::handles(objectModel.model, objectModel.param)) {
+        return;
+    }
+    if (Utility::readPref("MODEL_PRELOAD", "around") == "off") {   // nothing is drawn but what is asked for
+        refreshLoaded();
         return;
     }
     const int n = strip->count();
