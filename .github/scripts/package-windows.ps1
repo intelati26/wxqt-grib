@@ -2,13 +2,13 @@
 #
 # Builds a self-contained "portable" folder for wxqt on Windows: copies
 # wxqt.exe plus every Qt DLL/plugin it needs (via windeployqt, from the
-# official Qt/MSVC install) and the minimal vcpkg-built GDAL command-line
+# vcpkg-built Qt (see the workflow)) and the minimal vcpkg-built GDAL command-line
 # tools + their DLLs (GDAL tools run as separate subprocesses -
 # QStandardPaths::findExecutable, not linked into wxqt.exe), so the folder
 # runs on a plain Windows install with none of that already present.
 #
-# Run from a shell with both the MSVC dev environment and the official Qt bin
-# dir on PATH (jurplel/install-qt-action), after a successful build
+# Run from a shell with both the MSVC dev environment and the Qt (tools/Qt6/bin and bin of the vcpkg tree)
+# dir on PATH (put there by the workflow), after a successful build
 # (build/release/wxqt.exe must exist), with GDAL_PREFIX pointing at the vcpkg
 # GDAL install (optional locally: without it GDAL is left out). Used by
 # .github/workflows/build.yml's windows-x64 job.

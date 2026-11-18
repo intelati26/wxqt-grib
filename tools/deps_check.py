@@ -30,7 +30,8 @@ DEPENDENCIES = [
     ("libgeotiff", "libgeotiff", "gh", "OSGeo/libgeotiff", ""),
     ("libwebp", "libwebp", "gh", "webmproject/libwebp", "the tag names are not versions: skipped when it cannot be read"),
     ("OpenSSL", "openssl", "gh", "openssl/openssl", "vcpkg follows the 3.x series: a new major version (4.x) is not taken as it comes"),
-    ("Qt", None, "qt", "qt/qtbase", "the version the workflows install (aqtinstall); Windows needs one it can fetch (6.11 and up are in a layout it does not read yet)"),
+    ("Qt (Windows: vcpkg qtbase)", "qtbase", "qt", "qt/qtbase", "vcpkg's port: a patched series that lags the newest minor by a little"),
+    ("Qt (Linux: workflow pin)", None, "qt", "qt/qtbase", "the Linux version the workflows install (aqtinstall); Windows takes the version of vcpkg's qtbase port (below)"),
     ("actions/checkout", None, "action", "actions/checkout", ""),
     ("actions/cache", None, "action", "actions/cache", ""),
     ("actions/upload-artifact", None, "action", "actions/upload-artifact", ""),
@@ -110,7 +111,7 @@ def workflow_pins(dirpath):
         for m in re.finditer(r"uses:\s*([\w.-]+/[\w.-]+)(?:/[\w./-]+)?@(v[\d.]+)", text):
             pins[m.group(1)] = m.group(2)
         for m in re.finditer(r"install-qt-action@[^\n]*\n\s*with:(?:\s*#[^\n]*\n)*\s*version:\s*'([\d.]+)'", text):
-            pins["Qt"] = m.group(1)
+            pins["Qt (Linux: workflow pin)"] = m.group(1)
     return pins
 
 def main():

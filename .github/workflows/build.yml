@@ -27,20 +27,54 @@ jobs:
     steps:
       - uses: actions/checkout@v7
 
-      # Official Qt binaries via aqtinstall (MSVC build). The default "lite"
-      # wxqt build no longer uses QtWebEngine, so no extra Qt modules are
-      # needed. (Kept as MSVC + official Qt rather than MSYS2 so that turning
-      # ./makeAll.py --webengine back on stays possible: MSYS2 does not
-      # package QtWebEngine for any subsystem.)
-      - name: Install Qt (MSVC, official binaries)
-        uses: jurplel/install-qt-action@v4
+      # Qt built by vcpkg (qtbase, .github/vcpkg-qt/vcpkg.json: only QtCore, QtGui, QtWidgets, QtNetwork with what they load), not the official binaries: aqtinstall 3.3 cannot read Qt 6.11
+      # and later on Windows, and Qt 6.10 has had its last patch release; vcpkg's port is a patched series (6.11.3 today) and moves with the other libraries. Proved by
+      # .github/workflows/qt-vcpkg-trial.yml (qmake, jom, windeployqt, wxqt.exe starts). The first build takes about 35 minutes; the install tree (200 MB) is cached and saved
+      # at once, so a later failure does not lose it. The release triplet is the host triplet too, so Qt is built once and its tools are in the same tree.
+      - name: Qt cache key
+        id: qt-key
+        shell: pwsh
+        run: |
+          $manifest = (Get-FileHash .github/vcpkg-qt/vcpkg.json).Hash + (Get-FileHash .github/vcpkg/triplets/x64-windows-release.cmake).Hash.Substring(0, 8)
+          "key=qt-x64-windows-release-v2-$manifest" >> $env:GITHUB_OUTPUT
+
+      - name: Restore Qt build
+        id: qt-cache
+        uses: actions/cache/restore@v6
         with:
-          # 6.10.3 is the newest aqtinstall (3.3) can fetch for Windows: Qt 6.11 and 6.12 are in a repository layout it does not read yet (Linux has them). The
-          # Linux job below uses the same version, so both packages are built with one Qt. Move both up when aqtinstall reads the new layout.
-          version: '6.10.3'
-          host: 'windows'
-          target: 'desktop'
-          arch: 'win64_msvc2022_64'
+          path: D:/qt-vcpkg
+          key: ${{ steps.qt-key.outputs.key }}
+
+      - name: Build Qt (vcpkg)
+        if: steps.qt-cache.outputs.cache-hit != 'true'
+        shell: pwsh
+        timeout-minutes: 240
+        run: |
+          & "$env:VCPKG_INSTALLATION_ROOT/vcpkg.exe" install `
+            --x-manifest-root=.github/vcpkg-qt `
+            --x-install-root=D:/qt-vcpkg `
+            --x-buildtrees-root=D:/vbq `
+            --overlay-triplets=.github/vcpkg/triplets `
+            --triplet x64-windows-release `
+            --host-triplet x64-windows-release `
+            --clean-after-build
+          if ($LASTEXITCODE -ne 0) { throw "vcpkg install failed" }
+
+      - name: Keep the Qt build
+        if: steps.qt-cache.outputs.cache-hit != 'true'
+        uses: actions/cache/save@v6
+        with:
+          path: D:/qt-vcpkg
+          key: ${{ steps.qt-key.outputs.key }}
+
+      # the tools (qmake, moc, rcc, uic, windeployqt) are in tools/Qt6/bin, the DLLs in bin
+      - name: Put Qt on the PATH
+        shell: pwsh
+        run: |
+          $root = "D:/qt-vcpkg/x64-windows-release"
+          "$root/tools/Qt6/bin" | Out-File -Append -Encoding utf8 $env:GITHUB_PATH
+          "$root/bin" | Out-File -Append -Encoding utf8 $env:GITHUB_PATH
+          "QT_PLUGIN_PATH=$root/Qt6/plugins" | Out-File -Append -Encoding utf8 $env:GITHUB_ENV
 
       # Loads the Visual Studio x64 build environment (cl, nmake, INCLUDE/LIB)
       # for the later steps. Done by hand rather than with ilammy/msvc-dev-cmd,
@@ -371,7 +405,7 @@ jobs:
       - name: Install Qt (official binaries)
         uses: jurplel/install-qt-action@v4
         with:
-          version: '6.10.3'
+          version: '6.12.1'   # (6.10 has had its last patch release; aqtinstall reads Linux's 6.11 and 6.12)
           host: 'linux'
           target: 'desktop'
           arch: 'linux_gcc_64'
