@@ -141,6 +141,29 @@ namespace {
     };
     const int panelWidth = 360;
 
+    // the thin bar between the map and the layer panel: drag it to make the panel wider or narrower (the width is kept, MASTERMAP_PANEL_WIDTH)
+    class PanelGrip : public QWidget {
+    public:
+        PanelGrip(QWidget * parent, QWidget * panel) : QWidget{parent}, target{panel} {
+            setFixedWidth(6);
+            setCursor(Qt::SplitHCursor);
+            setToolTip("Drag to make the layer panel wider or narrower");
+            setStyleSheet("background: rgba(128, 128, 128, 70);");
+        }
+    protected:
+        void mousePressEvent(QMouseEvent * event) override { from = event->globalPosition().x(); width = target->width(); }
+        void mouseMoveEvent(QMouseEvent * event) override {
+            if (event->buttons() & Qt::LeftButton) {   // (the panel is on the right: moving left makes it wider)
+                target->setFixedWidth(std::clamp(width + static_cast<int>(from - event->globalPosition().x()), 260, 900));
+            }
+        }
+        void mouseReleaseEvent(QMouseEvent *) override { Utility::writePrefInt("MASTERMAP_PANEL_WIDTH", target->width()); }
+    private:
+        QWidget * target;
+        double from{0};
+        int width{0};
+    };
+
     vector<string> split(const string& text, char separator) {
         vector<string> parts;
         std::stringstream stream{text};
@@ -242,7 +265,7 @@ MasterMapViewer::MasterMapViewer(Window * parent, const string& startView)
 
     // the side panel: the tree, the options of the layer chosen in it
     sidePanel = new QWidget{this};
-    sidePanel->setFixedWidth(panelWidth);
+    sidePanel->setFixedWidth(std::clamp(Utility::readPrefInt("MASTERMAP_PANEL_WIDTH", panelWidth), 260, 900));
     auto * column = new QVBoxLayout{sidePanel};
     column->setContentsMargins(4, 0, 0, 0);
     // the layers that are on, each with its options one click away; the whole tree (every layer there is) is in the "Add layers" window
@@ -257,7 +280,7 @@ MasterMapViewer::MasterMapViewer(Window * parent, const string& startView)
         auto * scroll = activeScroll = new QScrollArea{sidePanel};
         scroll->setWidgetResizable(true);
         scroll->setFrameShape(QFrame::NoFrame);
-        scroll->setHorizontalScrollBarPolicy(Qt::ScrollBarAlwaysOff);
+        scroll->setHorizontalScrollBarPolicy(Qt::ScrollBarAsNeeded);   // (a control wider than the panel, a slider's end, can be reached: scroll, or drag the panel wider)
         scroll->setWidget(activeBox);
         scroll->setMinimumHeight(60);
         column->addWidget(scroll);
@@ -565,6 +588,7 @@ MasterMapViewer::MasterMapViewer(Window * parent, const string& startView)
     globeView = new GlobeMapView{this};
     globeView->hide();
     rowMain.addWidgetReal(globeView, 1, Qt::Alignment{});
+    rowMain.addWidgetReal(new PanelGrip{this, sidePanel}, 0, Qt::AlignLeft);
     rowMain.addWidgetReal(sidePanel, 0, Qt::AlignLeft);   // (the whole height: the manager scrolls)
     ElidedText::install(sidePanel);
     box.addLayout(rowTop);
@@ -856,6 +880,10 @@ void MasterMapViewer::refreshActiveList() {
                     });
                     strengthRow->addWidget(slider, 1);
                     holderLayout->addWidget(strength);
+                }
+                for (auto * combo : holder->findChildren<QComboBox *>()) {   // (a long entry is cut in the box, not made the panel wider: the end of the slider under it stays in view)
+                    combo->setSizeAdjustPolicy(QComboBox::AdjustToMinimumContentsLengthWithIcon);
+                    combo->setMinimumContentsLength(10);
                 }
                 ElidedText::install(holder);
                 found = inlineOptions.emplace(id, holder).first;
