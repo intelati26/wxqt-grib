@@ -107,6 +107,26 @@ MainWindow::MainWindow(QWidget * parent)
     imagesHolder->setLayout(imageLayout.getView());
     forecastHolder = new QWidget{this};
     forecastHolder->setLayout(forecastLayout.getView());
+    {   // the column's width decides whether the graph and the forecast point stand side by side: placed again when it crosses that width
+        class Watcher : public QObject {
+        public:
+            Watcher(QObject * parent, std::function<void()> call) : QObject{parent}, call{std::move(call)} {}
+            bool eventFilter(QObject *, QEvent * event) override {
+                if (event->type() == QEvent::Resize) {
+                    call();
+                }
+                return false;
+            }
+            std::function<void()> call;
+        };
+        auto wasWide = std::make_shared<bool>(false);
+        forecastHolder->installEventFilter(new Watcher{forecastHolder, [this, wasWide] {
+            if (wideColumn() != *wasWide) {
+                *wasWide = wideColumn();
+                QTimer::singleShot(0, this, [this] { placeForecastColumn(); });
+            }
+        }});
+    }
     textHolder = new QWidget{this};
     textHolder->setLayout(rightMostLayout.getView());
 
@@ -188,6 +208,7 @@ void MainWindow::reload() {
             new FutureVoid{this, [where, fetched] { *fetched = UtilityForecastPoint::fetch(where.lat(), where.lon()); }, [this, fetched] {
                                pointData = fetched;
                                forecastPointCard->setData(fetched);
+                               placeForecastColumn();   // (beside the graph when the column is wide enough and the card has something to show)
                            }};
         } else {
             forecastPointCard->setVisible(false);
@@ -634,15 +655,48 @@ void MainWindow::launchImageScreen(const string& token) {
 }
 
 // the seven day forecast, the hourly graph and the forecast point, in the order of Settings > Home Screen Order (the graph and the point may be switched off)
+// wide enough for the hourly graph and the forecast point side by side: the graph's smallest width and the card's, with the room between them
+bool MainWindow::wideColumn() const {
+    return forecastHolder != nullptr && forecastHolder->width() >= 1180;
+}
+
 void MainWindow::placeForecastColumn() {
     auto * column = forecastLayout.getView();
     column->removeItem(boxSevenDay.getView());
     column->removeItem(boxHourlyGraph.getView());
     column->removeItem(boxForecastPoint.getView());
+    if (graphPoint != nullptr) {
+        column->removeItem(graphPoint);
+        if (sideBySide) {   // back to each in its own box
+            graphPoint->removeWidget(&hourlyGraph);
+            graphPoint->removeWidget(forecastPointCard);
+            boxHourlyGraph.addWidget(hourlyGraph, 0, Qt::Alignment{});
+            boxForecastPoint.addWidgetReal(forecastPointCard, 1, Qt::Alignment{});
+        }
+    }
+    sideBySide = false;
+    const auto tokens = UIPreferences::homeScreenForecastOrder.getTokens();
+    const auto graphAt = std::find(tokens.begin(), tokens.end(), "HOURLY_GRAPH"), pointAt = std::find(tokens.begin(), tokens.end(), "HOME_FORECAST_POINT");
+    // where the column has the room (a maximized wide screen) the card goes beside the graph, in the gap the graph would leave: the pair stands where the first of the two is in the order
+    const bool pair = UIPreferences::hourlyGraph && forecastPointCard->shown() && graphAt != tokens.end() && pointAt != tokens.end() && wideColumn();
     int at = column->indexOf(boxHazards.getView()) + 1;
-    for (const auto& token : UIPreferences::homeScreenForecastOrder.getTokens()) {
+    for (const auto& token : tokens) {
         if (token == "HOME_SEVEN_DAY") {
             column->insertLayout(at++, boxSevenDay.getView());
+        } else if (pair && (token == "HOURLY_GRAPH" || token == "HOME_FORECAST_POINT")) {
+            if (!sideBySide) {   // (the first of the two places the pair)
+                if (graphPoint == nullptr) {
+                    graphPoint = new QBoxLayout{QBoxLayout::LeftToRight};
+                    graphPoint->setContentsMargins(0, 0, 0, 0);
+                }
+                boxHourlyGraph.getView()->removeWidget(&hourlyGraph);
+                boxForecastPoint.getView()->removeWidget(forecastPointCard);
+                const bool graphFirst = graphAt < pointAt;
+                graphPoint->addWidget(graphFirst ? static_cast<QWidget *>(&hourlyGraph) : forecastPointCard, 1, Qt::AlignTop);
+                graphPoint->addWidget(graphFirst ? forecastPointCard : static_cast<QWidget *>(&hourlyGraph), 1, Qt::AlignTop);
+                column->insertLayout(at++, graphPoint);
+                sideBySide = true;
+            }
         } else if (token == "HOURLY_GRAPH") {
             column->insertLayout(at++, boxHourlyGraph.getView());
         } else if (token == "HOME_FORECAST_POINT") {

@@ -60,6 +60,7 @@ public:
     explicit CardForecastPoint(Window * parent);
     void setData(const std::shared_ptr<UtilityForecastPoint::Data>& data);
     void setAllowed(bool on);   // Settings: shown at all (and the data is not asked for when it is not)
+    bool shown() const { return allowed && have; }   // the card is on the screen (it has data and is not switched off)
     std::function<void()> onOpen;
 
 private:

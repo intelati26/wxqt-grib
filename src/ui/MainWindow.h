@@ -7,6 +7,7 @@
 #define MAINWINDOW_H
 
 #include <functional>
+#include <QBoxLayout>
 #include <string>
 #include <unordered_map>
 #include <vector>
@@ -82,6 +83,9 @@ private:
     bool launch(int);
     void showHourlyGraph();
     void placeForecastColumn();
+    QBoxLayout * graphPoint{nullptr};   // the hourly graph and the forecast point card side by side, when the column is wide enough and they are next to each other in the order
+    bool sideBySide{false};
+    bool wideColumn() const;
     VBox box;
     HBox boxH;
     VBox boxZones;         // right of the toolbar: holds the zone grid chosen under Settings > Home Screen Order
