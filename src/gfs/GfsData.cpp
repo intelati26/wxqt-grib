@@ -1387,7 +1387,11 @@ bool GfsData::check(const Run& run, const std::vector<Need>& needs, std::string&
         for (auto& n : fixed) {
             if (n.want.forecast.empty()) {
                 n.want.forecast = source.forecastText;
-                n.want.forecast.replace(n.want.forecast.find("{hour}"), 6, std::to_string(n.hour));
+                for (const auto& [mark, value] : {std::pair<std::string, int>{"{hour-1}", n.hour - 1}, {"{hour}", n.hour}}) {   // ("{hour-1}": the hour before, for an hour's mean "0-1 hour ave fcst")
+                    if (const auto at = n.want.forecast.find(mark); at != std::string::npos) {
+                        n.want.forecast.replace(at, mark.size(), std::to_string(value));
+                    }
+                }
             }
         }
         return check(run, fixed, detail);
@@ -1900,7 +1904,11 @@ bool GfsData::load(const Run& run, const std::vector<Need>& needs, std::map<std:
         for (auto& n : fixed) {
             if (n.want.forecast.empty()) {
                 n.want.forecast = source.forecastText;
-                n.want.forecast.replace(n.want.forecast.find("{hour}"), 6, std::to_string(n.hour));
+                for (const auto& [mark, value] : {std::pair<std::string, int>{"{hour-1}", n.hour - 1}, {"{hour}", n.hour}}) {   // ("{hour-1}": the hour before, for an hour's mean "0-1 hour ave fcst")
+                    if (const auto at = n.want.forecast.find(mark); at != std::string::npos) {
+                        n.want.forecast.replace(at, mark.size(), std::to_string(value));
+                    }
+                }
             }
         }
         return load(run, fixed, out, error);

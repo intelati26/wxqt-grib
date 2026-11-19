@@ -37,6 +37,7 @@
 #include "gfs/GfsClimate.h"
 #include "gfs/GfsData.h"
 #include "gfs/GfsModels.h"
+#include "gfs/GribScanIndex.h"
 #include "mapkit/GlobeMapView.h"
 #include "mapkit/WorldRender.h"
 #include "hurricane/Coast.h"
@@ -80,6 +81,9 @@ namespace {
             }
             if (NceiInventory::handles(url)) {   // NCEI's archive: the GRIB1 files' wgrib inventories are put in NOAA's form
                 return NceiInventory::index(url);
+            }
+            if (GribScanIndex::handles(url)) {   // a GRIB2 file with no index: made from the heads of its messages and kept (GribScanIndex)
+                return GribScanIndex::index(url);
             }
             if (CfsArchiveIndex::handles(url)) {   // NCEI's monthly CFS analyses have no index: one is made from the file and kept
                 return CfsArchiveIndex::index(url);

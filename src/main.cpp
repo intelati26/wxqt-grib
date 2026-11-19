@@ -23,6 +23,7 @@
 #include "hurricane/ReconViewer.h"
 #include "radar/MapWidget.h"
 #include "drought/DroughtViewer.h"
+#include "gfs/GribScanIndex.h"
 #include "hurricane/SarWindsViewer.h"
 #include "hurricane/AtcfFeedViewer.h"
 #include "hurricane/AscatUhrViewer.h"
@@ -1190,6 +1191,10 @@ int main(int argc, char * argv[]) {
                     }
                 }
                 QTimer::singleShot(100, [] { QApplication::quit(); });
+            } else if (route.startsWith("gribscan:")) {   // WXQT_OPEN=gribscan:<url of a GRIB2 file>: the index made from the heads of its messages (GribScanIndex), to stderr
+                const auto text = GribScanIndex::index(route.mid(9).toStdString() + GribScanIndex::suffix);
+                std::fwrite(text.constData(), 1, static_cast<size_t>(text.size()), stderr);
+                std::_Exit(text.isEmpty() ? 1 : 0);
             } else if (route.startsWith("cfsscan:")) {   // WXQT_OPEN=cfsscan:<a GRIB2 file>: the index lines made from its messages (a check of CfsArchiveIndex::scan)
                 QFile file{route.mid(8)};
                 if (file.open(QIODevice::ReadOnly)) {
