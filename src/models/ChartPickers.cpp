@@ -51,6 +51,12 @@ void ChartPickers::saveFavorites(const std::string& key, const std::vector<std::
 }
 
 std::string ChartPickers::areaLabel(const std::string& id) {
+    if (id == "NPOLE") {
+        return "North polar view (the pole to 30 N)";
+    }
+    if (id == "SPOLE") {
+        return "South polar view (the pole to 30 S)";
+    }
     double lat = 0, lon = 0, km = 0;
     std::string name;
     if (GfsChart::Sector box; GfsChart::parseBoxId(id, box)) {

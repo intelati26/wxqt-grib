@@ -129,6 +129,8 @@ const std::vector<Sector>& sectors() {
         {"US-SAMOA", -190, -30, -140, 5},
         // the world
         {"GLOBAL", -180, -75, 180, 75},
+        {"NPOLE", -180, 30, 180, 90},      // (the polar views of the model screen: painted from the pole, GfsRender polarPng; the box only says where they are)
+        {"SPOLE", -180, -90, 180, -30},
         {"TROPICS", -180, -38, 180, 38},
         {"NORTHERN-HEMI", -180, 15, 180, 82},
         {"SOUTHERN-HEMI", -180, -82, 180, -15},

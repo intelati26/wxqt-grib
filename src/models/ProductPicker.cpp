@@ -441,7 +441,7 @@ std::string ProductPicker::sectorGroup(const std::string& id) {
         {"SE-ASIA", "Continents"}, {"MIDDLE-EAST", "Continents"}, {"AUSTRALIA", "Continents"},
         {"WEST-ATL", "Oceans"}, {"ATLANTIC", "Oceans"}, {"NORTH-ATL", "Oceans"}, {"EAST-PAC", "Oceans"}, {"NORTH-PAC", "Oceans"}, {"SOUTH-PAC", "Oceans"},
         {"INDIAN-OCEAN", "Oceans"}, {"US-SAMOA", "Oceans"},
-        {"GLOBAL", "World and poles"}, {"TROPICS", "World and poles"}, {"NORTHERN-HEMI", "World and poles"}, {"SOUTHERN-HEMI", "World and poles"},
+        {"GLOBAL", "World and poles"}, {"TROPICS", "World and poles"}, {"NORTHERN-HEMI", "World and poles"}, {"SOUTHERN-HEMI", "World and poles"}, {"NPOLE", "World and poles"}, {"SPOLE", "World and poles"},
         {"POLAR", "World and poles"}, {"ARTIC", "World and poles"}};
     if (id.compare(0, 6, "LOCAL:") == 0) {
         return "Around a saved location";

@@ -37,6 +37,8 @@
 #include "gfs/GfsClimate.h"
 #include "gfs/GfsData.h"
 #include "gfs/GfsModels.h"
+#include "mapkit/GlobeMapView.h"
+#include "mapkit/WorldRender.h"
 #include "hurricane/Coast.h"
 #include "models/UtilityGrib.h"
 #include "spcrefs/SpcRefsLoader.h"
@@ -1299,7 +1301,117 @@ bool GfsRender::hourForValidTime(const std::string& model, GfsData::Run& run, co
     return true;
 }
 
+namespace {
+    // The polar views of the model screen ("NPOLE": the pole to 30 N, "SPOLE": to 30 S): the chart's fill, lines and barbs painted from the pole (the master map's polar projection, WorldRender) with
+    // the screen's own title lines and a color bar, instead of the flat box the other areas are. The chart is drawn on the whole world first (its grids are handed over, not a picture), so any
+    // chart of any model that draws has its polar view. Empty bytes with the reason in `error` when it could not be drawn.
+    QByteArray polarPng(GfsRender::Session& session, const std::string& model, const std::string& param, bool north, const std::string& cycle, int hour, std::string& error, const GfsRender::Variant& variant) {
+        WorldRender::Source source;
+        source.model = model;
+        source.km = 0.0;
+        GfsRender::Variant plain = variant;   // (the chart as the screen has it, but handed over as grids)
+        plain.fillOut = &source.grid;
+        plain.rampOut = &source.ramp;
+        plain.windUOut = &source.windU;
+        plain.windVOut = &source.windV;
+        plain.contoursOut = &source.contours;
+        GfsChart::Probe probe;
+        GfsRender::png(session, model, param, "GLOBAL", cycle, hour, {}, error, &probe, plain);
+        if (source.grid.empty()) {
+            if (error.empty()) {
+                error = "the chart could not be drawn for the polar view";
+            }
+            return {};
+        }
+        std::string runId = cycle;
+        if (runId.size() != 10) {   // ("", "latest", "12Z"): the newest run
+            std::string newest, date;
+            if (GfsRender::latestCycle(model, newest, "", &date) && newest.size() >= 2) {
+                runId = date + newest.substr(0, 2);
+            }
+        }
+        source.run = runId;
+        source.hour = hour;
+        GlobeMapView::setPolarFrame(30.0, false);   // the pole to 30 degrees: a circle
+        const int width = std::max(500, static_cast<int>(std::lround((variant.width > 0 ? variant.width : 900) * variant.scale)));
+        const auto world = WorldRender::renderWorld({source}, static_cast<int>(north ? GlobeMapView::Projection::PolarNorth : GlobeMapView::Projection::PolarSouth), 0.0, width, nullptr, true);
+        if (world.isNull()) {
+            error = "the polar view could not be painted";
+            return {};
+        }
+        const auto * product = GfsChart::product(param, model);
+        const auto * def = GfsModels::find(model);
+        const int headerHeight = 44, legendHeight = 58;
+        QImage out{world.width(), headerHeight + world.height() + legendHeight, QImage::Format_ARGB32};
+        out.fill(Qt::white);
+        QPainter p{&out};
+        p.setRenderHint(QPainter::Antialiasing, true);
+        QFont bold = p.font();
+        bold.setBold(true);
+        bold.setPixelSize(17);
+        p.setFont(bold);
+        p.setPen(Qt::black);
+        const QString title = QString::fromStdString(model + "  " + (product != nullptr ? product->label : param)) + (north ? "  (north pole to 30 N)" : "  (south pole to 30 S)");
+        p.drawText(QRect{6, 3, out.width() - 12, 22}, Qt::AlignLeft | Qt::AlignVCenter, title);
+        QFont plainFont = p.font();
+        plainFont.setBold(false);
+        plainFont.setPixelSize(13);
+        p.setFont(plainFont);
+        QString when = "Run " + QString::fromStdString(runId.size() == 10 ? runId.substr(0, 4) + "-" + runId.substr(4, 2) + "-" + runId.substr(6, 2) + " " + runId.substr(8, 2) + "Z" : runId) + "   F" + QString::number(hour).rightJustified(3, '0');
+        auto valid = QDateTime::fromString(QString::fromStdString(runId), "yyyyMMddHH");
+        if (valid.isValid()) {
+            valid.setTimeZone(QTimeZone::utc());
+            when += "   Valid " + valid.addSecs(3600LL * hour).toString("ddd yyyy-MM-dd HH") + "Z";
+        }
+        p.drawText(QRect{6, 24, out.width() - 12, 18}, Qt::AlignLeft | Qt::AlignVCenter, when);
+        p.drawImage(0, headerHeight, world);
+        // the color bar: the ramp's own stops from end to end, with the numbers in the units the screen shows
+        const int barLeft = 14, barWidth = out.width() - 28, barTop = headerHeight + world.height() + 6;
+        const auto& stops = source.ramp.stops;
+        if (stops.size() >= 2) {
+            const double low = stops.front().first, high = stops.back().first;
+            for (int x = 0; x < barWidth; x++) {
+                const double v = low + (high - low) * x / std::max(1, barWidth - 1);
+                p.setPen(QColor::fromRgba(source.ramp.at(v) | 0xff000000u));
+                p.drawLine(barLeft + x, barTop, barLeft + x, barTop + 14);
+            }
+            p.setPen(QColor{80, 80, 80});
+            p.drawRect(barLeft, barTop, barWidth, 14);
+            const auto * field = probe.fields.empty() ? nullptr : &probe.fields.front();   // (a picture handed over as grids has no probe: the numbers are the ramp's own, which the chart's own fill title names)
+            p.setPen(Qt::black);
+            const int ticks = 6;
+            for (int t = 0; t <= ticks; t++) {
+                const double v = low + (high - low) * t / ticks;
+                double shown = field != nullptr ? v * field->scale : v;
+                if (field != nullptr && field->convert) {
+                    shown = GfsChart::shownValue(field->quantity, shown, probe.us);
+                }
+                const int x = barLeft + barWidth * t / ticks;
+                p.drawLine(x, barTop + 14, x, barTop + 18);
+                const QString text = QString::number(shown, 'f', std::abs(shown) < 10 && shown != std::round(shown) ? 1 : 0);
+                p.drawText(QRect{x - 40, barTop + 18, 80, 14}, Qt::AlignHCenter | Qt::AlignTop, text);
+            }
+            const std::string fillTitle = product == nullptr ? std::string{} : (product->fillTitleFor ? product->fillTitleFor(hour) : product->fillTitle);
+            p.drawText(QRect{barLeft, barTop + 32, barWidth - 160, 16}, Qt::AlignLeft | Qt::AlignVCenter, QString::fromStdString(fillTitle));
+        }
+        p.setPen(QColor{110, 110, 110});
+        QFont small = plainFont;
+        small.setPixelSize(11);
+        p.setFont(small);
+        p.drawText(QRect{out.width() - 400, barTop + 32, 394, 16}, Qt::AlignRight | Qt::AlignVCenter, QString::fromStdString(def != nullptr ? "Data: " + def->label : std::string{}));
+        p.end();
+        QByteArray bytes;
+        QBuffer buffer{&bytes};
+        buffer.open(QIODevice::WriteOnly);
+        out.save(&buffer, "PNG");
+        return bytes;
+    }
+}
+
 QByteArray GfsRender::png(Session& session, const std::string& model, const std::string& param, const std::string& sectorId, const std::string& cycle, int hour, const std::vector<std::string>& overlays, std::string& error, GfsChart::Probe * probe, const Variant& variant) {
+    if ((sectorId == "NPOLE" || sectorId == "SPOLE") && variant.fillOut == nullptr) {   // the polar views: the pole's own projection (polarPng above)
+        return polarPng(session, model, param, sectorId == "NPOLE", cycle, hour, error, variant);
+    }
     try {   // a chart that cannot be made yet (the standard deviations still being worked out) says why
     const auto * base = GfsChart::product(param, model);
     auto sector = GfsChart::sector(sectorId);
