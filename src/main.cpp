@@ -1006,6 +1006,13 @@ int main(int argc, char * argv[]) {
                 auto seasons = std::make_shared<HurricaneData::SeasonData>();
                 HurricaneData::loadSeason(*seasons, route.section(':', 1, 1).toStdString());
                 new SeasonViewer{&w, seasons};
+            } else if (route.startsWith("homeshot:")) {   // WXQT_OPEN=homeshot:<width>:<height>:<out.png>: the home screen at that size, saved after WXQT_WAIT seconds (default 30)
+                const auto parts = route.split(':');
+                w.resize(parts.value(1).toInt(), parts.value(2).toInt());
+                QTimer::singleShot(std::max(10, qEnvironmentVariableIntValue("WXQT_WAIT") > 0 ? qEnvironmentVariableIntValue("WXQT_WAIT") : 30) * 1000, &w, [&w, file = parts.value(3)] {
+                    w.grab().save(file);
+                    std::_Exit(0);
+                });
             } else if (route.startsWith("thumb:")) {   // WXQT_OPEN=thumb:<home thumbnail token>:<out file>: what that home tile would show
                 const auto bytes = HomeThumbnails::fetch(route.section(':', 1, 1).toStdString());
                 QFile out{route.section(':', 2, 2)};

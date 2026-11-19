@@ -114,7 +114,11 @@ MainWindow::MainWindow(QWidget * parent)
     forecastLayout.addLayout(boxCc);
     boxCc.addLayout(cardCurrentConditions);
     forecastLayout.addLayout(boxHazards);
-    boxHourlyGraph.addWidget(hourlyGraph);   // the hourly graph sits above the long day list, where it is seen (H shows / hides it)
+    // the hourly graph sits above the long day list, where it is seen (H shows / hides it). It takes the width of its column (to 1600 px) instead of its smallest size, so a wide window (a maximized 2560 px
+    // screen) has no empty space beside it; its plot is drawn to whatever width it has
+    hourlyGraph.setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Preferred);
+    hourlyGraph.setMaximumWidth(1600);
+    boxHourlyGraph.addWidget(hourlyGraph, 0, Qt::Alignment{});
     forecastLayout.addLayout(boxSevenDay);
     forecastLayout.addLayout(boxHourlyGraph);
     forecastPointCard = new CardForecastPoint{this};
