@@ -4,6 +4,7 @@
 // *****************************************************************************
 
 #include "gfs/GfsChart.h"
+#include "mapkit/GlobeMapView.h"
 #include "gfs/GfsChartInternal.h"
 #include "gfs/UserCharts.h"
 #include <limits>
@@ -131,6 +132,8 @@ const std::vector<Sector>& sectors() {
         {"GLOBAL", -180, -75, 180, 75},
         {"NPOLE", -180, 30, 180, 90},      // (the polar views of the model screen: painted from the pole, GfsRender polarPng; the box only says where they are)
         {"SPOLE", -180, -90, 180, -30},
+        {"NPOLE-BOX", -180, 30, 180, 89.9},    // (what a polar view reads for its hover: the box up to where the flat map can go)
+        {"SPOLE-BOX", -180, -89.9, 180, -30},
         {"TROPICS", -180, -38, 180, 38},
         {"NORTHERN-HEMI", -180, 15, 180, 82},
         {"SOUTHERN-HEMI", -180, -82, 180, -15},
@@ -1818,10 +1821,17 @@ bool Probe::locate(double fx, double fy, double& lon, double& lat) const {
     if (x < areaLeft || x > areaLeft + areaWidth || y < areaTop || y > areaTop + areaHeight) {
         return false;
     }
+    if (polar != 0) {   // the view from the pole: the picture's point to the projection's units, and those to degrees (false outside the circle)
+        const auto projection = polar > 0 ? GlobeMapView::Projection::PolarNorth : GlobeMapView::Projection::PolarSouth;
+        if (!GlobeMapView::inverse(projection, (x - areaLeft - areaWidth / 2.0) / polarUnits, (areaTop + areaHeight / 2.0 - y) / polarUnits, lat, lon)) {
+            return false;
+        }
+    } else {
     const Sector sector{"", west, south, east, north};   // View holds a reference: a temporary would be gone
     const View view{sector, QRectF{areaLeft, areaTop, areaWidth, areaHeight}};
     lon = view.lonAt(x);
     lat = view.latAt(y);
+    }
     while (lon > 180.0) {
         lon -= 360.0;
     }
@@ -1834,6 +1844,9 @@ bool Probe::locate(double fx, double fy, double& lon, double& lat) const {
 bool Probe::place(double lon, double lat, double& fx, double& fy) const {
     if (areaWidth <= 0.0 || imageWidth <= 0.0 || imageHeight <= 0.0) {
         return false;
+    }
+    if (polar != 0) {
+        return placeAnywhere(lon, lat, fx, fy) && fx * imageWidth >= areaLeft && fx * imageWidth <= areaLeft + areaWidth && fy * imageHeight >= areaTop && fy * imageHeight <= areaTop + areaHeight;
     }
     const Sector sector{"", west, south, east, north};   // View holds a reference: a temporary would be gone
     const View view{sector, QRectF{areaLeft, areaTop, areaWidth, areaHeight}};
@@ -1849,6 +1862,16 @@ bool Probe::place(double lon, double lat, double& fx, double& fy) const {
 bool Probe::placeAnywhere(double lon, double lat, double& fx, double& fy) const {
     if (areaWidth <= 0.0 || imageWidth <= 0.0 || imageHeight <= 0.0) {
         return false;
+    }
+    if (polar != 0) {
+        double px = 0.0, py = 0.0;
+        const auto projection = polar > 0 ? GlobeMapView::Projection::PolarNorth : GlobeMapView::Projection::PolarSouth;
+        if (!GlobeMapView::forward(projection, lat, lon, px, py)) {
+            return false;
+        }
+        fx = (areaLeft + areaWidth / 2.0 + px * polarUnits) / imageWidth;
+        fy = (areaTop + areaHeight / 2.0 - py * polarUnits) / imageHeight;
+        return true;
     }
     const Sector sector{"", west, south, east, north};
     const View view{sector, QRectF{areaLeft, areaTop, areaWidth, areaHeight}};

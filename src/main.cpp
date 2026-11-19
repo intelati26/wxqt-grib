@@ -1059,6 +1059,9 @@ int main(int argc, char * argv[]) {
                 }
                 GfsChart::Probe probe;
                 const auto bytes = GfsRender::png(session, parts.value(1).toStdString(), parts.value(2).toStdString(), parts.value(4).toStdString(), parts.value(6).toStdString(), parts.value(3).toInt(), ticked, error, &probe, variant);
+                if (const auto hover = qEnvironmentVariable("WXQT_HOVER"); !hover.isEmpty()) {   // WXQT_HOVER=<fx>,<fy> (0 to 1 of the picture): the hover read-out at that point, to stderr
+                    fprintf(stderr, "HOVER %s\n", probe.read(hover.section(',', 0, 0).toDouble(), hover.section(',', 1, 1).toDouble()).replace('\n', " | ").toStdString().c_str());
+                }
                 if ((parts.value(2) == "nice_weather" || parts.value(2) == "nice_gross_weather") && probe.valid()) {   // the area at each level, as the nice weather page counts it
                     fprintf(stderr, "%s\n", NiceWeatherOutlook::summaryOf(probe.fields.front().grid).c_str());
                 }

@@ -339,6 +339,8 @@ namespace GfsChart {
         };
         double west{0}, east{0}, south{0}, north{0};
         double areaLeft{0}, areaTop{0}, areaWidth{0}, areaHeight{0}, imageWidth{1}, imageHeight{1};
+        int polar{0};                   // 1: the picture is the view from the north pole, -1 from the south pole (the area is the circle's square; west..north then say only what the fields cover)
+        double polarUnits{1.0};         // the polar picture's pixels for one unit of the projection (GlobeMapView::extent)
         bool us{true};
         std::vector<Field> fields;
         GfsGrid::Grid windU, windV;     // m/s

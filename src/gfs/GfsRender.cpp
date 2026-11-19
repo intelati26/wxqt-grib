@@ -1305,7 +1305,7 @@ namespace {
     // The polar views of the model screen ("NPOLE": the pole to 30 N, "SPOLE": to 30 S): the chart's fill, lines and barbs painted from the pole (the master map's polar projection, WorldRender) with
     // the screen's own title lines and a color bar, instead of the flat box the other areas are. The chart is drawn on the whole world first (its grids are handed over, not a picture), so any
     // chart of any model that draws has its polar view. Empty bytes with the reason in `error` when it could not be drawn.
-    QByteArray polarPng(GfsRender::Session& session, const std::string& model, const std::string& param, bool north, const std::string& cycle, int hour, std::string& error, const GfsRender::Variant& variant) {
+    QByteArray polarPng(GfsRender::Session& session, const std::string& model, const std::string& param, bool north, const std::string& cycle, int hour, std::string& error, GfsChart::Probe * outProbe, const GfsRender::Variant& variant) {
         WorldRender::Source source;
         source.model = model;
         source.km = 0.0;
@@ -1315,8 +1315,7 @@ namespace {
         plain.windUOut = &source.windU;
         plain.windVOut = &source.windV;
         plain.contoursOut = &source.contours;
-        GfsChart::Probe probe;
-        GfsRender::png(session, model, param, "GLOBAL", cycle, hour, {}, error, &probe, plain);
+        GfsRender::png(session, model, param, "GLOBAL", cycle, hour, {}, error, nullptr, plain);
         if (source.grid.empty()) {
             if (error.empty()) {
                 error = "the chart could not be drawn for the polar view";
@@ -1342,6 +1341,26 @@ namespace {
         const auto * product = GfsChart::product(param, model);
         const auto * def = GfsModels::find(model);
         const int headerHeight = 44, legendHeight = 58;
+        // the hover: the fields of the chart on the pole's box (a small picture of it, the part that is read, bare) with the picture's own geometry in place of the box's
+        GfsChart::Probe probe;
+        {
+            GfsRender::Variant forProbe = variant;
+            forProbe.bare = true;
+            forProbe.width = 400;
+            forProbe.scale = 1.0;
+            std::string ignored;
+            GfsRender::png(session, model, param, north ? "NPOLE-BOX" : "SPOLE-BOX", runId, hour, {}, ignored, &probe, forProbe);
+            double halfW = 0.0, halfH = 0.0;
+            GlobeMapView::extent(north ? GlobeMapView::Projection::PolarNorth : GlobeMapView::Projection::PolarSouth, halfW, halfH);
+            probe.polar = north ? 1 : -1;
+            probe.polarUnits = world.width() / (2.0 * halfW);
+            probe.areaLeft = 0;
+            probe.areaTop = headerHeight;
+            probe.areaWidth = world.width();
+            probe.areaHeight = world.height();
+            probe.imageWidth = world.width();
+            probe.imageHeight = headerHeight + world.height() + legendHeight;
+        }
         QImage out{world.width(), headerHeight + world.height() + legendHeight, QImage::Format_ARGB32};
         out.fill(Qt::white);
         QPainter p{&out};
@@ -1391,7 +1410,7 @@ namespace {
                 const QString text = QString::number(shown, 'f', std::abs(shown) < 10 && shown != std::round(shown) ? 1 : 0);
                 p.drawText(QRect{x - 40, barTop + 18, 80, 14}, Qt::AlignHCenter | Qt::AlignTop, text);
             }
-            const std::string fillTitle = product == nullptr ? std::string{} : (product->fillTitleFor ? product->fillTitleFor(hour) : product->fillTitle);
+            const std::string fillTitle = !probe.fields.empty() ? probe.fields.front().label : (product == nullptr ? std::string{} : (product->fillTitleFor ? product->fillTitleFor(hour) : product->fillTitle));
             p.drawText(QRect{barLeft, barTop + 32, barWidth - 160, 16}, Qt::AlignLeft | Qt::AlignVCenter, QString::fromStdString(fillTitle));
         }
         p.setPen(QColor{110, 110, 110});
@@ -1400,6 +1419,9 @@ namespace {
         p.setFont(small);
         p.drawText(QRect{out.width() - 400, barTop + 32, 394, 16}, Qt::AlignRight | Qt::AlignVCenter, QString::fromStdString(def != nullptr ? "Data: " + def->label : std::string{}));
         p.end();
+        if (outProbe != nullptr) {
+            *outProbe = std::move(probe);
+        }
         QByteArray bytes;
         QBuffer buffer{&bytes};
         buffer.open(QIODevice::WriteOnly);
@@ -1410,7 +1432,7 @@ namespace {
 
 QByteArray GfsRender::png(Session& session, const std::string& model, const std::string& param, const std::string& sectorId, const std::string& cycle, int hour, const std::vector<std::string>& overlays, std::string& error, GfsChart::Probe * probe, const Variant& variant) {
     if ((sectorId == "NPOLE" || sectorId == "SPOLE") && variant.fillOut == nullptr) {   // the polar views: the pole's own projection (polarPng above)
-        return polarPng(session, model, param, sectorId == "NPOLE", cycle, hour, error, variant);
+        return polarPng(session, model, param, sectorId == "NPOLE", cycle, hour, error, probe, variant);
     }
     try {   // a chart that cannot be made yet (the standard deviations still being worked out) says why
     const auto * base = GfsChart::product(param, model);
