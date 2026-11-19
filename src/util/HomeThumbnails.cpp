@@ -38,6 +38,10 @@
 #include "settings/Location.h"
 #include "util/Utility.h"
 #include "gfs/GfsCache.h"
+#include "gfs/AirNowLoader.h"
+#include "mapkit/AirNowLayer.h"
+#include "radar/RadarGeomInfo.h"
+#include <numbers>
 
 namespace {
 }
@@ -72,6 +76,7 @@ const vector<HomeThumbnails::Entry>& HomeThumbnails::all() {
         {"TROPICAL_WPAC_SAT", "Tropical overview - West Pacific (Himawari satellite, Guam sector)", "nhc.png#2", false, false},
         {"WORLD_SST", "World sea surface temperature (NOAA/NESDIS daily 5 km blend)", "opc.png#2", false, false},
         {"SUN_REGIONS", "The Sun with its numbered active regions and a heliographic grid (SDO/HMI, NOAA SWPC)", "goes16.png", false, false},
+        {"AIRNOW", "Air quality - EPA AirNow, today (the cities, in the EPA's colors)", "", true, false},
         {"MRMS_RADAR", "MRMS radar - composite reflectivity around your location", "mcd_tile.png", false, false},
         {"MRMS_LATEST", "MRMS - latest scan of your last product, around your location", "mcd_tile.png", false, false},
         {"CFS_30DAY", "CFSv2 next 30 days against the normal: temperature (colors) and precipitation (lines), CONUS", "baseline_show_chart_black_48dp.png#2", false, false},
@@ -121,6 +126,7 @@ namespace {
         {"TROPICAL_WPAC_SAT", {"Western Pacific", "Himawari infrared (colour-enhanced) view of the western Pacific from the Guam sector."}},
         {"SUN_REGIONS", {"The Sun", "The visible disc of the Sun (SDO/HMI) with the numbered active regions (NOAA SWPC), coloured by their chance of an M or X flare, and a grid every 30 degrees: east is left, west is right, and regions rotate in at the left and out at the right in about two weeks. Click for the Space weather screen."}},
         {"WORLD_SST", {"World sea surface temperature", "Daily global sea surface temperature, a 5 km blend of satellite and in-situ measurements (NOAA/NESDIS). Click for the Climate and ocean screen, with the anomaly and the regional maps."}},
+        {"AIRNOW", {"Air quality today", "EPA AirNow: the air quality of the cities across the United States today (observations and forecast, the worse of them), in the EPA's colors from Good green to Hazardous maroon. Click for the master map with the days ahead."}},
         {"MRMS_RADAR", {"MRMS radar", "Multi-Radar Multi-Sensor composite reflectivity around your location."}},
         {"MRMS_LATEST", {"MRMS product", "Latest scan of the MRMS product you looked at last, around your location."}},
         {"CFS_30DAY", {"Next 30 days", "NOAA's CFSv2 for the next 30 days against its own normal: temperature as colors (warm or cool) and precipitation as lines (green wetter, brown drier), the mean of its four newest runs. A lean of the pattern, not a forecast of days. Click for the Model Viewer."}},
@@ -197,6 +203,58 @@ namespace {
 }
 
 namespace {
+    // EPA's AirNow today over the contiguous United States: the cities as dots in the EPA's colors on a white map with the state lines (the master map's layer, as a picture to keep), with a line of title
+    QByteArray airNowPicture() {
+        const auto today = QDate::currentDate();
+        const auto points = AirNow::points(today);
+        if (points.empty()) {
+            return {};
+        }
+        constexpr double south = 23.0, north = 50.0, west = -127.0, east = -65.0;
+        constexpr int width = 900;
+        const auto mercator = [] (double lat) { return 180.0 / std::numbers::pi * std::log(std::tan(std::numbers::pi / 4.0 + lat * std::numbers::pi / 360.0)); };
+        const double top = mercator(north), bottom = mercator(south);
+        const int height = static_cast<int>(std::lround(width * (top - bottom) / (east - west)));
+        QImage map{width, height + 30, QImage::Format_ARGB32};
+        map.fill(Qt::white);
+        QPainter p{&map};
+        p.setRenderHint(QPainter::Antialiasing, true);
+        const auto at = [&] (double lat, double lon) { return QPointF{(lon - west) / (east - west) * width, 30 + (top - mercator(lat)) / (top - bottom) * height}; };
+        {
+            static std::map<RadarGeometryTypeEnum, vector<float>> lines;   // (the line files: latitude and west-positive longitude, as pairs of end points)
+            auto& data = lines[StateLines];
+            if (data.empty()) {
+                RadarGeomInfo::loadData(RadarGeomInfo::typeToFileName.at(StateLines), data);
+            }
+            p.setPen(QPen{QColor{110, 110, 110}, 0.9});
+            for (size_t i = 0; i + 3 < data.size(); i += 4) {
+                p.drawLine(at(data[i], -data[i + 1]), at(data[i + 2], -data[i + 3]));
+            }
+        }
+        p.setPen(QPen{QColor{30, 30, 30, 200}, 0.7});
+        for (int category = 0; category < 6; category++) {   // the worse on top
+            p.setBrush(AirNowLayer::color(category));
+            const double radius = 3.2 + 0.5 * category;
+            for (const auto& point : points) {
+                if (point.category == category && point.lat >= south && point.lat <= north && point.lon >= west && point.lon <= east) {
+                    p.drawEllipse(at(point.lat, point.lon), radius, radius);
+                }
+            }
+        }
+        QFont bold = p.font();
+        bold.setBold(true);
+        bold.setPixelSize(15);
+        p.setFont(bold);
+        p.setPen(Qt::black);
+        p.drawText(QRect{6, 3, width - 12, 24}, Qt::AlignLeft | Qt::AlignVCenter, "Air quality: EPA AirNow, " + today.toString("ddd MMM d"));
+        p.end();
+        QByteArray bytes;
+        QBuffer buffer{&bytes};
+        buffer.open(QIODevice::WriteOnly);
+        map.save(&buffer, "PNG");
+        return bytes;
+    }
+
     // The north polar view of a chart of the GFS, from the pole to 30 N, painted from the grids themselves (the master map's polar export, WorldRender), the newest analysis (the first hour of the newest
     // run at a six hourly time), with a line of title above it. Empty when the chart could not be read.
     QByteArray polarPicture(const std::string& chart, const QString& title) {
@@ -239,6 +297,9 @@ QByteArray HomeThumbnails::fetch(const string& token) {
         FeedViewer::Item item;
         QByteArray image;
         return FeedViewer::newest(FeedViewer::iem(), item, image) ? image : QByteArray{};
+    }
+    if (token == "AIRNOW") {
+        return airNowPicture();
     }
     if (token == "VORTEX_10MB") {
         return polarPicture("10_wnd_ht", "Polar vortex: 10 mb wind and height");

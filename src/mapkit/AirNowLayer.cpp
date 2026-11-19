@@ -4,6 +4,7 @@
 // *****************************************************************************
 
 #include "mapkit/AirNowLayer.h"
+#include <algorithm>
 #include <cmath>
 #include <QPainter>
 #include <QTimeZone>
@@ -16,6 +17,10 @@ namespace {
     long noonOf(const QDate& date) {
         return QDateTime{date, QTime{12, 0}, QTimeZone::utc()}.toSecsSinceEpoch();
     }
+}
+
+QColor AirNowLayer::color(int category) {
+    return colors[std::clamp(category, 0, 5)];
 }
 
 QDate AirNowLayer::shownDate() const {

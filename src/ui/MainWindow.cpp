@@ -598,6 +598,9 @@ void MainWindow::launchImageScreen(const string& token) {
         chosen.param = "cfs30_t2m_precip";
         chosen.sector = "CONUS";
         toolbar.launchModelViewer()->applySelection(chosen);   // the Model Viewer on the CFS 30 day chart
+    } else if (token == "AIRNOW") {
+        auto * map = new MasterMapViewer{this};   // the master map on the AirNow layer, over the country, live (the time bar has the forecast days)
+        map->openAt(QDateTime::currentDateTimeUtc(), 38.0, -96.0, 2500.0, {"air/airnow"}, true);
     } else if (token == "IEM_FEATURE") {
         new FeedViewer{this, FeedViewer::iem()};   // the feed: the notes of the last weeks, with the links to the site that makes them
     } else if (token == "NICE_DAY1") {

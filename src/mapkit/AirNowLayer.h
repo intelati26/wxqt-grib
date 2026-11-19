@@ -9,6 +9,7 @@
 #include <map>
 #include <memory>
 #include <vector>
+#include <QColor>
 #include <QDate>
 #include "gfs/AirNowLoader.h"
 #include "mapkit/MapLayer.h"
@@ -17,6 +18,7 @@
 // forecasts of the days ahead (to about five). The time bar steps through the days; hover for the area's index where the file has it.
 class AirNowLayer : public MapLayer {
 public:
+    static QColor color(int category);              // the EPA's color of a category (0 Good to 5 Hazardous): the map's dots and the home picture's
     ~AirNowLayer() override { *alive = false; }
     string id() const override { return "air/airnow"; }
     string path() const override { return "Air quality/AirNow reporting areas (today and the forecast days)"; }
