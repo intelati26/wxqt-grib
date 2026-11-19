@@ -110,6 +110,14 @@ def run(command: str):
         yield line
 
 
+def compilerCache() -> str:
+    # the compiler cache on the path, if any: sccache first (it also does MSVC), else ccache; "" when there is none
+    for name in ("sccache", "ccache"):
+        if shutil.which(name):
+            return name
+    return ""
+
+
 def makePro(extraFooter: str = "\n", webEngine: bool = False) -> None:
     # real sources only: not backup copies (MainWindow.cpp.backup) and not the stand-alone demos, which have a main() of their own
     standalone = {"src/weather_graph_demo.cpp", "src/weather_graph_example.cpp"}
@@ -148,6 +156,8 @@ if __name__ == "__main__":
     parser.add_argument('--pro', action='store_true')
     parser.add_argument('--qt5', action='store_true')
     parser.add_argument('--gcc', action='store_true')
+    parser.add_argument('--cache', action='store_true',
+                        help='run the compilers through sccache or ccache, whichever is installed (a compile of an unchanged file comes from its cache); nothing changes when neither is')
     parser.add_argument('--webengine', action='store_true',
                         help='include the embedded QtWebEngine browser (bigger; adds the Observation Sites web previews)')
     args = parser.parse_args()
@@ -172,10 +182,15 @@ if __name__ == "__main__":
     #
     # make pro file
     #
-    if not args.gcc:
-        makePro(webEngine=args.webengine)
-    else:
-        makePro("QMAKE_CXX = g++\n", webEngine=args.webengine)
+    footer: str = "\n" if not args.gcc else "QMAKE_CXX = g++\n"
+    if args.cache:
+        launcher: str = compilerCache()
+        if launcher:
+            print("compiling through", launcher)
+            footer += f"QMAKE_CXX = {launcher} $$QMAKE_CXX\nQMAKE_CC = {launcher} $$QMAKE_CC\nwin32-msvc*: CONFIG += no_batch\n"   # (MSVC's makefile compiles many files in one cl, which a cache will not take)
+        else:
+            print("--cache: neither sccache nor ccache is installed, compiling as usual")
+    makePro(footer, webEngine=args.webengine)
 
     #
     # configure with qmake
