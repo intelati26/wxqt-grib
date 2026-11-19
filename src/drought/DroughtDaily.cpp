@@ -97,14 +97,14 @@ namespace {
             std::string line;
             while (std::getline(in, line)) {
                 const auto fields = QString::fromStdString(line).split('|');
-                if (static_cast<size_t>(fields.size()) != width + 1) {
+                if (static_cast<size_t>(fields.size()) != width + 2) {   // the area's name, its code (the row's key is "name|code"), then the values
                     continue;
                 }
                 std::vector<double> values;
-                for (int i = 1; i < fields.size(); i++) {
+                for (int i = 2; i < fields.size(); i++) {
                     values.push_back(fields[i].isEmpty() ? std::nan("") : fields[i].toDouble());
                 }
-                add(fields[0].toStdString(), std::move(values));
+                add((fields[0] + "|" + fields[1]).toStdString(), std::move(values));
             }
         };
         const std::string monthName = "daily/normals-" + kind + "-" + element(maximum) + "-m" + QString("%1").arg(month, 2, 10, QChar{'0'}).toStdString() + "-" + span + ".csv";
