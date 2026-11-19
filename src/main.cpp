@@ -1192,7 +1192,15 @@ int main(int argc, char * argv[]) {
                 }
                 QTimer::singleShot(100, [] { QApplication::quit(); });
             } else if (route.startsWith("gribscan:")) {   // WXQT_OPEN=gribscan:<url of a GRIB2 file>: the index made from the heads of its messages (GribScanIndex), to stderr
-                const auto text = GribScanIndex::index(route.mid(9).toStdString() + GribScanIndex::suffix);
+                QByteArray text;
+                if (route.mid(9).startsWith('/')) {   // (a file on this computer: its messages are read in memory)
+                    QFile file{route.mid(9)};
+                    if (file.open(QIODevice::ReadOnly)) {
+                        text = QByteArray::fromStdString(GribScanIndex::scan(file.readAll()));
+                    }
+                } else {
+                    text = GribScanIndex::index(route.mid(9).toStdString() + GribScanIndex::suffix);
+                }
                 std::fwrite(text.constData(), 1, static_cast<size_t>(text.size()), stderr);
                 std::_Exit(text.isEmpty() ? 1 : 0);
             } else if (route.startsWith("cfsscan:")) {   // WXQT_OPEN=cfsscan:<a GRIB2 file>: the index lines made from its messages (a check of CfsArchiveIndex::scan)

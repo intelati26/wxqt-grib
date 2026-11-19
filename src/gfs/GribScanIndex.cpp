@@ -118,36 +118,40 @@ namespace {
         return hours == std::floor(hours) ? std::to_string(static_cast<long>(hours)) : number(std::round(hours * 100.0) / 100.0);
     }
 
-    // one message's line: `p` points at the message's bytes (at least its first sections), `size` how many are there, `offset` where the message is in the file
-    struct Line {
+    // what is known of one field of a message
+    struct Field {
+        std::string name, level, forecast;
+    };
+    // one message: the reference time and its fields (a GRIB2 message may hold several: each is a section 4 with the sections that follow it)
+    struct Message {
         bool ok{false};
-        std::string text;   // without the message's number
         std::string date;
+        std::vector<Field> fields;
     };
 
-    // The sections of the head of a message, read from `bytesAt` (which gives `count` bytes at an offset inside the message, from what has been read or by one more read): section 1 for the
-    // reference time, section 4 for the field. The message is left as soon as both are known.
+    // The sections of a GRIB2 message, read from `bytesAt` (which gives `count` bytes at an offset inside the message, from what has been read or by one more read): section 1 for the reference
+    // time, every section 4 for a field. The first sections are inside the first read (the headers of sections 5, 6 and 7, which say where the next field starts, are usually there too).
     template <typename BytesAt>
-    Line describe(int discipline, uint64_t length, BytesAt&& bytesAt) {
-        Line line;
+    Message describe2(int discipline, uint64_t length, BytesAt&& bytesAt) {
+        Message message;
         uint64_t p = 16;
         int year = 0, month = 0, day = 0, hour = 0;
         bool haveReference = false;
         while (p + 5 <= length - 4) {
             const auto head = bytesAt(p, 5);
             if (head.size() < 5) {
-                return line;
+                break;
             }
             const auto * h = reinterpret_cast<const uchar *>(head.constData());
             const uint32_t sectionLength = be32(h);
             const int section = h[4];
             if (sectionLength < 5) {
-                return line;
+                break;
             }
             if (section == 1) {
                 const auto s = bytesAt(p, 19);
                 if (s.size() < 19) {
-                    return line;
+                    break;
                 }
                 const auto * d = reinterpret_cast<const uchar *>(s.constData());
                 year = be16(d + 12);
@@ -158,7 +162,7 @@ namespace {
             } else if (section == 4) {
                 const auto s = bytesAt(p, 59);
                 if (s.size() < 34) {
-                    return line;
+                    break;
                 }
                 const auto * d = reinterpret_cast<const uchar *>(s.constData());
                 const int templateNumber = be16(d + 7);
@@ -181,27 +185,123 @@ namespace {
                 const double start = hoursOf(unit, lead);
                 if (templateNumber == 8 && s.size() >= 58) {   // an interval: the average, the accumulation, the maximum or the minimum of the hours from the forecast time on
                     const int process = d[46];
-                    const double length = hoursOf(d[48], static_cast<long>(be32(d + 49)));
+                    const double span = hoursOf(d[48], static_cast<long>(be32(d + 49)));
                     const char * word = process == 0 ? "ave" : process == 1 ? "acc" : process == 2 ? "max" : process == 3 ? "min" : "stat";
-                    forecast = start < 0.0 && unit != 1 ? "?" : hourText(start) + "-" + hourText(start + std::max(0.0, length)) + " hour " + word + " fcst";
+                    forecast = hourText(start) + "-" + hourText(start + std::max(0.0, span)) + " hour " + word + " fcst";
                 } else if (start == 0.0) {
                     forecast = "anl";
                 } else {
                     forecast = hourText(start) + " hour fcst";
                 }
-                char date[16];
-                std::snprintf(date, sizeof date, "%04d%02d%02d%02d", year, month, day, hour);
-                line.date = date;
-                line.text = ":" + nameOf(discipline, category, parameter) + ":" + levelOf(firstType, first, secondType, second) + ":" + forecast + ":";
-                line.ok = haveReference;
-                return line;
+                message.fields.push_back({nameOf(discipline, category, parameter), levelOf(firstType, first, secondType, second), forecast});
             }
             p += sectionLength;
             if (section == 8) {
                 break;
             }
         }
-        return line;
+        char date[16];
+        std::snprintf(date, sizeof date, "%04d%02d%02d%02d", year, month, day, hour);
+        message.date = date;
+        message.ok = haveReference && !message.fields.empty();
+        return message;
+    }
+
+    // GRIB1 (the 1 degree GFS analyses of NCEI's archive, older analyses and reanalyses): the parameter and the level are numbers of NCEP's tables (parameter table 2)
+    std::string name1(int p) {
+        static const std::map<int, const char *> names{
+            {1, "PRES"}, {2, "PRMSL"}, {3, "PTEND"}, {6, "GP"}, {7, "HGT"}, {11, "TMP"}, {12, "VTMP"}, {13, "POT"}, {14, "EPOT"}, {15, "TMAX"}, {16, "TMIN"}, {17, "DPT"}, {18, "DEPR"}, {20, "VIS"},
+            {31, "WDIR"}, {32, "WIND"}, {33, "UGRD"}, {34, "VGRD"}, {35, "STRM"}, {36, "VPOT"}, {39, "VVEL"}, {40, "DZDT"}, {41, "ABSV"}, {43, "RELV"}, {51, "SPFH"}, {52, "RH"}, {53, "MIXR"},
+            {54, "PWAT"}, {57, "EVP"}, {59, "PRATE"}, {61, "APCP"}, {62, "NCPCP"}, {63, "ACPCP"}, {65, "WEASD"}, {66, "SNOD"}, {67, "MIXHT"}, {71, "TCDC"}, {73, "LCDC"}, {74, "MCDC"}, {75, "HCDC"},
+            {76, "CWAT"}, {77, "BLI"}, {80, "WTMP"}, {81, "LAND"}, {83, "SFCR"}, {84, "ALBDO"}, {85, "TSOIL"}, {86, "SOILM"}, {91, "ICEC"}, {100, "HTSGW"}, {101, "WVDIR"}, {102, "WVHGT"},
+            {103, "WVPER"}, {121, "LHTFL"}, {122, "SHTFL"}, {153, "CLWMR"}, {154, "O3MR"}, {156, "CIN"}, {157, "CAPE"}, {158, "TKE"}, {204, "DSWRF"}, {205, "DLWRF"}, {211, "USWRF"}, {212, "ULWRF"},
+        };
+        const auto found = names.find(p);
+        return found != names.end() ? found->second : "var" + std::to_string(p);
+    }
+
+    std::string level1(int type, int v1, int v2) {
+        const int both = (v1 << 8) | v2;
+        switch (type) {
+            case 1: return "surface";
+            case 2: return "cloud base";
+            case 3: return "cloud top";
+            case 4: return "0C isotherm";
+            case 6: return "max wind";
+            case 7: return "tropopause";
+            case 8: return "top of atmosphere";
+            case 100: return std::to_string(both) + " mb";
+            case 101: return std::to_string(v1 * 10) + "-" + std::to_string(v2 * 10) + " mb";
+            case 102: return "mean sea level";
+            case 103: return std::to_string(both) + " m above mean sea level";
+            case 105: return std::to_string(both) + " m above ground";
+            case 107: return number(both / 10000.0) + " sigma level";
+            case 108: return number(v1 / 100.0) + "-" + number(v2 / 100.0) + " sigma layer";
+            case 109: return std::to_string(both) + " hybrid level";
+            case 111: return number(both) + " cm below ground";
+            case 112: return std::to_string(v1) + "-" + std::to_string(v2) + " cm below ground";
+            case 200: return "entire atmosphere (considered as a single layer)";
+            case 201: return "entire ocean (considered as a single layer)";
+            case 204: return "highest tropospheric freezing level";
+            case 220: return "planetary boundary layer";
+            default: return "level" + std::to_string(type) + "=" + std::to_string(both);
+        }
+    }
+
+    template <typename BytesAt>
+    Message describe1(BytesAt&& bytesAt) {
+        Message message;
+        const auto s = bytesAt(8, 28);
+        if (s.size() < 28) {
+            return message;
+        }
+        const auto * d = reinterpret_cast<const uchar *>(s.constData());
+        const int parameter = d[8], levelType = d[9], v1 = d[10], v2 = d[11];
+        int yearOfCentury = d[12];
+        const int month = d[13], day = d[14], hour = d[15];
+        const int unit = d[17], p1 = d[18], p2 = d[19], range = d[20];
+        const int century = d[24];
+        const int year = yearOfCentury == 0 ? century * 100 : (century - 1) * 100 + yearOfCentury;
+        std::string forecast;
+        const auto in = [unit] (long v) { return hoursOf(unit, v); };
+        switch (range) {
+            case 0: forecast = p1 == 0 ? "anl" : hourText(in(p1)) + " hour fcst"; break;
+            case 1: forecast = "anl"; break;
+            case 2: forecast = hourText(in(p1)) + "-" + hourText(in(p2)) + " hour stat fcst"; break;
+            case 3: forecast = hourText(in(p1)) + "-" + hourText(in(p2)) + " hour ave fcst"; break;
+            case 4: forecast = hourText(in(p1)) + "-" + hourText(in(p2)) + " hour acc fcst"; break;
+            case 5: forecast = hourText(in(p1)) + "-" + hourText(in(p2)) + " hour diff fcst"; break;
+            case 10: forecast = hourText(in((p1 << 8) | p2)) + " hour fcst"; break;
+            default: forecast = hourText(in(p1)) + " hour fcst"; break;
+        }
+        char date[16];
+        std::snprintf(date, sizeof date, "%04d%02d%02d%02d", year, month, day, hour);
+        message.date = date;
+        message.fields.push_back({name1(parameter), level1(levelType, v1, v2), forecast});
+        message.ok = true;
+        return message;
+    }
+
+    // the message's length and edition from the first bytes (0 length: not a GRIB message)
+    uint64_t lengthOf(const uchar * d, size_t size, int& edition) {
+        edition = 0;
+        if (size < 16 || d[0] != 'G' || d[1] != 'R' || d[2] != 'I' || d[3] != 'B') {
+            return 0;
+        }
+        edition = d[7];
+        if (edition == 2) {
+            return be64(d + 8);
+        }
+        if (edition == 1) {
+            return (static_cast<uint64_t>(d[4]) << 16) | (static_cast<uint64_t>(d[5]) << 8) | d[6];
+        }
+        return 0;
+    }
+
+    void write(std::ostringstream& out, int n, uint64_t offset, const Message& m) {
+        for (size_t k = 0; k < m.fields.size(); k++) {
+            out << n << (m.fields.size() > 1 ? "." + std::to_string(k + 1) : std::string{}) << ":" << offset << ":d=" << m.date << ":" << m.fields[k].name << ":" << m.fields[k].level << ":" << m.fields[k].forecast << ":\n";
+        }
     }
 
     const PermanentCache& store() {
@@ -237,17 +337,17 @@ std::string GribScanIndex::scan(const QByteArray& file, long long from) {
     const uint64_t size = static_cast<uint64_t>(file.size());
     uint64_t offset = 0;
     int n = 0;
-    while (offset + 16 <= size && d[offset] == 'G' && d[offset + 1] == 'R' && d[offset + 2] == 'I' && d[offset + 3] == 'B' && d[offset + 7] == 2) {
-        const uint64_t length = be64(d + offset + 8);
+    int edition = 0;
+    while (offset + 16 <= size) {
+        const uint64_t length = lengthOf(d + offset, static_cast<size_t>(size - offset), edition);
         if (length < 20 || offset + length > size) {
             break;
         }
-        const auto line = describe(d[offset + 6], length, [&] (uint64_t at, int count) {
-            return file.mid(static_cast<qsizetype>(offset + at), count);
-        });
+        const auto bytesAt = [&] (uint64_t at, int count) { return file.mid(static_cast<qsizetype>(offset + at), count); };
+        const auto message = edition == 2 ? describe2(d[offset + 6], length, bytesAt) : describe1(bytesAt);
         n++;
-        if (line.ok) {
-            out << n << ":" << (static_cast<long long>(offset) + from) << ":d=" << line.date << line.text << "\n";
+        if (message.ok) {
+            write(out, n, static_cast<uint64_t>(static_cast<long long>(offset) + from), message);
         }
         offset += length;
     }
@@ -282,17 +382,15 @@ QByteArray GribScanIndex::index(const std::string& indexUrl) {
             complete = true;   // past the end of the file: every message was read
             break;
         }
-        if (first.status != 206 || first.bytes.size() < 16 || !first.bytes.startsWith("GRIB") || static_cast<uchar>(first.bytes[7]) != 2) {
-            break;   // not a GRIB2 message (GRIB1 is not read here), a server that does not do ranges, or an answer that failed: what was read is returned, and not kept
+        int edition = 0;
+        const uint64_t length = first.status == 206 ? lengthOf(reinterpret_cast<const uchar *>(first.bytes.constData()), static_cast<size_t>(first.bytes.size()), edition) : 0;
+        if (length < 20) {
+            break;   // not a GRIB message, a server that does not do ranges, or an answer that failed: what was read is returned, and not kept
         }
         if (first.lastModified.isValid()) {
             modified = first.lastModified;
         }
         const auto * d = reinterpret_cast<const uchar *>(first.bytes.constData());
-        const uint64_t length = be64(d + 8);
-        if (length < 20) {
-            break;
-        }
         std::map<uint64_t, QByteArray> pieces;   // what has been read of this message: from its start, then more where a section lies past the first read
         pieces[0] = first.bytes;
         const auto bytesAt = [&] (uint64_t at, int count) -> QByteArray {
@@ -311,10 +409,10 @@ QByteArray GribScanIndex::index(const std::string& indexUrl) {
             pieces[at] = more.bytes;
             return more.bytes.left(count);
         };
-        const auto line = describe(d[6], length, bytesAt);
+        const auto message = edition == 2 ? describe2(d[6], length, bytesAt) : describe1(bytesAt);
         n++;
-        if (line.ok) {
-            out << n << ":" << offset << ":d=" << line.date << line.text << "\n";
+        if (message.ok) {
+            write(out, n, offset, message);
         }
         offset += length;
     }
