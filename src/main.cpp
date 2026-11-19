@@ -1099,7 +1099,13 @@ int main(int argc, char * argv[]) {
             } else if (route.startsWith("sar:")) {   // WXQT_OPEN=sar:<NHC id>:<name>:<year>, e.g. sar:ep202026:Simon:2026: NOAA STAR's SAR winds of the storm
                 new SarWindsViewer{&w, route.section(':', 1, 1).toStdString(), route.section(':', 2, 2).toStdString(), route.section(':', 3, 3).toInt()};
             } else if (route == "drought") {   // WXQT_OPEN=drought: the drought dashboard (WXQT_TAB=<n> for its other tabs)
-                new DroughtViewer{&w};
+                auto * viewer = new DroughtViewer{&w};
+                if (const auto file = qEnvironmentVariable("WXQT_GRAB"); !file.isEmpty()) {   // WXQT_GRAB=<out.png> [WXQT_WAIT=<s>]: the window saved after a while (WXQT_COMPARE=<n>, WXQT_AREA=<id> choose what it shows)
+                    QTimer::singleShot(std::max(10, qEnvironmentVariableIntValue("WXQT_WAIT")) * 1000, viewer, [viewer, file] {
+                        viewer->grab().save(file);
+                        std::_Exit(0);
+                    });
+                }
             } else if (route.startsWith("fetchtest:")) {   // WXQT_OPEN=fetchtest:<url>: two requests for the url at once through the network client, with what it did (retries, sharing), then quit
                 const auto url = route.mid(10).toStdString();
                 QElapsedTimer timer;

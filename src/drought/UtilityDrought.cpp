@@ -122,7 +122,8 @@ namespace UtilityDrought {
             error = "no map in the KMZ file";
             return false;
         }
-        const auto valid = QRegularExpression{"Valid:.*?([0-9]{4})/([0-9]{2})/([0-9]{2})"}.match(QString::fromStdString(kml.substr(0, 2000)));
+        // ("Released: 2026/11/18 Valid 7am EST 2026/11/17": the Monitor dropped the colon after Valid, and the date of the map is the one after it)
+        const auto valid = QRegularExpression{"Valid:?\\s.*?([0-9]{4})/([0-9]{2})/([0-9]{2})"}.match(QString::fromStdString(kml.substr(0, 2000)));
         if (valid.hasMatch()) {
             out.valid = QDate{valid.captured(1).toInt(), valid.captured(2).toInt(), valid.captured(3).toInt()};
         }

@@ -1062,6 +1062,8 @@ void DroughtViewer::refreshMonitor() {
                        QString what = "Valid " + result->laterDate.toString("MMMM d, yyyy");
                        if (result->compared) {
                            what += ", changed since " + result->earlierDate.toString("MMMM d, yyyy");
+                       } else if (!result->error.empty()) {   // (the comparison was asked for and the earlier map could not be had: said, not silently the map of the week alone)
+                           what += " (the earlier map could not be had: " + QString::fromStdString(result->error) + ")";
                        }
                        textMonitor.setText((what + ".  " + credit).toStdString());
                        // the table: the share of the area in each category, then and now
