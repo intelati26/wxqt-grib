@@ -21,6 +21,7 @@
 #include "mapkit/ConeHistoryLayer.h"
 #include "mapkit/OutlookHistoryLayer.h"
 #include "mapkit/SpcOutlookLayer.h"
+#include "mapkit/AirNowLayer.h"
 #include "mapkit/CpcPrecipLayer.h"
 #include "mapkit/GoesHistoryLayer.h"
 #include "mapkit/RadarHistoryLayer.h"
@@ -55,6 +56,7 @@ vector<std::unique_ptr<MapLayer>> MapCatalog::makeLayers() {
     layers.push_back(std::make_unique<ConeHistoryLayer>());
     layers.push_back(std::make_unique<OutlookHistoryLayer>());
     layers.push_back(std::make_unique<SpcOutlookLayer>());
+    layers.push_back(std::make_unique<AirNowLayer>());
     layers.push_back(std::make_unique<MrmsLayer>());
     layers.push_back(std::make_unique<RadarHistoryLayer>());
     layers.push_back(std::make_unique<StormReportsLayer>());
