@@ -76,6 +76,8 @@ const vector<HomeThumbnails::Entry>& HomeThumbnails::all() {
         {"TROPICAL_WPAC_SAT", "Tropical overview - West Pacific (Himawari satellite, Guam sector)", "nhc.png#2", false, false},
         {"WORLD_SST", "World sea surface temperature (NOAA/NESDIS daily 5 km blend)", "opc.png#2", false, false},
         {"SUN_REGIONS", "The Sun with its numbered active regions and a heliographic grid (SDO/HMI, NOAA SWPC)", "goes16.png", false, false},
+        {"AURORA", "Aurora forecast - northern hemisphere (NOAA SWPC OVATION, now)", "goes16.png", false, false},
+        {"DROUGHT_MONITOR", "U.S. Drought Monitor - current map (the weekly map of the National Drought Mitigation Center)", "fire_outlook.png#2", false, false},
         {"AIRNOW", "Air quality - EPA AirNow, today (the cities, in the EPA's colors)", "", true, false},
         {"MRMS_RADAR", "MRMS radar - composite reflectivity around your location", "mcd_tile.png", false, false},
         {"MRMS_LATEST", "MRMS - latest scan of your last product, around your location", "mcd_tile.png", false, false},
@@ -126,6 +128,8 @@ namespace {
         {"TROPICAL_WPAC_SAT", {"Western Pacific", "Himawari infrared (colour-enhanced) view of the western Pacific from the Guam sector."}},
         {"SUN_REGIONS", {"The Sun", "The visible disc of the Sun (SDO/HMI) with the numbered active regions (NOAA SWPC), coloured by their chance of an M or X flare, and a grid every 30 degrees: east is left, west is right, and regions rotate in at the left and out at the right in about two weeks. Click for the Space weather screen."}},
         {"WORLD_SST", {"World sea surface temperature", "Daily global sea surface temperature, a 5 km blend of satellite and in-situ measurements (NOAA/NESDIS). Click for the Climate and ocean screen, with the anomaly and the regional maps."}},
+        {"AURORA", {"Aurora forecast", "NOAA Space Weather Prediction Center: where the aurora is likely tonight in the northern hemisphere (the OVATION model, its picture of now). Click for the space weather screen."}},
+        {"DROUGHT_MONITOR", {"Drought monitor", "The U.S. Drought Monitor, the weekly map of drought categories D0 to D4 (National Drought Mitigation Center, USDA and NOAA). Click for the drought screen."}},
         {"AIRNOW", {"Air quality today", "EPA AirNow: the air quality of the cities across the United States today (observations and forecast, the worse of them), in the EPA's colors from Good green to Hazardous maroon. Click for the master map with the days ahead."}},
         {"MRMS_RADAR", {"MRMS radar", "Multi-Radar Multi-Sensor composite reflectivity around your location."}},
         {"MRMS_LATEST", {"MRMS product", "Latest scan of the MRMS product you looked at last, around your location."}},
@@ -496,6 +500,10 @@ QByteArray HomeThumbnails::fetch(const string& token) {
         buffer.open(QIODevice::WriteOnly);
         picture.save(&buffer, "PNG");
         return png;
+    } else if (token == "AURORA") {
+        url = "https://services.swpc.noaa.gov/images/animations/ovation/north/latest.jpg";
+    } else if (token == "DROUGHT_MONITOR") {
+        url = "https://droughtmonitor.unl.edu/data/png/current/current_usdm.png";
     } else if (token == "WORLD_SST") {
         url = "https://www.ospo.noaa.gov/data/cb/sst/sst.daily.current.png";
     } else if (token == "NHC_ATLANTIC") {
