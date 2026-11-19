@@ -1493,7 +1493,7 @@ list = true
 clone = true
 clone_variables = HGT, TMP, UGRD, VGRD, SPFH, PRMSL, PWAT, RH
 # (the fields the NCEI monthly files have, so that the same charts draw for 1979 on)
-clone_fields = HGT|1000 mb, HGT|850 mb, HGT|700 mb, HGT|500 mb, HGT|200 mb, TMP|850 mb, TMP|700 mb, TMP|500 mb, TMP|250 mb, UGRD|850 mb, UGRD|700 mb, UGRD|500 mb, UGRD|250 mb, VGRD|850 mb, VGRD|700 mb, VGRD|500 mb, VGRD|250 mb, SPFH|850 mb, SPFH|700 mb, SPFH|500 mb, RH|850 mb, RH|700 mb, RH|500 mb
+clone_fields = HGT|100 mb, HGT|50 mb, HGT|30 mb, HGT|10 mb, TMP|100 mb, TMP|50 mb, TMP|30 mb, TMP|10 mb, UGRD|100 mb, UGRD|50 mb, UGRD|30 mb, UGRD|10 mb, VGRD|100 mb, VGRD|50 mb, VGRD|30 mb, VGRD|10 mb, HGT|1000 mb, HGT|850 mb, HGT|700 mb, HGT|500 mb, HGT|200 mb, TMP|850 mb, TMP|700 mb, TMP|500 mb, TMP|250 mb, UGRD|850 mb, UGRD|700 mb, UGRD|500 mb, UGRD|250 mb, VGRD|850 mb, VGRD|700 mb, VGRD|500 mb, VGRD|250 mb, SPFH|850 mb, SPFH|700 mb, SPFH|500 mb, RH|850 mb, RH|700 mb, RH|500 mb
 clone_skip = precip, thick, 850_vort_ht, 500_vort_ht
 clone_pieces = false
 # relative humidity is worked out from the specific humidity of the level and its temperature
@@ -1676,6 +1676,7 @@ clone_pieces = false
         {"GFS-ANL", R"MODEL(
 # The GFS analysis of the years before the open data bucket (2007 to mid 2014 with an index file; NCEI's historical folder), 0.5 degree, four a day: the analysis is the only hour. The 1 degree
 # GRIB1 files of 2004-2007 are not read here. A 00Z analysis is missing on some days (27 April 2011, say): that run shows an error.
+# (10, 30 and 50 mb in the clone levels: the files have them, checked 2026-11-19 against their newest runs; they are the polar vortex charts)
 id = GFS-ANL
 check_run = 2012061512
 label = NOAA/NCEP GFS analysis (NCEI archive), 0.5 degree
@@ -1694,7 +1695,7 @@ overlays = true
 list = true
 clone = true
 clone_variables = HGT, TMP, RH, UGRD, VGRD, ABSV, DPT, PRMSL, PWAT, CAPE, CIN, VVEL
-clone_levels = 100 mb, 200 mb, 250 mb, 300 mb, 400 mb, 500 mb, 700 mb, 850 mb, 925 mb, 1000 mb
+clone_levels = 10 mb, 30 mb, 50 mb, 100 mb, 200 mb, 250 mb, 300 mb, 400 mb, 500 mb, 700 mb, 850 mb, 925 mb, 1000 mb
 clone_skip = anom, precip
 clone_pieces = false
 )MODEL"},
@@ -1719,7 +1720,7 @@ overlays = true
 list = true
 clone = true
 clone_variables = HGT, TMP, RH, UGRD, VGRD, ABSV, DPT, PRMSL, PWAT, CAPE, CIN, VVEL
-clone_levels = 100 mb, 200 mb, 250 mb, 300 mb, 400 mb, 500 mb, 700 mb, 850 mb, 925 mb, 1000 mb
+clone_levels = 10 mb, 30 mb, 50 mb, 100 mb, 200 mb, 250 mb, 300 mb, 400 mb, 500 mb, 700 mb, 850 mb, 925 mb, 1000 mb
 clone_skip = anom, precip
 clone_pieces = false
 )MODEL"},
