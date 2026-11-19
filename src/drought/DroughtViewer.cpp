@@ -2099,7 +2099,7 @@ void DroughtViewer::loadDaily() {
         case 2: from = QDate{today.year() - 1, 1, 1}; to = QDate{today.year() - 1, 12, 31}; break;
         default: from = QDate{today.year(), 1, 1}; break;
     }
-    dailyChart->setMessage("Loading the daily values (the first time takes a few minutes: the normals are made from 360 monthly files of 1991-2020 and kept)...");
+    dailyChart->setMessage("Loading the daily values (the first time of each month of the year takes a moment: its normal is made from the 30 files of 1991-2020 and kept for good)...");
     const bool fahrenheit = UIPreferences::unitsF;
     new FutureVoid{this, [this, key, maximum, from, to, smooth, mine, name, fahrenheit] {
         auto result = std::make_shared<std::vector<DroughtDaily::Point>>();
