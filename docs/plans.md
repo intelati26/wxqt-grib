@@ -2,7 +2,7 @@
 
 What was planned and what is left. Check the code before acting on a line.
 
-**Contents** (status as of 2026-11-16)
+**Contents** (status as of 2026-11-19; the sections after 24 were added to this list then)
 
 - 1. Fold the NSSL tar loader into the main GRIB path (done)
 - 2. NetCDF sources: what could be combined (SFCOA / RRFSD done)
@@ -28,9 +28,12 @@ What was planned and what is left. Check the code before acting on a line.
 - 22. Ensemble percentiles at a place (built 2026-11-15)
 - 23. Model comparison at a place (built 2026-11-15: bands, members, boxes, all models, bias, evolution; 2026-11-16: the Why? maps at the place, a station the person picks; left: wind and other variables at stations, the ensemble means for the bias)
 - 24. The RRFS aerosols, and what else the files had (finished 2026-11-16: smoke and dust, emissions, haze, runoff, PLPL, ceiling, cloud by height on 26 models; seen on the map; checked against AirNow on a clean day, a smoky day still to try)
+- 25. The Gross to Miserable weather index (built 2026-11-16; combined with the nice day 2026-11-18; the day boxes, the 6 hourly hours, the 12Z run for day 1 after 12Z)
+- 26. IFS precipitation by type (2026-11-17)
 - 27. The drought window's temperature and rain maps drawn from the data, zoomable like the Monitor's map (planned 2026-11-17: the CPC picture of the Normals tab to be replaced)
 - 28. The sheet: a template of panels over one view (sketch 2026-11-17: sheet from a view, the template, the cases to check; nothing built)
-- 29. The pictures of the drought window and the climate window that are still flat rasters, to zoomable layers (sketch 2026-11-18; the CPC drought outlooks first)
+- 29. The pictures of the drought window and the climate window that are still flat rasters, to zoomable layers (sketch 2026-11-18; the drought outlooks and EDDI built 2026-11-18; the SPI question and the climate window's layers left)
+- 30. What is done and what is pending since 2026-11-18 (written 2026-11-19: the 0.2.1 run, the zlib and netcdf-c overlays, the help pages, small home items)
 
 **Next (2026-11-16), in this order:**
 1. (Section 24: done 2026-11-16; on a smoky day, repeat the AirNow comparison.)
