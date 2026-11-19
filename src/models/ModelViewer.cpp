@@ -4,6 +4,7 @@
 // * Refer to the COPYING file of the official project for license.
 // *****************************************************************************
 
+#include "util/QtCompat.h"
 #include "ModelViewer.h"
 #include "models/AnalysisLoop.h"
 #include "models/ChartPickers.h"
@@ -142,11 +143,7 @@ ModelViewer::ModelViewer(Window * parent, const string& modelType)
         row->setContentsMargins(0, 0, 0, 0);
         timePick = new QDateTimeEdit{QDateTime::currentDateTimeUtc(), holder};
         timePick->setDisplayFormat("yyyy-MM-dd HH:mm 'Z'");
-#if QT_VERSION >= QT_VERSION_CHECK(6, 7, 0)
-        timePick->setTimeZone(QTimeZone::utc());
-#else
-        timePick->setTimeSpec(Qt::UTC);   // (Qt 6.4 has no setTimeZone on the date box)
-#endif
+        QtCompat::utc(timePick);
         timePick->setCalendarPopup(true);
         timePick->setToolTip("A day and time (UTC): Go opens the run at or before it, at the hour that is that time. The other open history screens follow");
         auto * go = UiStandards::button(holder, "Go");
@@ -1025,7 +1022,7 @@ void ModelViewer::saveLoop() {
                 variant.legendLow = low;
                 variant.legendHigh = high;
             }
-            new FutureVoid{this, [=] {
+            new FutureVoid{this, [=, this] {
                                for (size_t i = 0; i < jobs.size(); i++) {
                                    const auto& [model, param, sector, cycle, hour, overlays] = jobs[i];
                                    string error;
@@ -1112,7 +1109,7 @@ void ModelViewer::saveLoop() {
             const auto titleBefore = windowTitle();
             const int interval = strip->intervalMs();
             setWindowTitle("Drawing the pictures to save...");
-            new FutureVoid{this, [=] {
+            new FutureVoid{this, [=, this] {
                                double lo = low, hi = high;
                                if (!single) {
                                    for (size_t i = 0; i < jobs.size(); i++) {   // an hour not drawn yet: drawn for its values
@@ -1239,7 +1236,7 @@ void ModelViewer::saveHighRes() {
     auto probe = std::make_shared<GfsChart::Probe>();
     const auto titleBefore = windowTitle();
     setWindowTitle("Drawing the hi-res picture...");
-    new FutureVoid{this, [=] { result->first = GfsRender::png(*session, job.model, job.param, job.sector, job.cycle, job.hour, job.overlays, result->second, probe.get(), job.variant); },
+    new FutureVoid{this, [=, this] { result->first = GfsRender::png(*session, job.model, job.param, job.sector, job.cycle, job.hour, job.overlays, result->second, probe.get(), job.variant); },
                    [this, result, probe, job, titleBefore, dev, devSpec, longestGap] {
                        setWindowTitle(titleBefore);
                        if (dev) {   // the save as the dialog would start it, in the format named last (PNG, WEBP, AVIF, JXL ...)
@@ -1702,7 +1699,7 @@ void ModelViewer::prefetch(int generation) {
             auto session = gfsSession;
             auto result = std::make_shared<std::pair<QByteArray, string>>();
             auto probe = std::make_shared<GfsChart::Probe>();
-            new FutureVoid{this, [=] {
+            new FutureVoid{this, [=, this] {
                                const NetManager::Scope aheadScope{NetManager::Priority::Ahead};   // behind whatever the user is waiting for
                                result->first = GfsRender::png(*session, job.model, job.param, job.sector, job.cycle, job.hour, job.overlays, result->second, probe.get(), job.variant);
                            },
@@ -2162,7 +2159,7 @@ void ModelViewer::reload() {
         const auto key = frameKey(hour);
         auto result = std::make_shared<std::pair<QByteArray, string>>();
         auto probe = std::make_shared<GfsChart::Probe>();
-        new FutureVoid{this, [=] { result->first = GfsRender::png(*session, model, param, sector, run, hour, overlayIds, result->second, probe.get(), shownVariant); },
+        new FutureVoid{this, [=, this] { result->first = GfsRender::png(*session, model, param, sector, run, hour, overlayIds, result->second, probe.get(), shownVariant); },
                        [this, result, mine, probe, key] {
                            if (mine == drawing && !result->first.isEmpty()) {
                                storeFrame(key, {result->first, probe});
@@ -3384,7 +3381,7 @@ void ModelViewer::renderTile(int index) {
     auto session = gfsSession;
     auto result = std::make_shared<std::pair<QByteArray, string>>();
     auto probe = std::make_shared<GfsChart::Probe>();
-    new FutureVoid{this, [=] { result->first = GfsRender::png(*session, job.model, job.param, job.sector, job.cycle, job.hour, job.overlays, result->second, probe.get(), job.variant); },
+    new FutureVoid{this, [=, this] { result->first = GfsRender::png(*session, job.model, job.param, job.sector, job.cycle, job.hour, job.overlays, result->second, probe.get(), job.variant); },
                    [this, result, probe, job, index, mine] {
                        if (mine != tileGeneration[static_cast<size_t>(index) - 1] || index > tileCount()) {
                            return;
@@ -3789,7 +3786,7 @@ bool ModelViewer::openModelSounding(double lon, double lat) {
     auto problem = std::make_shared<string>();
     auto ok = std::make_shared<bool>(false);
     setTitle("Model screen - reading the " + name + " column at " + std::to_string(lat).substr(0, 5) + ", " + std::to_string(lon).substr(0, 7) + " ...");
-    new FutureVoid{this, [=] { *ok = GfsRender::columnProfile(*session, name, runId, hour, lat, lon, *profile, *problem); }, [=] {
+    new FutureVoid{this, [=, this] { *ok = GfsRender::columnProfile(*session, name, runId, hour, lat, lon, *profile, *problem); }, [=, this] {
         if (!*ok) {
             setTitle("Model screen - no sounding: " + *problem);
             return;

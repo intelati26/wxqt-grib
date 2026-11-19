@@ -4,6 +4,7 @@
 // * Refer to the COPYING file of the official project for license.
 // *****************************************************************************
 
+#include "util/QtCompat.h"
 #include "ui/Switch.h"
 #include <QString>
 #include "objects/WString.h"
@@ -17,7 +18,7 @@ Switch::Switch(Window * parent, const string& label, const string& pref, bool de
     , checkBox{new QCheckBox{QString::fromStdString(label), parent}}
 {
     checkBox->setChecked(isTrue());
-    QObject::connect(checkBox, &QCheckBox::stateChanged, parent, [this] { toggle(); });
+    QtCompat::toggled(checkBox, parent, [this] { toggle(); });
 }
 
 Switch * Switch::fromPrefBool(Window * parent, const PrefBool& prefBool) {

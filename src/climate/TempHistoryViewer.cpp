@@ -383,7 +383,7 @@ void TempHistoryViewer::loadEra() {
     auto result = std::make_shared<std::vector<Day>>();
     auto note = std::make_shared<QString>();
     auto where = std::make_shared<std::pair<double, double>>(lat, lon);
-    new FutureVoid{this, [=] {
+    new FutureVoid{this, [=, this] {
         // kept for good in the data folder, a file for each grid point (0.25 degrees: the places Open-Meteo snaps to the same point share it), so that a visit asks the service only for the newest weeks
         // (a request for the whole record weighs about 2,300 calls of the 10,000 a day, one for a month 1)
         const PermanentCache store{"temperature-history"};
@@ -417,7 +417,7 @@ void TempHistoryViewer::loadEra() {
         *result = std::move(kept);
         where->first = keptLat;
         where->second = keptLon;
-    }, [=] {
+    }, [=, this] {
         if (closed || mine != generation) {
             return;
         }
@@ -453,7 +453,7 @@ void TempHistoryViewer::loadStations() {
     const double lat = latBox->value(), lon = lonBox->value();
     status->setText("Looking for weather stations near " + QString::number(lat, 'f', 2) + ", " + QString::number(lon, 'f', 2) + " ...");
     auto found = std::make_shared<std::vector<Station>>();
-    new FutureVoid{this, [=] {
+    new FutureVoid{this, [=, this] {
         const double dLat = 0.9, dLon = 0.9 / std::max(0.3, std::cos(lat * 3.14159265358979 / 180.0));
         QJsonObject params;
         params["bbox"] = QString{"%1,%2,%3,%4"}.arg(lon - dLon).arg(lat - dLat).arg(lon + dLon).arg(lat + dLat);
@@ -494,7 +494,7 @@ void TempHistoryViewer::loadStations() {
             const double aScore = (now - a.firstYear) - a.km * 0.7, bScore = (now - b.firstYear) - b.km * 0.7;
             return aScore > bScore;
         });
-    }, [=] {
+    }, [=, this] {
         if (closed || mine != generation) {
             return;
         }
@@ -514,7 +514,7 @@ void TempHistoryViewer::loadStation(const QString& id, const QString& name) {
     const int mine = ++generation;
     status->setText("Reading the daily temperatures of " + name + " ...");
     auto result = std::make_shared<std::vector<Day>>();
-    new FutureVoid{this, [=] {
+    new FutureVoid{this, [=, this] {
         QJsonObject params;
         params["sid"] = id;
         params["sdate"] = "por";
@@ -546,7 +546,7 @@ void TempHistoryViewer::loadStation(const QString& id, const QString& name) {
                 result->push_back({QDate::fromString(r[0].toString(), "yyyy-MM-dd"), number(r[1]), number(r[2]), number(r[3]), rain});
             }
         }
-    }, [=] {
+    }, [=, this] {
         if (closed || mine != generation) {
             return;
         }

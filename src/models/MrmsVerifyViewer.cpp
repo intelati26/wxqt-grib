@@ -3,6 +3,7 @@
 // * See the COPYING file for the full license text.
 // *****************************************************************************
 
+#include "util/QtCompat.h"
 #include "models/MrmsVerifyViewer.h"
 #include <QSplitter>
 #include <algorithm>
@@ -71,7 +72,7 @@ MrmsVerifyViewer::MrmsVerifyViewer(Window * parent, const string& modelName, con
     top->addWidget(modelPick);
     top->addWidget(new QLabel{"valid (UTC):", page});
     timePick = new QDateTimeEdit{validUtc.isValid() ? validUtc.toUTC() : QDateTime::currentDateTimeUtc().addSecs(-3 * 3600), page};
-    timePick->setTimeSpec(Qt::UTC);
+    QtCompat::utc(timePick);
     timePick->setDisplayFormat("yyyy-MM-dd HH':00'");
     timePick->setCalendarPopup(true);
     timePick->setToolTip("The time to compare at, on the hour (UTC). Every run of the model that has a forecast for it is scored against MRMS.");

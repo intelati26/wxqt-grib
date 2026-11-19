@@ -3,6 +3,7 @@
 // * See the COPYING file for the full license text.
 // *****************************************************************************
 
+#include "util/QtCompat.h"
 #include "history/EventsViewer.h"
 #include <algorithm>
 #include <QComboBox>
@@ -86,11 +87,7 @@ EventsViewer::EventsViewer(Window * parent) : Window{parent} {
     end = new QDateTimeEdit{QDateTime::currentDateTimeUtc().addDays(-1), this};
     for (auto * edit : {start, end}) {
         edit->setDisplayFormat("yyyy-MM-dd HH:mm");
-#if QT_VERSION >= QT_VERSION_CHECK(6, 7, 0)
-        edit->setTimeZone(QTimeZone::utc());
-#else
-        edit->setTimeSpec(Qt::UTC);   // (the Linux build's Qt 6.4 has no setTimeZone on the date box)
-#endif
+        QtCompat::utc(edit);
         edit->setCalendarPopup(true);
         edit->setToolTip("UTC");
     }

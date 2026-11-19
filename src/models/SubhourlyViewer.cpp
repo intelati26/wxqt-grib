@@ -3,6 +3,7 @@
 // * See the COPYING file for the full license text.
 // *****************************************************************************
 
+#include "util/QtCompat.h"
 #include "models/SubhourlyViewer.h"
 #include <algorithm>
 #include <QTimeZone>
@@ -38,7 +39,7 @@ SubhourlyViewer::SubhourlyViewer(Window * parent, const std::string& modelId, co
     auto * top = areaButton->parentWidget();
     runEdit = new QDateTimeEdit{QDateTime::currentDateTimeUtc().addSecs(-3 * 3600), top};
     runEdit->setDisplayFormat("yyyy-MM-dd HH 'Z'");
-    runEdit->setTimeSpec(Qt::UTC);   // (Qt 6.4 has no setTimeZone on the date box)
+    QtCompat::utc(runEdit);
     runEdit->setCalendarPopup(true);
     runEdit->setToolTip("The run (UTC). The subhourly files stay on the server for a day or two");
     newestButton = UiStandards::button(top, "Newest", "The newest run that has its subhourly files");

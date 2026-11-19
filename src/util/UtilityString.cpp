@@ -125,12 +125,7 @@ string UtilityString::addPeriodBeforeLastTwoChars(const string& data) {
 }
 
 string UtilityString::title(const string& s) {
-    // #if QT_VERSION >= 0x060000
-    #if (QT_VERSION >= QT_VERSION_CHECK(5, 14, 0))
-        QStringList parts = QString::fromStdString(s).split(' ', Qt::SkipEmptyParts);
-    #else
-        QStringList parts = QString::fromStdString(s).split(' ', QString::SkipEmptyParts);
-    #endif
+    QStringList parts = QString::fromStdString(s).split(' ', Qt::SkipEmptyParts);
     for (auto& part : parts) {
         part.replace(0, 1, part[0].toUpper());
     }

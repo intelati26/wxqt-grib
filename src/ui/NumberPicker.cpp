@@ -28,12 +28,7 @@ NumberPicker::NumberPicker(Window * parent, const string& label, const string& p
     // qSpinBox.textChanged.connect(this, "updateNp(String)");
     // connect(get(), &QSpinBox::textChanged, this, [this] (QString s) { updateNp(s); });
 
-// #if QT_VERSION >= 0x051400 //0x060000
-#if (QT_VERSION >= QT_VERSION_CHECK(5, 14, 0))
     QObject::connect(qSpinBox, static_cast<void (QSpinBox::*)(const QString &)>(&QSpinBox::textChanged), parent, [this] (const QString& val) { updateNp(val); });
-#else
-    QObject::connect(qSpinBox, static_cast<void (QSpinBox::*)(const QString &)>(&QSpinBox::valueChanged), parent, [this] (QString val) { updateNp(val); });
-#endif
 }
 
 void NumberPicker::updateNp(const QString& newValue) {

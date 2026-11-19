@@ -9,11 +9,7 @@
 #include <QDebug>
 #include <QGuiApplication>
 #include <QScreen>  // KEEP
-#if (QT_VERSION >= QT_VERSION_CHECK(6, 0, 0))
-    #include <QInputDevice>
-#else
-    #include <QTouchDevice>
-#endif
+#include <QInputDevice>
 
 vector<int> UtilityUI::getScreenBounds() {
     const auto screen = QGuiApplication::primaryScreen();
@@ -40,20 +36,9 @@ bool UtilityUI::isMobile() {
     // QInputDevice::DeviceType::Mouse TouchScreen
     // QList<const QInputDevice *> QInputDevice::devices()
 
-    #if (QT_VERSION >= QT_VERSION_CHECK(6, 0, 0))
-        // QList<const QInputDevice *>
-        const auto devices = QInputDevice::devices();
-        // qDebug() << devices;
-        for (auto device : devices) {
-            qDebug() << device->type();
-        }
-        // QInputDevice::DeviceType::TouchScreen
-        // QInputDevice::DeviceType QInputDevice::type() const
-        // bool QInputDevice::hasCapability(QInputDevice::Capability capability) const
-    #else
-        QList<const QTouchDevice *> devices = QTouchDevice::devices();
-        qDebug() << "touch device count: " << devices.size();
-    #endif
+    for (const auto device : QInputDevice::devices()) {
+        qDebug() << device->type();
+    }
 
     const auto screen = QGuiApplication::primaryScreen();
     // qDebug() << height << " " << width << " " << screen->orientation();

@@ -513,7 +513,7 @@ void CfsPlumePanel::load() {
     status->setText(QString{"looking for the %1 run..."}.arg(gefs ? "GEFS" : gfs ? "GFS" : "CFSv2"));
     const auto doneCount = done;
     new FutureVoid{owner,
-        [=] {
+        [=, this] {
             UtilityCfs::Run run;
             if (followRun) {
                 run = pageRun;
@@ -669,7 +669,7 @@ void CfsPlumePanel::load() {
             std::vector<std::future<std::vector<float>>> monthlyJobs;
             for (size_t k = 0; k < runs.size(); k++) {
                 const auto past = runs[k];
-                monthlyJobs.push_back(std::async(std::launch::async, [=] {
+                monthlyJobs.push_back(std::async(std::launch::async, [=, this] {
                     std::vector<float> v;
                     std::string message;
                     if (monthlyMode == 0) { UtilityCfs::pointMonthly(past, 1, variable, months, lat, lon, v, message, doneCount.get()); } else { UtilityCfs::pointMonthlyDeparture(past, 1, variable, months, monthlyMode == 2, baseline, lat, lon, v, message, doneCount.get()); }
@@ -749,7 +749,7 @@ void CfsPlumePanel::loadOpenMeteo(const QString& modelId) {
     const auto doneCount = done;
     const UtilityOpenMeteoSeasonal::Variable copy = *variable;
     new FutureVoid{owner,
-        [=] {
+        [=, this] {
             UtilityOpenMeteoSeasonal::Daily daily;
             if (!UtilityOpenMeteoSeasonal::daily(ec46 ? "ecmwf_ec46" : "ecmwf_seas5", copy.key, lat, lon, daily, *error)) {
                 return;
