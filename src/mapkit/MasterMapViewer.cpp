@@ -3,7 +3,6 @@
 // * See the COPYING file for the full license text.
 // *****************************************************************************
 
-#include "util/QtCompat.h"
 #include "mapkit/MasterMapViewer.h"
 #include <atomic>
 #include <cstdio>
@@ -558,7 +557,7 @@ MasterMapViewer::MasterMapViewer(Window * parent, const string& startView)
     // a calendar and clock to go to any time (UTC) of the past
     timePick = new QDateTimeEdit{QDateTime::currentDateTimeUtc(), timeRow};
     timePick->setDisplayFormat("yyyy-MM-dd HH:mm 'Z'");
-    QtCompat::utc(timePick);
+    timePick->setTimeZone(QTimeZone::utc());
     timePick->setCalendarPopup(true);
     timePick->setToolTip("Pick a day and time (UTC) and press Go: the layers with a past (radar, satellite, reports, cones) show it");
     timeGo = UiStandards::button(timeRow, "Go");
@@ -1421,7 +1420,7 @@ void MasterMapViewer::askRange() {
     auto * to = new QDateTimeEdit{&dialog};
     for (auto * edit : {from, to}) {
         edit->setDisplayFormat("yyyy-MM-dd HH:mm 'Z'");
-        QtCompat::utc(edit);
+        edit->setTimeZone(QTimeZone::utc());
         edit->setCalendarPopup(true);
     }
     const auto now = timePick->dateTime().toUTC();
@@ -1906,7 +1905,7 @@ void MasterMapViewer::saveInitialStates() {
     auto * to = new QDateTimeEdit{QDateTime{now.date(), QTime{now.time().hour() / 6 * 6, 0}, QTimeZone::utc()}.addSecs(-6 * 3600), &dialog};
     for (auto * edit : {from, to}) {
         edit->setDisplayFormat("yyyy-MM-dd HH:mm 'Z'");
-        QtCompat::utc(edit);
+        edit->setTimeZone(QTimeZone::utc());
     }
     auto * step = UiStandards::combo(&dialog);
     for (const int hours : {6, 12, 24}) {
@@ -1934,7 +1933,7 @@ void MasterMapViewer::saveInitialStates() {
     auto * changeBox = new QCheckBox{"Show the change since the initial state of", &dialog};
     auto * since = new QDateTimeEdit{from->dateTime(), &dialog};
     since->setDisplayFormat("yyyy-MM-dd HH:mm 'Z'");
-    QtCompat::utc(since);
+    since->setTimeZone(QTimeZone::utc());
     since->setEnabled(false);
     QObject::connect(changeBox, &QCheckBox::toggled, since, &QWidget::setEnabled);
     {
@@ -2031,7 +2030,7 @@ void MasterMapViewer::saveVortexSection() {
     auto * to = new QDateTimeEdit{QDateTime{now.date(), QTime{now.time().hour() / 6 * 6, 0}, QTimeZone::utc()}.addSecs(-6 * 3600), &dialog};
     for (auto * edit : {from, to}) {
         edit->setDisplayFormat("yyyy-MM-dd HH:mm 'Z'");
-        QtCompat::utc(edit);
+        edit->setTimeZone(QTimeZone::utc());
     }
     auto * step = UiStandards::combo(&dialog);
     for (const int hours : {6, 12, 24}) {

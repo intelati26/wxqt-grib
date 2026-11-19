@@ -26,9 +26,8 @@ namespace {
         }
     }
 
-    // does the operating system ask for a dark look? The color scheme the OS reports (Qt 6.5+), else the platform's own palette
+    // does the operating system ask for a dark look? The color scheme the OS reports, else the platform's own palette
     bool systemWantsDark() {
-#if QT_VERSION >= QT_VERSION_CHECK(6, 5, 0)
         if (const auto hints = QGuiApplication::styleHints()) {
             switch (hints->colorScheme()) {
                 case Qt::ColorScheme::Dark: return true;
@@ -36,7 +35,6 @@ namespace {
                 default: break;
             }
         }
-#endif
         return platformDark;
     }
 
@@ -73,15 +71,10 @@ namespace {
         return p;
     }
 
-    // Qt::ColorScheme itself is a 6.5+ enum (QStyleHints::setColorScheme(),
-    // called below, is 6.8+) - this app also targets Debian bookworm's Qt
-    // 6.4.2 (see README_OS.md), which has neither, so callers pass this
-    // version-independent stand-in instead of referencing Qt::ColorScheme
-    // directly at every call site.
+    // what the program asks of the style hints (Qt::Unknown: follow the system)
     enum class ColorSchemeChoice { Unknown, Light, Dark };
 
     void setColorScheme(ColorSchemeChoice scheme) {
-#if QT_VERSION >= QT_VERSION_CHECK(6, 8, 0)
         if (const auto hints = QGuiApplication::styleHints()) {
             switch (scheme) {
                 case ColorSchemeChoice::Dark: hints->setColorScheme(Qt::ColorScheme::Dark); break;
@@ -89,9 +82,6 @@ namespace {
                 default: hints->setColorScheme(Qt::ColorScheme::Unknown); break;
             }
         }
-#else
-        (void) scheme;
-#endif
     }
 }
 
@@ -119,7 +109,6 @@ void UtilityTheme::applyTheme(const string& theme) {
         setColorScheme(ColorSchemeChoice::Unknown);
         QApplication::setStyle(QStyleFactory::create("Fusion"));
         QApplication::setPalette(systemWantsDark() ? darkPalette() : lightPalette());
-#if QT_VERSION >= QT_VERSION_CHECK(6, 5, 0)
         static bool connected{false};   // switch live when the operating system changes between light and dark
         if (!connected) {
             if (const auto hints = QGuiApplication::styleHints()) {
@@ -131,7 +120,6 @@ void UtilityTheme::applyTheme(const string& theme) {
                 });
             }
         }
-#endif
     }
 }
 
@@ -149,10 +137,8 @@ bool UtilityTheme::isDark() {
     if (theme == "light") {
         return false;
     }
-#if QT_VERSION >= QT_VERSION_CHECK(6, 5, 0)
     if (const auto hints = QGuiApplication::styleHints()) {
         return hints->colorScheme() == Qt::ColorScheme::Dark;
     }
-#endif
     return QApplication::palette().color(QPalette::Window).lightness() < 128;
 }

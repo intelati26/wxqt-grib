@@ -3,7 +3,6 @@
 // * See the COPYING file for the full license text.
 // *****************************************************************************
 
-#include "util/QtCompat.h"
 #include "models/SpcPostViewer.h"
 #include <cmath>
 #include <vector>
@@ -64,7 +63,7 @@ SpcPostViewer::SpcPostViewer(Window * parent)
     for (const auto& [label, flag] : UtilitySpcPost::boundaryOptions()) {
         auto * checkBox = new QCheckBox{QString::fromStdString(label), this};
         checkBox->setChecked(flag == UtilitySpcPost::BoundaryState || flag == UtilitySpcPost::BoundaryCwa);
-        QtCompat::toggled(checkBox, this, [this] { invalidateAnimation(); reload(); });
+        QObject::connect(checkBox, &QCheckBox::checkStateChanged, this, [this] { invalidateAnimation(); reload(); });
         boundaryChecks.emplace_back(checkBox, flag);
     }
     comboBackground.connect([this] { invalidateAnimation(); reload(); });

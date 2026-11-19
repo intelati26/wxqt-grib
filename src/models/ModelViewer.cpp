@@ -4,7 +4,6 @@
 // * Refer to the COPYING file of the official project for license.
 // *****************************************************************************
 
-#include "util/QtCompat.h"
 #include "ModelViewer.h"
 #include "models/AnalysisLoop.h"
 #include "models/ChartPickers.h"
@@ -143,7 +142,7 @@ ModelViewer::ModelViewer(Window * parent, const string& modelType)
         row->setContentsMargins(0, 0, 0, 0);
         timePick = new QDateTimeEdit{QDateTime::currentDateTimeUtc(), holder};
         timePick->setDisplayFormat("yyyy-MM-dd HH:mm 'Z'");
-        QtCompat::utc(timePick);
+        timePick->setTimeZone(QTimeZone::utc());
         timePick->setCalendarPopup(true);
         timePick->setToolTip("A day and time (UTC): Go opens the run at or before it, at the hour that is that time. The other open history screens follow");
         auto * go = UiStandards::button(holder, "Go");

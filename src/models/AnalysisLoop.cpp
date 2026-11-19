@@ -3,7 +3,6 @@
 // * See the COPYING file for the full license text.
 // *****************************************************************************
 
-#include "util/QtCompat.h"
 #include "models/AnalysisLoop.h"
 #include <algorithm>
 #include <limits>
@@ -41,7 +40,7 @@ AnalysisLoop::AnalysisLoop(Window * parent, const std::string& area0, const std:
     const auto dateBox = [top] (const QDateTime& value, const QString& tip) {
         auto * edit = new QDateTimeEdit{value.toUTC(), top};
         edit->setDisplayFormat("yyyy-MM-dd HH 'Z'");
-        QtCompat::utc(edit);
+        edit->setTimeZone(QTimeZone::utc());
         edit->setCalendarPopup(true);
         edit->setToolTip(tip);
         return edit;

@@ -86,11 +86,12 @@ make
 sudo swapoff /root/twoGigSwap
 ./run.bash
 ```
-### Raspbian GNU/Linux 12 (bookworm)
+### Debian 13 (trixie) and Raspberry Pi OS (trixie)
+Qt 6.8 or newer is needed (Debian 13 has 6.8); Debian 12 (bookworm) has Qt 6.4 and is no longer supported: use the AppImage there.
 ```
 # sudo apt install g++
 sudo apt install make
-sudo apt install qt6-base-dev qt6-webengine-dev
+sudo apt install qt6-base-dev
 # use qt6
 ./makeAll.py
 ```

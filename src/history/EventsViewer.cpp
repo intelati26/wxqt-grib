@@ -3,7 +3,6 @@
 // * See the COPYING file for the full license text.
 // *****************************************************************************
 
-#include "util/QtCompat.h"
 #include "history/EventsViewer.h"
 #include <algorithm>
 #include <QComboBox>
@@ -87,7 +86,7 @@ EventsViewer::EventsViewer(Window * parent) : Window{parent} {
     end = new QDateTimeEdit{QDateTime::currentDateTimeUtc().addDays(-1), this};
     for (auto * edit : {start, end}) {
         edit->setDisplayFormat("yyyy-MM-dd HH:mm");
-        QtCompat::utc(edit);
+        edit->setTimeZone(QTimeZone::utc());
         edit->setCalendarPopup(true);
         edit->setToolTip("UTC");
     }

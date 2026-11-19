@@ -250,7 +250,7 @@ zstd (BSD / GPLv2) is vendored for the Zarr reader, see `licenses/zstd-LICENSE.t
 data providers are credited in `licenses/CREDITS.md`.
 
 Prerequisites:
-* Qt 5.12 or higher (Qt 6 is what the packages are built with)
+* Qt 6.8 or newer (the packages are built with 6.11; Debian 13 has 6.8). Older Qt, 5 and 6.4 to 6.7 included, is not supported
 * C++ compiler supporting C++17 (most modern Linux distributions are fine)
 * Tested on the Linux distros mentioned below, the current version of macOS, and Windows 10. (as of Dec 2021)
 ```
@@ -303,9 +303,8 @@ From the main screen and the map screens do `Ctrl-/` (? key) to get keyboard sho
 git clone https://gitlab.com/joshua.tee/wxqt.git
 cd wxqt
 # NOTE: Windows requires additional steps, please see README_WINDOWS.md
-./makeAll.py --qt5
-# or for qt6
-./makeAll.py
+./makeAll.py          # qmake6
+./makeAll.py --qt5    # (the name is old) uses the plain `qmake`, when that is the Qt 6.8+ one
 ```
 3. After compilation you can simply launch with script
 ```bash
