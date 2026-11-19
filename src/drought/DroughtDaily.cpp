@@ -23,17 +23,19 @@ namespace {
     std::string element(bool maximum) { return maximum ? "tmax" : "tmin"; }
 
     // one month's file of a kind: every area's row, the values of the days. `finalOnly`: the scaled (final) file, or the preliminary one of the current month. Empty when there is none.
-    std::string monthFile(const std::string& kind, bool maximum, int year, int month) {
+    std::string monthFile(const std::string& kind, bool maximum, int year, int month, bool keep = true) {   // keep: the final file is saved (the normals' 1991-2020 files are not: they are read once, for the month's normal)
         const std::string stem = element(maximum) + "-" + QString("%1%2").arg(year).arg(month, 2, 10, QChar{'0'}).toStdString() + "-" + kind + "-";
         const PermanentCache cache{"drought"};
         const std::string name = "daily/" + stem + "scaled.csv";
-        if (cache.has(name)) {
+        if (cache.has(name)) {   // (one saved before is used)
             return cache.read(name);
         }
         const std::string folder = base + std::to_string(year) + "/";
         auto text = URL::getBytes(folder + stem + "scaled.csv").toStdString();
         if (text.size() > 200 && text.compare(0, kind.size(), kind) == 0) {
-            cache.write(name, text);   // final: it does not change
+            if (keep) {
+                cache.write(name, text);   // final: it does not change
+            }
             return text;
         }
         text = URL::getBytes(folder + stem + "prelim.csv").toStdString();
@@ -125,7 +127,7 @@ namespace {
             std::map<std::string, std::vector<double>> sum, count;
             std::vector<std::future<std::string>> years;
             for (int year = normalFrom; year <= normalTo; year++) {
-                years.push_back(std::async(std::launch::async, [kind, maximum, year, month] { return monthFile(kind, maximum, year, month); }));
+                years.push_back(std::async(std::launch::async, [kind, maximum, year, month] { return monthFile(kind, maximum, year, month, false); }));
             }
             for (auto& file : years) {
                 for (const auto& row : parseMonth(file.get())) {
