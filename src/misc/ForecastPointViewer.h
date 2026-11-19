@@ -52,6 +52,13 @@ public:
     void setData(const UtilityForecastPoint::Data& data);
     QSize sizeHint() const override;
     QSize minimumSizeHint() const override;
+
+protected:
+    void resizeEvent(QResizeEvent *) override;   // a cell that its words do not fit gets the short ones ("Gen Tstrm"), its color kept
+
+private:
+    void fill();
+    QString severe[3], rain[3];   // the words as the outlook has them
 };
 
 // The home screen's card: where the point is, the outlooks, the compact weekly table, and a button for the full page.

@@ -248,10 +248,31 @@ ForecastPointOutlooks::ForecastPointOutlooks(QWidget * parent) : QTableWidget{pa
 
 void ForecastPointOutlooks::setData(const UtilityForecastPoint::Data& data) {
     for (int c = 0; c < 3; c++) {
+        severe[c] = data.severe[c];
+        rain[c] = data.rain[c];
+    }
+    fill();
+}
+
+void ForecastPointOutlooks::resizeEvent(QResizeEvent * event) {
+    QTableWidget::resizeEvent(event);
+    fill();
+}
+
+// each cell in full, or (when its words do not fit the column) in short: "General Thunderstorms Risk" is "Gen Tstrm", "Slight Risk" "Slight"; the cell's color and the full words (the tooltip) stay
+void ForecastPointOutlooks::fill() {
+    const int room = columnCount() > 0 ? columnWidth(0) - 12 : 0;
+    const QFontMetrics metrics{font()};
+    for (int c = 0; c < 3; c++) {
         for (int r = 0; r < 2; r++) {
-            const auto text = r == 0 ? data.severe[c] : data.rain[c];
-            auto * item = new QTableWidgetItem{text.isEmpty() ? QString{"Not expected"} : text};
+            const auto text = r == 0 ? severe[c] : rain[c];
+            QString shown = text.isEmpty() ? QString{"Not expected"} : text;
+            if (room > 0 && metrics.horizontalAdvance(shown) > room) {
+                shown = shown.replace("General Thunderstorms", "Gen Tstrm").replace("Thunderstorms", "Tstrm").replace("Thunderstorm", "Tstrm").replace(" Risk", "").replace("Not expected", "None");
+            }
+            auto * item = new QTableWidgetItem{shown};
             item->setTextAlignment(Qt::AlignCenter);
+            item->setToolTip(text.isEmpty() ? QString{"Not expected"} : text);
             const auto color = outlookColor(text);
             if (color.isValid()) {
                 item->setBackground(color);
