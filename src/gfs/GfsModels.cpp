@@ -398,6 +398,7 @@ const std::vector<GfsModels::Def>& GfsModels::all() {
         m.push_back(fromFile("MF-WAVE"));
         m.push_back(fromFile("MF-CURRENT"));
         m.push_back(fromFile("COPERNICUS"));
+        m.push_back(fromFile("AQM"));
         m.push_back(fromFile("ICON-2I"));
         // (AROME-AT, GeoSphere Austria's AROME through Open-Meteo, removed 2026-11-16: Open-Meteo keeps no map files of it any more, only its point series)
         m.push_back(cfsAnalysis());

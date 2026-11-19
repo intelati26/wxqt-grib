@@ -94,6 +94,32 @@ probe_hour = 0
 hours = 0-243/3, 252-396/12
 overlays = true
 )MODEL"},
+        {"AQM", R"MODEL(
+# NOAA's air quality forecast model, AQMv7 (CMAQ with the emissions of the cities, industry, traffic and fires), the contiguous United States on a 5 km Lambert grid, a run at 06 and 12Z, 72 hourly
+# means. A file is one product of one run (all its hours in it, messages of 1 MB each) and has NO index: its index is made from the heads of its messages (index_suffix = .gribscan: see
+# GribScanIndex). Each product also has a bias-corrected version (_bc) that the service adjusts with AirNow's observations: its charts have "stat" bc. Published about six hours after the run.
+id = AQM
+group = Air quality
+label = NOAA/NWS air quality model AQMv7 (CMAQ), 5 km
+source_label = NOAA/NWS air quality forecast model AQMv7
+kind = grib
+url = {@naqfc-aws}/AQMv7/CS/{date}/{cycle}/aqm.t{cycle}z.{file}.{date}.227.grib2
+file_default = ave_1hr_pm25
+file = when variable=PMTF stat=bc => ave_1hr_pm25_bc
+file = when variable=PMTF => ave_1hr_pm25
+file = when variable=OZCON stat=bc => ave_1hr_o3_bc
+file = when variable=OZCON => ave_1hr_o3
+probe_file = ave_1hr_pm25
+index_suffix = .gribscan
+forecast_text = {hour-1}-{hour} hour ave fcst
+cycle_hours = 6
+lag_hours = 6
+probe_hour = 1
+cycles_to_try = 4
+warp = 0.05, -127.0, 22.0, -65.0, 52.0
+sectors = conus
+hours = 1-72/1
+)MODEL"},
         {"NBM", R"MODEL(
 # the National Blend of Models: a run every hour (no hour 0 file), a Lambert grid warped to latitude / longitude, only the contiguous United States
 id = NBM

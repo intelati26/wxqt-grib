@@ -197,6 +197,7 @@ void geosProducts(std::vector<Product>& p);
 void sstProducts(std::vector<Product>& p, const char * model);
 
 void camsProducts(std::vector<Product>& p, const char * model);
+void aqmProducts(std::vector<Product>& p, const char * model);
 
 void mfWaveProducts(std::vector<Product>& p, const char * model);
 

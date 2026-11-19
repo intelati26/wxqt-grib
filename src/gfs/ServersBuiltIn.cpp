@@ -97,6 +97,12 @@ const std::string& Servers::builtInJson() {
       ],
       "note": "NOAA's operational model server (HAFS, HREF, SPC post-processing ...)"
     },
+    "naqfc-aws": {
+      "bases": [
+        "https://noaa-nws-naqfc-pds.s3.amazonaws.com"
+      ],
+      "note": "NOAA's air quality forecast model files (AQMv7, CMAQ) in the open data bucket"
+    },
     "ncei-models": {
       "bases": [
         "https://www.ncei.noaa.gov/oa/prod-model"
