@@ -4,6 +4,7 @@
 // *****************************************************************************
 
 #include "ui/NetStatus.h"
+#include <cstdlib>
 #include <algorithm>
 #include <chrono>
 #include <map>
@@ -123,13 +124,25 @@ void NetStatus::refresh() {
                         .arg(rows.size()).arg(sum.requests).arg(sum.reused).arg(sum.bytes / 1048576.0, 0, 'f', 1)
                         .arg(QString{"%1 retried, %2 cancelled   -   %3"}.arg(sum.retried).arg(sum.cancelled).arg(NetManager::enabled() ? "persistent client on" : "persistent client OFF")).arg(Activity::indexesDone.load()));
     table->setRowCount(static_cast<int>(rows.size()));
+    // a request for a byte range knows its size before the server answers: the range's own length ("bytes=4369000960-4369001471" is 512 B), not "?"
+    const auto wholeSize = [] (const std::string& range, long long total) {
+        if (total >= 0 || range.compare(0, 6, "bytes=") != 0) {
+            return total;
+        }
+        const auto dash = range.find('-', 6);
+        if (dash == std::string::npos || dash + 1 >= range.size()) {
+            return total;   // (an open range "bytes=100-": the size is not known)
+        }
+        const long long from = std::atoll(range.c_str() + 6), to = std::atoll(range.c_str() + dash + 1);
+        return to >= from ? to - from + 1 : total;
+    };
     const auto size = [] (long long bytes) { return bytes < 0 ? QString{"?"} : bytes < 10240 ? QString::number(bytes) + " B" : QString::number(bytes / 1024) + " KB"; };
     for (int i = 0; i < static_cast<int>(rows.size()); i++) {
         const auto& r = rows[static_cast<size_t>(i)];
         const QUrl url{QString::fromStdString(r.url)};
         const QString name = url.host() + "/..." + url.path().section('/', -1) + (r.range.empty() ? QString{} : "  " + QString::fromStdString(r.range));
         const QStringList cells{r.priority == NetManager::Priority::Visible ? "on screen" : r.priority == NetManager::Priority::Ahead ? "read ahead" : "background",
-                                r.started ? (r.attempts > 0 ? QString{"downloading (try %1)"}.arg(r.attempts + 1) : QString{"downloading"}) : (r.attempts > 0 ? QString{"waiting to retry (%1)"}.arg(r.attempts) : QString{"queued"}), size(r.received), size(r.total), QString::number(r.seconds, 'f', 1) + " s", QString::number(r.waiters), name};
+                                r.started ? (r.attempts > 0 ? QString{"downloading (try %1)"}.arg(r.attempts + 1) : QString{"downloading"}) : (r.attempts > 0 ? QString{"waiting to retry (%1)"}.arg(r.attempts) : QString{"queued"}), size(r.received), size(wholeSize(r.range, r.total)), QString::number(r.seconds, 'f', 1) + " s", QString::number(r.waiters), name};
         for (int c = 0; c < cells.size(); c++) {
             table->setItem(i, c, new QTableWidgetItem{cells[c]});
         }
