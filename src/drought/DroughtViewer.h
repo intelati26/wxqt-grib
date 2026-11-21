@@ -129,6 +129,8 @@ private:
     bool precipLoading{false};
     void loadPrecipArea();
     void updateHistory();    // adds what the area's history file lacks (in the background), then shows it
+    void loadCropsSeries();  // the Crops tab's line: the commodity's share in D0 or worse ... D4 for the area, week by week over the range chosen
+    void loadCrops();        // the Crops tab: the share of each commodity in each drought category on the week's map (DroughtCrops), in the background
     void loadDaily();        // the Daily tab: the days of the period against the 1991-2020 normals, in the background
     void showHistory();      // the chosen column as a chart
     void exportHistory();   // the area's rain by month (the CPC's one degree analyses)
@@ -146,6 +148,14 @@ private:
     QTableWidget * table{};
     DroughtChart * chart{};
     PrecipBars * precipBars{};
+    QTableWidget * cropsTable{};
+    DroughtChart * cropsChart{};
+    ComboBox comboCropItem, comboCropFrom, comboCropTo;
+    int cropsSeriesGeneration{0};
+    std::mutex cropsMutex;
+    std::vector<DroughtChart::Week> cropsSeries;
+    Text textCrops;
+    int cropsGeneration{0};
     DailyChart * dailyChart{};
     ComboBox comboDailyElement, comboDailySmooth, comboDailyPeriod;
     Text textDaily;

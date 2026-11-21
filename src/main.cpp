@@ -22,6 +22,8 @@
 #include "gfs/GfsClimate.h"
 #include "hurricane/ReconViewer.h"
 #include "radar/MapWidget.h"
+#include "drought/DroughtCrops.h"
+#include "util/PermanentCache.h"
 #include "drought/DroughtViewer.h"
 #include "gfs/GribScanIndex.h"
 #include "hurricane/SarWindsViewer.h"
@@ -1188,6 +1190,42 @@ int main(int argc, char * argv[]) {
                         } else {
                             qWarning("cfsprobe: f%d: %s", hour, error.c_str());
                         }
+                    }
+                }
+                QTimer::singleShot(100, [] { QApplication::quit(); });
+            } else if (route.startsWith("cropdrought:")) {   // WXQT_OPEN=cropdrought:<commodity>:<yyyymmdd of a Tuesday>: the share of the commodity in each drought category (DroughtCrops), to stderr; the census table is fetched with WXQT_NASS_KEY
+                const auto parts = route.mid(12).split(':');
+                std::string error;
+                const auto * commodity = DroughtCrops::find(parts.value(0).toStdString());
+                const auto week = QDate::fromString(parts.value(1), "yyyyMMdd");
+                DroughtCrops::WeekCounties grid;
+                if (commodity == nullptr || !week.isValid()) {
+                    qWarning("cropdrought: use cropdrought:<commodity>:<yyyymmdd>");
+                } else if (!DroughtCrops::weekCounties(week, grid, error)) {
+                    qWarning("cropdrought: %s", error.c_str());
+                } else {
+                    const int census = DroughtCrops::censusFor(week);
+                    const auto table = DroughtCrops::table(*commodity, census, error);
+                    if (table.empty()) {
+                        qWarning("cropdrought: %s", error.c_str());
+                    } else {
+                        const auto share = DroughtCrops::share(grid, table);
+                        qWarning("cropdrought: %s %s, the %d census, %d counties (%.4g %s): D0 or worse %.1f, D1 %.1f, D2 %.1f, D3 %.1f, D4 %.1f percent", commodity->name.c_str(),
+                                 week.toString("yyyy-MM-dd").toUtf8().constData(), census, share.counties, share.total, commodity->unit.c_str(), share.atLeast[0], share.atLeast[1], share.atLeast[2],
+                                 share.atLeast[3], share.atLeast[4]);
+                    }
+                }
+                QTimer::singleShot(100, [] { QApplication::quit(); });
+            } else if (route.startsWith("cropseed:")) {   // WXQT_OPEN=cropseed:<commodity>:<census>:<a Quick Stats JSON file>: the table kept in the drought cache from an answer already had (no request)
+                const auto parts = route.mid(9).split(':');
+                QFile file{parts.value(2)};
+                std::string error;
+                const auto * commodity = DroughtCrops::find(parts.value(0).toStdString());
+                if (commodity != nullptr && file.open(QIODevice::ReadOnly)) {
+                    const auto csv = DroughtCrops::parseQuickStats(file.readAll().toStdString(), error);
+                    qWarning("cropseed: %s", csv.empty() ? error.c_str() : (std::to_string(std::count(csv.begin(), csv.end(), '\n')) + " counties kept").c_str());
+                    if (!csv.empty()) {
+                        PermanentCache{"drought"}.write("crops/" + commodity->key + "_" + parts.value(1).toStdString() + ".csv", csv);
                     }
                 }
                 QTimer::singleShot(100, [] { QApplication::quit(); });

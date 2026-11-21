@@ -179,6 +179,8 @@ HelpViewer::HelpViewer(QWidget * parent, const std::string& topic)
     auto * background = new QTreeWidgetItem{tree, {"What things mean"}};   // background pages, one each (docs/help-*.md)
     auto * resolution = new QTreeWidgetItem{background, {"What is model resolution?"}};
     resolution->setData(0, Qt::UserRole, "guide:help-resolution");
+    auto * cropsInDrought = new QTreeWidgetItem{background, {"Crops in drought (the drought window)"}};
+    cropsInDrought->setData(0, Qt::UserRole, "guide:help-drought-crops");
     tree->expandItem(background);
     auto * howTo = new QTreeWidgetItem{tree, {"Adding a model"}};
     howTo->setData(0, Qt::UserRole, "add");

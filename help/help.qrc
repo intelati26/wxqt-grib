@@ -14,6 +14,7 @@
     <file alias="guides/help-local-runs.md">../docs/help-local-runs.md</file>
     <file alias="guides/help-gdal.md">../docs/help-gdal.md</file>
     <file alias="guides/help-accounts.md">../docs/help-accounts.md</file>
+    <file alias="guides/help-drought-crops.md">../docs/help-drought-crops.md</file>
     <file alias="models/AIFS.md">models/AIFS.md</file>
     <file alias="models/AIGFS.md">models/AIGFS.md</file>
     <file alias="models/AROME.md">models/AROME.md</file>

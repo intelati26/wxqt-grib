@@ -140,6 +140,10 @@ void DroughtMap::setZones(std::vector<Zone> zones) {
     update();
 }
 
+void DroughtMap::setPictureCaption(const QString& text) {
+    pictureCaption = text;
+}
+
 void DroughtMap::setCaption(const QString& text) {
     caption = text;
     update();
@@ -180,9 +184,132 @@ void DroughtMap::fitArea() {
     centerLon = (west + east) / 2.0;
     centerLat = (south + north) / 2.0;
     const double k = std::cos(centerLat * M_PI / 180.0);
-    const double margin = 1.12;
+    const double margin = fitMargin;
     pixelsPerDegree = std::min(width() / std::max(0.2, (east - west) * k * margin), height() / std::max(0.2, (north - south) * margin));
     update();
+}
+
+QImage DroughtMap::tightPicture(const QPalette& palette, const QString& credit) const {
+    double west = -125.0, east = -66.0, south = 24.0, north = 50.0;
+    if (!area.empty()) {
+        west = south = 1e9;
+        east = north = -1e9;
+        for (const auto& s : area) {
+            west = std::min(west, s.west);
+            east = std::max(east, s.east);
+            south = std::min(south, s.south);
+            north = std::max(north, s.north);
+        }
+    }
+    const double k = std::cos((south + north) / 2.0 * M_PI / 180.0);
+    const double aspect = std::clamp((east - west) * k / std::max(0.2, north - south), 0.45, 2.6);   // width over height
+    const int logicalWidth = 800, logicalHeight = std::max(300, static_cast<int>(std::lround(logicalWidth / aspect)));
+    DroughtMap copy;   // the same map (the shapes are shared or copied), the shape of the area
+    copy.land = land;
+    copy.counties = counties;
+    copy.monitor = monitor;
+    copy.change = change;
+    copy.field = field;
+    copy.area = area;
+    for (int i = 0; i < 5; i++) {
+        copy.categoryPath[i] = categoryPath[i];
+    }
+    copy.backdropPath = backdropPath;
+    copy.zoneList = zoneList;
+    copy.zonePaths = zonePaths;
+    copy.landPath = landPath;
+    copy.bordersPath = bordersPath;
+    copy.countyPath = countyPath;
+    copy.areaPath = areaPath;
+    copy.outsidePath = outsidePath;
+    copy.caption = caption;
+    copy.fitMargin = 1.04;
+    copy.pictureMode = true;
+    copy.setPalette(palette);
+    copy.resize(logicalWidth, logicalHeight);
+    copy.fitArea();
+    // the picture as the model screen's charts are: a header (the title in bold, the rest smaller), the map, a key as a bar of the categories with their words under it, the sources
+    const QColor ink = palette.color(QPalette::WindowText), faint{100, 100, 100};
+    auto titleFont = font();
+    titleFont.setPointSizeF(titleFont.pointSizeF() * 1.35);
+    titleFont.setBold(true);
+    auto smallFont = font();
+    smallFont.setPointSizeF(smallFont.pointSizeF() * 0.9);
+    auto creditFont = font();
+    creditFont.setPointSizeF(creditFont.pointSizeF() * 0.85);
+    const QFontMetrics titleMetrics{titleFont}, smallMetrics{smallFont}, creditMetrics{creditFont};
+    const auto lines = (pictureCaption.isEmpty() ? caption : pictureCaption).split('\n');
+    const int margin = 8;
+    const int textWidth = logicalWidth - 2 * margin;
+    int headerHeight = margin;
+    if (!lines.isEmpty() && !lines.first().isEmpty()) {
+        headerHeight += titleMetrics.boundingRect(QRect{0, 0, textWidth, 1000}, Qt::TextWordWrap, lines.first()).height();
+        for (int i = 1; i < lines.size(); i++) {
+            headerHeight += smallMetrics.boundingRect(QRect{0, 0, textWidth, 1000}, Qt::TextWordWrap, lines[i]).height();
+        }
+        headerHeight += 6;
+    }
+    auto key = keys();
+    if (!field && zoneList.empty() && !change) {
+        std::reverse(key.begin(), key.end());   // the categories read from D0 to D4, left to right, as a scale
+    }
+    const int keyBar = 14;
+    int labelHeight = 0;
+    const int segment = key.empty() ? textWidth : textWidth / static_cast<int>(key.size());
+    for (const auto& entry : key) {
+        labelHeight = std::max(labelHeight, smallMetrics.boundingRect(QRect{0, 0, std::max(20, segment - 6), 1000}, Qt::AlignHCenter | Qt::TextWordWrap, entry.second).height());
+    }
+    const int keyHeight = key.empty() ? 0 : margin + keyBar + 2 + labelHeight;
+    const int creditHeight = credit.isEmpty() ? 0 : creditMetrics.boundingRect(QRect{0, 0, textWidth, 1000}, Qt::TextWordWrap, credit).height() + 6;
+    const int totalHeight = headerHeight + logicalHeight + keyHeight + creditHeight + margin;
+    QImage image{logicalWidth * 2, totalHeight * 2, QImage::Format_ARGB32};
+    image.fill(palette.color(QPalette::Window));
+    QPainter painter{&image};
+    painter.setRenderHint(QPainter::Antialiasing);
+    painter.scale(2.0, 2.0);
+    int y = margin;
+    if (headerHeight > margin) {
+        painter.setPen(ink);
+        painter.setFont(titleFont);
+        const auto titleBox = titleMetrics.boundingRect(QRect{0, 0, textWidth, 1000}, Qt::TextWordWrap, lines.first());
+        painter.drawText(QRect{margin, y, textWidth, titleBox.height()}, Qt::TextWordWrap, lines.first());
+        y += titleBox.height();
+        painter.setFont(smallFont);
+        painter.setPen(faint);
+        for (int i = 1; i < lines.size(); i++) {
+            const auto box = smallMetrics.boundingRect(QRect{0, 0, textWidth, 1000}, Qt::TextWordWrap, lines[i]);
+            painter.drawText(QRect{margin, y, textWidth, box.height()}, Qt::TextWordWrap, lines[i]);
+            y += box.height();
+        }
+        y = headerHeight;
+    }
+    painter.save();
+    painter.translate(0, y);
+    copy.render(&painter);
+    painter.restore();
+    painter.setPen(QColor{90, 90, 90});
+    painter.setBrush(Qt::NoBrush);
+    painter.drawRect(QRect{0, y, logicalWidth - 1, logicalHeight - 1});
+    y += logicalHeight;
+    if (!key.empty()) {
+        y += margin;
+        for (size_t i = 0; i < key.size(); i++) {
+            const int x = margin + static_cast<int>(i) * segment;
+            painter.setPen(Qt::NoPen);
+            painter.setBrush(key[i].first);
+            painter.drawRect(QRect{x, y, segment, keyBar});
+            painter.setPen(ink);
+            painter.setFont(smallFont);
+            painter.drawText(QRect{x + 3, y + keyBar + 2, segment - 6, labelHeight}, Qt::AlignHCenter | Qt::AlignTop | Qt::TextWordWrap, key[i].second);
+        }
+        y += keyBar + 2 + labelHeight;
+    }
+    if (!credit.isEmpty()) {
+        painter.setFont(creditFont);
+        painter.setPen(faint);
+        painter.drawText(QRect{margin, y + 4, textWidth, creditHeight}, Qt::AlignRight | Qt::AlignTop | Qt::TextWordWrap, credit);
+    }
+    return image;
 }
 
 QTransform DroughtMap::worldToScreen() const {
@@ -196,6 +323,27 @@ QTransform DroughtMap::worldToScreen() const {
 
 QPointF DroughtMap::toWorld(const QPointF& screen) const {
     return worldToScreen().inverted().map(screen);
+}
+
+std::vector<std::pair<QColor, QString>> DroughtMap::keys() const {
+    std::vector<std::pair<QColor, QString>> keys;
+    if (field) {
+        keys = field->key;
+    } else if (!zoneList.empty()) {
+        for (const auto& zone : zoneList) {
+            if (zone.color.alpha() > 0) {
+                keys.emplace_back(zone.color, zone.name);
+            }
+        }
+    } else if (change) {
+        keys = {{changeColor(-3), "improved 3 or more categories"}, {changeColor(-2), "improved 2"}, {changeColor(-1), "improved 1"}, {changeColor(1), "worse by 1"},
+                {changeColor(2), "worse by 2"}, {changeColor(3), "worse by 3 or more"}};
+    } else {
+        for (int c = 4; c >= 0; c--) {
+            keys.emplace_back(categoryColors[c], categoryNames[c]);
+        }
+    }
+    return keys;
 }
 
 void DroughtMap::paintEvent(QPaintEvent *) {
@@ -267,23 +415,10 @@ void DroughtMap::paintEvent(QPaintEvent *) {
     font.setPointSizeF(font.pointSizeF() * 0.9);
     p.setFont(font);
     const int rowHeight = p.fontMetrics().height() + 3;
-    std::vector<std::pair<QColor, QString>> keys;
-    if (field) {
-        keys = field->key;
-    } else if (!zoneList.empty()) {
-        for (const auto& zone : zoneList) {
-            if (zone.color.alpha() > 0) {
-                keys.emplace_back(zone.color, zone.name);
-            }
-        }
-    } else if (change) {
-        keys = {{changeColor(-3), "improved 3 or more categories"}, {changeColor(-2), "improved 2"}, {changeColor(-1), "improved 1"}, {changeColor(1), "worse by 1"},
-                {changeColor(2), "worse by 2"}, {changeColor(3), "worse by 3 or more"}};
-    } else {
-        for (int c = 4; c >= 0; c--) {
-            keys.emplace_back(categoryColors[c], categoryNames[c]);
-        }
+    if (pictureMode) {
+        return;
     }
+    const auto keys = this->keys();
     int keyWidth = 0;
     for (const auto& [color, text] : keys) {
         keyWidth = std::max(keyWidth, p.fontMetrics().horizontalAdvance(text));
@@ -299,7 +434,7 @@ void DroughtMap::paintEvent(QPaintEvent *) {
         p.drawRect(QRectF{keyBox.left() + 6.0, y + 2.0, 18.0, rowHeight - 5.0});
         p.drawText(QPointF{keyBox.left() + 30.0, y + rowHeight - 5.0}, keys[i].second);
     }
-    if (!caption.isEmpty()) {
+    if (!caption.isEmpty() && !pictureMode) {
         p.setPen(QColor{30, 30, 30});
         const QRectF box{8.0, 6.0, width() - 16.0, rowHeight * 2.0};
         p.drawText(box, Qt::AlignLeft | Qt::AlignTop | Qt::TextWordWrap, caption);

@@ -10,6 +10,7 @@
 #include "climate/GridAnalysis.h"
 #include "util/UtilityZip.h"
 #include "drought/DroughtRain.h"
+#include "drought/DroughtCrops.h"
 #include "hurricane/Coast.h"
 #include "climate/UtilityAcisClimate.h"
 #include <algorithm>
@@ -32,6 +33,9 @@
 #include "common/GlobalVariables.h"
 #include <QAction>
 #include <QDate>
+#include <QLabel>
+#include <map>
+#include <set>
 #include <QFileDialog>
 #include <QImage>
 #include <QMessageBox>
@@ -176,8 +180,8 @@ namespace {
 
 namespace {
     // A chart, map or table as a picture: drawn at twice its size on white with dark text whatever the dark mode of the window, written as PNG where the user chooses
-    void savePicture(QWidget * widget, const QString& name) {
-        const auto target = ChartExport::askSave(widget->window(), "Save the picture", name, "png", "PNG pictures (*.png)");
+    void savePicture(QWidget * widget, const QString& name, bool toFile = false) {   // toFile: `name` is the path without .png (a dev aid: no dialog)
+        const auto target = toFile ? name + ".png" : ChartExport::askSave(widget->window(), "Save the picture", name, "png", "PNG pictures (*.png)");
         if (target.isEmpty()) {
             return;
         }
@@ -194,17 +198,64 @@ namespace {
         const bool hadPalette = widget->testAttribute(Qt::WA_SetPalette);
         const QPalette before = widget->palette();
         widget->setPalette(light);
-        QImage image{widget->size() * 2, QImage::Format_ARGB32};
-        image.fill(Qt::white);
-        {
+        QImage image;
+        bool footerDone = false;
+        if (const auto * map = dynamic_cast<DroughtMap *>(widget)) {   // a map: cropped tight to its area, in the shape of the area
+            image = map->tightPicture(light, widget->property("credit").toString());
+            footerDone = true;
+        } else {
+            image = QImage{widget->size() * 2, QImage::Format_ARGB32};
+            image.fill(Qt::white);
             QPainter painter{&image};
             painter.scale(2.0, 2.0);
             widget->render(&painter);
         }
         widget->setPalette(hadPalette ? before : QPalette{});
+        const auto credit = widget->property("credit").toString();   // the sources, written under the picture when the widget has them (the crops tab)
+        if (!credit.isEmpty() && !footerDone) {
+            auto font = widget->font();
+            font.setPointSizeF(font.pointSizeF() * 0.85);
+            const QFontMetrics metrics{font};
+            const int pictureWidth = image.width() / 2, pictureHeight = image.height() / 2;
+            const int width = pictureWidth - 12;
+            const int footer = metrics.boundingRect(QRect{0, 0, width, 10000}, Qt::TextWordWrap, credit).height() + 10;
+            QImage taller{image.width(), image.height() + footer * 2, QImage::Format_ARGB32};
+            taller.fill(Qt::white);
+            {
+                QPainter painter{&taller};
+                painter.drawImage(0, 0, image);
+                painter.scale(2.0, 2.0);
+                painter.setFont(font);
+                painter.setPen(QColor{80, 80, 80});
+                painter.drawText(QRect{6, pictureHeight + 4, width, footer}, Qt::TextWordWrap, credit);
+            }
+            image = taller;
+        }
         if (!image.save(target, "PNG")) {
             QMessageBox::warning(widget->window(), "Save the picture", "The picture could not be written to " + target);
         }
+    }
+
+    // the notice NASS asks of every program that uses its API (quickstats.nass.usda.gov/api, the terms of service)
+    QString nassNotice() {
+        return "This product uses the NASS API but is not endorsed or certified by NASS.";
+    }
+
+    // the sources written under a saved picture (savePicture reads the widget's `credit` property)
+    QString monitorCredit() {
+        return "Source: U.S. Drought Monitor (National Drought Mitigation Center at the University of Nebraska-Lincoln, USDA and NOAA), droughtmonitor.unl.edu";
+    }
+    QString normalsCredit() {
+        return "Sources: NOAA Climate Prediction Center precipitation and temperature products; NOAA MRMS multi-sensor rain; NCEI ACIS station data and normals.";
+    }
+    QString historyCredit() {
+        return "Sources: NOAA Climate Prediction Center monthly analyses and ranks; U.S. Drought Monitor statistics (National Drought Mitigation Center).";
+    }
+    QString dailyCredit() {
+        return "Source: NOAA NCEI nClimGrid-Daily area averages; the normal of each day is the mean of that day over 1991-2020.";
+    }
+    QString cpcCredit() {
+        return "Source: NOAA Climate Prediction Center.";
     }
 
     // right-click on a chart or map: save it as a picture
@@ -219,6 +270,7 @@ namespace {
 PrecipBars::PrecipBars(QWidget * parent) : QWidget{parent} {
     setMinimumHeight(220);
     offerPicture(this, "drought_rain");
+    setProperty("credit", normalsCredit());
 }
 
 void PrecipBars::setMonths(const std::vector<Month>& m, const QString& t, bool in, bool temp) {
@@ -305,6 +357,7 @@ void PrecipBars::paintEvent(QPaintEvent *) {
 HistoryChart::HistoryChart(QWidget * parent) : QWidget{parent} {
     setMinimumHeight(300);
     offerPicture(this, "drought_history");
+    setProperty("credit", historyCredit());
 }
 
 void HistoryChart::setSeries(const std::vector<Point>& p, const QString& t, const QString& u, bool b, double ref, bool warm, double lo, double hi) {
@@ -500,6 +553,7 @@ void HistoryChart::paintEvent(QPaintEvent *) {
 DroughtChart::DroughtChart(QWidget * parent) : QWidget{parent} {
     setMinimumHeight(250);
     offerPicture(this, "drought_share_by_week");
+    setProperty("credit", monitorCredit());
 }
 
 void DroughtChart::setWeeks(const std::vector<Week>& w, const QString& t) {
@@ -597,6 +651,10 @@ DroughtViewer::DroughtViewer(Window * parent)
     , comboMetric{this, {"Area numbers: rain", "Area numbers: temperature"}}
     , textPrecip{this, ""}
     , textOutlook{this, ""}
+    , comboCropItem{this}
+    , comboCropFrom{this}
+    , comboCropTo{this}
+    , textCrops{this, ""}
     , states{std::make_shared<std::vector<UtilityDrought::Area>>()}
     , counties{std::make_shared<std::vector<UtilityDrought::Area>>()}
     , offices{std::make_shared<std::vector<UtilityDrought::Area>>()}
@@ -631,6 +689,7 @@ DroughtViewer::DroughtViewer(Window * parent)
     sideColumn->setContentsMargins(0, 0, 0, 0);
     table = new QTableWidget{0, 4, side};
     offerPicture(table, "drought_summary_table");
+    table->setProperty("credit", monitorCredit());
     table->setEditTriggers(QAbstractItemView::NoEditTriggers);
     table->setSelectionMode(QAbstractItemView::NoSelection);
     table->verticalHeader()->hide();
@@ -651,6 +710,7 @@ DroughtViewer::DroughtViewer(Window * parent)
     }
     sideColumn->addWidget(chart);
     offerPicture(map, "drought_map");
+    map->setProperty("credit", monitorCredit());
     split->addWidget(map);
     split->addWidget(side);
     split->setStretchFactor(0, 3);
@@ -699,6 +759,8 @@ DroughtViewer::DroughtViewer(Window * parent)
         panelRow->addWidget(precipTable, 2);
         panelRow->addWidget(precipBars, 3);
         offerPicture(precipTable, "drought_normals_table");
+        precipTable->setProperty("credit", normalsCredit());
+        precipMap->setProperty("credit", normalsCredit());
         vertical->addWidget(panel);
         vertical->setStretchFactor(0, 5);
         vertical->setStretchFactor(1, 2);
@@ -709,6 +771,7 @@ DroughtViewer::DroughtViewer(Window * parent)
     page("Outlooks and soil moisture", rowOutlook, outlookImage, textOutlook);
     if (auto * column = qobject_cast<QVBoxLayout *>(tabs->widget(tabs->count() - 1)->layout())) {   // the soil moisture grids are drawn on a map of their own over the picture's place
         soilMap = new DroughtMap{tabs->widget(tabs->count() - 1)};
+        soilMap->setProperty("credit", cpcCredit());
         soilMap->setMinimumHeight(380);
         soilMap->setBackdrop(Coast::worldLines());
         soilMap->hide();
@@ -735,6 +798,54 @@ DroughtViewer::DroughtViewer(Window * parent)
         column->addWidget(historyChart, 1);
         tabs->addTab(widget, "History");
     }
+    {   // the crops tab: how much of each commodity lies in drought on the week's map, the way the Department of Agriculture's weekly "Agriculture in Drought" figures are made
+        auto * widget = new QWidget{tabs};
+        auto * column = new QVBoxLayout{widget};
+        column->setContentsMargins(4, 4, 4, 4);
+        textCrops.getView()->setWordWrap(true);
+        textCrops.getView()->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Preferred);
+        column->addWidget(textCrops.getView());
+        auto * notice = new QLabel{nassNotice() + "  The shares are wxqt's own calculation, not NASS figures.", widget};
+        notice->setWordWrap(true);
+        auto noticeFont = notice->font();
+        noticeFont.setPointSizeF(noticeFont.pointSizeF() * 0.85);
+        notice->setFont(noticeFont);
+        column->addWidget(notice);
+        cropsTable = new QTableWidget{0, 7, widget};
+        cropsTable->setHorizontalHeaderLabels({"Commodity", "D0 or worse", "D1 or worse", "D2 or worse", "D3 or worse", "D4", "D1 on the week"});
+        cropsTable->setEditTriggers(QAbstractItemView::NoEditTriggers);
+        cropsTable->setSelectionMode(QAbstractItemView::NoSelection);
+        cropsTable->verticalHeader()->hide();
+        cropsTable->horizontalHeader()->setStretchLastSection(true);
+        offerPicture(cropsTable, "drought_crops_table");
+        cropsTable->setMinimumHeight(260);
+        column->addWidget(cropsTable, 3);
+        {   // the line: one commodity over a range of weeks, for the area chosen above
+            std::vector<std::string> names, weeksList;
+            for (const auto& commodity : DroughtCrops::commodities()) {
+                names.push_back(commodity.name);
+            }
+            comboCropItem.setList(names);
+            for (int back = 0; back < 1380; back++) {   // (the Monitor's maps go back to January 2000)
+                weeksList.push_back("Week of " + QDate::fromString(QString::fromStdString(mapDate(back)), "yyyyMMdd").toString("MMM d, yyyy").toStdString());
+            }
+            comboCropFrom.setList(weeksList);
+            comboCropTo.setList(weeksList);
+            comboCropFrom.setIndex(52);
+            auto * row = new QHBoxLayout;
+            row->addWidget(comboCropItem.getView());
+            row->addWidget(new QLabel{"from", widget});
+            row->addWidget(comboCropFrom.getView());
+            row->addWidget(new QLabel{"to", widget});
+            row->addWidget(comboCropTo.getView());
+            row->addStretch();
+            column->addLayout(row);
+            cropsChart = new DroughtChart{widget};
+            cropsChart->setMinimumHeight(220);
+            column->addWidget(cropsChart, 2);
+        }
+        tabs->addTab(widget, "Crops");
+    }
     {   // the daily tab: each day's temperature against the normal, smoothed over a number of days
         auto * widget = new QWidget{tabs};
         auto * column = new QVBoxLayout{widget};
@@ -753,6 +864,7 @@ DroughtViewer::DroughtViewer(Window * parent)
         textDaily.getView()->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Preferred);
         column->addWidget(textDaily.getView());
         dailyChart = new DailyChart{widget};
+        dailyChart->setProperty("credit", dailyCredit());
         column->addWidget(dailyChart, 1);
         tabs->addTab(widget, "Daily");
         comboDailyElement.connect([this] { loadDaily(); });
@@ -785,7 +897,10 @@ DroughtViewer::DroughtViewer(Window * parent)
         names.push_back(o.label);
     }
     comboOutlook.setList(names);
-    comboWeek.connect([this] { refreshMonitor(); });
+    comboWeek.connect([this] { refreshMonitor(); loadCrops(); });
+    comboCropItem.connect([this] { loadCropsSeries(); });
+    comboCropFrom.connect([this] { loadCropsSeries(); });
+    comboCropTo.connect([this] { loadCropsSeries(); });
     comboCompare.connect([this] { refreshMonitor(); });
     comboKind.connect([this] { loadPrecip(); });
     comboPeriod.connect([this] { loadPrecip(); });
@@ -795,10 +910,22 @@ DroughtViewer::DroughtViewer(Window * parent)
     loadAreas();
     loadPrecip();
     loadOutlook();
+    loadCrops();
+    loadCropsSeries();
     if (const auto env = qgetenv("WXQT_OUTLOOK"); !env.isEmpty()) {   // dev: the Outlooks tab's entry (the number in the list), set a moment after the window is up
         QTimer::singleShot(1500, this, [this, env] {
             comboOutlook.setIndex(env.toInt());
             loadOutlook();
+        });
+    }
+    if (const auto env = qgetenv("WXQT_PICTURES"); !env.isEmpty()) {   // dev: after WXQT_WAIT seconds the pictures of the tabs are written to the folder (without the file dialog), then the program quits
+        QTimer::singleShot(std::max(10, qEnvironmentVariableIntValue("WXQT_WAIT")) * 1000, this, [this, env] {
+            const QString folder = QString::fromLocal8Bit(env);
+            for (const auto& [widget, name] : std::vector<std::pair<QWidget *, QString>>{{cropsTable, "crops_table"}, {cropsChart, "crops_chart"}, {map, "monitor_map"}, {table, "monitor_table"}, {chart, "monitor_chart"},
+                                                                                     {precipTable, "normals_table"}, {historyChart, "history"}, {dailyChart, "daily"}}) {
+                savePicture(widget, folder + "/" + name, true);
+            }
+            std::_Exit(0);
         });
     }
     if (const auto env = qgetenv("WXQT_NORMALS"); !env.isEmpty()) {   // dev: the Normals tab's map, "<measure 0-5>,<period 0-6>", set a moment after the window is up
@@ -971,6 +1098,8 @@ void DroughtViewer::selectArea(const std::string& id) {
     loadPrecipArea();
     updateHistory();
     loadDaily();
+    loadCrops();
+    loadCropsSeries();
 }
 
 // What the background work brings back for the Monitor tab
@@ -1066,6 +1195,7 @@ void DroughtViewer::refreshMonitor() {
                            what += " (the earlier map could not be had: " + QString::fromStdString(result->error) + ")";
                        }
                        textMonitor.setText((what + ".  " + credit).toStdString());
+                       map->setPictureCaption("U.S. Drought Monitor: " + (areaId == "US" || selectedAreas().empty() ? QString{"the contiguous United States"} : QString::fromStdString(selectedAreas().front().name)) + "\n" + what);
                        // the table: the share of the area in each category, then and now
                        const int rows = 7;
                        table->setRowCount(rows);
@@ -1334,6 +1464,193 @@ void DroughtViewer::loadPrecipArea() {
                            precipTable->setItem(r, 5, new QTableWidgetItem{m.rank >= 0 ? ordinal(m.rank) : "-"});
                        }
                        precipTable->resizeColumnsToContents();
+                   }};
+}
+
+// The Crops tab's line: the commodity's share of the production in D0 or worse ... D4 for the area chosen above the tabs, one point a week over the range chosen (from the older week to the
+// newer: either way round). Each week's county shares are kept (DroughtCrops::weekCounties), so a week is fetched and made once; the line grows as the weeks come in.
+void DroughtViewer::loadCropsSeries() {
+    if (cropsChart == nullptr) {
+        return;
+    }
+    const int mine = ++cropsSeriesGeneration;
+    const auto& list = DroughtCrops::commodities();
+    const auto& commodity = list[static_cast<size_t>(std::clamp(comboCropItem.getIndex(), 0, static_cast<int>(list.size()) - 1))];
+    int first = comboCropFrom.getIndex(), last = comboCropTo.getIndex();
+    if (first < last) {
+        std::swap(first, last);
+    }
+    const auto areas = areaId == "US" ? std::vector<UtilityDrought::Area>{} : selectedAreas();
+    const QString place = areaId == "US" ? QString{"the contiguous U.S."} : QString::fromStdString(areas.empty() ? areaId : areas.front().name);
+    const QString title = QString::fromStdString(commodity.name) + " in drought, " + place + " (% of production)";
+    {
+        const std::lock_guard lock{cropsMutex};
+        cropsSeries.clear();
+    }
+    cropsChart->setProperty("credit", "Sources: U.S. Drought Monitor (National Drought Mitigation Center, USDA, NOAA); USDA NASS Census of Agriculture (2017 for the weeks before July 2024, 2022 after). Calculated by wxqt. " + nassNotice());
+    cropsChart->setWeeks({}, title + "  -  reading...");
+    struct Prepared {
+        std::map<int, DroughtCrops::Table> tables;
+        std::set<std::string> inside;
+        bool filtered{false};
+        std::string error;
+    };
+    auto prepared = std::make_shared<Prepared>();
+    std::vector<QDate> dates;
+    for (int back = first; back >= last; back--) {
+        dates.push_back(QDate::fromString(QString::fromStdString(mapDate(back)), "yyyyMMdd"));
+    }
+    const int total = static_cast<int>(dates.size());
+    new FutureVoid{this, [prepared, commodity, dates, areas] {
+                       const NetManager::Scope background{NetManager::Priority::Background};
+                       for (const auto& date : {dates.front(), dates.back()}) {
+                           const int census = DroughtCrops::censusFor(date);
+                           if (prepared->tables.count(census) == 0) {
+                               prepared->tables[census] = DroughtCrops::table(commodity, census, prepared->error);
+                           }
+                       }
+                       if (!areas.empty()) {
+                           prepared->inside = DroughtCrops::countiesIn(areas);
+                           prepared->filtered = true;
+                       }
+                   },
+                   [this, mine, prepared, commodity, dates, title, total] {
+                       if (closed || mine != cropsSeriesGeneration) {
+                           return;
+                       }
+                       if (!prepared->error.empty() && prepared->tables.empty()) {
+                           cropsChart->setWeeks({}, QString::fromStdString(prepared->error));
+                           return;
+                       }
+                       const auto done = std::make_shared<std::atomic<int>>(0);
+                       const size_t chunk = 6;
+                       for (size_t at = 0; at < dates.size(); at += chunk) {
+                           const std::vector<QDate> mine6(dates.begin() + static_cast<long>(at), dates.begin() + static_cast<long>(std::min(dates.size(), at + chunk)));
+                           new FutureVoid{this, [this, mine, prepared, mine6, done] {
+                                              const NetManager::Scope background{NetManager::Priority::Background};
+                                              for (const auto& date : mine6) {
+                                                  if (mine != cropsSeriesGeneration) {
+                                                      return;
+                                                  }
+                                                  DroughtCrops::WeekCounties week;
+                                                  std::string error;
+                                                  const auto table = prepared->tables.find(DroughtCrops::censusFor(date));
+                                                  if (table != prepared->tables.end() && DroughtCrops::weekCounties(date, week, error)) {
+                                                      const auto share = DroughtCrops::share(week, table->second, prepared->filtered ? &prepared->inside : nullptr);
+                                                      DroughtChart::Week w;
+                                                      w.date = date;
+                                                      for (int c = 0; c < 5; c++) {
+                                                          w.d[c] = share.atLeast[c];
+                                                      }
+                                                      const std::lock_guard lock{cropsMutex};
+                                                      if (mine == cropsSeriesGeneration) {
+                                                          cropsSeries.push_back(w);
+                                                      }
+                                                  }
+                                                  ++*done;
+                                              }
+                                          },
+                                          [this, mine, title, total, done] {
+                                              if (closed || mine != cropsSeriesGeneration) {
+                                                  return;
+                                              }
+                                              std::vector<DroughtChart::Week> weeks;
+                                              {
+                                                  const std::lock_guard lock{cropsMutex};
+                                                  weeks = cropsSeries;
+                                              }
+                                              std::sort(weeks.begin(), weeks.end(), [] (const auto& a, const auto& b) { return a.date < b.date; });
+                                              cropsChart->setWeeks(weeks, done->load() < total ? title + "  -  " + QString::number(done->load()) + " of " + QString::number(total) + " weeks read" : title);
+                                          }};
+                       }
+                   }};
+}
+
+// The Crops tab: the share of each commodity in each drought category on the week's map and the change of the share of D1 or worse since the week before. The weights are the Census of
+// Agriculture's county table (kept in the drought cache; fetched once from Quick Stats with a free key in WXQT_NASS_KEY), the drought is the week's map on the 0.05 degree grid, so no file is
+// made for each week and crop. The whole contiguous United States: the area chosen above is not used here yet.
+void DroughtViewer::loadCrops() {
+    if (cropsTable == nullptr) {
+        return;
+    }
+    const int mine = ++cropsGeneration;
+    const auto weeksBack = std::max(0, comboWeek.getIndex());
+    const auto date = QDate::fromString(QString::fromStdString(mapDate(weeksBack)), "yyyyMMdd");
+    textCrops.setText("Reading the crop areas against the map of " + date.toString("MMMM d, yyyy").toStdString() + "...");
+    struct Row {
+        QString name, unit;
+        DroughtCrops::Share now, before;
+        bool haveBefore{false};
+        int census{0};
+        std::string error;
+    };
+    auto rows = std::make_shared<std::vector<Row>>();
+    const auto areas = areaId == "US" ? std::vector<UtilityDrought::Area>{} : selectedAreas();
+    new FutureVoid{this, [rows, date, areas] {
+                       const NetManager::Scope background{NetManager::Priority::Ahead};
+                       DroughtCrops::WeekCounties now, before;
+                       std::string error;
+                       const bool haveNow = DroughtCrops::weekCounties(date, now, error);
+                       const bool haveBefore = haveNow && DroughtCrops::weekCounties(date.addDays(-7), before, error);
+                       const auto inside = areas.empty() ? std::set<std::string>{} : DroughtCrops::countiesIn(areas);
+                       const std::set<std::string> * only = areas.empty() ? nullptr : &inside;
+                       for (const auto& commodity : DroughtCrops::commodities()) {
+                           Row row;
+                           row.name = QString::fromStdString(commodity.name);
+                           row.unit = QString::fromStdString(commodity.unit);
+                           row.census = DroughtCrops::censusFor(date);
+                           if (!haveNow) {
+                               row.error = error;
+                           } else {
+                               const auto table = DroughtCrops::table(commodity, row.census, row.error);
+                               if (!table.empty()) {
+                                   row.now = DroughtCrops::share(now, table, only);
+                                   if (haveBefore) {
+                                       row.before = DroughtCrops::share(before, DroughtCrops::table(commodity, DroughtCrops::censusFor(date.addDays(-7)), row.error), only);
+                                       row.haveBefore = true;
+                                   }
+                               }
+                           }
+                           rows->push_back(row);
+                       }
+                   },
+                   [this, rows, mine, date] {
+                       if (closed || mine != cropsGeneration) {
+                           return;
+                       }
+                       cropsTable->setRowCount(static_cast<int>(rows->size()));
+                       std::string note;
+                       for (int r = 0; r < static_cast<int>(rows->size()); r++) {
+                           const auto& row = (*rows)[static_cast<size_t>(r)];
+                           cropsTable->setItem(r, 0, new QTableWidgetItem{row.name});
+                           if (!row.error.empty() && row.now.counties == 0) {
+                               note += row.name.toStdString() + ": " + row.error + "  ";
+                               for (int c = 1; c < 7; c++) {
+                                   cropsTable->setItem(r, c, new QTableWidgetItem{"-"});
+                               }
+                               continue;
+                           }
+                           for (int k = 0; k < 5; k++) {
+                               cropsTable->setItem(r, k + 1, new QTableWidgetItem{QString::number(row.now.atLeast[k], 'f', 0) + "%"});
+                           }
+                           if (row.haveBefore) {
+                               const double delta = row.now.atLeast[1] - row.before.atLeast[1];
+                               const double shown = std::round(delta);
+                               auto * item = new QTableWidgetItem{QString{shown > 0 ? "+" : ""} + QString::number(shown, 'f', 0) + " pts" + (shown == 0 ? "" : shown > 0 ? "  \xE2\x96\xB2" : "  \xE2\x96\xBC")};
+                               item->setForeground(delta > 0 ? QBrush{QColor{"#c0392b"}} : QBrush{QColor{"#2f7d4b"}});
+                               cropsTable->setItem(r, 6, item);
+                           } else {
+                               cropsTable->setItem(r, 6, new QTableWidgetItem{"-"});
+                           }
+                       }
+                       cropsTable->resizeColumnsToContents();
+                       const QString census = QString::number(rows->empty() ? 0 : rows->front().census);
+                       const QString credit = "Sources: U.S. Drought Monitor (National Drought Mitigation Center, USDA, NOAA) of " + date.toString("MMMM d, yyyy") + "; USDA NASS " + census +
+                                              " Census of Agriculture. Calculated by wxqt. " + nassNotice();
+                       cropsTable->setProperty("credit", credit);
+                       textCrops.setText("Share of the production in drought on the map of " + date.toString("MMMM d, yyyy").toStdString() + " (" +
+                                         (areaId == "US" ? std::string{"the contiguous United States"} : "the counties of " + (selectedAreas().empty() ? areaId : selectedAreas().front().name)) +
+                                         "). How it is made: Help > Crops in drought.");
                    }};
 }
 

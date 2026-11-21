@@ -51,6 +51,10 @@ public:
     void setZones(std::vector<Zone> zones);                      // named areas in place of the categories (a map with no Monitor set); empty: none
     void setCaption(const QString& text);
     void fitArea();
+    // The map as a picture cropped tight to the area (the whole country when none is chosen), in the shape of the area and not of the widget: the same map and legend, at twice 800 pixels
+    // across, drawn with `palette`. The way the model screen crops a chart to its area.
+    QImage tightPicture(const QPalette& palette, const QString& credit = {}) const;
+    void setPictureCaption(const QString& text);   // the header of a saved picture (first line the title, the rest smaller); the caption on the screen when empty
 
 private:
     void paintEvent(QPaintEvent *) override;
@@ -60,6 +64,7 @@ private:
     void mouseMoveEvent(QMouseEvent *) override;
     void mouseReleaseEvent(QMouseEvent *) override;
     void mouseDoubleClickEvent(QMouseEvent *) override;
+    std::vector<std::pair<QColor, QString>> keys() const;   // the key of what is drawn, the highest first
     QTransform worldToScreen() const;
     QPointF toWorld(const QPointF& screen) const;
     QString readout(const QPointF& world) const;
@@ -73,7 +78,9 @@ private:
     std::vector<Zone> zoneList;
     std::vector<QPainterPath> zonePaths;    // one for each zone, the contiguous states only (Alaska and Hawaii would be far off the map)
     QPainterPath landPath, bordersPath, countyPath, areaPath, outsidePath;
-    QString caption;
+    QString caption, pictureCaption;
+    bool pictureMode{false};            // the map drawn for a saved picture: no key and no caption on it (the picture has a header and a key of its own)
+    double fitMargin{1.12};             // the share of the area's size left around it when the area is fitted (1.12 on screen; a saved picture is tighter)
     double centerLon{-96.0}, centerLat{38.0}, pixelsPerDegree{16.0};   // pixels for a degree of latitude; a degree of longitude is shorter by the cosine of the center latitude
     bool dragging{false}, moved{false};   // moved: the person has zoomed or dragged, so a new size no longer refits the area
     QPointF dragFrom;
