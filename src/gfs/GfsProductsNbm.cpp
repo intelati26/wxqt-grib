@@ -33,6 +33,49 @@ const auto windComponents = [] (Grids& g, const Context&) {
     g["u"] = std::move(u);
     g["v"] = std::move(v);
 };
+// The mean of the cells within 50 miles (80.5 km) of each cell (a box: the width in cells follows the latitude), where there is a value; a cell with none stays without. The nice outlook's ingredients
+// and the gross index's score are smoothed with it (a map of the weather people can plan by, not of every ridge and valley).
+const auto smoothMiles = [] (std::vector<float>& v, int rows, int columns, double lat0, double step) {
+    const double radiusKm = 80.5;
+    const float none = std::numeric_limits<float>::quiet_NaN();
+    const int ry = std::max(1, static_cast<int>(std::lround(radiusKm / (111.32 * step))));
+    std::vector<float> across(v.size(), none);
+    std::vector<double> sum(static_cast<size_t>(std::max(rows, columns)) + 1), number(static_cast<size_t>(std::max(rows, columns)) + 1);
+    for (int row = 0; row < rows; row++) {
+        const double lat = lat0 - row * step;
+        const int rx = std::min(columns / 2, static_cast<int>(std::lround(ry / std::max(0.2, std::cos(lat * pi / 180.0)))));
+        for (int column = 0; column < columns; column++) {
+            const float value = v[static_cast<size_t>(row) * static_cast<size_t>(columns) + static_cast<size_t>(column)];
+            sum[static_cast<size_t>(column) + 1] = sum[static_cast<size_t>(column)] + (std::isnan(value) ? 0.0 : value);
+            number[static_cast<size_t>(column) + 1] = number[static_cast<size_t>(column)] + (std::isnan(value) ? 0.0 : 1.0);
+        }
+        for (int column = 0; column < columns; column++) {
+            const int lo = std::max(0, column - rx), hi = std::min(columns - 1, column + rx);
+            const double n = number[static_cast<size_t>(hi) + 1] - number[static_cast<size_t>(lo)];
+            if (n > 0.0) {
+                across[static_cast<size_t>(row) * static_cast<size_t>(columns) + static_cast<size_t>(column)] = static_cast<float>((sum[static_cast<size_t>(hi) + 1] - sum[static_cast<size_t>(lo)]) / n);
+            }
+        }
+    }
+    std::vector<float> result(v.size(), none);
+    for (int column = 0; column < columns; column++) {
+        for (int row = 0; row < rows; row++) {
+            const float value = across[static_cast<size_t>(row) * static_cast<size_t>(columns) + static_cast<size_t>(column)];
+            sum[static_cast<size_t>(row) + 1] = sum[static_cast<size_t>(row)] + (std::isnan(value) ? 0.0 : value);
+            number[static_cast<size_t>(row) + 1] = number[static_cast<size_t>(row)] + (std::isnan(value) ? 0.0 : 1.0);
+        }
+        for (int row = 0; row < rows; row++) {
+            const int lo = std::max(0, row - ry), hi = std::min(rows - 1, row + ry);
+            const double n = number[static_cast<size_t>(hi) + 1] - number[static_cast<size_t>(lo)];
+            const size_t at = static_cast<size_t>(row) * static_cast<size_t>(columns) + static_cast<size_t>(column);
+            if (n > 0.0 && !std::isnan(v[at])) {   // (not past the edge of the data)
+                result[at] = static_cast<float>((sum[static_cast<size_t>(hi) + 1] - sum[static_cast<size_t>(lo)]) / n);
+            }
+        }
+    }
+    v = std::move(result);
+};
+
 const auto nbmSurface = [&] (const char * id, const char * label, const char * variable, const char * level, const Ramp& ramp, const char * title, Quantity quantity, double step) {
     Product x;
     x.source = "NBM";
@@ -342,47 +385,8 @@ for (const std::string source : {"NBM"}) {
                 cG[at] = gustMax > 35.0 ? 1.0f : 0.0f;   // a gust over 35 mph at some hour: the share of the area around that has one is what caps
             }
         }
-        {   // the smoothing: the mean of the cells within 50 miles (a box: the width in cells follows the latitude), where there is a value
-            const double radiusKm = 80.5;
-            const int rows = shape.rows, columns = shape.columns;
-            const int ry = std::max(1, static_cast<int>(std::lround(radiusKm / (111.32 * shape.step))));
-            for (auto * v : {&cT, &cR, &cD, &cC, &cW, &cA, &cS, &cG, &cHt, &cHi, &cTx, &cTr, &cRc, &cPp, &cRm}) {
-                std::vector<float> across(cells, none);
-                std::vector<double> sum(static_cast<size_t>(std::max(rows, columns)) + 1), number(static_cast<size_t>(std::max(rows, columns)) + 1);
-                for (int row = 0; row < rows; row++) {
-                    const double lat = shape.lat0 - row * shape.step;
-                    const int rx = std::min(columns / 2, static_cast<int>(std::lround(ry / std::max(0.2, std::cos(lat * pi / 180.0)))));
-                    for (int column = 0; column < columns; column++) {
-                        const float value = (*v)[static_cast<size_t>(row) * static_cast<size_t>(columns) + static_cast<size_t>(column)];
-                        sum[static_cast<size_t>(column) + 1] = sum[static_cast<size_t>(column)] + (std::isnan(value) ? 0.0 : value);
-                        number[static_cast<size_t>(column) + 1] = number[static_cast<size_t>(column)] + (std::isnan(value) ? 0.0 : 1.0);
-                    }
-                    for (int column = 0; column < columns; column++) {
-                        const int lo = std::max(0, column - rx), hi = std::min(columns - 1, column + rx);
-                        const double n = number[static_cast<size_t>(hi) + 1] - number[static_cast<size_t>(lo)];
-                        if (n > 0.0) {
-                            across[static_cast<size_t>(row) * static_cast<size_t>(columns) + static_cast<size_t>(column)] = static_cast<float>((sum[static_cast<size_t>(hi) + 1] - sum[static_cast<size_t>(lo)]) / n);
-                        }
-                    }
-                }
-                std::vector<float> result(cells, none);
-                for (int column = 0; column < columns; column++) {
-                    for (int row = 0; row < rows; row++) {
-                        const float value = across[static_cast<size_t>(row) * static_cast<size_t>(columns) + static_cast<size_t>(column)];
-                        sum[static_cast<size_t>(row) + 1] = sum[static_cast<size_t>(row)] + (std::isnan(value) ? 0.0 : value);
-                        number[static_cast<size_t>(row) + 1] = number[static_cast<size_t>(row)] + (std::isnan(value) ? 0.0 : 1.0);
-                    }
-                    for (int row = 0; row < rows; row++) {
-                        const int lo = std::max(0, row - ry), hi = std::min(rows - 1, row + ry);
-                        const double n = number[static_cast<size_t>(hi) + 1] - number[static_cast<size_t>(lo)];
-                        const size_t at = static_cast<size_t>(row) * static_cast<size_t>(columns) + static_cast<size_t>(column);
-                        if (n > 0.0 && !std::isnan((*v)[at])) {   // (not past the edge of the data)
-                            result[at] = static_cast<float>((sum[static_cast<size_t>(hi) + 1] - sum[static_cast<size_t>(lo)]) / n);
-                        }
-                    }
-                }
-                *v = std::move(result);
-            }
+        for (auto * v : {&cT, &cR, &cD, &cC, &cW, &cA, &cS, &cG, &cHt, &cHi, &cTx, &cTr, &cRc, &cPp, &cRm}) {   // the smoothing: the mean of the cells within 50 miles
+            smoothMiles(*v, shape.rows, shape.columns, shape.lat0, shape.step);
         }
         // AirNow's air quality (the reporting areas, the cities and their surroundings) for the day: the worst category within 50 miles caps a place (Good: nothing, but an index known to be over 35
         // is not for Perfect; Moderate: Beautiful; Unhealthy for Sensitive Groups: Fair; Unhealthy and worse: no level). Where the file has nothing for the day (the forecasts go about five days
@@ -495,7 +499,9 @@ for (const std::string source : {"NBM"}) {
             // his files leave a day without a level where rain is likely (8 to 37% of his cities over 7 days, a mean chance of rain of 65%, a score but no category: a step under Decent): the day has
             // no level here when the chance of rain is 30% or over (the user, 2026-11-17: "30% or more should be blank or worse"; on the combined map blank is Meh, and the gross tiers are the worse).
             // On all of his cities, same level on days 1 to 7: 63.0 / 58.8 / 52.6 / 55.0 / 55.7 / 45.5 / 57.6% to 68.4 / 68.6 / 61.6 / 64.2 / 68.1 / 49.3 / 60.4% (20 to 25% is better on days 1 to 5, worse on 6)
-            if (!std::isnan(cRc[at]) && cRc[at] >= 30.0f) {
+            // and a cloudy day with a smaller chance (12% or over with a sky score of 40 or under) is blank too (the user, 2026-11-20: "still not enough meh (blank) days"; his blank share on days 1 to 3 is
+            // 7 / 21 / 46%, ours with the 30% alone was 3 / 12 / 44%; fitted on his cities of 20 and 21 Nov: same blank-or-not on days 1 to 3 94.6 / 86.9 / 70.3% to about 95.5 / 88.6 / 75.5%)
+            if (!std::isnan(cRc[at]) && (cRc[at] >= 30.0f || (cRc[at] >= 12.0f && cScore <= 0.40))) {
                 cap(0, 1);
             }
             if (wScore < 0.2 || gusty >= 0.05) {   // gusts over 35 mph in the area around (or a mean gust past about 31 mph) hold a place at Decent whatever its score
@@ -587,7 +593,7 @@ for (const std::string source : {"NBM"}) {
             }
             return needs;
         };
-        const auto grossDerive = [niceDerive, sampleHours, lastDay] (Grids& g, const Context& context) {
+        const auto grossDerive = [niceDerive, sampleHours, lastDay, smoothMiles] (Grids& g, const Context& context) {
             niceDerive(g, context);   // the nice levels (and the map's mask: NaN off the land of the United States), the daytime smoke
             if (!g.count("level")) {
                 return;
@@ -598,7 +604,11 @@ for (const std::string source : {"NBM"}) {
             const double runHours = QDate{1970, 1, 1}.daysTo(runDate) * 24.0 + std::atoi(context.run.cycle.c_str());
             const double target = std::floor(runHours / 24.0) + (day - 1);   // (the day as the nice outlook takes it)
             const auto hours = sampleHours(day);
+            // The score is smoothed over 50 miles like the nice ingredients, but the hard dangers are checked afterwards on each cell (the user, 2026-11-20: "the hard dangerous get checked afterwards, but 50 mile
+            // smooth"): the day's worst hour without the extremes' 50 points is what is smoothed; where an hour had a feels like of 105 F or more or -10 F or less, the cell takes the smoothed score plus 50, or its
+            // own unsmoothed score if that is more, so that a real danger is not averaged away; the smoke's 35 points go on after, from the particles already smoothed.
             auto score = level;
+            std::vector<float> danger(level.values.size(), std::nanf(""));   // the unsmoothed score (the extremes in) of the cells that had a dangerous hour
             for (int row = 0; row < level.rows; row++) {
                 for (int column = 0; column < level.columns; column++) {
                     const size_t at = static_cast<size_t>(row) * static_cast<size_t>(level.columns) + static_cast<size_t>(column);
@@ -616,7 +626,8 @@ for (const std::string source : {"NBM"}) {
                     const double normal = g.count("normal_high") ? static_cast<double>(g.at("normal_high").values[at]) : std::nan("");
                     double coldLine = 45.0, hotLine = 85.0;
                     GrossScore::lines(normal, coldLine, hotLine);
-                    double worst = -1.0;
+                    double worst = -1.0, worstDanger = -1.0;
+                    bool dangerous = false;
                     for (const int f : hours) {
                         const double local = runHours + f + zone;
                         const double dayIndex = std::floor(local / 24.0), hourOfDay = local - 24.0 * dayIndex;
@@ -640,20 +651,34 @@ for (const std::string source : {"NBM"}) {
                         hour.wind = wind;
                         hour.rainChance = chance;
                         hour.icyChance = icy;
-                        const double s = GrossScore::score(hour, coldLine, hotLine);
-                        worst = std::max(worst, s);
+                        worst = std::max(worst, GrossScore::score(hour, coldLine, hotLine, false));
+                        if (GrossScore::extreme(hour)) {
+                            dangerous = true;
+                            worstDanger = std::max(worstDanger, GrossScore::score(hour, coldLine, hotLine));
+                        }
                     }
                     if (worst < 0.0) {
                         score.values[at] = std::nanf("");
                         continue;
                     }
-                    if (g.count("s_smoke") && g.at("s_smoke").values[at] > 55.4f) {   // AQI over 150
-                        worst += 35.0;
-                    }
                     score.values[at] = static_cast<float>(worst);
+                    if (dangerous) {
+                        danger[at] = static_cast<float>(worstDanger);
+                    }
                 }
             }
-            score = GfsGrid::smoothed(score, 2);   // (a little, as the nice ingredients are)
+            smoothMiles(score.values, score.rows, score.columns, score.lat0, score.step);
+            for (size_t i = 0; i < score.values.size(); i++) {
+                if (std::isnan(score.values[i])) {
+                    continue;
+                }
+                if (!std::isnan(danger[i])) {
+                    score.values[i] = std::max(score.values[i] + 50.0f, danger[i]);
+                }
+                if (g.count("s_smoke") && g.at("s_smoke").values[i] > 55.4f) {   // AQI over 150
+                    score.values[i] += 35.0f;
+                }
+            }
             auto tier = score, both = score, named = score;
             for (size_t i = 0; i < score.values.size(); i++) {
                 const float v = score.values[i];

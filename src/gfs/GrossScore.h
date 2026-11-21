@@ -49,7 +49,13 @@ namespace GrossScore {
         double icyChance{std::nan("")};    // the chance of freezing rain plus ice pellets
     };
 
-    inline double score(const Hour& h, double coldLine = 45.0, double hotLine = 85.0) {
+    // The hours the specification calls dangerous whatever is normal: feels like 105 F or more, or -10 F or less (its 50 points).
+    inline bool extreme(const Hour& h) {
+        return h.feels >= 105.0 || h.feels <= -10.0;
+    }
+
+    // `withExtremes` false leaves the extremes' 50 points out: the part of the score that is smoothed over the area (the outlook then adds them back where the hour was dangerous: see GfsProductsNbm).
+    inline double score(const Hour& h, double coldLine = 45.0, double hotLine = 85.0, bool withExtremes = true) {
         double s = 0.0;
         s += h.feels > hotLine ? 1.5 * (h.feels - hotLine) : h.feels < coldLine ? 1.5 * (coldLine - h.feels) : 0.0;
         s += h.dew > 65.0 ? 2.5 * (h.dew - 65.0) : 0.0;
@@ -60,7 +66,7 @@ namespace GrossScore {
             s += 15.0;
         }
         s += !std::isnan(h.wind) && h.wind > 15.0 ? 1.2 * (h.wind - 15.0) : 0.0;
-        s += h.feels >= 105.0 || h.feels <= -10.0 ? 50.0 : 0.0;   // the extremes, whatever is normal
+        s += withExtremes && extreme(h) ? 50.0 : 0.0;   // the extremes, whatever is normal
         return s;
     }
 
