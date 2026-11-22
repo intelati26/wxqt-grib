@@ -37,6 +37,17 @@ namespace UtilityDrought {
         std::string title;
         std::vector<Zone> zones;
     };
+    // The CPC's 6-10 and 8-14 day outlooks (temperature or precipitation: 610temp_<yyyymmdd>.kmz ...): the areas where one category (Above, Below, Normal) has a probability of 33, 36 (normal), 40, 50 ... 90 percent.
+    struct ProbabilityZone {
+        std::string category;       // "Above", "Below", "Normal"
+        int probability{0};
+        std::vector<Polygon> shapes;
+    };
+    struct ProbabilityOutlook {
+        QDate issued, from, to;     // "Created: 11/19/2026 - Valid: 11/25/2026 - 11/29/2026"
+        std::vector<ProbabilityZone> zones;
+    };
+    bool parseProbabilityKmz(const std::string& kmz, ProbabilityOutlook& out, std::string& error);
     // the zip the CPC posts (it holds the KMZ); false with the reason when there is no outlook in it
     bool parseOutlookZip(const std::string& zip, Outlook& out, std::string& error);
 
@@ -82,6 +93,8 @@ namespace UtilityDrought {
     Raster rasterize(const Monitor& monitor, double west, double south, double east, double north, double step = 0.05);
     // 1 where the cell's center is inside the area
     std::vector<uint8_t> mask(const Raster& like, const std::vector<Area>& areas);
+    // a grid (the box and step given) of the zone each cell's center lies in, 1 for the first of `zones`, 2 for the second ... (0 where none; the zones are meant not to overlap, the later one wins)
+    Raster rasterizeZones(const std::vector<std::vector<Polygon>>& zones, double west, double south, double east, double north, double step);
 
     // the share of the masked cells (weighted by the cosine of latitude, so by area) in D0 or worse ... D4, and in none: as the Monitor's own statistics give them
     struct Share {

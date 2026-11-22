@@ -11,6 +11,7 @@
 #include "util/UtilityZip.h"
 #include "drought/DroughtRain.h"
 #include "drought/DroughtCrops.h"
+#include "drought/DroughtOutlookHistory.h"
 #include "hurricane/Coast.h"
 #include "climate/UtilityAcisClimate.h"
 #include <algorithm>
@@ -632,6 +633,102 @@ void DroughtChart::paintEvent(QPaintEvent *) {
     }
 }
 
+OutlookBars::OutlookBars(QWidget * parent) : QWidget{parent} {
+    setMinimumHeight(260);
+    offerPicture(this, "drought_cpc_outlook_shares");
+    setProperty("credit", "Source: NOAA/NWS Climate Prediction Center, 6-10 and 8-14 day outlooks (ftp.cpc.ncep.noaa.gov/GIS/us_tempprcpfcst). Shares of the area counted by wxqt.");
+}
+
+void OutlookBars::setDays(const std::vector<Day>& d, const QString& t, bool isTemperature) {
+    days = d;
+    title = t;
+    temperature = isTemperature;
+    update();
+}
+
+namespace {
+    // the bins' colors, 1 to 7 above (33 ... 90), 8 near normal, 9 to 15 below (33 ... 90); precipitation: greens for the wetter, browns for the drier
+    QColor outlookColor(int bin, bool temperature) {
+        static const char * const hotAbove[7] = {"#e6ad65", "#f58b44", "#e05a2b", "#c9302c", "#c42d46", "#7b2a3a", "#5a1d2a"};
+        static const char * const coldBelow[7] = {"#a3c1de", "#74b0d8", "#3b9ad9", "#00539b", "#2d3e78", "#20205a", "#14144a"};
+        static const char * const wet[7] = {"#b7dd9b", "#8ccf84", "#5db56a", "#2f9a5a", "#1f7a4a", "#14583a", "#0b3d2a"};
+        static const char * const dry[7] = {"#e8cfa0", "#d9b06f", "#c28a45", "#a8672b", "#85481d", "#5f3114", "#401f0b"};
+        if (bin == 8) {
+            return QColor{"#999999"};
+        }
+        if (bin >= 1 && bin <= 7) {
+            return QColor{temperature ? hotAbove[bin - 1] : wet[bin - 1]};
+        }
+        if (bin >= 9 && bin <= 15) {
+            return QColor{temperature ? coldBelow[bin - 9] : dry[bin - 9]};
+        }
+        return QColor{Qt::lightGray};
+    }
+}
+
+void OutlookBars::paintEvent(QPaintEvent *) {
+    ChartPainter p{this};
+    p.setRenderHint(QPainter::Antialiasing);
+    p.fillRect(rect(), palette().window());
+    p.setPen(palette().color(QPalette::WindowText));
+    auto font = p.font();
+    font.setPointSizeF(font.pointSizeF() * 0.9);
+    p.setFont(font);
+    const auto& order = DroughtOutlookHistory::stackOrder();
+    int keyWidth = 0;
+    for (const int bin : order) {
+        keyWidth = std::max(keyWidth, p.fontMetrics().horizontalAdvance(QString::fromStdString(DroughtOutlookHistory::label(bin, temperature))));
+    }
+    keyWidth += 26;
+    const QRectF plot{44.0, 24.0, std::max(60.0, width() - 44.0 - keyWidth - 12.0), height() - 24.0 - 22.0 - 4.0};
+    p.drawText(QRectF{4, 2, width() - 8.0, 18}, Qt::AlignLeft | Qt::AlignVCenter, p.fontMetrics().elidedText(title, Qt::ElideRight, width() - 8));
+    for (int v = 0; v <= 100; v += 20) {
+        const double y = plot.bottom() - v / 100.0 * plot.height();
+        p.setPen(palette().color(QPalette::WindowText));
+        p.drawText(QRectF{0, y - 8, plot.left() - 4, 16}, Qt::AlignRight | Qt::AlignVCenter, QString::number(v));
+    }
+    if (days.empty()) {
+        p.setPen(palette().color(QPalette::WindowText));
+        p.drawText(plot, Qt::AlignCenter, "Loading the outlooks...");
+        return;
+    }
+    const double bar = plot.width() / static_cast<double>(days.size());
+    for (size_t i = 0; i < days.size(); i++) {
+        double covered = 0.0;
+        for (int c = 1; c < 16; c++) {
+            covered += days[i].pct[static_cast<size_t>(c)];
+        }
+        if (covered <= 0.0) {
+            continue;
+        }
+        double from = plot.bottom();
+        for (const int bin : order) {
+            const double height = days[i].pct[static_cast<size_t>(bin)] / covered * plot.height();
+            if (height <= 0.0) {
+                continue;
+            }
+            const QRectF r{plot.left() + static_cast<double>(i) * bar, from - height, std::max(1.0, bar), height};
+            p.fillRect(r, outlookColor(bin, temperature));
+            from -= height;
+        }
+    }
+    p.setPen(QColor{128, 128, 128});
+    p.setBrush(Qt::NoBrush);
+    p.drawRect(plot);
+    p.setPen(palette().color(QPalette::WindowText));
+    const size_t every = std::max<size_t>(1, days.size() / 6);
+    for (size_t i = 0; i < days.size(); i += every) {
+        p.drawText(QRectF{plot.left() + (static_cast<double>(i) + 0.5) * bar - 34, plot.bottom() + 3, 68, 14}, Qt::AlignHCenter, days[i].issued.toString("MMM d"));
+    }
+    double y = plot.top() + 2.0;
+    for (auto it = order.rbegin(); it != order.rend(); ++it) {   // the key: the most above at the top, as the bars are
+        p.fillRect(QRectF{plot.right() + 10.0, y + 1.0, 14.0, 10.0}, outlookColor(*it, temperature));
+        p.setPen(palette().color(QPalette::WindowText));
+        p.drawText(QPointF{plot.right() + 28.0, y + 10.0}, QString::fromStdString(DroughtOutlookHistory::label(*it, temperature)));
+        y += 15.0;
+    }
+}
+
 DroughtViewer::DroughtViewer(Window * parent)
     : Window{parent}
     , comboWeek{this}
@@ -642,6 +739,8 @@ DroughtViewer::DroughtViewer(Window * parent)
     , comboKind{this, {"Average temperature, departure", "Maximum temperature, departure", "Minimum temperature, departure", "Rain, departure from normal", "Rain, percent of normal", "Rain, total (MRMS radar and gauges)"}}
     , comboPeriod{this, {"Last 7 days", "Last 14 days", "Last 30 days", "Last 60 days", "Last 90 days", "This month so far", "Last month", "Last 6 months", "Last 9 months", "Last 12 months"}}
     , comboOutlook{this}
+    , comboOutlookKind{this, {"6-10 day temperature", "8-14 day temperature", "6-10 day precipitation", "8-14 day precipitation"}}
+    , comboOutlookRange{this, {"Last 30 days", "Last 60 days", "Last 90 days", "Last 120 days", "Last 180 days", "Last 365 days", "Last 2 years", "Last 5 years"}}
     , comboDailyElement{this, {"Maximum temperature", "Minimum temperature"}}
     , comboDailySmooth{this, {"Daily values", "7-day mean", "14-day mean", "30-day mean"}}
     , comboDailyPeriod{this, {"This year", "Last 12 months", "Last year"}}
@@ -871,6 +970,25 @@ DroughtViewer::DroughtViewer(Window * parent)
         comboDailySmooth.connect([this] { loadDaily(); });
         comboDailyPeriod.connect([this] { loadDaily(); });
     }
+    {   // the CPC outlooks tab: how much of the area lies in each category of the 6-10 and 8-14 day outlooks, outlook by outlook
+        auto * widget = new QWidget{tabs};
+        auto * column = new QVBoxLayout{widget};
+        column->setContentsMargins(4, 4, 4, 4);
+        auto * row = new QHBoxLayout;
+        comboOutlookRange.setIndex(3);
+        row->addWidget(comboOutlookKind.getView());
+        row->addWidget(comboOutlookRange.getView());
+        auto * pictureButton = UiStandards::button(widget, "Save picture...", "Save the chart as a picture");
+        QObject::connect(pictureButton, &QPushButton::clicked, this, [this] { savePicture(outlookBars, "drought_cpc_outlooks"); });
+        row->addWidget(pictureButton);
+        row->addStretch();
+        column->addLayout(row);
+        outlookBars = new OutlookBars{widget};
+        column->addWidget(outlookBars, 1);
+        tabs->addTab(widget, "CPC outlooks");
+        comboOutlookKind.connect([this] { loadOutlookHistory(); });
+        comboOutlookRange.connect([this] { loadOutlookHistory(); });
+    }
     box.addWidgetReal(tabs, 1, Qt::Alignment{});
     box.addWidgetReal(new ActivityLabel{this});
     box.getAndShow(this);
@@ -922,7 +1040,7 @@ DroughtViewer::DroughtViewer(Window * parent)
         QTimer::singleShot(std::max(10, qEnvironmentVariableIntValue("WXQT_WAIT")) * 1000, this, [this, env] {
             const QString folder = QString::fromLocal8Bit(env);
             for (const auto& [widget, name] : std::vector<std::pair<QWidget *, QString>>{{cropsTable, "crops_table"}, {cropsChart, "crops_chart"}, {map, "monitor_map"}, {table, "monitor_table"}, {chart, "monitor_chart"},
-                                                                                     {precipTable, "normals_table"}, {historyChart, "history"}, {dailyChart, "daily"}}) {
+                                                                                     {precipTable, "normals_table"}, {historyChart, "history"}, {dailyChart, "daily"}, {outlookBars, "cpc_outlooks"}}) {
                 savePicture(widget, folder + "/" + name, true);
             }
             std::_Exit(0);
@@ -1030,6 +1148,7 @@ void DroughtViewer::loadAreas() {
                        refreshMonitor();
                        loadPrecipArea();
                        updateHistory();
+                       loadOutlookHistory();
                        loadDaily();
                        if (qEnvironmentVariableIsSet("WXQT_PICKAREA")) {   // dev: open the area picker
                            chooseArea();
@@ -1100,6 +1219,7 @@ void DroughtViewer::selectArea(const std::string& id) {
     loadDaily();
     loadCrops();
     loadCropsSeries();
+    loadOutlookHistory();
 }
 
 // What the background work brings back for the Monitor tab
@@ -1564,6 +1684,71 @@ void DroughtViewer::loadCropsSeries() {
                                           }};
                        }
                    }};
+}
+
+// The CPC outlooks tab: the area's share in each category of the outlook issued each day over the range chosen. Each day's outlook is read once (the CPC's KMZ, a few hundred KB) and kept as a small grid in
+// the drought cache; the shares are counted from the grids for the area chosen above, so a new area needs no fetching.
+void DroughtViewer::loadOutlookHistory() {
+    if (outlookBars == nullptr) {
+        return;
+    }
+    const int mine = ++outlookHistoryGeneration;
+    const auto& kind = DroughtOutlookHistory::kinds()[static_cast<size_t>(std::clamp(comboOutlookKind.getIndex(), 0, 3))];
+    static const int rangeDays[8] = {30, 60, 90, 120, 180, 365, 730, 1825};
+    const int span = rangeDays[std::clamp(comboOutlookRange.getIndex(), 0, 7)];
+    const auto areas = selectedAreas();
+    const QString place = areaId == "US" ? QString{"the contiguous U.S."} : QString::fromStdString(areas.empty() ? areaId : areas.front().name);
+    const QDate last = QDate::currentDate().addDays(-1);   // (today's outlook is out in the afternoon: asked for when it is there)
+    const QDate first = last.addDays(1 - span);
+    const QString title = "Percent of " + place + " in CPC " + QString::fromStdString(kind.name) + " categories, " + first.toString("yyyy-MM-dd") + " to " + last.toString("yyyy-MM-dd");
+    {
+        const std::lock_guard lock{outlookHistoryMutex};
+        outlookHistory.clear();
+    }
+    outlookBars->setDays({}, title + "  -  reading...", kind.temperature);
+    auto mask = std::make_shared<std::vector<uint8_t>>(UtilityDrought::mask(DroughtOutlookHistory::geometry(), areas));
+    std::vector<QDate> dates;
+    for (QDate d = first; d <= QDate::currentDate(); d = d.addDays(1)) {
+        dates.push_back(d);
+    }
+    const int total = static_cast<int>(dates.size());
+    const auto done = std::make_shared<std::atomic<int>>(0);
+    const size_t chunk = 8;
+    for (size_t at = 0; at < dates.size(); at += chunk) {
+        const std::vector<QDate> mine8(dates.begin() + static_cast<long>(at), dates.begin() + static_cast<long>(std::min(dates.size(), at + chunk)));
+        new FutureVoid{this, [this, mine, mask, mine8, done, kind] {
+                           const NetManager::Scope background{NetManager::Priority::Background};
+                           for (const auto& date : mine8) {
+                               if (mine != outlookHistoryGeneration) {
+                                   return;
+                               }
+                               UtilityDrought::Raster grid;
+                               std::string error;
+                               if (DroughtOutlookHistory::day(kind, date, grid, error)) {
+                                   OutlookBars::Day d;
+                                   d.issued = date;
+                                   d.pct = DroughtOutlookHistory::shares(grid, *mask);
+                                   const std::lock_guard lock{outlookHistoryMutex};
+                                   if (mine == outlookHistoryGeneration) {
+                                       outlookHistory.push_back(d);
+                                   }
+                               }
+                               ++*done;
+                           }
+                       },
+                       [this, mine, title, total, done, kind] {
+                           if (closed || mine != outlookHistoryGeneration) {
+                               return;
+                           }
+                           std::vector<OutlookBars::Day> days;
+                           {
+                               const std::lock_guard lock{outlookHistoryMutex};
+                               days = outlookHistory;
+                           }
+                           std::sort(days.begin(), days.end(), [] (const auto& a, const auto& b) { return a.issued < b.issued; });
+                           outlookBars->setDays(days, done->load() < total ? title + "  -  " + QString::number(done->load()) + " of " + QString::number(total) + " days read" : title, kind.temperature);
+                       }};
+    }
 }
 
 // The Crops tab: the share of each commodity in each drought category on the week's map and the change of the share of D1 or worse since the week before. The weights are the Census of

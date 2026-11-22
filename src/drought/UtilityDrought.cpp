@@ -599,6 +599,102 @@ namespace UtilityDrought {
         return r;
     }
 
+    bool parseProbabilityKmz(const std::string& kmz, ProbabilityOutlook& out, std::string& error) {
+        out = ProbabilityOutlook{};
+        std::map<std::string, std::string> files;
+        UtilityZip::read(kmz, files);
+        std::string kml;
+        for (const auto& [name, bytes] : files) {
+            if (name.size() >= 4 && name.compare(name.size() - 4, 4, ".kml") == 0) {
+                kml = bytes;
+            }
+        }
+        if (kml.empty()) {
+            error = "no map in the KMZ file";
+            return false;
+        }
+        const auto title = QRegularExpression{"Created:\\s*([0-9]{2})/([0-9]{2})/([0-9]{4})\\s*-\\s*Valid:\\s*([0-9]{2})/([0-9]{2})/([0-9]{4})\\s*-\\s*([0-9]{2})/([0-9]{2})/([0-9]{4})"}.match(QString::fromStdString(kml.substr(0, 3000)));
+        if (title.hasMatch()) {
+            out.issued = QDate{title.captured(3).toInt(), title.captured(1).toInt(), title.captured(2).toInt()};
+            out.from = QDate{title.captured(6).toInt(), title.captured(4).toInt(), title.captured(5).toInt()};
+            out.to = QDate{title.captured(9).toInt(), title.captured(7).toInt(), title.captured(8).toInt()};
+        }
+        static const QRegularExpression probability{"<td>Probability</td>\\s*<td>([0-9.]+)</td>"}, category{"<td>Category</td>\\s*<td>([A-Za-z]+)</td>"};
+        size_t from = 0;
+        std::string placemark;
+        while (element(kml, "Placemark", from, placemark)) {
+            const auto text = QString::fromStdString(placemark);
+            const auto p = probability.match(text), c = category.match(text);
+            if (!p.hasMatch() || !c.hasMatch()) {
+                continue;
+            }
+            ProbabilityZone zone;
+            zone.category = c.captured(1).toStdString();
+            zone.probability = static_cast<int>(std::lround(p.captured(1).toDouble()));
+            size_t pAt = 0;
+            std::string polygon;
+            while (element(placemark, "Polygon", pAt, polygon)) {
+                Polygon shape;
+                size_t oAt = 0;
+                std::string outer;
+                if (element(polygon, "outerBoundaryIs", oAt, outer)) {
+                    size_t cAt = 0;
+                    std::string coordinates;
+                    if (element(outer, "coordinates", cAt, coordinates)) {
+                        shape.push_back(parseCoordinates(coordinates));
+                    }
+                }
+                size_t iAt = 0;
+                std::string inner;
+                while (element(polygon, "innerBoundaryIs", iAt, inner)) {
+                    size_t cAt = 0;
+                    std::string coordinates;
+                    if (element(inner, "coordinates", cAt, coordinates)) {
+                        shape.push_back(parseCoordinates(coordinates));
+                    }
+                }
+                if (!shape.empty() && shape.front().size() >= 3) {
+                    zone.shapes.push_back(std::move(shape));
+                }
+            }
+            if (!zone.shapes.empty()) {
+                out.zones.push_back(std::move(zone));
+            }
+        }
+        if (out.zones.empty() || !out.issued.isValid()) {
+            error = "the KMZ file has no outlook";
+            return false;
+        }
+        return true;
+    }
+
+    Raster rasterizeZones(const std::vector<std::vector<Polygon>>& zones, double west, double south, double east, double north, double step) {
+        Raster r;
+        r.step = step;
+        r.west = west;
+        r.north = north;
+        r.columns = std::max(1, static_cast<int>(std::ceil((east - west) / step)));
+        r.rows = std::max(1, static_cast<int>(std::ceil((north - south) / step)));
+        QImage image{r.columns, r.rows, QImage::Format_Grayscale8};
+        image.fill(0);
+        QPainter p{&image};
+        p.setPen(Qt::NoPen);
+        for (size_t z = 0; z < zones.size() && z < 15; z++) {
+            const int gray = static_cast<int>(z + 1) * 16;
+            p.setBrush(QColor{gray, gray, gray});
+            p.drawPath(pathOf(zones[z], r));
+        }
+        p.end();
+        r.category.resize(static_cast<size_t>(r.columns) * static_cast<size_t>(r.rows));
+        for (int y = 0; y < r.rows; y++) {
+            const auto * line = image.constScanLine(y);
+            for (int x = 0; x < r.columns; x++) {
+                r.category[static_cast<size_t>(y) * static_cast<size_t>(r.columns) + static_cast<size_t>(x)] = static_cast<uint8_t>((line[x] + 8) / 16);
+            }
+        }
+        return r;
+    }
+
     std::vector<uint8_t> mask(const Raster& like, const std::vector<Area>& areas) {
         QImage image{like.columns, like.rows, QImage::Format_Grayscale8};
         image.fill(0);

@@ -6,6 +6,7 @@
 #ifndef DROUGHTVIEWER_H
 #define DROUGHTVIEWER_H
 
+#include <array>
 #include <map>
 #include <memory>
 #include <mutex>
@@ -102,6 +103,24 @@ private:
     QString title, unit, message{"Loading..."};
 };
 
+// How much of the area lies in each category of the Climate Prediction Center's outlook, outlook by outlook: one stacked bar a day (the most below normal at the bottom, near normal in the middle, the most
+// above at the top), the key at the right.
+class OutlookBars : public QWidget {
+public:
+    struct Day {
+        QDate issued;
+        std::array<double, 16> pct{};   // percent of the area by category (DroughtOutlookHistory::bin), the cells the outlook does not reach left out
+    };
+    explicit OutlookBars(QWidget * parent = nullptr);
+    void setDays(const std::vector<Day>& days, const QString& title, bool temperature);
+
+private:
+    void paintEvent(QPaintEvent *) override;
+    std::vector<Day> days;
+    QString title;
+    bool temperature{true};
+};
+
 // The drought dashboard. The area (the country, a state or a county) and the weeks to compare are chosen above the tabs and apply to all of them. The Monitor tab draws the U.S.
 // Drought Monitor's own shapes (its KMZ) over the states: the categories of the week, or the cells that moved between two weeks, with the share of the area in each category at both
 // dates and the weekly share over the last months. The precipitation and outlook tabs show the Climate Prediction Center's pictures.
@@ -131,6 +150,7 @@ private:
     void updateHistory();    // adds what the area's history file lacks (in the background), then shows it
     void loadCropsSeries();  // the Crops tab's line: the commodity's share in D0 or worse ... D4 for the area, week by week over the range chosen
     void loadCrops();        // the Crops tab: the share of each commodity in each drought category on the week's map (DroughtCrops), in the background
+    void loadOutlookHistory();   // the CPC outlooks tab: the share of the area in each category of the 6-10 or 8-14 day outlook, day by day (DroughtOutlookHistory), in the background
     void loadDaily();        // the Daily tab: the days of the period against the 1991-2020 normals, in the background
     void showHistory();      // the chosen column as a chart
     void exportHistory();   // the area's rain by month (the CPC's one degree analyses)
@@ -156,6 +176,11 @@ private:
     std::vector<DroughtChart::Week> cropsSeries;
     Text textCrops;
     int cropsGeneration{0};
+    OutlookBars * outlookBars{};
+    ComboBox comboOutlookKind, comboOutlookRange;
+    int outlookHistoryGeneration{0};
+    std::mutex outlookHistoryMutex;
+    std::vector<OutlookBars::Day> outlookHistory;
     DailyChart * dailyChart{};
     ComboBox comboDailyElement, comboDailySmooth, comboDailyPeriod;
     Text textDaily;
