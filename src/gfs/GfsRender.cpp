@@ -266,7 +266,12 @@ GfsRender::SourceCheck GfsRender::checkSource(Session& session, const std::strin
         hour = def->hours.front().step > 6 ? def->hours.front().step : 6;   // hour 0 has no accumulations: a chart is checked at a later hour
     }
     std::string detail;
-    result.ok = gfs.check(run, GfsChart::needs(*product, hour), detail);
+    auto needs = GfsChart::needs(*product, hour);
+    if (needs.empty() && product->pool.active()) {   // a pooled chart (ENS-ALL) has no needs of its own: its members are read by pooledGrids, so the model's own file is asked for the field of the first member
+        const auto& member = GfsChart::poolMembers().front();
+        needs.push_back({hour, GfsData::Want{member.tag, product->pool.variable, product->pool.level, "", "", member.stat, ""}});
+    }
+    result.ok = gfs.check(run, needs, detail);
     result.detail = "run " + run.id() + ", " + product->id + " f" + std::to_string(hour) + ": " + detail;
     return finish();
 }
