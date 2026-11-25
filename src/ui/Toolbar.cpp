@@ -33,6 +33,7 @@
 #include "misc/SevereDashboard.h"
 #include "misc/UsAlerts.h"
 #include "misc/WfoText.h"
+#include "misc/DssPacket.h"
 #include "drought/DroughtViewer.h"
 #include "models/CamsViewer.h"
 #include "mapkit/MasterMapViewer.h"
@@ -101,6 +102,7 @@ Toolbar::Toolbar(Window * parent, const function<void()>& reloadFn)
     routeItems.emplace_back("baseline_cloud_black_48dp.png", "GOES imagery, Ctrl-c", [this] { launchGoesViewer(); });
     routeItems.emplace_back("baseline_date_range_black_48dp.png", "Hourly Forecast, Ctrl-h", [this] { launchHourly(); });
     routeItems.emplace_back("baseline_info_black_48dp.png", "WFO Text products, Ctrl-a", [this] { launchWfoText(); });
+    routeItems.emplace_back("baseline_info_black_48dp.png", "Local office support packet (briefing PDF)", [this] { launchDssPacket(); });
     routeItems.emplace_back("baseline_info_black_48dp.png", "NWS notices: service changes and proposals (SCN, PNS)", [parent] { new NwsNoticesViewer{parent}; });
     routeItems.emplace_back("baseline_info_black_48dp.png", "Help and further reading: the models, why they matter, where the data comes from", [parent] { new HelpViewer{parent}; });
 
@@ -387,6 +389,10 @@ void Toolbar::rebuild() {
 
 void Toolbar::launchHourly() {
     new Hourly{parent};
+}
+
+void Toolbar::launchDssPacket() {
+    new DssPacket{parent};
 }
 
 void Toolbar::launchWfoText() {

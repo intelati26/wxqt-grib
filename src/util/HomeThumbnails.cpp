@@ -5,6 +5,9 @@
 
 #include "util/HomeThumbnails.h"
 #include "misc/FeedViewer.h"
+#include "misc/DssPacket.h"
+#include "misc/WeatherStory.h"
+#include "objects/URL.h"
 #include "misc/NiceWeatherCache.h"
 #include <QBuffer>
 #include "space/UtilitySun.h"
@@ -90,6 +93,7 @@ const vector<HomeThumbnails::Entry>& HomeThumbnails::all() {
         {"GRIB_LATEST", "Model viewer - your last model, chart and area, newest run", "grib.png", true, false},
         {"VORTEX_10MB", "Polar vortex - 10 mb wind and height, north pole (GFS)", "", true, false},
         {"VORTEX_THETA", "Polar vortex - isentropic potential vorticity, 850 K, north pole (GFS)", "", true, false},
+        {"WX_STORY", "Your forecast office's weather story (the newest in effect), with a badge when its decision support packet is in effect", "", false, false},
         {"IEM_FEATURE", "Chart of the day (Iowa Environmental Mesonet's daily feature: someone else's interesting data, credited and linked)", "", false, false},
     };
     return entries;
@@ -141,6 +145,7 @@ namespace {
         {"NICE_DAY1", {"Nice weather: day 1", "Where the daytime weather is best for being outside today or tomorrow in five levels (Decent, Fair, Nice, Beautiful, Perfect), made from the National Blend of Models' temperature, dewpoint, cloud, gusts and rain chance. A work in progress. Click for the days 1 to 7."}},
         {"GRIB_LATEST", {"Model chart", "The model, chart and area you last looked at in the Model Viewer, from the newest run."}},
         {"VORTEX_10MB", {"Polar vortex, 10 mb", "The stratospheric polar vortex as the GFS has it now: the wind speed and height at 10 mb (about 30 km) from the pole to 30 N on a polar map, the newest analysis. A click opens the master map with the same chart; its Export has the history of the vortex through the season."}},
+        {"WX_STORY", {"Weather story", "The weather story of the forecast office for your location: the newest of its graphics now in effect, with its title above. A red note shows when the office has a decision support (briefing) packet in effect. A click opens the stories, with a preview of each, their text and the buttons for the office's page and its packet."}},
         {"IEM_FEATURE", {"Chart of the day", "The Iowa Environmental Mesonet's daily feature (Iowa State University; Daryl Herzmann): a chart of the day with a note about it, as they publish it. A click opens the feed: the notes of the last weeks, with links to their site, to the tool that makes the same chart and to their \"Good chart\" survey (rate the feature Good, Bad or Abstain on their site)."}},
         {"VORTEX_THETA", {"Polar vortex, 850 K", "The polar vortex on the 850 K isentropic surface (near 10 mb): potential vorticity, wind and pressure as the GFS has it now, from the pole to 30 N on a polar map. The air does not cross an isentropic surface, so the vortex is its edge. A click opens the master map with the same chart."}},
         };
@@ -297,6 +302,50 @@ namespace {
 }
 
 QByteArray HomeThumbnails::fetch(const string& token) {
+    if (token == "WX_STORY") {   // the newest story of the location's office in effect, a title line above it, and a red note when its decision support packet is in effect
+        const auto office = Location::wfo();
+        const auto stories = WeatherStory::active(office);
+        if (stories.empty()) {
+            return {};
+        }
+        QImage picture;
+        picture.loadFromData(URL::getBytes(stories.front().imageUrl));
+        if (picture.isNull()) {
+            return {};
+        }
+        DssPacket::Result packet;
+        DssPacket::readFeed(office, packet);
+        const bool briefing = packet.feed == DssPacket::Result::Feed::Active;
+        picture = picture.scaledToWidth(640, Qt::SmoothTransformation);
+        QImage out{picture.width(), picture.height() + 38, QImage::Format_ARGB32};
+        out.fill(Qt::white);
+        QPainter p{&out};
+        p.setRenderHint(QPainter::Antialiasing, true);
+        QFont bold = p.font();
+        bold.setBold(true);
+        bold.setPixelSize(15);
+        p.setFont(bold);
+        p.setPen(Qt::black);
+        p.drawText(QRect{6, 3, out.width() - 12, 18}, Qt::AlignLeft | Qt::AlignVCenter, QString::fromStdString(stories.front().title.empty() ? office + " weather story" : stories.front().title));
+        QFont plain = p.font();
+        plain.setBold(false);
+        plain.setPixelSize(12);
+        p.setFont(plain);
+        const auto updated = stories.front().updated;
+        p.drawText(QRect{6, 21, out.width() - 12, 15}, Qt::AlignLeft | Qt::AlignVCenter, QString::fromStdString(office) + " weather story" + (updated.isValid() ? QString{", updated "} + updated.toLocalTime().toString("ddd h:mm AP") : QString{}));
+        if (briefing) {
+            p.setPen(QColor{190, 20, 20});
+            p.setFont(bold);
+            p.drawText(QRect{6, 21, out.width() - 12, 15}, Qt::AlignRight | Qt::AlignVCenter, "Briefing in effect");
+        }
+        p.drawImage(0, 38, picture);
+        p.end();
+        QByteArray bytes;
+        QBuffer buffer{&bytes};
+        buffer.open(QIODevice::WriteOnly);
+        out.save(&buffer, "PNG");
+        return bytes;
+    }
     if (token == "IEM_FEATURE") {   // the newest item of the feed (kept 30 minutes) and its picture
         FeedViewer::Item item;
         QByteArray image;

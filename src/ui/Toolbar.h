@@ -39,6 +39,7 @@ public:
     void launchRadarMosaicViewer();
     void launchLightning();
     void launchObservationSites();
+    void launchDssPacket();
     void launchObservations();
     void launchSpcMeso(const string& = "");
     ModelScreen * launchModelViewer();

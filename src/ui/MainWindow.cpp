@@ -10,6 +10,7 @@
 #include "models/AnalysisLoop.h"
 #include "gfs/GfsModels.h"
 #include "misc/FeedViewer.h"
+#include "misc/WeatherStory.h"
 #include "misc/OutlookScreen.h"
 #include "misc/UtilityOpenMeteoPressure.h"
 #include "vis/GoesViewer.h"
@@ -626,6 +627,8 @@ void MainWindow::launchImageScreen(const string& token) {
     } else if (token == "AIRNOW") {
         auto * map = new MasterMapViewer{this};   // the master map on the AirNow layer, over the country, live (the time bar has the forecast days)
         map->openAt(QDateTime::currentDateTimeUtc(), 38.0, -96.0, 2500.0, {"air/airnow"}, true);
+    } else if (token == "WX_STORY") {
+        new WeatherStoryViewer{this};   // the office's stories: a preview of each, the text, and the buttons for its page and its packet
     } else if (token == "IEM_FEATURE") {
         new FeedViewer{this, FeedViewer::iem()};   // the feed: the notes of the last weeks, with the links to the site that makes them
     } else if (token == "NICE_DAY1") {

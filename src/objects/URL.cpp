@@ -220,6 +220,35 @@ bool URL::metaFor(const QByteArray& bytes, Meta& out) {
     return true;
 }
 
+URL::Head URL::head(const string& url, const QDateTime& ifModifiedSince) {
+    Head result;
+    if (AppState::quitting) {
+        return result;
+    }
+    throttleByHost(url);
+    QNetworkAccessManager manager;
+    QNetworkRequest request{QUrl{QString::fromStdString(url)}};
+    request.setHeader(QNetworkRequest::UserAgentHeader, userAgent());
+    request.setTransferTimeout(30000);
+    request.setAttribute(QNetworkRequest::RedirectPolicyAttribute, QNetworkRequest::NoLessSafeRedirectPolicy);
+    if (KnownIntermediates::needed(request.url())) {
+        request.setSslConfiguration(KnownIntermediates::configuration());
+    }
+    if (ifModifiedSince.isValid()) {
+        request.setHeader(QNetworkRequest::IfModifiedSinceHeader, ifModifiedSince);
+    }
+    QNetworkReply * response = manager.head(request);
+    QEventLoop event;
+    QObject::connect(response, &QNetworkReply::finished, &event, &QEventLoop::quit);
+    event.exec();
+    result.status = response->attribute(QNetworkRequest::HttpStatusCodeAttribute).toInt();
+    result.lastModified = response->header(QNetworkRequest::LastModifiedHeader).toDateTime();
+    const auto length = response->header(QNetworkRequest::ContentLengthHeader);
+    result.size = length.isValid() ? length.toLongLong() : -1;
+    delete response;
+    return result;
+}
+
 string URL::getText(const string& url) {
     UtilityLog::d("getHtml " + url);
     const auto fetched = fetchWithMirror(url, QByteArray{});

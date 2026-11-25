@@ -32,6 +32,15 @@ public:
     static QByteArray getBytesRangeManaged(const string&, long long, long long);
     static QByteArray getBytesSuffixManaged(const string&, long long count);   // the last `count` bytes of the file
 
+    // A HEAD request: no body is read. `ifModifiedSince` (invalid for none) is sent as If-Modified-Since, so a 304 says the file is no newer than that. Fills the HTTP status (0 = no response),
+    // the Last-Modified header (invalid if none) and the Content-Length (-1 if none). Blocking: call it from a thread.
+    struct Head {
+        int status{0};
+        QDateTime lastModified;
+        long long size{-1};
+    };
+    static Head head(const string& url, const QDateTime& ifModifiedSince = QDateTime{});
+
     // Where a downloaded picture came from and when the server says it was
     // produced (the HTTP Last-Modified header - the radar/outlook/satellite
     // servers all send it). Recorded by getBytes() and looked up later from the
