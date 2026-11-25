@@ -25,7 +25,10 @@ vector<WeatherStory::Story> WeatherStory::active(const string& wfo) {
     vector<Story> out;
     const auto lower = WString::toLower(wfo);
     const auto now = QDateTime::currentDateTimeUtc();
-    const auto text = URL::getText("https://www.weather.gov/source/" + lower + "/WxStory/WeatherStory.xml");
+    auto text = URL::getText("https://www.weather.gov/source/" + lower + "/WxStory/WeatherStory.xml");   // Eastern and Western offices
+    if (text.find("<graphicast>") == string::npos) {
+        text = URL::getText("https://www.weather.gov/source/" + lower + "/wxstory/wxstory.xml");          // Central Region offices keep theirs under another name
+    }
     QXmlStreamReader xml{QString::fromStdString(text)};
     Story one;
     long long start = 0, end = 0;

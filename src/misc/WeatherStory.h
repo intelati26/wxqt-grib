@@ -20,7 +20,7 @@ using std::string;
 using std::vector;
 
 // A forecast office's weather story: the graphics (up to five) the office keeps on weather.gov/<office>/weatherstory. Offices publish them in one of two ways: a list at source/<office>/WxStory/
-// WeatherStory.xml (a title, a text, a window of time in effect and the picture of each), or fixed picture files, images/<office>/wxstory/Tab<n>FileL.png, replaced in place (no text; the
+// WeatherStory.xml (Central Region: source/<office>/wxstory/wxstory.xml) (a title, a text, a window of time in effect and the picture of each), or fixed picture files, images/<office>/wxstory/Tab<n>FileL.png, replaced in place (no text; the
 // upload time of the file says how new it is). The first is read when the office has it, else the second.
 namespace WeatherStory {
     struct Story {

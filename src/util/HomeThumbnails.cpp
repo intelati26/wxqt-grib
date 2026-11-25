@@ -305,17 +305,35 @@ QByteArray HomeThumbnails::fetch(const string& token) {
     if (token == "WX_STORY") {   // the newest story of the location's office in effect, a title line above it, and a red note when its decision support packet is in effect
         const auto office = Location::wfo();
         const auto stories = WeatherStory::active(office);
-        if (stories.empty()) {
-            return {};
-        }
-        QImage picture;
-        picture.loadFromData(URL::getBytes(stories.front().imageUrl));
-        if (picture.isNull()) {
-            return {};
-        }
         DssPacket::Result packet;
         DssPacket::readFeed(office, packet);
         const bool briefing = packet.feed == DssPacket::Result::Feed::Active;
+        QImage picture;
+        if (!stories.empty()) {
+            picture.loadFromData(URL::getBytes(stories.front().imageUrl));
+        }
+        if (picture.isNull()) {   // no story in effect (or its picture did not come): say so, with the packet note if there is one
+            QImage blank{640, 238, QImage::Format_ARGB32};
+            blank.fill(Qt::white);
+            QPainter q{&blank};
+            q.setRenderHint(QPainter::Antialiasing, true);
+            QFont big = q.font();
+            big.setBold(true);
+            big.setPixelSize(22);
+            q.setFont(big);
+            q.setPen(QColor{90, 90, 90});
+            q.drawText(QRect{0, 60, blank.width(), 40}, Qt::AlignCenter, QString::fromStdString(office) + ": no active weather story");
+            if (briefing) {
+                q.setPen(QColor{190, 20, 20});
+                q.drawText(QRect{0, 120, blank.width(), 40}, Qt::AlignCenter, "Briefing in effect");
+            }
+            q.end();
+            QByteArray none;
+            QBuffer noneBuffer{&none};
+            noneBuffer.open(QIODevice::WriteOnly);
+            blank.save(&noneBuffer, "PNG");
+            return none;
+        }
         picture = picture.scaledToWidth(640, Qt::SmoothTransformation);
         QImage out{picture.width(), picture.height() + 38, QImage::Format_ARGB32};
         out.fill(Qt::white);
